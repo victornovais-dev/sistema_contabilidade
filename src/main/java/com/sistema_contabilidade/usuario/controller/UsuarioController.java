@@ -1,9 +1,6 @@
 package com.sistema_contabilidade.usuario.controller;
 
-import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
-import com.sistema_contabilidade.usuario.dto.UsuarioResponse;
-import com.sistema_contabilidade.usuario.dto.UsuarioUpdateRequest;
-import com.sistema_contabilidade.usuario.model.Usuario;
+import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -31,43 +28,31 @@ public class UsuarioController {
   private final UsuarioService usuarioService;
 
   @PostMapping
-  public ResponseEntity<UsuarioResponse> criar(@Valid @RequestBody UsuarioCreateRequest request) {
-    Usuario usuario = new Usuario();
-    usuario.setNome(request.nome());
-    usuario.setEmail(request.email());
-    usuario.setSenha(request.senha());
-
-    Usuario criado = usuarioService.criar(usuario);
+  public ResponseEntity<UsuarioDto> criar(@Valid @RequestBody UsuarioDto request) {
+    UsuarioDto criado = usuarioService.save(request);
     URI location =
         ServletUriComponentsBuilder.fromCurrentRequest()
             .path("/{id}")
             .buildAndExpand(criado.getId())
             .toUri();
-    return ResponseEntity.created(location).body(UsuarioResponse.from(criado));
+    return ResponseEntity.created(location).body(criado);
   }
 
   @GetMapping
-  public ResponseEntity<List<UsuarioResponse>> listarTodos() {
-    List<UsuarioResponse> response =
-        usuarioService.listarTodos().stream().map(UsuarioResponse::from).toList();
+  public ResponseEntity<List<UsuarioDto>> listarTodos() {
+    List<UsuarioDto> response = usuarioService.listarTodos();
     return ResponseEntity.ok(response);
   }
 
   @GetMapping("/{id}")
-  public ResponseEntity<UsuarioResponse> buscarPorId(@PathVariable UUID id) {
-    Usuario usuario = usuarioService.buscarPorId(id);
-    return ResponseEntity.ok(UsuarioResponse.from(usuario));
+  public ResponseEntity<UsuarioDto> buscarPorId(@PathVariable UUID id) {
+    return ResponseEntity.ok(usuarioService.findById(id));
   }
 
   @PutMapping("/{id}")
-  public ResponseEntity<UsuarioResponse> atualizar(
-      @PathVariable UUID id, @Valid @RequestBody UsuarioUpdateRequest request) {
-    Usuario usuario = new Usuario();
-    usuario.setNome(request.nome());
-    usuario.setEmail(request.email());
-
-    Usuario atualizado = usuarioService.atualizar(id, usuario);
-    return ResponseEntity.ok(UsuarioResponse.from(atualizado));
+  public ResponseEntity<UsuarioDto> atualizar(
+      @PathVariable UUID id, @Valid @RequestBody UsuarioDto request) {
+    return ResponseEntity.ok(usuarioService.update(id, request));
   }
 
   @DeleteMapping("/{id}")

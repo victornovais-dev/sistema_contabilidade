@@ -1,11 +1,14 @@
 package com.sistema_contabilidade.usuario.service;
 
+import com.sistema_contabilidade.common.mapper.GenericModelMapperService;
+import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,26 +20,42 @@ public class UsuarioService {
 
   private final UsuarioRepository usuarioRepository;
   private final PasswordEncoder passwordEncoder;
+  @Autowired
+  private final GenericModelMapperService<Usuario, UsuarioDto> modelMapperService;
 
   @Transactional
-  public Usuario criar(Usuario usuario) {
+  public UsuarioDto save(UsuarioDto usuarioDto) {
+    Usuario usuario = modelMapperService.convertToEntity(usuarioDto, Usuario.class);
     usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
-    return usuarioRepository.save(usuario);
+    usuario = usuarioRepository.save(usuario);
+    return modelMapperService.convertToDto(usuario, UsuarioDto.class);
   }
 
   @Transactional
-  public Usuario atualizar(UUID id, Usuario usuarioAtualizado) {
+  public UsuarioDto update(UUID id, UsuarioDto usuarioDto) {
+    Usuario usuarioAtualizado = modelMapperService.convertToEntity(usuarioDto, Usuario.class);
     Usuario usuarioExistente = buscarPorId(id);
     usuarioExistente.setNome(usuarioAtualizado.getNome());
     usuarioExistente.setEmail(usuarioAtualizado.getEmail());
     if (usuarioAtualizado.getSenha() != null && !usuarioAtualizado.getSenha().isBlank()) {
       usuarioExistente.setSenha(passwordEncoder.encode(usuarioAtualizado.getSenha()));
     }
-    return usuarioRepository.save(usuarioExistente);
+    Usuario salvo = usuarioRepository.save(usuarioExistente);
+    return modelMapperService.convertToDto(salvo, UsuarioDto.class);
   }
 
-  public List<Usuario> listarTodos() {
-    return usuarioRepository.findAll();
+  public List<UsuarioDto> listarTodos() {
+    return usuarioRepository.findAll().stream()
+        .map(usuario -> modelMapperService.convertToDto(usuario, UsuarioDto.class))
+        .toList();
+  }
+
+  public UsuarioDto findById(UUID id) {
+    Usuario usuario = usuarioRepository
+        .findById(id)
+        .orElseThrow(
+            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario nao encontrado"));
+    return modelMapperService.convertToDto(usuario, UsuarioDto.class);
   }
 
   public Usuario buscarPorId(UUID id) {

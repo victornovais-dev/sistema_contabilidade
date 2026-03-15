@@ -8,6 +8,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.common.mapper.GenericModelMapperService;
+import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.util.List;
@@ -30,6 +32,7 @@ class UsuarioServiceTest {
   @Mock private UsuarioRepository usuarioRepository;
 
   @Mock private PasswordEncoder passwordEncoder;
+  @Mock private GenericModelMapperService<Usuario, UsuarioDto> modelMapperService;
 
   @InjectMocks private UsuarioService usuarioService;
 
@@ -37,18 +40,26 @@ class UsuarioServiceTest {
   @DisplayName("Deve criar usuario com sucesso")
   void criarDeveSalvarUsuario() {
     // Arrange
-    Usuario usuario =
+    UsuarioDto request = new UsuarioDto(null, "Ana", "ana@email.com", "123456");
+    Usuario entidadeEntrada = new Usuario();
+    entidadeEntrada.setNome("Ana");
+    entidadeEntrada.setEmail("ana@email.com");
+    entidadeEntrada.setSenha("123456");
+    Usuario salvo =
         novoUsuario(
             UUID.fromString("11111111-1111-1111-1111-111111111111"), "Ana", "ana@email.com");
+    UsuarioDto response = new UsuarioDto(salvo.getId(), salvo.getNome(), salvo.getEmail(), null);
+    when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
     when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
-    when(usuarioRepository.save(usuario)).thenReturn(usuario);
+    when(usuarioRepository.save(entidadeEntrada)).thenReturn(salvo);
+    when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
 
     // Act
-    Usuario resultado = usuarioService.criar(usuario);
+    UsuarioDto resultado = usuarioService.save(request);
 
     // Assert
-    assertEquals(usuario, resultado);
-    verify(usuarioRepository).save(usuario);
+    assertEquals(response, resultado);
+    verify(usuarioRepository).save(any(Usuario.class));
   }
 
   @Test
@@ -61,10 +72,16 @@ class UsuarioServiceTest {
                 UUID.fromString("11111111-1111-1111-1111-111111111111"), "Ana", "ana@email.com"),
             novoUsuario(
                 UUID.fromString("22222222-2222-2222-2222-222222222222"), "Bia", "bia@email.com"));
+    UsuarioDto response1 =
+        new UsuarioDto(usuarios.get(0).getId(), usuarios.get(0).getNome(), usuarios.get(0).getEmail(), null);
+    UsuarioDto response2 =
+        new UsuarioDto(usuarios.get(1).getId(), usuarios.get(1).getNome(), usuarios.get(1).getEmail(), null);
     when(usuarioRepository.findAll()).thenReturn(usuarios);
+    when(modelMapperService.convertToDto(usuarios.get(0), UsuarioDto.class)).thenReturn(response1);
+    when(modelMapperService.convertToDto(usuarios.get(1), UsuarioDto.class)).thenReturn(response2);
 
     // Act
-    List<Usuario> resultado = usuarioService.listarTodos();
+    List<UsuarioDto> resultado = usuarioService.listarTodos();
 
     // Assert
     assertEquals(2, resultado.size());
@@ -105,18 +122,23 @@ class UsuarioServiceTest {
 
   @Test
   @DisplayName("Deve atualizar usuario quando ele existe")
-  void atualizarQuandoExisteDeveAtualizarCampos() {
+  void updateQuandoExisteDeveAtualizarCampos() {
     // Arrange
     UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    UsuarioDto request = new UsuarioDto(null, "Ana Maria", "ana.maria@email.com", null);
+    Usuario entidadeEntrada = new Usuario();
+    entidadeEntrada.setNome("Ana Maria");
+    entidadeEntrada.setEmail("ana.maria@email.com");
     Usuario existente = novoUsuario(id, "Ana", "ana@email.com");
-    Usuario atualizacao = novoUsuario(null, "Ana Maria", "ana.maria@email.com");
     Usuario salvo = novoUsuario(id, "Ana Maria", "ana.maria@email.com");
+    UsuarioDto response = new UsuarioDto(id, "Ana Maria", "ana.maria@email.com", null);
+    when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
     when(usuarioRepository.findById(id)).thenReturn(Optional.of(existente));
-    when(passwordEncoder.encode("654321")).thenReturn("encoded-654321");
     when(usuarioRepository.save(existente)).thenReturn(salvo);
+    when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
 
     // Act
-    Usuario resultado = usuarioService.atualizar(id, atualizacao);
+    UsuarioDto resultado = usuarioService.update(id, request);
 
     // Assert
     assertEquals("Ana Maria", resultado.getNome());
@@ -129,12 +151,12 @@ class UsuarioServiceTest {
   @DisplayName("Deve retornar 404 ao atualizar usuario inexistente")
   void atualizarQuandoNaoExisteDeveLancarNotFound() {
     // Arrange
-    Usuario atualizacao = novoUsuario(null, "Ana Maria", "ana.maria@email.com");
+    UsuarioDto request = new UsuarioDto(null, "Ana Maria", "ana.maria@email.com", null);
     UUID id = UUID.fromString("99999999-9999-9999-9999-999999999999");
     when(usuarioRepository.findById(id)).thenReturn(Optional.empty());
 
     // Act / Assert
-    assertThrows(ResponseStatusException.class, () -> usuarioService.atualizar(id, atualizacao));
+    assertThrows(ResponseStatusException.class, () -> usuarioService.update(id, request));
     verify(usuarioRepository).findById(id);
     verify(usuarioRepository, never()).save(any());
   }

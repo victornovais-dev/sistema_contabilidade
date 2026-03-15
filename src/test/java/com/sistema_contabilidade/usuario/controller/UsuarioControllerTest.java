@@ -1,22 +1,16 @@
 package com.sistema_contabilidade.usuario.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
-import com.sistema_contabilidade.usuario.dto.UsuarioResponse;
-import com.sistema_contabilidade.usuario.dto.UsuarioUpdateRequest;
-import com.sistema_contabilidade.usuario.model.Usuario;
+import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -39,24 +33,20 @@ class UsuarioControllerTest {
   void criarDeveDelegarParaService() {
     // Arrange
     UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
-    UsuarioCreateRequest request = new UsuarioCreateRequest("Ana", "ana@email.com", "123456");
-    Usuario usuario = novoUsuario(id, "Ana", "ana@email.com");
-    when(usuarioService.criar(any(Usuario.class))).thenReturn(usuario);
+    UsuarioDto request = new UsuarioDto(null, "Ana", "ana@email.com", "123456");
+    UsuarioDto response = new UsuarioDto(id, "Ana", "ana@email.com", null);
+    when(usuarioService.save(request)).thenReturn(response);
     MockHttpServletRequest servletRequest = new MockHttpServletRequest();
     servletRequest.setRequestURI("/api/v1/usuarios");
     RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(servletRequest));
 
     // Act
-    ResponseEntity<UsuarioResponse> resultado = usuarioController.criar(request);
+    ResponseEntity<UsuarioDto> resultado = usuarioController.criar(request);
 
     // Assert
     assertEquals(HttpStatus.CREATED, resultado.getStatusCode());
-    assertEquals(id, resultado.getBody().id());
-    ArgumentCaptor<Usuario> captor = ArgumentCaptor.forClass(Usuario.class);
-    verify(usuarioService).criar(captor.capture());
-    assertEquals("Ana", captor.getValue().getNome());
-    assertEquals("ana@email.com", captor.getValue().getEmail());
-    assertEquals("123456", captor.getValue().getSenha());
+    assertEquals(id, resultado.getBody().getId());
+    verify(usuarioService).save(request);
     RequestContextHolder.resetRequestAttributes();
   }
 
@@ -64,16 +54,22 @@ class UsuarioControllerTest {
   @DisplayName("Deve listar usuarios delegando para o service")
   void listarTodosDeveDelegarParaService() {
     // Arrange
-    List<Usuario> usuarios =
+    List<UsuarioDto> usuarios =
         List.of(
-            novoUsuario(
-                UUID.fromString("11111111-1111-1111-1111-111111111111"), "Ana", "ana@email.com"),
-            novoUsuario(
-                UUID.fromString("22222222-2222-2222-2222-222222222222"), "Bia", "bia@email.com"));
+            new UsuarioDto(
+                UUID.fromString("11111111-1111-1111-1111-111111111111"),
+                "Ana",
+                "ana@email.com",
+                null),
+            new UsuarioDto(
+                UUID.fromString("22222222-2222-2222-2222-222222222222"),
+                "Bia",
+                "bia@email.com",
+                null));
     when(usuarioService.listarTodos()).thenReturn(usuarios);
 
     // Act
-    ResponseEntity<List<UsuarioResponse>> resultado = usuarioController.listarTodos();
+    ResponseEntity<List<UsuarioDto>> resultado = usuarioController.listarTodos();
 
     // Assert
     assertEquals(HttpStatus.OK, resultado.getStatusCode());
@@ -86,16 +82,16 @@ class UsuarioControllerTest {
   void buscarPorIdDeveDelegarParaService() {
     // Arrange
     UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
-    Usuario usuario = novoUsuario(id, "Ana", "ana@email.com");
-    when(usuarioService.buscarPorId(id)).thenReturn(usuario);
+    UsuarioDto usuario = new UsuarioDto(id, "Ana", "ana@email.com", null);
+    when(usuarioService.findById(id)).thenReturn(usuario);
 
     // Act
-    ResponseEntity<UsuarioResponse> resultado = usuarioController.buscarPorId(id);
+    ResponseEntity<UsuarioDto> resultado = usuarioController.buscarPorId(id);
 
     // Assert
     assertEquals(HttpStatus.OK, resultado.getStatusCode());
-    assertEquals(usuario.getId(), resultado.getBody().id());
-    verify(usuarioService).buscarPorId(id);
+    assertEquals(usuario.getId(), resultado.getBody().getId());
+    verify(usuarioService).findById(id);
   }
 
   @Test
@@ -103,20 +99,17 @@ class UsuarioControllerTest {
   void atualizarDeveDelegarParaService() {
     // Arrange
     UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
-    UsuarioUpdateRequest request = new UsuarioUpdateRequest("Ana Maria", "ana.maria@email.com");
-    Usuario atualizado = novoUsuario(id, "Ana Maria", "ana.maria@email.com");
-    when(usuarioService.atualizar(eq(id), any(Usuario.class))).thenReturn(atualizado);
+    UsuarioDto request = new UsuarioDto(null, "Ana Maria", "ana.maria@email.com", null);
+    UsuarioDto atualizado = new UsuarioDto(id, "Ana Maria", "ana.maria@email.com", null);
+    when(usuarioService.update(id, request)).thenReturn(atualizado);
 
     // Act
-    ResponseEntity<UsuarioResponse> resultado = usuarioController.atualizar(id, request);
+    ResponseEntity<UsuarioDto> resultado = usuarioController.atualizar(id, request);
 
     // Assert
     assertEquals(HttpStatus.OK, resultado.getStatusCode());
-    assertEquals(atualizado.getId(), resultado.getBody().id());
-    ArgumentCaptor<Usuario> captor = ArgumentCaptor.forClass(Usuario.class);
-    verify(usuarioService).atualizar(eq(id), captor.capture());
-    assertEquals("Ana Maria", captor.getValue().getNome());
-    assertEquals("ana.maria@email.com", captor.getValue().getEmail());
+    assertEquals(atualizado.getId(), resultado.getBody().getId());
+    verify(usuarioService).update(id, request);
   }
 
   @Test
@@ -130,14 +123,5 @@ class UsuarioControllerTest {
     // Assert
     assertEquals(HttpStatus.NO_CONTENT, resultado.getStatusCode());
     verify(usuarioService).deletar(id);
-  }
-
-  private Usuario novoUsuario(UUID id, String nome, String email) {
-    Usuario usuario = new Usuario();
-    usuario.setId(id);
-    usuario.setNome(nome);
-    usuario.setEmail(email);
-    usuario.setSenha("123456");
-    return usuario;
   }
 }
