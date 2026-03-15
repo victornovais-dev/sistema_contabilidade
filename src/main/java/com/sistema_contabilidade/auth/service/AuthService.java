@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.auth.service;
 
+import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
@@ -22,7 +23,7 @@ public class AuthService {
   private final CustomUserDetailsService userDetailsService;
   private final JwtService jwtService;
 
-  public String login(LoginRequest request) {
+  public JwtLoginResponse login(LoginRequest request) {
     authenticationManager.authenticate(
         new UsernamePasswordAuthenticationToken(request.email(), request.senha()));
 
@@ -34,6 +35,7 @@ public class AuthService {
                     new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais invalidas"));
 
     UserDetails userDetails = userDetailsService.loadUserByUsername(usuario.getEmail());
-    return jwtService.generateToken(userDetails);
+    String token = jwtService.generateToken(userDetails);
+    return new JwtLoginResponse(token, "Bearer");
   }
 }
