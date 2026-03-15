@@ -16,14 +16,11 @@ public class RoleNivelInitializer implements CommandLineRunner {
   @Override
   public void run(String... args) {
     for (RoleNivel roleNivel : RoleNivel.values()) {
-      roleRepository
-          .findByNome(roleNivel.name())
-          .orElseGet(
-              () -> {
-                Role role = new Role();
-                role.setNome(roleNivel.name());
-                return roleRepository.save(role);
-              });
+      if (roleRepository.findByNome(roleNivel.name()).isEmpty()) {
+        Role role = new Role();
+        role.setNome(roleNivel.name());
+        roleRepository.save(role);
+      }
     }
   }
 }

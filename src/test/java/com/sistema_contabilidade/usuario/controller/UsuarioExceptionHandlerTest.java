@@ -72,6 +72,8 @@ class UsuarioExceptionHandlerTest {
 
   private static class DummyController {
     @SuppressWarnings("unused")
-    void dummy(UsuarioCreateRequest request) {}
+    void dummy(UsuarioCreateRequest request) {
+      throw new UnsupportedOperationException("Nao deve ser chamado em teste");
+    }
   }
 }

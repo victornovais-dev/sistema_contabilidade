@@ -8,7 +8,6 @@ import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,7 +19,7 @@ public class UsuarioService {
 
   private final UsuarioRepository usuarioRepository;
   private final PasswordEncoder passwordEncoder;
-  @Autowired private final GenericModelMapperService<Usuario, UsuarioDto> modelMapperService;
+  private final GenericModelMapperService<Usuario, UsuarioDto> modelMapperService;
 
   @Transactional
   public UsuarioDto save(UsuarioDto usuarioDto) {

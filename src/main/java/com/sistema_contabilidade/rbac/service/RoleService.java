@@ -14,7 +14,6 @@ import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,12 +25,10 @@ public class RoleService {
   private final RoleRepository roleRepository;
   private final PermissaoRepository permissaoRepository;
   private final UsuarioRepository usuarioRepository;
-  @Autowired private final GenericModelMapperService<Role, RoleDto> roleModelMapperService;
+  private final GenericModelMapperService<Role, RoleDto> roleModelMapperService;
 
-  @Autowired
   private final GenericModelMapperService<Permissao, PermissaoDto> permissaoModelMapperService;
 
-  @Autowired
   private final GenericModelMapperService<Usuario, UsuarioComRolesDto> usuarioModelMapperService;
 
   @Transactional
