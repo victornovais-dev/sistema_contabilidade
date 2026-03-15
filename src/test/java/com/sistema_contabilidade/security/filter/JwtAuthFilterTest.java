@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -104,6 +105,96 @@ class JwtAuthFilterTest {
 
     filter.doFilter(request, response, chain);
 
+    verify(userDetailsService, never()).loadUserByUsername(anyString());
+  }
+
+  @Test
+  @DisplayName("Deve autenticar com token recebido por cookie quando header Authorization ausente")
+  void deveAutenticarComTokenPorCookie() throws Exception {
+    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/criar_usuario");
+    request.setCookies(new Cookie("SC_TOKEN", "token-cookie"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+
+    var userDetails =
+        User.withUsername("admin@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(jwtService.extractUsername("token-cookie")).thenReturn("admin@email.com");
+    when(userDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
+    when(jwtService.isTokenValid("token-cookie", userDetails)).thenReturn(true);
+
+    filter.doFilter(request, response, chain);
+
+    assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    verify(userDetailsService).loadUserByUsername("admin@email.com");
+  }
+
+  @Test
+  @DisplayName("Nao deve autenticar quando Bearer vem vazio")
+  void naoDeveAutenticarQuandoBearerVazio() throws Exception {
+    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
+    request.addHeader("Authorization", "Bearer ");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+
+    filter.doFilter(request, response, chain);
+
+    assertNull(SecurityContextHolder.getContext().getAuthentication());
+    verify(jwtService, never()).extractUsername(anyString());
+  }
+
+  @Test
+  @DisplayName("Deve usar cookie quando Authorization nao eh Bearer")
+  void deveUsarCookieQuandoAuthorizationNaoEhBearer() throws Exception {
+    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/criar_usuario");
+    request.addHeader("Authorization", "Basic abc123");
+    request.setCookies(new Cookie("SC_TOKEN", "token-cookie"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+
+    var userDetails =
+        User.withUsername("admin@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(jwtService.extractUsername("token-cookie")).thenReturn("admin@email.com");
+    when(userDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
+    when(jwtService.isTokenValid("token-cookie", userDetails)).thenReturn(true);
+
+    filter.doFilter(request, response, chain);
+
+    assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    verify(userDetailsService).loadUserByUsername("admin@email.com");
+  }
+
+  @Test
+  @DisplayName("Nao deve autenticar quando token de cookie nao corresponde ao nome esperado")
+  void naoDeveAutenticarQuandoCookieNaoCorresponde() throws Exception {
+    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/criar_usuario");
+    request.setCookies(new Cookie("OUTRO_TOKEN", "token-cookie"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+
+    filter.doFilter(request, response, chain);
+
+    assertNull(SecurityContextHolder.getContext().getAuthentication());
+    verify(jwtService, never()).extractUsername(anyString());
+  }
+
+  @Test
+  @DisplayName("Nao deve autenticar quando username extraido for nulo")
+  void naoDeveAutenticarQuandoUsernameExtraidoForNulo() throws Exception {
+    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
+    request.addHeader("Authorization", "Bearer token-sem-usuario");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+
+    when(jwtService.extractUsername("token-sem-usuario")).thenReturn(null);
+
+    filter.doFilter(request, response, chain);
+
+    assertNull(SecurityContextHolder.getContext().getAuthentication());
     verify(userDetailsService, never()).loadUserByUsername(anyString());
   }
 }

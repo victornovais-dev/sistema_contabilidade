@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -94,6 +95,26 @@ class CustomUserDetailsServiceTest {
             .anyMatch(authority -> authority.getAuthority().equals("usuarios:read")));
     verify(setOperations).add(key, "ROLE_ADMIN", "usuarios:read");
     verify(redisTemplate).expire(key, Duration.ofMinutes(30));
+  }
+
+  @Test
+  @DisplayName("Deve fazer fallback para banco quando Redis estiver indisponivel")
+  void deveFazerFallbackParaBancoQuandoRedisIndisponivel() {
+    Usuario usuario = criarUsuarioComRolePermissao();
+    String key = "auth:user:" + usuario.getId();
+    when(usuarioRepository.findByEmail(usuario.getEmail())).thenReturn(Optional.of(usuario));
+    when(redisTemplate.opsForSet()).thenReturn(setOperations);
+    when(setOperations.members(key))
+        .thenThrow(new RedisConnectionFailureException("redis indisponivel"));
+    when(setOperations.add(eq(key), any(String[].class)))
+        .thenThrow(new RedisConnectionFailureException("redis indisponivel"));
+    CustomUserDetailsService service =
+        new CustomUserDetailsService(usuarioRepository, redisTemplate);
+
+    UserDetails userDetails = service.loadUserByUsername(usuario.getEmail());
+
+    assertEquals(usuario.getEmail(), userDetails.getUsername());
+    assertEquals(2, userDetails.getAuthorities().size());
   }
 
   private Usuario criarUsuarioComRolePermissao() {
