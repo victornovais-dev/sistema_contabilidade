@@ -150,6 +150,32 @@ class UsuarioServiceTest {
   }
 
   @Test
+  @DisplayName("Deve atualizar senha quando informada")
+  void updateQuandoSenhaInformadaDeveCodificarSenha() {
+    UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    UsuarioDto request = new UsuarioDto(null, "Ana Maria", "ana.maria@email.com", "nova-senha");
+    Usuario entidadeEntrada = new Usuario();
+    entidadeEntrada.setNome("Ana Maria");
+    entidadeEntrada.setEmail("ana.maria@email.com");
+    entidadeEntrada.setSenha("nova-senha");
+    Usuario existente = novoUsuario(id, "Ana", "ana@email.com");
+    Usuario salvo = novoUsuario(id, "Ana Maria", "ana.maria@email.com");
+    salvo.setSenha("encoded-nova-senha");
+    UsuarioDto response = new UsuarioDto(id, "Ana Maria", "ana.maria@email.com", null);
+
+    when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
+    when(usuarioRepository.findById(id)).thenReturn(Optional.of(existente));
+    when(passwordEncoder.encode("nova-senha")).thenReturn("encoded-nova-senha");
+    when(usuarioRepository.save(existente)).thenReturn(salvo);
+    when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
+
+    UsuarioDto resultado = usuarioService.update(id, request);
+
+    assertEquals("Ana Maria", resultado.getNome());
+    assertEquals("encoded-nova-senha", existente.getSenha());
+  }
+
+  @Test
   @DisplayName("Deve retornar 404 ao atualizar usuario inexistente")
   void atualizarQuandoNaoExisteDeveLancarNotFound() {
     // Arrange
@@ -190,6 +216,32 @@ class UsuarioServiceTest {
     assertThrows(ResponseStatusException.class, () -> usuarioService.deletar(id));
     verify(usuarioRepository).findById(id);
     verify(usuarioRepository, never()).delete(any(Usuario.class));
+  }
+
+  @Test
+  @DisplayName("Deve buscar usuario dto por id quando existe")
+  void findByIdQuandoExisteDeveRetornarDto() {
+    UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    Usuario usuario = novoUsuario(id, "Ana", "ana@email.com");
+    UsuarioDto dto = new UsuarioDto(id, "Ana", "ana@email.com", null);
+    when(usuarioRepository.findById(id)).thenReturn(Optional.of(usuario));
+    when(modelMapperService.convertToDto(usuario, UsuarioDto.class)).thenReturn(dto);
+
+    UsuarioDto resultado = usuarioService.findById(id);
+
+    assertEquals(dto, resultado);
+  }
+
+  @Test
+  @DisplayName("Deve retornar 404 ao buscar usuario dto inexistente")
+  void findByIdQuandoNaoExisteDeveLancarNotFound() {
+    UUID id = UUID.fromString("99999999-9999-9999-9999-999999999999");
+    when(usuarioRepository.findById(id)).thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> usuarioService.findById(id));
+
+    assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
   }
 
   private Usuario novoUsuario(UUID id, String nome, String email) {

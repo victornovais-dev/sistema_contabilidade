@@ -2,6 +2,7 @@ package com.sistema_contabilidade.auth.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -98,5 +100,51 @@ class SessaoUsuarioServiceTest {
 
     // Act / Assert
     assertThrows(ResponseStatusException.class, () -> sessaoUsuarioService.validarSessao("token"));
+  }
+
+  @Test
+  @DisplayName("Deve lancar unauthorized para sessao inexistente")
+  void deveLancarParaSessaoInexistente() {
+    UUID sessaoId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    when(sessionCipherService.decrypt("token")).thenReturn(sessaoId);
+    when(sessaoUsuarioRepository.findByIdAndRevogadaFalse(sessaoId)).thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class, () -> sessaoUsuarioService.validarSessao("token"));
+
+    assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve revogar sessao ativa")
+  void deveRevogarSessaoAtiva() {
+    UUID sessaoId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    SessaoUsuario sessao = new SessaoUsuario();
+    sessao.setId(sessaoId);
+    sessao.setRevogada(false);
+
+    when(sessionCipherService.decrypt("token")).thenReturn(sessaoId);
+    when(sessaoUsuarioRepository.findByIdAndRevogadaFalse(sessaoId))
+        .thenReturn(Optional.of(sessao));
+
+    sessaoUsuarioService.revogarSessao("token");
+
+    assertTrue(sessao.isRevogada());
+    verify(sessaoUsuarioRepository).save(sessao);
+  }
+
+  @Test
+  @DisplayName("Deve lancar unauthorized ao revogar sessao inexistente")
+  void deveLancarAoRevogarSessaoInexistente() {
+    UUID sessaoId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    when(sessionCipherService.decrypt("token")).thenReturn(sessaoId);
+    when(sessaoUsuarioRepository.findByIdAndRevogadaFalse(sessaoId)).thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class, () -> sessaoUsuarioService.revogarSessao("token"));
+
+    assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
   }
 }

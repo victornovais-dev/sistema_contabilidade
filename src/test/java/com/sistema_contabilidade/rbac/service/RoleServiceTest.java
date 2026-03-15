@@ -63,6 +63,52 @@ class RoleServiceTest {
   }
 
   @Test
+  @DisplayName("Deve retornar conflito ao criar role existente")
+  void deveRetornarConflitoAoCriarRoleExistente() {
+    RoleService roleService = novoRoleService();
+    Role existente = new Role();
+    existente.setNome("ADMIN");
+    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(existente));
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> roleService.criarRole("ADMIN"));
+
+    assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve criar permissao")
+  void deveCriarPermissao() {
+    RoleService roleService = novoRoleService();
+
+    when(permissaoRepository.findByNome("USER_READ")).thenReturn(Optional.empty());
+    Permissao permissao = new Permissao();
+    permissao.setNome("USER_READ");
+    when(permissaoRepository.save(any(Permissao.class))).thenReturn(permissao);
+    PermissaoDto permissaoDto = new PermissaoDto(UUID.randomUUID(), "USER_READ");
+    when(permissaoModelMapperService.convertToDto(permissao, PermissaoDto.class))
+        .thenReturn(permissaoDto);
+
+    PermissaoDto resultado = roleService.criarPermissao("USER_READ");
+
+    assertEquals("USER_READ", resultado.getNome());
+  }
+
+  @Test
+  @DisplayName("Deve retornar conflito ao criar permissao existente")
+  void deveRetornarConflitoAoCriarPermissaoExistente() {
+    RoleService roleService = novoRoleService();
+    Permissao existente = new Permissao();
+    existente.setNome("USER_READ");
+    when(permissaoRepository.findByNome("USER_READ")).thenReturn(Optional.of(existente));
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> roleService.criarPermissao("USER_READ"));
+
+    assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+  }
+
+  @Test
   @DisplayName("Deve adicionar permissao na role")
   void deveAdicionarPermissaoNaRole() {
     RoleService roleService = novoRoleService();
@@ -85,6 +131,37 @@ class RoleServiceTest {
     // Assert
     assertEquals(1, resultado.getPermissoes().size());
     verify(roleRepository).save(role);
+  }
+
+  @Test
+  @DisplayName("Deve retornar not found ao adicionar permissao em role inexistente")
+  void deveRetornarNotFoundAoAdicionarPermissaoEmRoleInexistente() {
+    RoleService roleService = novoRoleService();
+    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> roleService.adicionarPermissaoNaRole("ADMIN", "USER_READ"));
+
+    assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve retornar not found ao adicionar permissao inexistente")
+  void deveRetornarNotFoundAoAdicionarPermissaoInexistente() {
+    RoleService roleService = novoRoleService();
+    Role role = new Role();
+    role.setNome("ADMIN");
+    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(role));
+    when(permissaoRepository.findByNome("USER_READ")).thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> roleService.adicionarPermissaoNaRole("ADMIN", "USER_READ"));
+
+    assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
   }
 
   @Test
@@ -116,6 +193,40 @@ class RoleServiceTest {
 
     // Assert
     assertEquals(1, resultado.getRoles().size());
+  }
+
+  @Test
+  @DisplayName("Deve retornar not found ao atribuir role para usuario inexistente")
+  void deveRetornarNotFoundAoAtribuirRoleParaUsuarioInexistente() {
+    RoleService roleService = novoRoleService();
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> roleService.atribuirRoleAoUsuario(usuarioId, "CUSTOMER"));
+
+    assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve retornar not found ao atribuir role inexistente")
+  void deveRetornarNotFoundAoAtribuirRoleInexistente() {
+    RoleService roleService = novoRoleService();
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    Usuario usuario = new Usuario();
+    usuario.setId(usuarioId);
+    usuario.setRoles(new HashSet<>());
+    when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.of(usuario));
+    when(roleRepository.findByNome("CUSTOMER")).thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> roleService.atribuirRoleAoUsuario(usuarioId, "CUSTOMER"));
+
+    assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
   }
 
   @Test
