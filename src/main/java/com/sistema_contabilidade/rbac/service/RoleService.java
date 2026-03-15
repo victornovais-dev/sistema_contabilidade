@@ -6,6 +6,7 @@ import com.sistema_contabilidade.rbac.dto.RoleDto;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.rbac.model.Permissao;
 import com.sistema_contabilidade.rbac.model.Role;
+import com.sistema_contabilidade.rbac.model.RoleNivel;
 import com.sistema_contabilidade.rbac.repository.PermissaoRepository;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.usuario.model.Usuario;
@@ -33,14 +34,15 @@ public class RoleService {
 
   @Transactional
   public RoleDto criarRole(String nome) {
+    String roleNomePadrao = parseRoleNome(nome);
     roleRepository
-        .findByNome(nome)
+        .findByNome(roleNomePadrao)
         .ifPresent(
             role -> {
               throw new ResponseStatusException(HttpStatus.CONFLICT, "Role ja existe");
-    });
+            });
     Role role = new Role();
-    role.setNome(nome);
+    role.setNome(roleNomePadrao);
     Role roleSalva = roleRepository.save(role);
     return roleModelMapperService.convertToDto(roleSalva, RoleDto.class);
   }
@@ -61,9 +63,10 @@ public class RoleService {
 
   @Transactional
   public RoleDto adicionarPermissaoNaRole(String roleNome, String permissaoNome) {
+    String roleNomePadrao = parseRoleNome(roleNome);
     Role role =
         roleRepository
-            .findByNome(roleNome)
+            .findByNome(roleNomePadrao)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Role nao encontrada"));
     Permissao permissao =
@@ -80,6 +83,7 @@ public class RoleService {
 
   @Transactional
   public UsuarioComRolesDto atribuirRoleAoUsuario(UUID usuarioId, String roleNome) {
+    String roleNomePadrao = parseRoleNome(roleNome);
     Usuario usuario =
         usuarioRepository
             .findById(usuarioId)
@@ -87,12 +91,22 @@ public class RoleService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario nao encontrado"));
     Role role =
         roleRepository
-            .findByNome(roleNome)
+            .findByNome(roleNomePadrao)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Role nao encontrada"));
 
     usuario.getRoles().add(role);
     Usuario usuarioSalvo = usuarioRepository.save(usuario);
     return usuarioModelMapperService.convertToDto(usuarioSalvo, UsuarioComRolesDto.class);
+  }
+
+  private String parseRoleNome(String nome) {
+    try {
+      return RoleNivel.fromNome(nome).name();
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Role invalida. Use: ADMIN, MANAGER, OPERATOR, SUPPORT, CUSTOMER");
+    }
   }
 }

@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.rbac.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,6 +26,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("RoleService unit tests")
@@ -99,21 +102,32 @@ class RoleServiceTest {
     usuario.setRoles(new HashSet<>());
     Role role = new Role();
     role.setId(UUID.fromString("33333333-3333-3333-3333-333333333333"));
-    role.setNome("USER");
+    role.setNome("CUSTOMER");
     when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.of(usuario));
-    when(roleRepository.findByNome("USER")).thenReturn(Optional.of(role));
+    when(roleRepository.findByNome("CUSTOMER")).thenReturn(Optional.of(role));
     when(usuarioRepository.save(any(Usuario.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
     UsuarioComRolesDto usuarioComRolesDto =
         new UsuarioComRolesDto(
-            usuarioId, "Nome", "email@email.com", Set.of(new RoleResumoDto(null, "USER")));
+            usuarioId, "Nome", "email@email.com", Set.of(new RoleResumoDto(null, "CUSTOMER")));
     when(usuarioModelMapperService.convertToDto(any(), any())).thenReturn(usuarioComRolesDto);
 
     // Act
-    UsuarioComRolesDto resultado = roleService.atribuirRoleAoUsuario(usuarioId, "USER");
+    UsuarioComRolesDto resultado = roleService.atribuirRoleAoUsuario(usuarioId, "CUSTOMER");
 
     // Assert
     assertEquals(1, resultado.getRoles().size());
+  }
+
+  @Test
+  @DisplayName("Deve retornar 400 quando role for invalida")
+  void deveRetornarBadRequestQuandoRoleInvalida() {
+    RoleService roleService = novoRoleService();
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> roleService.criarRole("USER"));
+
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
   }
 
   private RoleService novoRoleService() {

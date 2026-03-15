@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,23 +28,27 @@ public class AdminController {
   private final RoleService roleService;
 
   @PostMapping("/roles")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<RoleDto> criarRole(@Valid @RequestBody CreateRoleRequest request) {
     return ResponseEntity.ok(roleService.criarRole(request.nome()));
   }
 
   @PostMapping("/permissoes")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<PermissaoDto> criarPermissao(
       @Valid @RequestBody CreatePermissaoRequest request) {
     return ResponseEntity.ok(roleService.criarPermissao(request.nome()));
   }
 
   @PostMapping("/roles/{roleNome}/permissoes")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<RoleDto> adicionarPermissao(
       @PathVariable String roleNome, @Valid @RequestBody AssignPermissaoRequest request) {
     return ResponseEntity.ok(roleService.adicionarPermissaoNaRole(roleNome, request.permissao()));
   }
 
   @PostMapping("/usuarios/{usuarioId}/roles/{roleNome}")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<UsuarioComRolesDto> atribuirRole(
       @PathVariable UUID usuarioId, @PathVariable String roleNome) {
     return ResponseEntity.ok(roleService.atribuirRoleAoUsuario(usuarioId, roleNome));
