@@ -73,9 +73,11 @@ class UsuarioServiceTest {
             novoUsuario(
                 UUID.fromString("22222222-2222-2222-2222-222222222222"), "Bia", "bia@email.com"));
     UsuarioDto response1 =
-        new UsuarioDto(usuarios.get(0).getId(), usuarios.get(0).getNome(), usuarios.get(0).getEmail(), null);
+        new UsuarioDto(
+            usuarios.get(0).getId(), usuarios.get(0).getNome(), usuarios.get(0).getEmail(), null);
     UsuarioDto response2 =
-        new UsuarioDto(usuarios.get(1).getId(), usuarios.get(1).getNome(), usuarios.get(1).getEmail(), null);
+        new UsuarioDto(
+            usuarios.get(1).getId(), usuarios.get(1).getNome(), usuarios.get(1).getEmail(), null);
     when(usuarioRepository.findAll()).thenReturn(usuarios);
     when(modelMapperService.convertToDto(usuarios.get(0), UsuarioDto.class)).thenReturn(response1);
     when(modelMapperService.convertToDto(usuarios.get(1), UsuarioDto.class)).thenReturn(response2);

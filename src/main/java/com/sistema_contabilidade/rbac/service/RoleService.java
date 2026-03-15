@@ -27,8 +27,10 @@ public class RoleService {
   private final PermissaoRepository permissaoRepository;
   private final UsuarioRepository usuarioRepository;
   @Autowired private final GenericModelMapperService<Role, RoleDto> roleModelMapperService;
+
   @Autowired
   private final GenericModelMapperService<Permissao, PermissaoDto> permissaoModelMapperService;
+
   @Autowired
   private final GenericModelMapperService<Usuario, UsuarioComRolesDto> usuarioModelMapperService;
 
@@ -54,7 +56,7 @@ public class RoleService {
         .ifPresent(
             permissao -> {
               throw new ResponseStatusException(HttpStatus.CONFLICT, "Permissao ja existe");
-    });
+            });
     Permissao permissao = new Permissao();
     permissao.setNome(nome);
     Permissao permissaoSalva = permissaoRepository.save(permissao);
@@ -106,7 +108,8 @@ public class RoleService {
     } catch (IllegalArgumentException e) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
-          "Role invalida. Use: ADMIN, MANAGER, OPERATOR, SUPPORT, CUSTOMER");
+          "Role invalida. Use: ADMIN, MANAGER, OPERATOR, SUPPORT, CUSTOMER",
+          e);
     }
   }
 }

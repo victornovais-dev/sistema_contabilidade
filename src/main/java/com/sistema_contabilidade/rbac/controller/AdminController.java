@@ -25,30 +25,32 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AdminController {
 
+  private static final String ADMIN_ROLE = "hasRole('ADMIN')";
+
   private final RoleService roleService;
 
   @PostMapping("/roles")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_ROLE)
   public ResponseEntity<RoleDto> criarRole(@Valid @RequestBody CreateRoleRequest request) {
     return ResponseEntity.ok(roleService.criarRole(request.nome()));
   }
 
   @PostMapping("/permissoes")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_ROLE)
   public ResponseEntity<PermissaoDto> criarPermissao(
       @Valid @RequestBody CreatePermissaoRequest request) {
     return ResponseEntity.ok(roleService.criarPermissao(request.nome()));
   }
 
   @PostMapping("/roles/{roleNome}/permissoes")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_ROLE)
   public ResponseEntity<RoleDto> adicionarPermissao(
       @PathVariable String roleNome, @Valid @RequestBody AssignPermissaoRequest request) {
     return ResponseEntity.ok(roleService.adicionarPermissaoNaRole(roleNome, request.permissao()));
   }
 
   @PostMapping("/usuarios/{usuarioId}/roles/{roleNome}")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_ROLE)
   public ResponseEntity<UsuarioComRolesDto> atribuirRole(
       @PathVariable UUID usuarioId, @PathVariable String roleNome) {
     return ResponseEntity.ok(roleService.atribuirRoleAoUsuario(usuarioId, roleNome));

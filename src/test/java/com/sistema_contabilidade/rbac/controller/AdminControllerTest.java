@@ -63,7 +63,8 @@ class AdminControllerTest {
   void adicionarPermissaoDeveDelegarParaService() {
     AssignPermissaoRequest request = new AssignPermissaoRequest("USER_READ");
     RoleDto roleDto =
-        new RoleDto(UUID.randomUUID(), "ADMIN", Set.of(new PermissaoDto(UUID.randomUUID(), "USER_READ")));
+        new RoleDto(
+            UUID.randomUUID(), "ADMIN", Set.of(new PermissaoDto(UUID.randomUUID(), "USER_READ")));
     when(roleService.adicionarPermissaoNaRole("ADMIN", "USER_READ")).thenReturn(roleDto);
 
     ResponseEntity<RoleDto> response = adminController.adicionarPermissao("ADMIN", request);

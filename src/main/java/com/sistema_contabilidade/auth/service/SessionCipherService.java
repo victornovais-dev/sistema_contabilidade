@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class SessionCipherService {
 
   private static final String ALGORITHM = "AES/GCM/NoPadding";
+  private static final int KEY_SIZE_BYTES = 32;
   private static final int IV_SIZE = 12;
   private static final int TAG_BITS = 128;
 
@@ -30,7 +31,7 @@ public class SessionCipherService {
   @PostConstruct
   void validateSecret() {
     int keyLength = cryptoSecret.getBytes(StandardCharsets.UTF_8).length;
-    if (keyLength != 32) {
+    if (keyLength != KEY_SIZE_BYTES) {
       throw new IllegalStateException("app.session.crypto-secret precisa ter 32 bytes");
     }
   }
@@ -69,7 +70,7 @@ public class SessionCipherService {
       String decrypted = new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
       return UUID.fromString(decrypted);
     } catch (Exception ex) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessao invalida");
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessao invalida", ex);
     }
   }
 

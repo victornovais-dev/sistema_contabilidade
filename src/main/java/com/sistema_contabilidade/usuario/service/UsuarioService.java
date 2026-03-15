@@ -20,8 +20,7 @@ public class UsuarioService {
 
   private final UsuarioRepository usuarioRepository;
   private final PasswordEncoder passwordEncoder;
-  @Autowired
-  private final GenericModelMapperService<Usuario, UsuarioDto> modelMapperService;
+  @Autowired private final GenericModelMapperService<Usuario, UsuarioDto> modelMapperService;
 
   @Transactional
   public UsuarioDto save(UsuarioDto usuarioDto) {
@@ -51,10 +50,11 @@ public class UsuarioService {
   }
 
   public UsuarioDto findById(UUID id) {
-    Usuario usuario = usuarioRepository
-        .findById(id)
-        .orElseThrow(
-            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario nao encontrado"));
+    Usuario usuario =
+        usuarioRepository
+            .findById(id)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario nao encontrado"));
     return modelMapperService.convertToDto(usuario, UsuarioDto.class);
   }
 

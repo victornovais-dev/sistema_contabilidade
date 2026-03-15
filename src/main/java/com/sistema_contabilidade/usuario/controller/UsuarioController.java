@@ -25,6 +25,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequiredArgsConstructor
 public class UsuarioController {
 
+  private static final String ID_PATH = "/{id}";
+
   private final UsuarioService usuarioService;
 
   @PostMapping
@@ -32,7 +34,7 @@ public class UsuarioController {
     UsuarioDto criado = usuarioService.save(request);
     URI location =
         ServletUriComponentsBuilder.fromCurrentRequest()
-            .path("/{id}")
+            .path(ID_PATH)
             .buildAndExpand(criado.getId())
             .toUri();
     return ResponseEntity.created(location).body(criado);
@@ -44,18 +46,18 @@ public class UsuarioController {
     return ResponseEntity.ok(response);
   }
 
-  @GetMapping("/{id}")
+  @GetMapping(ID_PATH)
   public ResponseEntity<UsuarioDto> buscarPorId(@PathVariable UUID id) {
     return ResponseEntity.ok(usuarioService.findById(id));
   }
 
-  @PutMapping("/{id}")
+  @PutMapping(ID_PATH)
   public ResponseEntity<UsuarioDto> atualizar(
       @PathVariable UUID id, @Valid @RequestBody UsuarioDto request) {
     return ResponseEntity.ok(usuarioService.update(id, request));
   }
 
-  @DeleteMapping("/{id}")
+  @DeleteMapping(ID_PATH)
   public ResponseEntity<Void> deletar(@PathVariable UUID id) {
     usuarioService.deletar(id);
     return ResponseEntity.noContent().build();

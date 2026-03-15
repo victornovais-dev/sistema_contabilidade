@@ -6,9 +6,19 @@ repos:
         entry: ./mvnw spotless:apply
         language: system
         pass_filenames: false
+      - id: spotless-check
+        name: Spotless Check
+        entry: ./mvnw spotless:check
+        language: system
+        pass_filenames: false
       - id: checkstyle
         name: Checkstyle
         entry: ./mvnw checkstyle:check
+        language: system
+        pass_filenames: false
+      - id: pmd
+        name: PMD
+        entry: ./mvnw pmd:check
         language: system
         pass_filenames: false
       - id: compile

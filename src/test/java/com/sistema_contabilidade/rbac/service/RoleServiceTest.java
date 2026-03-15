@@ -40,8 +40,7 @@ class RoleServiceTest {
   @Mock private UsuarioRepository usuarioRepository;
   @Mock private GenericModelMapperService<Role, RoleDto> roleModelMapperService;
   @Mock private GenericModelMapperService<Permissao, PermissaoDto> permissaoModelMapperService;
-  @Mock
-  private GenericModelMapperService<Usuario, UsuarioComRolesDto> usuarioModelMapperService;
+  @Mock private GenericModelMapperService<Usuario, UsuarioComRolesDto> usuarioModelMapperService;
 
   @Test
   @DisplayName("Deve criar role")

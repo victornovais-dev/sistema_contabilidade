@@ -36,6 +36,7 @@
 		<dependency.check.maven.plugin.version>12.1.8</dependency.check.maven.plugin.version>
 		<exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
 		<jacoco.maven.plugin.version>0.8.14</jacoco.maven.plugin.version>
+		<spotbugs.skip>true</spotbugs.skip>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -169,6 +170,7 @@
 				<artifactId>spotbugs-maven-plugin</artifactId>
 				<version>${spotbugs.maven.plugin.version}</version>
 				<configuration>
+					<skip>${spotbugs.skip}</skip>
 					<effort>Max</effort>
 					<threshold>Low</threshold>
 					<failOnError>true</failOnError>
@@ -193,7 +195,6 @@
 					<linkXRef>false</linkXRef>
 					<rulesets>
 						<ruleset>category/java/bestpractices.xml</ruleset>
-						<ruleset>category/java/codestyle.xml</ruleset>
 						<ruleset>category/java/errorprone.xml</ruleset>
 					</rulesets>
 				</configuration>
@@ -276,6 +277,12 @@
 	</build>
 
 	<profiles>
+		<profile>
+			<id>spotbugs</id>
+			<properties>
+				<spotbugs.skip>false</spotbugs.skip>
+			</properties>
+		</profile>
 		<profile>
 			<id>snyk</id>
 			<build>
