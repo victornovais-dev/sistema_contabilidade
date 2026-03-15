@@ -8,6 +8,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.GrantedAuthority;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
@@ -44,11 +47,15 @@ public class CustomUserDetailsService implements UserDetailsService {
 
   private Collection<GrantedAuthority> authoritiesFromCacheOrDb(Usuario usuario) {
     String key = "auth:user:" + usuario.getId();
-    Set<String> cached = redisTemplate.opsForSet().members(key);
-    if (cached != null && !cached.isEmpty()) {
-      return cached.stream()
-          .map(authority -> (GrantedAuthority) new SimpleGrantedAuthority(authority))
-          .toList();
+    try {
+      Set<String> cached = redisTemplate.opsForSet().members(key);
+      if (cached != null && !cached.isEmpty()) {
+        return cached.stream()
+            .map(authority -> (GrantedAuthority) new SimpleGrantedAuthority(authority))
+            .toList();
+      }
+    } catch (DataAccessException exception) {
+      log.warn("Redis indisponivel ao ler authorities. Fallback para banco.", exception);
     }
 
     List<GrantedAuthority> authorities = new ArrayList<>();
@@ -64,9 +71,13 @@ public class CustomUserDetailsService implements UserDetailsService {
             });
 
     if (!authorities.isEmpty()) {
-      List<String> names = authorities.stream().map(GrantedAuthority::getAuthority).toList();
-      redisTemplate.opsForSet().add(key, names.toArray(new String[0]));
-      redisTemplate.expire(key, Duration.ofMinutes(30));
+      try {
+        List<String> names = authorities.stream().map(GrantedAuthority::getAuthority).toList();
+        redisTemplate.opsForSet().add(key, names.toArray(new String[0]));
+        redisTemplate.expire(key, Duration.ofMinutes(30));
+      } catch (DataAccessException exception) {
+        log.warn("Redis indisponivel ao gravar authorities. Seguindo sem cache.", exception);
+      }
     }
 
     return authorities;

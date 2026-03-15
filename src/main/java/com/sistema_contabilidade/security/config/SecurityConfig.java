@@ -13,12 +13,12 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -36,7 +36,7 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) {
     try {
-      http.csrf(csrf -> csrf.csrfTokenRepository(new HttpSessionCsrfTokenRepository()))
+      http.csrf(AbstractHttpConfigurer::disable)
           .cors(Customizer.withDefaults())
           .headers(
               headers -> {
@@ -58,7 +58,30 @@ public class SecurityConfig {
               session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
           .authorizeHttpRequests(
               auth ->
-                  auth.requestMatchers("/api/v1/auth/**")
+                  auth.requestMatchers(
+                          "/",
+                          "/index.html",
+                          "/login.html",
+                          "/home.html",
+                          "/adicionar_comprovante.html",
+                          "/lista_comprovantes.html",
+                          "/relatorios.html",
+                          "/relatorio_pdf.html",
+                          "/create-user.html",
+                          "/favicon.ico")
+                      .permitAll()
+                      .requestMatchers("/criar_usuario")
+                      .hasRole("ADMIN")
+                      .requestMatchers(
+                          "/assets/**",
+                          "/partials/**",
+                          "/src/**",
+                          "/css/**",
+                          "/js/**",
+                          "/images/**",
+                          "/webjars/**")
+                      .permitAll()
+                      .requestMatchers("/api/v1/auth/**")
                       .permitAll()
                       .requestMatchers("/api/v1/admin/**")
                       .hasRole("ADMIN")

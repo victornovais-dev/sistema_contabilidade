@@ -23,6 +23,7 @@ public class UsuarioService {
 
   @Transactional
   public UsuarioDto save(UsuarioDto usuarioDto) {
+    validarEmailDuplicado(usuarioDto.getEmail(), null);
     Usuario usuario = modelMapperService.convertToEntity(usuarioDto, Usuario.class);
     usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
     usuario = usuarioRepository.save(usuario);
@@ -33,6 +34,7 @@ public class UsuarioService {
   public UsuarioDto update(UUID id, UsuarioDto usuarioDto) {
     Usuario usuarioAtualizado = modelMapperService.convertToEntity(usuarioDto, Usuario.class);
     Usuario usuarioExistente = buscarPorId(id);
+    validarEmailDuplicado(usuarioAtualizado.getEmail(), id);
     usuarioExistente.setNome(usuarioAtualizado.getNome());
     usuarioExistente.setEmail(usuarioAtualizado.getEmail());
     if (usuarioAtualizado.getSenha() != null && !usuarioAtualizado.getSenha().isBlank()) {
@@ -68,5 +70,16 @@ public class UsuarioService {
   public void deletar(UUID id) {
     Usuario usuario = buscarPorId(id);
     usuarioRepository.delete(usuario);
+  }
+
+  private void validarEmailDuplicado(String email, UUID usuarioIdIgnorado) {
+    usuarioRepository
+        .findByEmail(email)
+        .ifPresent(
+            usuario -> {
+              if (usuarioIdIgnorado == null || !usuario.getId().equals(usuarioIdIgnorado)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Email ja cadastrado");
+              }
+            });
   }
 }
