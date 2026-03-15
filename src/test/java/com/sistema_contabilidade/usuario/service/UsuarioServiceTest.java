@@ -50,6 +50,7 @@ class UsuarioServiceTest {
             UUID.fromString("11111111-1111-1111-1111-111111111111"), "Ana", "ana@email.com");
     UsuarioDto response = new UsuarioDto(salvo.getId(), salvo.getNome(), salvo.getEmail(), null);
     when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
     when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
     when(usuarioRepository.save(entidadeEntrada)).thenReturn(salvo);
     when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
@@ -136,6 +137,7 @@ class UsuarioServiceTest {
     UsuarioDto response = new UsuarioDto(id, "Ana Maria", "ana.maria@email.com", null);
     when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
     when(usuarioRepository.findById(id)).thenReturn(Optional.of(existente));
+    when(usuarioRepository.findByEmail("ana.maria@email.com")).thenReturn(Optional.empty());
     when(usuarioRepository.save(existente)).thenReturn(salvo);
     when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
 
@@ -165,6 +167,7 @@ class UsuarioServiceTest {
 
     when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
     when(usuarioRepository.findById(id)).thenReturn(Optional.of(existente));
+    when(usuarioRepository.findByEmail("ana.maria@email.com")).thenReturn(Optional.empty());
     when(passwordEncoder.encode("nova-senha")).thenReturn("encoded-nova-senha");
     when(usuarioRepository.save(existente)).thenReturn(salvo);
     when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
@@ -187,6 +190,71 @@ class UsuarioServiceTest {
     assertThrows(ResponseStatusException.class, () -> usuarioService.update(id, request));
     verify(usuarioRepository).findById(id);
     verify(usuarioRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("Deve retornar conflito ao criar usuario com email ja cadastrado")
+  void criarComEmailDuplicadoDeveRetornarConflito() {
+    UsuarioDto request = new UsuarioDto(null, "Ana", "ana@email.com", "123456");
+    Usuario existente =
+        novoUsuario(
+            UUID.fromString("11111111-1111-1111-1111-111111111111"), "Ana", "ana@email.com");
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(existente));
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> usuarioService.save(request));
+
+    assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+    assertEquals("Email ja cadastrado", ex.getReason());
+    verify(usuarioRepository, never()).save(any(Usuario.class));
+  }
+
+  @Test
+  @DisplayName("Deve permitir update quando email ja pertence ao mesmo usuario")
+  void updateComMesmoEmailDoUsuarioAtualDevePermitir() {
+    UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    UsuarioDto request = new UsuarioDto(null, "Ana Maria", "ana@email.com", null);
+    Usuario entidadeEntrada = new Usuario();
+    entidadeEntrada.setNome("Ana Maria");
+    entidadeEntrada.setEmail("ana@email.com");
+    Usuario existente = novoUsuario(id, "Ana", "ana@email.com");
+    Usuario salvo = novoUsuario(id, "Ana Maria", "ana@email.com");
+    UsuarioDto response = new UsuarioDto(id, "Ana Maria", "ana@email.com", null);
+
+    when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
+    when(usuarioRepository.findById(id)).thenReturn(Optional.of(existente));
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(existente));
+    when(usuarioRepository.save(existente)).thenReturn(salvo);
+    when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
+
+    UsuarioDto resultado = usuarioService.update(id, request);
+
+    assertEquals("Ana Maria", resultado.getNome());
+    verify(usuarioRepository).save(existente);
+  }
+
+  @Test
+  @DisplayName("Deve retornar conflito ao atualizar email para outro usuario existente")
+  void updateComEmailDeOutroUsuarioDeveRetornarConflito() {
+    UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    UUID outroId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    UsuarioDto request = new UsuarioDto(null, "Ana Maria", "bia@email.com", null);
+    Usuario entidadeEntrada = new Usuario();
+    entidadeEntrada.setNome("Ana Maria");
+    entidadeEntrada.setEmail("bia@email.com");
+    Usuario existente = novoUsuario(id, "Ana", "ana@email.com");
+    Usuario outroUsuario = novoUsuario(outroId, "Bia", "bia@email.com");
+
+    when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
+    when(usuarioRepository.findById(id)).thenReturn(Optional.of(existente));
+    when(usuarioRepository.findByEmail("bia@email.com")).thenReturn(Optional.of(outroUsuario));
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> usuarioService.update(id, request));
+
+    assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+    assertEquals("Email ja cadastrado", ex.getReason());
+    verify(usuarioRepository, never()).save(any(Usuario.class));
   }
 
   @Test
