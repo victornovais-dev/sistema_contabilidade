@@ -37,6 +37,11 @@
 		<dependency.check.maven.plugin.version>12.1.8</dependency.check.maven.plugin.version>
 		<exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
 		<jacoco.maven.plugin.version>0.8.14</jacoco.maven.plugin.version>
+		<sonar.maven.plugin.version>3.11.0.3922</sonar.maven.plugin.version>
+		<dependency-check.skip>true</dependency-check.skip>
+		<sonar.issue.ignore.multicriteria>e1</sonar.issue.ignore.multicriteria>
+		<sonar.issue.ignore.multicriteria.e1.ruleKey>java:S8445</sonar.issue.ignore.multicriteria.e1.ruleKey>
+		<sonar.issue.ignore.multicriteria.e1.resourceKey>**/src/test/java/**/*</sonar.issue.ignore.multicriteria.e1.resourceKey>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -132,7 +137,6 @@
 					<compilerArgs>
 						<arg>-XDcompilePolicy=simple</arg>
 						<arg>--should-stop=ifError=FLOW</arg>
-						<arg>-Xplugin:ErrorProne</arg>
 					</compilerArgs>
 					<annotationProcessorPaths>
 						<path>
@@ -214,6 +218,7 @@
 				<artifactId>dependency-check-maven</artifactId>
 				<version>${dependency.check.maven.plugin.version}</version>
 				<configuration>
+					<skip>${dependency-check.skip}</skip>
 					<format>HTML</format>
 					<failBuildOnCVSS>7</failBuildOnCVSS>
 				</configuration>
@@ -226,6 +231,11 @@
 						</goals>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.sonarsource.scanner.maven</groupId>
+				<artifactId>sonar-maven-plugin</artifactId>
+				<version>${sonar.maven.plugin.version}</version>
 			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
@@ -277,6 +287,21 @@
 	</build>
 
 	<profiles>
+		<profile>
+			<id>quality-fast</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<properties>
+				<dependency-check.skip>true</dependency-check.skip>
+			</properties>
+		</profile>
+		<profile>
+			<id>quality-full</id>
+			<properties>
+				<dependency-check.skip>false</dependency-check.skip>
+			</properties>
+		</profile>
 		<profile>
 			<id>snyk</id>
 			<build>

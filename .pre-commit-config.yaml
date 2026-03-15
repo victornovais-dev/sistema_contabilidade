@@ -1,33 +1,18 @@
 repos:
   - repo: local
     hooks:
-      - id: spotless-apply
-        name: Spotless Apply
-        entry: ./mvnw spotless:apply
-        language: system
-        pass_filenames: false
       - id: spotless-check
         name: Spotless Check
-        entry: ./mvnw spotless:check
+        entry: .\mvnw.cmd spotless:check
         language: system
         pass_filenames: false
-      - id: checkstyle
-        name: Checkstyle
-        entry: ./mvnw checkstyle:check
+      - id: quality-fast
+        name: Quality Fast
+        entry: .\mvnw.cmd verify -Pquality-fast
         language: system
         pass_filenames: false
-      - id: pmd
-        name: PMD
-        entry: ./mvnw pmd:check
-        language: system
-        pass_filenames: false
-      - id: compile
-        name: Compile
-        entry: ./mvnw -DskipTests compile
-        language: system
-        pass_filenames: false
-      - id: unit-tests
-        name: Unit Tests
-        entry: ./mvnw test
+      - id: sonar-report
+        name: SonarQube Report
+        entry: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sonar-precommit.ps1
         language: system
         pass_filenames: false
