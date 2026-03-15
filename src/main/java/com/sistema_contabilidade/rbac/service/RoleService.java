@@ -1,5 +1,9 @@
 package com.sistema_contabilidade.rbac.service;
 
+import com.sistema_contabilidade.common.mapper.GenericModelMapperService;
+import com.sistema_contabilidade.rbac.dto.PermissaoDto;
+import com.sistema_contabilidade.rbac.dto.RoleDto;
+import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.rbac.model.Permissao;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.PermissaoRepository;
@@ -9,6 +13,7 @@ import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -20,35 +25,42 @@ public class RoleService {
   private final RoleRepository roleRepository;
   private final PermissaoRepository permissaoRepository;
   private final UsuarioRepository usuarioRepository;
+  @Autowired private final GenericModelMapperService<Role, RoleDto> roleModelMapperService;
+  @Autowired
+  private final GenericModelMapperService<Permissao, PermissaoDto> permissaoModelMapperService;
+  @Autowired
+  private final GenericModelMapperService<Usuario, UsuarioComRolesDto> usuarioModelMapperService;
 
   @Transactional
-  public Role criarRole(String nome) {
+  public RoleDto criarRole(String nome) {
     roleRepository
         .findByNome(nome)
         .ifPresent(
             role -> {
               throw new ResponseStatusException(HttpStatus.CONFLICT, "Role ja existe");
-            });
+    });
     Role role = new Role();
     role.setNome(nome);
-    return roleRepository.save(role);
+    Role roleSalva = roleRepository.save(role);
+    return roleModelMapperService.convertToDto(roleSalva, RoleDto.class);
   }
 
   @Transactional
-  public Permissao criarPermissao(String nome) {
+  public PermissaoDto criarPermissao(String nome) {
     permissaoRepository
         .findByNome(nome)
         .ifPresent(
             permissao -> {
               throw new ResponseStatusException(HttpStatus.CONFLICT, "Permissao ja existe");
-            });
+    });
     Permissao permissao = new Permissao();
     permissao.setNome(nome);
-    return permissaoRepository.save(permissao);
+    Permissao permissaoSalva = permissaoRepository.save(permissao);
+    return permissaoModelMapperService.convertToDto(permissaoSalva, PermissaoDto.class);
   }
 
   @Transactional
-  public Role adicionarPermissaoNaRole(String roleNome, String permissaoNome) {
+  public RoleDto adicionarPermissaoNaRole(String roleNome, String permissaoNome) {
     Role role =
         roleRepository
             .findByNome(roleNome)
@@ -62,11 +74,12 @@ public class RoleService {
                     new ResponseStatusException(HttpStatus.NOT_FOUND, "Permissao nao encontrada"));
 
     role.getPermissoes().add(permissao);
-    return roleRepository.save(role);
+    Role roleSalva = roleRepository.save(role);
+    return roleModelMapperService.convertToDto(roleSalva, RoleDto.class);
   }
 
   @Transactional
-  public Usuario atribuirRoleAoUsuario(UUID usuarioId, String roleNome) {
+  public UsuarioComRolesDto atribuirRoleAoUsuario(UUID usuarioId, String roleNome) {
     Usuario usuario =
         usuarioRepository
             .findById(usuarioId)
@@ -79,6 +92,7 @@ public class RoleService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Role nao encontrada"));
 
     usuario.getRoles().add(role);
-    return usuarioRepository.save(usuario);
+    Usuario usuarioSalvo = usuarioRepository.save(usuario);
+    return usuarioModelMapperService.convertToDto(usuarioSalvo, UsuarioComRolesDto.class);
   }
 }
