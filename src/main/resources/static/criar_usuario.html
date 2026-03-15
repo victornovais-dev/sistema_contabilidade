@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Criar Usuario</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/criar_usuario.css" />
+  </head>
+  <body>
+    <div id="navbar-root"></div>
+
+    <div class="bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="page page-wide">
+      <header class="page-header">
+        <span class="chip">Usuario</span>
+        <h1>Criar usuario</h1>
+        <p>Preencha os dados para cadastrar um novo usuario.</p>
+      </header>
+
+      <section class="card">
+        <form id="create-user-form" class="form" action="#" method="post">
+          <label class="field">
+            <span>Nome</span>
+            <input id="nome" type="text" name="nome" placeholder="Nome completo" required />
+          </label>
+
+          <label class="field">
+            <span>Email</span>
+            <input id="email" type="email" name="email" placeholder="usuario@email.com" required />
+          </label>
+
+          <label class="field">
+            <span>Senha</span>
+            <input id="senha" type="password" name="senha" placeholder="Minimo 6 caracteres" minlength="6" required />
+          </label>
+
+          <button class="btn" type="submit">Criar usuario</button>
+        </form>
+        <p id="create-user-feedback" style="margin-top: 12px"></p>
+      </section>
+    </main>
+
+    <script src="assets/js/criar_usuario.js" defer></script>
+  </body>
+</html>

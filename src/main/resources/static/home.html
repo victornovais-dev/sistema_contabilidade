@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/home.css" />
+  </head>
+  <body>
+    <div id="navbar-root"></div>
+
+    <div class="bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="page page-wide">
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="chip">Bem-vindo</span>
+          <h1>Sua central de comprovantes</h1>
+          <p>
+            Organize documentos, acompanhe prazos e tenha clareza financeira em um só lugar.
+            Tudo com o mesmo visual limpo e moderno que você já viu nas outras telas.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="adicionar_comprovante.html">Adicionar comprovante</a>
+            <a class="btn btn-ghost" href="lista_comprovantes.html">Ver comprovantes</a>
+          </div>
+        </div>
+        <div class="hero-card">
+          <div class="hero-card-header">
+            <span>Resumo rápido</span>
+            <strong>Março 2026</strong>
+          </div>
+          <div class="hero-metrics">
+            <div class="metric">
+              <span class="metric-label">Comprovantes</span>
+              <strong class="metric-value">18</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Valor total</span>
+              <strong class="metric-value">R$ 32.480,00</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Último envio</span>
+              <strong class="metric-value">10/03/2026</strong>
+            </div>
+          </div>
+          <div class="hero-progress">
+            <span>Meta mensal</span>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: 68%"></div>
+            </div>
+            <small>68% concluído</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="quick-grid">
+        <article class="quick-card">
+          <h2>Adicionar comprovante</h2>
+          <p>Envie arquivos com validação automática de data e valor.</p>
+          <a class="link" href="adicionar_comprovante.html">Abrir envio</a>
+        </article>
+        <article class="quick-card">
+          <h2>Listar comprovantes</h2>
+          <p>Encontre itens por período e gerencie exclusões com segurança.</p>
+          <a class="link" href="lista_comprovantes.html">Ver lista</a>
+        </article>
+        <article class="quick-card">
+          <h2>Relatórios rápidos</h2>
+          <p>Visualize tendências e padrões para decisões mais rápidas.</p>
+          <button class="btn btn-secondary" type="button">Em breve</button>
+        </article>
+      </section>
+
+      <section class="highlights">
+        <div class="highlight">
+          <h3>Checklist do dia</h3>
+          <ul>
+            <li>Conferir comprovantes pendentes</li>
+            <li>Baixar relatórios da semana</li>
+            <li>Revisar valores acima de R$ 5.000,00</li>
+          </ul>
+        </div>
+        <div class="highlight">
+          <h3>Insights rápidos</h3>
+          <ul>
+            <li>3 comprovantes aguardando confirmação</li>
+            <li>Maior gasto: R$ 9.000,00</li>
+            <li>Período mais ativo: 02 a 10/03</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <script src="assets/js/home.js" defer></script>
+  </body>
+</html>

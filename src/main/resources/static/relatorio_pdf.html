@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Relatorio PDF</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/relatorio_pdf.css" />
+  </head>
+  <body>
+    <div id="navbar-root"></div>
+
+    <div class="bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="page page-wide">
+      <header class="page-header">
+        <span class="chip">Relatorio</span>
+        <h1>Relatorio</h1>
+      </header>
+
+      <section class="card pdf-preview">
+        <div class="pdf-sheet">
+          <header class="pdf-header">
+            <div>
+              <h2>Relatorio Financeiro</h2>
+              <p>Periodo: Marco 2026</p>
+            </div>
+            <div class="pdf-badge">PDF</div>
+          </header>
+
+          <div class="pdf-section">
+            <h3>Receitas</h3>
+            <div class="pdf-list">
+              <div class="pdf-row">
+                <span>Servico mensal</span>
+                <strong>R$ 9,0 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Projeto especial</span>
+                <strong>R$ 6,5 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Consultoria</span>
+                <strong>R$ 3,0 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Licenciamento</span>
+                <strong>R$ 2,4 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Venda pontual</span>
+                <strong>R$ 1,85 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Suporte premium</span>
+                <strong>R$ 1,2 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Treinamento</span>
+                <strong>R$ 0,95 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Comissao</span>
+                <strong>R$ 0,78 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Parceria</span>
+                <strong>R$ 0,62 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Bonus</span>
+                <strong>R$ 0,45 mi</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="pdf-section">
+            <h3>Despesas</h3>
+            <div class="pdf-list">
+              <div class="pdf-row">
+                <span>Marketing</span>
+                <strong>R$ 2,5 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Infraestrutura</span>
+                <strong>R$ 3,2 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Servicos</span>
+                <strong>R$ 1,48 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Deslocamento</span>
+                <strong>R$ 2,3 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Energia</span>
+                <strong>R$ 0,92 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Telefonia</span>
+                <strong>R$ 0,64 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Softwares</span>
+                <strong>R$ 1,12 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Manutencao</span>
+                <strong>R$ 0,86 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Impostos</span>
+                <strong>R$ 1,54 mi</strong>
+              </div>
+              <div class="pdf-row">
+                <span>Material</span>
+                <strong>R$ 0,43 mi</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="pdf-total">
+            <div>
+              <span>Receitas</span>
+              <strong class="positive">R$ 18,5 mi</strong>
+            </div>
+            <div>
+              <span>Despesas</span>
+              <strong class="negative">R$ 9,48 mi</strong>
+            </div>
+            <div>
+              <span>Orcamento</span>
+              <strong>R$ 22,0 mi</strong>
+            </div>
+            <div>
+              <span>Utilizado</span>
+              <strong>43,1%</strong>
+            </div>
+            <div>
+              <span>Saldo final</span>
+              <strong>R$ 31,02 mi</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="report-actions">
+        <button class="btn btn-primary" type="button">Baixar relatorio</button>
+      </div>
+    </main>
+
+    <script src="assets/js/relatorio_pdf.js" defer></script>
+  </body>
+</html>

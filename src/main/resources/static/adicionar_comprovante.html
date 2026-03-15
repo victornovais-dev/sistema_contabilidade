@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Registrar Gasto</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+    />
+    <link rel="stylesheet" href="assets/css/adicionar_comprovante.css" />
+  </head>
+  <body>
+    <div class="drop-overlay" aria-hidden="true">
+      <div class="drop-card">
+        <div class="drop-icon" aria-hidden="true">⤓</div>
+        <p>Solte o arquivo para anexar</p>
+      </div>
+    </div>
+
+    <div id="navbar-root"></div>
+
+    <div class="bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="page page-wide">
+      <header class="page-header">
+        <span class="chip">Novo lançamento</span>
+        <h1>Adicionar Comprovante</h1>
+        <p>Registre o valor, informe a data e anexe o comprovante.</p>
+      </header>
+
+      <section class="card card-horizontal">
+        <form class="form" action="#" method="post">
+          <div class="row row-fields">
+            <div class="field-stack">
+              <label class="field field-type">
+                <span>Tipo de comprovande</span>
+                <select name="entry_type" required>
+                  <option value="" disabled selected>Selecione</option>
+                  <option value="receita">Receita</option>
+                  <option value="despesa">Despesa</option>
+                </select>
+              </label>
+              <label class="field field-amount">
+                <span>Valor</span>
+                <input
+                  class="money-input"
+                  type="text"
+                  inputmode="decimal"
+                  name="expense"
+                  placeholder="R$ 0,00"
+                  autocomplete="off"
+                  required
+                />
+              </label>
+              <label class="field field-date">
+                <span>Data</span>
+                <input
+                  class="date-input"
+                  type="text"
+                  inputmode="numeric"
+                  name="expense_date"
+                  placeholder="dd/mm/aaaa"
+                  autocomplete="off"
+                  required
+                />
+              </label>
+            </div>
+
+            <label class="field field-file">
+              <span>Anexar comprovante</span>
+              <input
+                class="file-input"
+                id="receipt"
+                type="file"
+                name="receipt"
+                accept=".pdf,image/*"
+                required
+              />
+              <label class="btn btn-secondary file-button" for="receipt">Escolher arquivo</label>
+              <div class="file-info">
+                <small class="file-hint">Nenhum arquivo selecionado</small>
+                <div class="file-status" aria-live="polite" aria-label="Status do upload"></div>
+              </div>
+            </label>
+          </div>
+
+          <button class="btn" type="submit">Salvar</button>
+
+        </form>
+      </section>
+    </main>
+
+    <div class="confirm-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="confirm-card" role="status" aria-live="polite">
+        <div class="confirm-icon" aria-hidden="true">✓</div>
+        <h2>Comprovante enviado</h2>
+        <p>Seu comprovante foi salvo com sucesso.</p>
+        <button class="btn confirm-close" type="button">Ok</button>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="assets/js/adicionar_comprovante.js" defer></script>
+  </body>
+</html>
