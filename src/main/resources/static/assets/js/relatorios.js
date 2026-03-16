@@ -1,5 +1,4 @@
 const root = document.documentElement;
-const navbarRoot = document.querySelector("#navbar-root");
 let toggle = document.querySelector(".theme-toggle");
 
 const readCookie = (name) => {
@@ -51,19 +50,5 @@ const updateReportCounts = () => {
   });
 };
 
-if (navbarRoot) {
-  fetch("partials/navbar.html")
-    .then((response) => response.text())
-    .then((html) => {
-      navbarRoot.innerHTML = html;
-      bindThemeToggle();
-      updateReportCounts();
-    })
-    .catch(() => {
-      bindThemeToggle();
-      updateReportCounts();
-    });
-} else {
-  bindThemeToggle();
-  updateReportCounts();
-}
+bindThemeToggle();
+updateReportCounts();

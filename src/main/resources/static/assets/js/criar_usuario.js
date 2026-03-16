@@ -1,8 +1,13 @@
 const root = document.documentElement;
-const navbarRoot = document.querySelector("#navbar-root");
 const form = document.getElementById("create-user-form");
-const feedback = document.getElementById("create-user-feedback");
+const confirmOverlay = document.getElementById("create-user-feedback");
+const confirmCard = confirmOverlay.querySelector(".confirm-card");
+const feedbackOkBtn = document.getElementById("feedback-ok-btn");
+const confirmIcon = confirmOverlay.querySelector(".confirm-icon");
+const confirmTitle = confirmOverlay.querySelector(".feedback-title");
+const confirmMessage = confirmOverlay.querySelector(".feedback-message");
 let toggle = document.querySelector(".theme-toggle");
+let csrfToken = null;
 
 const readCookie = (name) => {
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -18,6 +23,21 @@ const savedTheme = readCookie("theme") || localStorage.getItem("theme");
 root.dataset.theme = savedTheme === "dark" ? "dark" : "light";
 writeCookie("theme", root.dataset.theme);
 localStorage.setItem("theme", root.dataset.theme);
+
+const carregarCsrfToken = async () => {
+  const response = await fetch("/api/v1/auth/csrf", {
+    method: "GET",
+    credentials: "same-origin",
+  });
+  if (!response.ok) {
+    throw new Error("Falha ao obter token CSRF");
+  }
+  const data = await response.json();
+  csrfToken = data.token || null;
+  if (!csrfToken) {
+    throw new Error("Token CSRF ausente na resposta");
+  }
+};
 
 const updateLabel = () => {
   if (!toggle) return;
@@ -42,40 +62,50 @@ const bindThemeToggle = () => {
   });
 };
 
-if (navbarRoot) {
-  fetch("partials/navbar.html")
-    .then((response) => response.text())
-    .then((html) => {
-      navbarRoot.innerHTML = html;
-      bindThemeToggle();
-    })
-    .catch(() => {
-      bindThemeToggle();
-    });
-} else {
-  bindThemeToggle();
-}
+bindThemeToggle();
 
 const token = localStorage.getItem("sc_access_token");
 if (!token) {
-  window.location.href = "/login.html";
+  window.location.href = "/login";
 }
+
+const showFeedback = (type, message) => {
+  confirmCard.classList.remove("is-success", "is-error");
+  confirmCard.classList.add(type === "success" ? "is-success" : "is-error");
+  confirmIcon.textContent = type === "success" ? "\u2713" : "\u2715";
+  confirmTitle.textContent = type === "success" ? "Usuario criado" : "Erro ao criar usuario";
+  confirmMessage.textContent = message || "";
+  confirmMessage.hidden = !message;
+  confirmOverlay.classList.add("is-visible");
+  confirmOverlay.setAttribute("aria-hidden", "false");
+};
+
+feedbackOkBtn.addEventListener("click", () => {
+  confirmOverlay.classList.remove("is-visible");
+  confirmOverlay.setAttribute("aria-hidden", "true");
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  feedback.textContent = "Criando usuario...";
+  confirmOverlay.classList.remove("is-visible");
+  confirmOverlay.setAttribute("aria-hidden", "true");
 
   const payload = {
     nome: document.getElementById("nome").value.trim(),
     email: document.getElementById("email").value.trim(),
     senha: document.getElementById("senha").value,
+    role: document.getElementById("role").value,
   };
 
   try {
+    if (!csrfToken) {
+      await carregarCsrfToken();
+    }
     const response = await fetch("/api/v1/usuarios", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "X-CSRF-TOKEN": csrfToken,
         Authorization: "Bearer " + token,
       },
       body: JSON.stringify(payload),
@@ -83,13 +113,13 @@ form.addEventListener("submit", async (event) => {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      feedback.textContent = data.message || data.error || "Falha ao criar usuario";
+      showFeedback("error", data.message || data.error || "Falha ao criar usuario");
       return;
     }
 
     form.reset();
-    feedback.textContent = "Usuario criado com sucesso.";
+    showFeedback("success", "");
   } catch (error) {
-    feedback.textContent = "Erro de conexao com o servidor.";
+    showFeedback("error", "Erro de conexao com o servidor.");
   }
 });

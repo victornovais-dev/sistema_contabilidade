@@ -1,5 +1,4 @@
 const root = document.documentElement;
-const navbarRoot = document.querySelector("#navbar-root");
 let toggle = document.querySelector(".theme-toggle");
 
 const readCookie = (name) => {
@@ -40,16 +39,4 @@ const bindThemeToggle = () => {
   });
 };
 
-if (navbarRoot) {
-  fetch("partials/navbar.html")
-    .then((response) => response.text())
-    .then((html) => {
-      navbarRoot.innerHTML = html;
-      bindThemeToggle();
-    })
-    .catch(() => {
-      bindThemeToggle();
-    });
-} else {
-  bindThemeToggle();
-}
+bindThemeToggle();

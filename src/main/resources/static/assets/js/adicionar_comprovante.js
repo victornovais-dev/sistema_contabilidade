@@ -1,5 +1,4 @@
 const root = document.documentElement;
-const navbarRoot = document.querySelector("#navbar-root");
 let toggle = document.querySelector(".theme-toggle");
 const fileInput = document.querySelector(".file-input");
 const fileHint = document.querySelector(".file-hint");
@@ -71,19 +70,7 @@ const bindThemeToggle = () => {
   });
 };
 
-if (navbarRoot) {
-  fetch("partials/navbar.html")
-    .then((response) => response.text())
-    .then((html) => {
-      navbarRoot.innerHTML = html;
-      bindThemeToggle();
-    })
-    .catch(() => {
-      bindThemeToggle();
-    });
-} else {
-  bindThemeToggle();
-}
+bindThemeToggle();
 
 if (fileInput && fileHint && fileStatus) {
   fileInput.addEventListener("change", () => {

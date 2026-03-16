@@ -201,6 +201,71 @@ html[data-theme="dark"] .field select {
   box-shadow: 0 16px 30px rgba(216, 75, 52, 0.34);
 }
 
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 11, 15, 0.55);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+  z-index: 10;
+}
+
+.confirm-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.confirm-card {
+  width: min(360px, 90vw);
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: 22px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.confirm-card h2 {
+  margin: 12px 0 6px;
+  font-size: 1.4rem;
+}
+
+.confirm-card p {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
+.confirm-icon {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: #2eb05e;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 1.8rem;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(46, 176, 94, 0.35);
+}
+
+.confirm-card.is-success .confirm-icon {
+  background: #2eb05e;
+  box-shadow: 0 10px 20px rgba(46, 176, 94, 0.35);
+}
+
+.confirm-card.is-error .confirm-icon {
+  background: #dc3e3e;
+  box-shadow: 0 10px 20px rgba(220, 62, 62, 0.35);
+}
+
+.confirm-close {
+  width: 100%;
+}
+
 .navbar {
   position: fixed;
   top: 0;
@@ -227,12 +292,20 @@ html[data-theme="dark"] .navbar {
   gap: 16px;
 }
 
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   font-weight: 700;
   letter-spacing: 0.3px;
+  text-decoration: none;
+  color: inherit;
 }
 
 .brand-mark {
@@ -264,6 +337,33 @@ html[data-theme="dark"] .navbar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.logout-btn {
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(249, 115, 22, 0.55);
+  background: rgba(249, 115, 22, 0.2);
+  color: #7c2d12;
+  font-weight: 600;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.22);
+}
+
+html[data-theme="dark"] .logout-btn {
+  background: rgba(249, 115, 22, 0.42);
+  color: #fff;
+  border-color: rgba(251, 146, 60, 0.72);
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.34);
+}
+
+.logout-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(216, 75, 52, 0.4);
 }
 
 html[data-theme="dark"] .theme-toggle {

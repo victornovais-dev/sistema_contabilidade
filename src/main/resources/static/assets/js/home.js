@@ -1,5 +1,4 @@
 const root = document.documentElement;
-const navbarRoot = document.querySelector("#navbar-root");
 let toggle = document.querySelector(".theme-toggle");
 const carouselTrack = document.querySelector(".carousel-track");
 const carouselPrev = document.querySelector(".carousel-btn.prev");
@@ -44,19 +43,7 @@ const bindThemeToggle = () => {
   });
 };
 
-if (navbarRoot) {
-  fetch("partials/navbar.html")
-    .then((response) => response.text())
-    .then((html) => {
-      navbarRoot.innerHTML = html;
-      bindThemeToggle();
-    })
-    .catch(() => {
-      bindThemeToggle();
-    });
-} else {
-  bindThemeToggle();
-}
+bindThemeToggle();
 
 if (carouselTrack && newsList && carouselPrev && carouselNext) {
   const getCardWidth = () => {
