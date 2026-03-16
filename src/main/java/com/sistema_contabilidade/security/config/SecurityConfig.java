@@ -13,7 +13,6 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder;
@@ -36,7 +35,7 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) {
     try {
-      http.csrf(AbstractHttpConfigurer::disable)
+      http.csrf(Customizer.withDefaults())
           .cors(Customizer.withDefaults())
           .headers(
               headers -> {
@@ -56,19 +55,19 @@ public class SecurityConfig {
               })
           .sessionManagement(
               session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+          .exceptionHandling(
+              exceptions ->
+                  exceptions.authenticationEntryPoint(
+                      (request, response, authException) -> {
+                        if (request.getRequestURI().startsWith("/api/")) {
+                          response.sendError(401);
+                          return;
+                        }
+                        response.sendRedirect("/login");
+                      }))
           .authorizeHttpRequests(
               auth ->
-                  auth.requestMatchers(
-                          "/",
-                          "/index.html",
-                          "/login.html",
-                          "/home.html",
-                          "/adicionar_comprovante.html",
-                          "/lista_comprovantes.html",
-                          "/relatorios.html",
-                          "/relatorio_pdf.html",
-                          "/create-user.html",
-                          "/favicon.ico")
+                  auth.requestMatchers("/", "/login", "/favicon.ico")
                       .permitAll()
                       .requestMatchers("/criar_usuario")
                       .hasRole("ADMIN")

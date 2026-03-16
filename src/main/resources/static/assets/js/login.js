@@ -2,6 +2,7 @@ const root = document.documentElement;
 const toggle = document.querySelector(".theme-toggle");
 const loginForm = document.getElementById("login-form");
 const feedback = document.getElementById("login-feedback");
+let csrfToken = null;
 
 const readCookie = (name) => {
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -17,6 +18,21 @@ const savedTheme = readCookie("theme") || localStorage.getItem("theme");
 root.dataset.theme = savedTheme === "dark" ? "dark" : "light";
 writeCookie("theme", root.dataset.theme);
 localStorage.setItem("theme", root.dataset.theme);
+
+const carregarCsrfToken = async () => {
+  const response = await fetch("/api/v1/auth/csrf", {
+    method: "GET",
+    credentials: "same-origin",
+  });
+  if (!response.ok) {
+    throw new Error("Falha ao obter token CSRF");
+  }
+  const data = await response.json();
+  csrfToken = data.token || null;
+  if (!csrfToken) {
+    throw new Error("Token CSRF ausente na resposta");
+  }
+};
 
 const updateLabel = () => {
   const isDark = root.dataset.theme === "dark";
@@ -45,9 +61,15 @@ loginForm.addEventListener("submit", async (event) => {
   const senha = document.getElementById("senha").value;
 
   try {
+    if (!csrfToken) {
+      await carregarCsrfToken();
+    }
     const response = await fetch("/api/v1/auth/login", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": csrfToken,
+      },
       body: JSON.stringify({ email, senha }),
     });
     const data = await response.json().catch(() => ({}));
@@ -65,7 +87,7 @@ loginForm.addEventListener("submit", async (event) => {
     localStorage.setItem("sc_access_token", data.accessToken);
     writeCookie("SC_TOKEN", data.accessToken);
     feedback.textContent = "Login realizado com sucesso. Redirecionando...";
-    window.location.href = "/home.html";
+    window.location.href = "/home";
   } catch (error) {
     feedback.textContent = "Erro de conexao com o servidor";
   }

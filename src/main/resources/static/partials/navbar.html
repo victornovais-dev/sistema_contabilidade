@@ -1,10 +1,18 @@
 <nav class="navbar">
   <div class="navbar-content">
-    <div class="brand">
+        <a class="brand" href="/home" aria-label="Ir para a home">
       <span class="brand-mark">SC</span>
       <span class="brand-name">Sistema</span>
-    </div>
+    </a>
     <div class="nav-actions">
+      <button
+        class="logout-btn"
+        type="button"
+        aria-label="Sair da conta"
+        onclick="localStorage.removeItem('sc_access_token'); document.cookie='SC_TOKEN=; Max-Age=0; path=/'; window.location.href='/login';"
+      >
+        Logout
+      </button>
       <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Alternar tema">
         <span class="theme-icon" aria-hidden="true"></span>
       </button>
