@@ -1,6 +1,10 @@
 package com.sistema_contabilidade.usuario.service;
 
 import com.sistema_contabilidade.common.mapper.GenericModelMapperService;
+import com.sistema_contabilidade.rbac.model.Role;
+import com.sistema_contabilidade.rbac.model.RoleNivel;
+import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
@@ -18,14 +22,19 @@ import org.springframework.web.server.ResponseStatusException;
 public class UsuarioService {
 
   private final UsuarioRepository usuarioRepository;
+  private final RoleRepository roleRepository;
   private final PasswordEncoder passwordEncoder;
   private final GenericModelMapperService<Usuario, UsuarioDto> modelMapperService;
 
   @Transactional
-  public UsuarioDto save(UsuarioDto usuarioDto) {
-    validarEmailDuplicado(usuarioDto.getEmail(), null);
-    Usuario usuario = modelMapperService.convertToEntity(usuarioDto, Usuario.class);
-    usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
+  public UsuarioDto save(UsuarioCreateRequest usuarioCreateRequest) {
+    validarEmailDuplicado(usuarioCreateRequest.email(), null);
+    Usuario usuario = new Usuario();
+    usuario.setNome(usuarioCreateRequest.nome());
+    usuario.setEmail(usuarioCreateRequest.email());
+    usuario.setSenha(passwordEncoder.encode(usuarioCreateRequest.senha()));
+    usuario.getRoles().clear();
+    usuario.getRoles().add(buscarRole(usuarioCreateRequest.role()));
     usuario = usuarioRepository.save(usuario);
     return modelMapperService.convertToDto(usuario, UsuarioDto.class);
   }
@@ -81,5 +90,21 @@ public class UsuarioService {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Email ja cadastrado");
               }
             });
+  }
+
+  private Role buscarRole(String roleNome) {
+    String roleNomePadrao;
+    try {
+      roleNomePadrao = RoleNivel.fromNome(roleNome).name();
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Role invalida. Use: ADMIN, MANAGER, OPERATOR, SUPPORT, CUSTOMER",
+          ex);
+    }
+    return roleRepository
+        .findByNome(roleNomePadrao)
+        .orElseThrow(
+            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Role nao encontrada"));
   }
 }

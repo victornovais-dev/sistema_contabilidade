@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import java.util.List;
@@ -33,7 +34,8 @@ class UsuarioControllerTest {
   void criarDeveDelegarParaService() {
     // Arrange
     UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
-    UsuarioDto request = new UsuarioDto(null, "Ana", "ana@email.com", "123456");
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN");
     UsuarioDto response = new UsuarioDto(id, "Ana", "ana@email.com", null);
     when(usuarioService.save(request)).thenReturn(response);
     MockHttpServletRequest servletRequest = new MockHttpServletRequest();

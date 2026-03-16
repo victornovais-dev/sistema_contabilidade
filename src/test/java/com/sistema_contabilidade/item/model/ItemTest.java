@@ -1,6 +1,5 @@
 package com.sistema_contabilidade.item.model;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.math.BigDecimal;
@@ -19,18 +18,18 @@ class ItemTest {
     BigDecimal valor = new BigDecimal("123.45");
     LocalDate data = LocalDate.of(2026, 3, 15);
     LocalDateTime horarioCriacao = LocalDateTime.of(2026, 3, 15, 18, 0, 0);
-    byte[] arquivoPdf = "pdf".getBytes();
+    String caminhoArquivoPdf = "uploads/itens/item-123.pdf";
 
     item.setValor(valor);
     item.setData(data);
     item.setHorarioCriacao(horarioCriacao);
-    item.setArquivoPdf(arquivoPdf);
+    item.setCaminhoArquivoPdf(caminhoArquivoPdf);
     item.setTipo(TipoItem.RECEITA);
 
     assertEquals(valor, item.getValor());
     assertEquals(data, item.getData());
     assertEquals(horarioCriacao, item.getHorarioCriacao());
-    assertArrayEquals(arquivoPdf, item.getArquivoPdf());
+    assertEquals(caminhoArquivoPdf, item.getCaminhoArquivoPdf());
     assertEquals(TipoItem.RECEITA, item.getTipo());
   }
 }

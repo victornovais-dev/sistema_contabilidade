@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemRepository;
+import com.sistema_contabilidade.item.service.ItemArquivoStorageService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import java.math.BigDecimal;
@@ -34,6 +35,7 @@ class ItemControllerWebMvcTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private ItemRepository itemRepository;
+  @MockitoBean private ItemArquivoStorageService itemArquivoStorageService;
   @MockitoBean private JwtService jwtService;
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
@@ -45,7 +47,7 @@ class ItemControllerWebMvcTest {
     item.setValor(new BigDecimal("10.00"));
     item.setData(LocalDate.of(2026, 3, 15));
     item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 12, 0, 0));
-    item.setArquivoPdf("pdf".getBytes());
+    item.setCaminhoArquivoPdf("uploads/itens/item-lista.pdf");
     item.setTipo(TipoItem.RECEITA);
     when(itemRepository.findAll()).thenReturn(List.of(item));
 
@@ -64,8 +66,10 @@ class ItemControllerWebMvcTest {
     item.setValor(new BigDecimal("120.50"));
     item.setData(LocalDate.of(2026, 3, 15));
     item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 18, 0, 0));
-    item.setArquivoPdf("pdf".getBytes());
+    item.setCaminhoArquivoPdf("uploads/itens/item-criado.pdf");
     item.setTipo(TipoItem.DESPESA);
+    when(itemArquivoStorageService.salvarPdf(org.mockito.ArgumentMatchers.any(byte[].class)))
+        .thenReturn("uploads/itens/item-criado.pdf");
     when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class))).thenReturn(item);
 
     mockMvc
@@ -84,6 +88,7 @@ class ItemControllerWebMvcTest {
                     """))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.valor").value(120.50))
+        .andExpect(jsonPath("$.caminhoArquivoPdf").value("uploads/itens/item-criado.pdf"))
         .andExpect(jsonPath("$.tipo").value("DESPESA"));
   }
 
@@ -96,7 +101,7 @@ class ItemControllerWebMvcTest {
     item.setValor(new BigDecimal("30.00"));
     item.setData(LocalDate.of(2026, 3, 15));
     item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 8, 30, 0));
-    item.setArquivoPdf("pdf".getBytes());
+    item.setCaminhoArquivoPdf("uploads/itens/item-busca.pdf");
     item.setTipo(TipoItem.RECEITA);
     when(itemRepository.findById(id)).thenReturn(Optional.of(item));
 

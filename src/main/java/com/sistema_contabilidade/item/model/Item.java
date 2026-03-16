@@ -7,7 +7,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,9 +38,8 @@ public class Item {
   @Column(name = "horario_criacao", nullable = false)
   private LocalDateTime horarioCriacao;
 
-  @Lob
-  @Column(name = "arquivo_pdf", nullable = false)
-  private byte[] arquivoPdf;
+  @Column(name = "caminho_arquivo_pdf", length = 500)
+  private String caminhoArquivoPdf;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)

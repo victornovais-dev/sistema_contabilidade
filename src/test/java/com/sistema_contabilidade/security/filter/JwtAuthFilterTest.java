@@ -1,7 +1,9 @@
 package com.sistema_contabilidade.security.filter;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -9,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -196,5 +199,28 @@ class JwtAuthFilterTest {
 
     assertNull(SecurityContextHolder.getContext().getAuthentication());
     verify(userDetailsService, never()).loadUserByUsername(anyString());
+  }
+
+  @Test
+  @DisplayName("Nao deve quebrar quando token estiver expirado e deve limpar cookie")
+  void naoDeveQuebrarQuandoTokenExpirado() throws Exception {
+    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
+    request.setCookies(new Cookie("SC_TOKEN", "token-expirado"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+
+    when(jwtService.extractUsername("token-expirado"))
+        .thenThrow(new ExpiredJwtException(null, null, "Token expirado"));
+
+    filter.doFilter(request, response, chain);
+
+    assertNull(SecurityContextHolder.getContext().getAuthentication());
+    verify(userDetailsService, never()).loadUserByUsername(anyString());
+    Cookie cookieLimpo = response.getCookie("SC_TOKEN");
+    assertNotNull(cookieLimpo);
+    assertEquals(0, cookieLimpo.getMaxAge());
+    assertEquals("/", cookieLimpo.getPath());
+    assertTrue(cookieLimpo.getSecure());
   }
 }

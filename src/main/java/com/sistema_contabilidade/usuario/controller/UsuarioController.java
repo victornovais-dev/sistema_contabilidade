@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.usuario.controller;
 
+import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import jakarta.validation.Valid;
@@ -30,7 +31,7 @@ public class UsuarioController {
   private final UsuarioService usuarioService;
 
   @PostMapping
-  public ResponseEntity<UsuarioDto> criar(@Valid @RequestBody UsuarioDto request) {
+  public ResponseEntity<UsuarioDto> criar(@Valid @RequestBody UsuarioCreateRequest request) {
     UsuarioDto criado = usuarioService.save(request);
     URI location =
         ServletUriComponentsBuilder.fromCurrentRequest()

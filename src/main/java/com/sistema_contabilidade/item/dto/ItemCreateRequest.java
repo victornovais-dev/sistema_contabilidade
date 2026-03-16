@@ -24,4 +24,31 @@ public record ItemCreateRequest(
   public byte[] arquivoPdf() {
     return Arrays.copyOf(arquivoPdf, arquivoPdf.length);
   }
+
+  @Override
+  @SuppressWarnings("java:S6878")
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof ItemCreateRequest other)) {
+      return false;
+    }
+    return Objects.equals(valor, other.valor)
+        && Objects.equals(data, other.data)
+        && Objects.equals(horarioCriacao, other.horarioCriacao)
+        && Arrays.equals(arquivoPdf, other.arquivoPdf)
+        && tipo == other.tipo;
+  }
+
+  @Override
+  public int hashCode() {
+    return ItemRequestArraySupport.requestHashCode(valor, data, horarioCriacao, arquivoPdf, tipo);
+  }
+
+  @Override
+  public String toString() {
+    return ItemRequestArraySupport.requestToString(
+        "ItemCreateRequest", valor, data, horarioCriacao, arquivoPdf, tipo);
+  }
 }

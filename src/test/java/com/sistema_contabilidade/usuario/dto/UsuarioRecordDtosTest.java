@@ -13,11 +13,13 @@ class UsuarioRecordDtosTest {
   @Test
   @DisplayName("Deve expor campos de UsuarioCreateRequest")
   void deveExporCamposDeUsuarioCreateRequest() {
-    UsuarioCreateRequest request = new UsuarioCreateRequest("Ana", "ana@email.com", "123456");
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN");
 
     assertEquals("Ana", request.nome());
     assertEquals("ana@email.com", request.email());
     assertEquals("123456", request.senha());
+    assertEquals("ADMIN", request.role());
   }
 
   @Test

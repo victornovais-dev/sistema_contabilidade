@@ -5,6 +5,7 @@ import com.sistema_contabilidade.item.dto.ItemResponse;
 import com.sistema_contabilidade.item.dto.ItemUpdateRequest;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.repository.ItemRepository;
+import com.sistema_contabilidade.item.service.ItemArquivoStorageService;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -34,6 +35,7 @@ public class ItemController {
   private static final String ITEM_NAO_ENCONTRADO = "Item nao encontrado";
 
   private final ItemRepository itemRepository;
+  private final ItemArquivoStorageService itemArquivoStorageService;
 
   @PostMapping
   public ResponseEntity<ItemResponse> criar(@Valid @RequestBody ItemCreateRequest request) {
@@ -41,7 +43,7 @@ public class ItemController {
     item.setValor(request.valor());
     item.setData(request.data());
     item.setHorarioCriacao(request.horarioCriacao());
-    item.setArquivoPdf(request.arquivoPdf());
+    item.setCaminhoArquivoPdf(itemArquivoStorageService.salvarPdf(request.arquivoPdf()));
     item.setTipo(request.tipo());
 
     Item salvo = itemRepository.save(item);
@@ -61,7 +63,7 @@ public class ItemController {
   }
 
   @GetMapping(ID_PATH)
-  public ResponseEntity<ItemResponse> buscarPorId(@PathVariable UUID id) {
+  public ResponseEntity<ItemResponse> buscarPorId(@PathVariable("id") UUID id) {
     Item item =
         itemRepository
             .findById(id)
@@ -72,7 +74,7 @@ public class ItemController {
 
   @PutMapping(ID_PATH)
   public ResponseEntity<ItemResponse> atualizar(
-      @PathVariable UUID id, @Valid @RequestBody ItemUpdateRequest request) {
+      @PathVariable("id") UUID id, @Valid @RequestBody ItemUpdateRequest request) {
     Item item =
         itemRepository
             .findById(id)
@@ -81,7 +83,7 @@ public class ItemController {
     item.setValor(request.valor());
     item.setData(request.data());
     item.setHorarioCriacao(request.horarioCriacao());
-    item.setArquivoPdf(request.arquivoPdf());
+    item.setCaminhoArquivoPdf(itemArquivoStorageService.salvarPdf(request.arquivoPdf()));
     item.setTipo(request.tipo());
 
     Item salvo = itemRepository.save(item);
@@ -89,7 +91,7 @@ public class ItemController {
   }
 
   @DeleteMapping(ID_PATH)
-  public ResponseEntity<Void> deletar(@PathVariable UUID id) {
+  public ResponseEntity<Void> deletar(@PathVariable("id") UUID id) {
     Item item =
         itemRepository
             .findById(id)

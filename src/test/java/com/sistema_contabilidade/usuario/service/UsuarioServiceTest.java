@@ -9,6 +9,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.common.mapper.GenericModelMapperService;
+import com.sistema_contabilidade.rbac.model.Role;
+import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
@@ -30,6 +33,7 @@ import org.springframework.web.server.ResponseStatusException;
 class UsuarioServiceTest {
 
   @Mock private UsuarioRepository usuarioRepository;
+  @Mock private RoleRepository roleRepository;
 
   @Mock private PasswordEncoder passwordEncoder;
   @Mock private GenericModelMapperService<Usuario, UsuarioDto> modelMapperService;
@@ -40,19 +44,18 @@ class UsuarioServiceTest {
   @DisplayName("Deve criar usuario com sucesso")
   void criarDeveSalvarUsuario() {
     // Arrange
-    UsuarioDto request = new UsuarioDto(null, "Ana", "ana@email.com", "123456");
-    Usuario entidadeEntrada = new Usuario();
-    entidadeEntrada.setNome("Ana");
-    entidadeEntrada.setEmail("ana@email.com");
-    entidadeEntrada.setSenha("123456");
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN");
     Usuario salvo =
         novoUsuario(
             UUID.fromString("11111111-1111-1111-1111-111111111111"), "Ana", "ana@email.com");
+    Role role = new Role();
+    role.setNome("ADMIN");
     UsuarioDto response = new UsuarioDto(salvo.getId(), salvo.getNome(), salvo.getEmail(), null);
-    when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(role));
     when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
-    when(usuarioRepository.save(entidadeEntrada)).thenReturn(salvo);
+    when(usuarioRepository.save(any(Usuario.class))).thenReturn(salvo);
     when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
 
     // Act
@@ -61,6 +64,7 @@ class UsuarioServiceTest {
     // Assert
     assertEquals(response, resultado);
     verify(usuarioRepository).save(any(Usuario.class));
+    verify(roleRepository).findByNome("ADMIN");
   }
 
   @Test
@@ -195,7 +199,8 @@ class UsuarioServiceTest {
   @Test
   @DisplayName("Deve retornar conflito ao criar usuario com email ja cadastrado")
   void criarComEmailDuplicadoDeveRetornarConflito() {
-    UsuarioDto request = new UsuarioDto(null, "Ana", "ana@email.com", "123456");
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN");
     Usuario existente =
         novoUsuario(
             UUID.fromString("11111111-1111-1111-1111-111111111111"), "Ana", "ana@email.com");
@@ -206,6 +211,21 @@ class UsuarioServiceTest {
 
     assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     assertEquals("Email ja cadastrado", ex.getReason());
+    verify(usuarioRepository, never()).save(any(Usuario.class));
+  }
+
+  @Test
+  @DisplayName("Deve retornar bad request ao criar usuario com role invalida")
+  void criarComRoleInvalidaDeveRetornarBadRequest() {
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "INVALIDA");
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> usuarioService.save(request));
+
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    assertTrue(ex.getReason().contains("Role invalida"));
     verify(usuarioRepository, never()).save(any(Usuario.class));
   }
 

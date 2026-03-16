@@ -28,7 +28,7 @@ class ItemRepositoryTest {
     item.setValor(new BigDecimal("88.30"));
     item.setData(LocalDate.of(2026, 3, 15));
     item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 14, 10, 0));
-    item.setArquivoPdf("comprovante".getBytes());
+    item.setCaminhoArquivoPdf("uploads/itens/comprovante.pdf");
     item.setTipo(TipoItem.DESPESA);
 
     Item salvo = itemRepository.save(item);

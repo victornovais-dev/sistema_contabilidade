@@ -4,9 +4,11 @@ import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
 import com.sistema_contabilidade.auth.service.AuthService;
 import jakarta.validation.Valid;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,5 +32,10 @@ public class AuthController {
   @GetMapping("/me")
   public ResponseEntity<String> me(Authentication authentication) {
     return ResponseEntity.ok(authentication.getName());
+  }
+
+  @GetMapping("/csrf")
+  public ResponseEntity<Map<String, String>> csrf(CsrfToken csrfToken) {
+    return ResponseEntity.ok(Map.of("token", csrfToken.getToken()));
   }
 }

@@ -5,8 +5,6 @@ import com.sistema_contabilidade.item.model.TipoItem;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Objects;
 import java.util.UUID;
 
 public record ItemResponse(
@@ -14,13 +12,8 @@ public record ItemResponse(
     BigDecimal valor,
     LocalDate data,
     LocalDateTime horarioCriacao,
-    byte[] arquivoPdf,
+    String caminhoArquivoPdf,
     TipoItem tipo) {
-
-  public ItemResponse {
-    Objects.requireNonNull(arquivoPdf, "arquivoPdf");
-    arquivoPdf = Arrays.copyOf(arquivoPdf, arquivoPdf.length);
-  }
 
   public static ItemResponse from(Item item) {
     return new ItemResponse(
@@ -28,12 +21,7 @@ public record ItemResponse(
         item.getValor(),
         item.getData(),
         item.getHorarioCriacao(),
-        item.getArquivoPdf(),
+        item.getCaminhoArquivoPdf(),
         item.getTipo());
-  }
-
-  @Override
-  public byte[] arquivoPdf() {
-    return Arrays.copyOf(arquivoPdf, arquivoPdf.length);
   }
 }

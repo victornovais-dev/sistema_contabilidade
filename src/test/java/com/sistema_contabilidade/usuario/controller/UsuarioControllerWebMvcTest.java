@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import java.util.List;
@@ -50,7 +51,7 @@ class UsuarioControllerWebMvcTest {
   @DisplayName("Deve criar usuario")
   void criarDeveRetornarCreated() throws Exception {
     UsuarioDto response = new UsuarioDto(UUID.randomUUID(), "Bia", "bia@email.com", null);
-    when(usuarioService.save(org.mockito.ArgumentMatchers.any(UsuarioDto.class)))
+    when(usuarioService.save(org.mockito.ArgumentMatchers.any(UsuarioCreateRequest.class)))
         .thenReturn(response);
 
     mockMvc
@@ -62,7 +63,8 @@ class UsuarioControllerWebMvcTest {
                     {
                       "nome":"Bia",
                       "email":"bia@email.com",
-                      "senha":"123456"
+                      "senha":"123456",
+                      "role":"ADMIN"
                     }
                     """))
         .andExpect(status().isCreated())
