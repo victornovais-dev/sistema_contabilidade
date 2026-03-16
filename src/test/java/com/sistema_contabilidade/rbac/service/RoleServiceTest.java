@@ -6,7 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.sistema_contabilidade.common.mapper.GenericModelMapperService;
+import com.sistema_contabilidade.common.mapper.RbacMapper;
 import com.sistema_contabilidade.rbac.dto.PermissaoDto;
 import com.sistema_contabilidade.rbac.dto.RoleDto;
 import com.sistema_contabilidade.rbac.dto.RoleResumoDto;
@@ -38,9 +38,7 @@ class RoleServiceTest {
   @Mock private PermissaoRepository permissaoRepository;
 
   @Mock private UsuarioRepository usuarioRepository;
-  @Mock private GenericModelMapperService<Role, RoleDto> roleModelMapperService;
-  @Mock private GenericModelMapperService<Permissao, PermissaoDto> permissaoModelMapperService;
-  @Mock private GenericModelMapperService<Usuario, UsuarioComRolesDto> usuarioModelMapperService;
+  @Mock private RbacMapper rbacMapper;
 
   @Test
   @DisplayName("Deve criar role")
@@ -53,7 +51,7 @@ class RoleServiceTest {
     role.setNome("ADMIN");
     when(roleRepository.save(any(Role.class))).thenReturn(role);
     RoleDto roleDto = new RoleDto(null, "ADMIN", Set.of());
-    when(roleModelMapperService.convertToDto(role, RoleDto.class)).thenReturn(roleDto);
+    when(rbacMapper.toRoleDto(role)).thenReturn(roleDto);
 
     // Act
     RoleDto resultado = roleService.criarRole("ADMIN");
@@ -86,8 +84,7 @@ class RoleServiceTest {
     permissao.setNome("USER_READ");
     when(permissaoRepository.save(any(Permissao.class))).thenReturn(permissao);
     PermissaoDto permissaoDto = new PermissaoDto(UUID.randomUUID(), "USER_READ");
-    when(permissaoModelMapperService.convertToDto(permissao, PermissaoDto.class))
-        .thenReturn(permissaoDto);
+    when(rbacMapper.toPermissaoDto(permissao)).thenReturn(permissaoDto);
 
     PermissaoDto resultado = roleService.criarPermissao("USER_READ");
 
@@ -123,7 +120,7 @@ class RoleServiceTest {
     when(roleRepository.save(role)).thenReturn(role);
     RoleDto roleDto =
         new RoleDto(null, "ADMIN", new HashSet<>(Set.of(new PermissaoDto(null, "USER_READ"))));
-    when(roleModelMapperService.convertToDto(role, RoleDto.class)).thenReturn(roleDto);
+    when(rbacMapper.toRoleDto(role)).thenReturn(roleDto);
 
     // Act
     RoleDto resultado = roleService.adicionarPermissaoNaRole("ADMIN", "USER_READ");
@@ -186,7 +183,7 @@ class RoleServiceTest {
     UsuarioComRolesDto usuarioComRolesDto =
         new UsuarioComRolesDto(
             usuarioId, "Nome", "email@email.com", Set.of(new RoleResumoDto(null, "CUSTOMER")));
-    when(usuarioModelMapperService.convertToDto(any(), any())).thenReturn(usuarioComRolesDto);
+    when(rbacMapper.toUsuarioComRolesDto(any())).thenReturn(usuarioComRolesDto);
 
     // Act
     UsuarioComRolesDto resultado = roleService.atribuirRoleAoUsuario(usuarioId, "CUSTOMER");
@@ -242,11 +239,6 @@ class RoleServiceTest {
 
   private RoleService novoRoleService() {
     return new RoleService(
-        roleRepository,
-        permissaoRepository,
-        usuarioRepository,
-        roleModelMapperService,
-        permissaoModelMapperService,
-        usuarioModelMapperService);
+        roleRepository, permissaoRepository, usuarioRepository, rbacMapper);
   }
 }

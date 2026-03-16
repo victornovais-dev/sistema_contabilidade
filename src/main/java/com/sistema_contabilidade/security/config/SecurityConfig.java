@@ -29,6 +29,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+  private static final String ADMIN_ROLE = "ADMIN";
+
   private final JwtAuthFilter jwtAuthFilter;
   private final RateLimitFilter rateLimitFilter;
 
@@ -70,9 +72,9 @@ public class SecurityConfig {
                   auth.requestMatchers("/", "/login", "/favicon.ico")
                       .permitAll()
                       .requestMatchers("/criar_usuario")
-                      .hasRole("ADMIN")
+                      .hasRole(ADMIN_ROLE)
                       .requestMatchers("/admin")
-                      .hasRole("ADMIN")
+                      .hasRole(ADMIN_ROLE)
                       .requestMatchers(
                           "/assets/**",
                           "/partials/**",
@@ -85,7 +87,7 @@ public class SecurityConfig {
                       .requestMatchers("/api/v1/auth/**")
                       .permitAll()
                       .requestMatchers("/api/v1/admin/**")
-                      .hasRole("ADMIN")
+                      .hasRole(ADMIN_ROLE)
                       .anyRequest()
                       .authenticated())
           .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)

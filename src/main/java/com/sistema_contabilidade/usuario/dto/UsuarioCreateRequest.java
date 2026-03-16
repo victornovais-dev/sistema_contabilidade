@@ -3,6 +3,7 @@ package com.sistema_contabilidade.usuario.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.util.Set;
 
 public record UsuarioCreateRequest(
     @NotBlank(message = "Nome e obrigatorio") String nome,
@@ -11,4 +12,5 @@ public record UsuarioCreateRequest(
     @NotBlank(message = "Senha e obrigatoria")
         @Size(min = 6, message = "Senha deve ter pelo menos 6 caracteres")
         String senha,
-    @NotBlank(message = "Role e obrigatoria") String role) {}
+    String role,
+    Set<@NotBlank(message = "Role nao pode ser vazia") String> roles) {}

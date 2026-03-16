@@ -90,11 +90,14 @@ form.addEventListener("submit", async (event) => {
   confirmOverlay.classList.remove("is-visible");
   confirmOverlay.setAttribute("aria-hidden", "true");
 
+  const roleSelect = document.getElementById("role");
+  const selectedRoles = Array.from(roleSelect.selectedOptions, (option) => option.value);
   const payload = {
     nome: document.getElementById("nome").value.trim(),
     email: document.getElementById("email").value.trim(),
     senha: document.getElementById("senha").value,
-    role: document.getElementById("role").value,
+    role: selectedRoles[0] || null,
+    roles: selectedRoles,
   };
 
   try {

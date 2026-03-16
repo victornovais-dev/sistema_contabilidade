@@ -8,14 +8,14 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Objects;
 
-public record ItemUpdateRequest(
+public record ItemUpsertRequest(
     @NotNull(message = "Valor e obrigatorio") BigDecimal valor,
     @NotNull(message = "Data e obrigatoria") LocalDate data,
     @NotNull(message = "Horario de criacao e obrigatorio") LocalDateTime horarioCriacao,
     @NotNull(message = "Arquivo PDF e obrigatorio") byte[] arquivoPdf,
     @NotNull(message = "Tipo e obrigatorio") TipoItem tipo) {
 
-  public ItemUpdateRequest {
+  public ItemUpsertRequest {
     Objects.requireNonNull(arquivoPdf, "arquivoPdf");
     arquivoPdf = Arrays.copyOf(arquivoPdf, arquivoPdf.length);
   }
@@ -31,7 +31,7 @@ public record ItemUpdateRequest(
     if (this == o) {
       return true;
     }
-    if (!(o instanceof ItemUpdateRequest other)) {
+    if (!(o instanceof ItemUpsertRequest other)) {
       return false;
     }
     return Objects.equals(valor, other.valor)
@@ -49,6 +49,6 @@ public record ItemUpdateRequest(
   @Override
   public String toString() {
     return ItemRequestArraySupport.requestToString(
-        "ItemUpdateRequest", valor, data, horarioCriacao, arquivoPdf, tipo);
+        "ItemUpsertRequest", valor, data, horarioCriacao, arquivoPdf, tipo);
   }
 }

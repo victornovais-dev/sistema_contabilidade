@@ -1,6 +1,6 @@
 package com.sistema_contabilidade.rbac.service;
 
-import com.sistema_contabilidade.common.mapper.GenericModelMapperService;
+import com.sistema_contabilidade.common.mapper.RbacMapper;
 import com.sistema_contabilidade.rbac.dto.PermissaoDto;
 import com.sistema_contabilidade.rbac.dto.RoleDto;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
@@ -25,11 +25,7 @@ public class RoleService {
   private final RoleRepository roleRepository;
   private final PermissaoRepository permissaoRepository;
   private final UsuarioRepository usuarioRepository;
-  private final GenericModelMapperService<Role, RoleDto> roleModelMapperService;
-
-  private final GenericModelMapperService<Permissao, PermissaoDto> permissaoModelMapperService;
-
-  private final GenericModelMapperService<Usuario, UsuarioComRolesDto> usuarioModelMapperService;
+  private final RbacMapper rbacMapper;
 
   @Transactional
   public RoleDto criarRole(String nome) {
@@ -43,7 +39,7 @@ public class RoleService {
     Role role = new Role();
     role.setNome(roleNomePadrao);
     Role roleSalva = roleRepository.save(role);
-    return roleModelMapperService.convertToDto(roleSalva, RoleDto.class);
+    return rbacMapper.toRoleDto(roleSalva);
   }
 
   @Transactional
@@ -57,7 +53,7 @@ public class RoleService {
     Permissao permissao = new Permissao();
     permissao.setNome(nome);
     Permissao permissaoSalva = permissaoRepository.save(permissao);
-    return permissaoModelMapperService.convertToDto(permissaoSalva, PermissaoDto.class);
+    return rbacMapper.toPermissaoDto(permissaoSalva);
   }
 
   @Transactional
@@ -77,7 +73,7 @@ public class RoleService {
 
     role.getPermissoes().add(permissao);
     Role roleSalva = roleRepository.save(role);
-    return roleModelMapperService.convertToDto(roleSalva, RoleDto.class);
+    return rbacMapper.toRoleDto(roleSalva);
   }
 
   @Transactional
@@ -96,7 +92,7 @@ public class RoleService {
 
     usuario.getRoles().add(role);
     Usuario usuarioSalvo = usuarioRepository.save(usuario);
-    return usuarioModelMapperService.convertToDto(usuarioSalvo, UsuarioComRolesDto.class);
+    return rbacMapper.toUsuarioComRolesDto(usuarioSalvo);
   }
 
   private String parseRoleNome(String nome) {

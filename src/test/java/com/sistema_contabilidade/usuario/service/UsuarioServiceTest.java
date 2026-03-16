@@ -8,7 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.sistema_contabilidade.common.mapper.GenericModelMapperService;
+import com.sistema_contabilidade.common.mapper.UsuarioMapper;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
@@ -17,6 +17,7 @@ import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,7 @@ class UsuarioServiceTest {
   @Mock private RoleRepository roleRepository;
 
   @Mock private PasswordEncoder passwordEncoder;
-  @Mock private GenericModelMapperService<Usuario, UsuarioDto> modelMapperService;
+  @Mock private UsuarioMapper usuarioMapper;
 
   @InjectMocks private UsuarioService usuarioService;
 
@@ -45,7 +46,7 @@ class UsuarioServiceTest {
   void criarDeveSalvarUsuario() {
     // Arrange
     UsuarioCreateRequest request =
-        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN");
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN", null);
     Usuario salvo =
         novoUsuario(
             UUID.fromString("11111111-1111-1111-1111-111111111111"), "Ana", "ana@email.com");
@@ -56,7 +57,7 @@ class UsuarioServiceTest {
     when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(role));
     when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
     when(usuarioRepository.save(any(Usuario.class))).thenReturn(salvo);
-    when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
+    when(usuarioMapper.toDto(salvo)).thenReturn(response);
 
     // Act
     UsuarioDto resultado = usuarioService.save(request);
@@ -65,6 +66,35 @@ class UsuarioServiceTest {
     assertEquals(response, resultado);
     verify(usuarioRepository).save(any(Usuario.class));
     verify(roleRepository).findByNome("ADMIN");
+  }
+
+  @Test
+  @DisplayName("Deve criar usuario com multiplas roles")
+  void criarComMultiplasRolesDeveSalvarUsuario() {
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest(
+            "Ana", "ana@email.com", "123456", null, Set.of("ADMIN", "SUPPORT"));
+    Usuario salvo =
+        novoUsuario(
+            UUID.fromString("12121212-1212-1212-1212-121212121212"), "Ana", "ana@email.com");
+    Role admin = new Role();
+    admin.setNome("ADMIN");
+    Role support = new Role();
+    support.setNome("SUPPORT");
+    UsuarioDto response = new UsuarioDto(salvo.getId(), salvo.getNome(), salvo.getEmail(), null);
+
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(admin));
+    when(roleRepository.findByNome("SUPPORT")).thenReturn(Optional.of(support));
+    when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
+    when(usuarioRepository.save(any(Usuario.class))).thenReturn(salvo);
+    when(usuarioMapper.toDto(salvo)).thenReturn(response);
+
+    UsuarioDto resultado = usuarioService.save(request);
+
+    assertEquals(response, resultado);
+    verify(roleRepository).findByNome("ADMIN");
+    verify(roleRepository).findByNome("SUPPORT");
   }
 
   @Test
@@ -84,8 +114,8 @@ class UsuarioServiceTest {
         new UsuarioDto(
             usuarios.get(1).getId(), usuarios.get(1).getNome(), usuarios.get(1).getEmail(), null);
     when(usuarioRepository.findAll()).thenReturn(usuarios);
-    when(modelMapperService.convertToDto(usuarios.get(0), UsuarioDto.class)).thenReturn(response1);
-    when(modelMapperService.convertToDto(usuarios.get(1), UsuarioDto.class)).thenReturn(response2);
+    when(usuarioMapper.toDto(usuarios.get(0))).thenReturn(response1);
+    when(usuarioMapper.toDto(usuarios.get(1))).thenReturn(response2);
 
     // Act
     List<UsuarioDto> resultado = usuarioService.listarTodos();
@@ -139,11 +169,11 @@ class UsuarioServiceTest {
     Usuario existente = novoUsuario(id, "Ana", "ana@email.com");
     Usuario salvo = novoUsuario(id, "Ana Maria", "ana.maria@email.com");
     UsuarioDto response = new UsuarioDto(id, "Ana Maria", "ana.maria@email.com", null);
-    when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
+    when(usuarioMapper.toEntity(request)).thenReturn(entidadeEntrada);
     when(usuarioRepository.findById(id)).thenReturn(Optional.of(existente));
     when(usuarioRepository.findByEmail("ana.maria@email.com")).thenReturn(Optional.empty());
     when(usuarioRepository.save(existente)).thenReturn(salvo);
-    when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
+    when(usuarioMapper.toDto(salvo)).thenReturn(response);
 
     // Act
     UsuarioDto resultado = usuarioService.update(id, request);
@@ -169,12 +199,12 @@ class UsuarioServiceTest {
     salvo.setSenha("encoded-nova-senha");
     UsuarioDto response = new UsuarioDto(id, "Ana Maria", "ana.maria@email.com", null);
 
-    when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
+    when(usuarioMapper.toEntity(request)).thenReturn(entidadeEntrada);
     when(usuarioRepository.findById(id)).thenReturn(Optional.of(existente));
     when(usuarioRepository.findByEmail("ana.maria@email.com")).thenReturn(Optional.empty());
     when(passwordEncoder.encode("nova-senha")).thenReturn("encoded-nova-senha");
     when(usuarioRepository.save(existente)).thenReturn(salvo);
-    when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
+    when(usuarioMapper.toDto(salvo)).thenReturn(response);
 
     UsuarioDto resultado = usuarioService.update(id, request);
 
@@ -200,7 +230,7 @@ class UsuarioServiceTest {
   @DisplayName("Deve retornar conflito ao criar usuario com email ja cadastrado")
   void criarComEmailDuplicadoDeveRetornarConflito() {
     UsuarioCreateRequest request =
-        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN");
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN", null);
     Usuario existente =
         novoUsuario(
             UUID.fromString("11111111-1111-1111-1111-111111111111"), "Ana", "ana@email.com");
@@ -218,7 +248,7 @@ class UsuarioServiceTest {
   @DisplayName("Deve retornar bad request ao criar usuario com role invalida")
   void criarComRoleInvalidaDeveRetornarBadRequest() {
     UsuarioCreateRequest request =
-        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "INVALIDA");
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "INVALIDA", null);
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
 
     ResponseStatusException ex =
@@ -226,6 +256,21 @@ class UsuarioServiceTest {
 
     assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     assertTrue(ex.getReason().contains("Role invalida"));
+    verify(usuarioRepository, never()).save(any(Usuario.class));
+  }
+
+  @Test
+  @DisplayName("Deve retornar bad request ao criar usuario sem roles")
+  void criarSemRoleDeveRetornarBadRequest() {
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", null, Set.of());
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> usuarioService.save(request));
+
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    assertEquals("Ao menos uma role deve ser informada", ex.getReason());
     verify(usuarioRepository, never()).save(any(Usuario.class));
   }
 
@@ -241,11 +286,11 @@ class UsuarioServiceTest {
     Usuario salvo = novoUsuario(id, "Ana Maria", "ana@email.com");
     UsuarioDto response = new UsuarioDto(id, "Ana Maria", "ana@email.com", null);
 
-    when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
+    when(usuarioMapper.toEntity(request)).thenReturn(entidadeEntrada);
     when(usuarioRepository.findById(id)).thenReturn(Optional.of(existente));
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(existente));
     when(usuarioRepository.save(existente)).thenReturn(salvo);
-    when(modelMapperService.convertToDto(salvo, UsuarioDto.class)).thenReturn(response);
+    when(usuarioMapper.toDto(salvo)).thenReturn(response);
 
     UsuarioDto resultado = usuarioService.update(id, request);
 
@@ -265,7 +310,7 @@ class UsuarioServiceTest {
     Usuario existente = novoUsuario(id, "Ana", "ana@email.com");
     Usuario outroUsuario = novoUsuario(outroId, "Bia", "bia@email.com");
 
-    when(modelMapperService.convertToEntity(request, Usuario.class)).thenReturn(entidadeEntrada);
+    when(usuarioMapper.toEntity(request)).thenReturn(entidadeEntrada);
     when(usuarioRepository.findById(id)).thenReturn(Optional.of(existente));
     when(usuarioRepository.findByEmail("bia@email.com")).thenReturn(Optional.of(outroUsuario));
 
@@ -313,7 +358,7 @@ class UsuarioServiceTest {
     Usuario usuario = novoUsuario(id, "Ana", "ana@email.com");
     UsuarioDto dto = new UsuarioDto(id, "Ana", "ana@email.com", null);
     when(usuarioRepository.findById(id)).thenReturn(Optional.of(usuario));
-    when(modelMapperService.convertToDto(usuario, UsuarioDto.class)).thenReturn(dto);
+    when(usuarioMapper.toDto(usuario)).thenReturn(dto);
 
     UsuarioDto resultado = usuarioService.findById(id);
 

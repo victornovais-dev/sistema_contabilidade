@@ -1,6 +1,6 @@
 package com.sistema_contabilidade.usuario.service;
 
-import com.sistema_contabilidade.common.mapper.GenericModelMapperService;
+import com.sistema_contabilidade.common.mapper.UsuarioMapper;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.model.RoleNivel;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
@@ -9,7 +9,9 @@ import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,7 +26,7 @@ public class UsuarioService {
   private final UsuarioRepository usuarioRepository;
   private final RoleRepository roleRepository;
   private final PasswordEncoder passwordEncoder;
-  private final GenericModelMapperService<Usuario, UsuarioDto> modelMapperService;
+  private final UsuarioMapper usuarioMapper;
 
   @Transactional
   public UsuarioDto save(UsuarioCreateRequest usuarioCreateRequest) {
@@ -34,14 +36,16 @@ public class UsuarioService {
     usuario.setEmail(usuarioCreateRequest.email());
     usuario.setSenha(passwordEncoder.encode(usuarioCreateRequest.senha()));
     usuario.getRoles().clear();
-    usuario.getRoles().add(buscarRole(usuarioCreateRequest.role()));
+    extrairRolesSolicitadas(usuarioCreateRequest).stream()
+        .map(this::buscarRole)
+        .forEach(usuario.getRoles()::add);
     usuario = usuarioRepository.save(usuario);
-    return modelMapperService.convertToDto(usuario, UsuarioDto.class);
+    return usuarioMapper.toDto(usuario);
   }
 
   @Transactional
   public UsuarioDto update(UUID id, UsuarioDto usuarioDto) {
-    Usuario usuarioAtualizado = modelMapperService.convertToEntity(usuarioDto, Usuario.class);
+    Usuario usuarioAtualizado = usuarioMapper.toEntity(usuarioDto);
     Usuario usuarioExistente = buscarPorId(id);
     validarEmailDuplicado(usuarioAtualizado.getEmail(), id);
     usuarioExistente.setNome(usuarioAtualizado.getNome());
@@ -50,12 +54,12 @@ public class UsuarioService {
       usuarioExistente.setSenha(passwordEncoder.encode(usuarioAtualizado.getSenha()));
     }
     Usuario salvo = usuarioRepository.save(usuarioExistente);
-    return modelMapperService.convertToDto(salvo, UsuarioDto.class);
+    return usuarioMapper.toDto(salvo);
   }
 
   public List<UsuarioDto> listarTodos() {
     return usuarioRepository.findAll().stream()
-        .map(usuario -> modelMapperService.convertToDto(usuario, UsuarioDto.class))
+        .map(usuarioMapper::toDto)
         .toList();
   }
 
@@ -65,7 +69,7 @@ public class UsuarioService {
             .findById(id)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario nao encontrado"));
-    return modelMapperService.convertToDto(usuario, UsuarioDto.class);
+    return usuarioMapper.toDto(usuario);
   }
 
   public Usuario buscarPorId(UUID id) {
@@ -106,5 +110,23 @@ public class UsuarioService {
         .findByNome(roleNomePadrao)
         .orElseThrow(
             () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Role nao encontrada"));
+  }
+
+  private Set<String> extrairRolesSolicitadas(UsuarioCreateRequest usuarioCreateRequest) {
+    Set<String> roles = new LinkedHashSet<>();
+    if (usuarioCreateRequest.role() != null && !usuarioCreateRequest.role().isBlank()) {
+      roles.add(usuarioCreateRequest.role().trim());
+    }
+    if (usuarioCreateRequest.roles() != null) {
+      usuarioCreateRequest.roles().stream()
+          .filter(role -> role != null && !role.isBlank())
+          .map(String::trim)
+          .forEach(roles::add);
+    }
+    if (roles.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Ao menos uma role deve ser informada");
+    }
+    return roles;
   }
 }

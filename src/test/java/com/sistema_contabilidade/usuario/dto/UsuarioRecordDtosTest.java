@@ -3,6 +3,7 @@ package com.sistema_contabilidade.usuario.dto;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.sistema_contabilidade.usuario.model.Usuario;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,12 +15,13 @@ class UsuarioRecordDtosTest {
   @DisplayName("Deve expor campos de UsuarioCreateRequest")
   void deveExporCamposDeUsuarioCreateRequest() {
     UsuarioCreateRequest request =
-        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN");
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN", Set.of("SUPPORT"));
 
     assertEquals("Ana", request.nome());
     assertEquals("ana@email.com", request.email());
     assertEquals("123456", request.senha());
     assertEquals("ADMIN", request.role());
+    assertEquals(Set.of("SUPPORT"), request.roles());
   }
 
   @Test

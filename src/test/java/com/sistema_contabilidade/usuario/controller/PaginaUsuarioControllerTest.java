@@ -4,8 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.lang.reflect.Method;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,177 +18,73 @@ import org.springframework.security.access.prepost.PreAuthorize;
 class PaginaUsuarioControllerTest {
 
   private static final String IS_AUTHENTICATED_EXPRESSION = "isAuthenticated()";
+  private static final String ADMIN_EXPRESSION = "hasRole('ADMIN')";
+  private static final String CONTENT_TYPE_HTML = "text/html";
 
-  @Test
-  @DisplayName("Deve retornar recurso html da pagina login")
-  void deveRetornarRecursoHtmlDaPaginaLogin() {
+  @ParameterizedTest(name = "Deve retornar recurso html da pagina {0}")
+  @MethodSource("htmlPageMethods")
+  void deveRetornarRecursoHtmlDasPaginas(String nomePagina, String methodName) throws Exception {
     PaginaUsuarioController controller = new PaginaUsuarioController();
 
-    ResponseEntity<Resource> response = controller.loginPage();
+    ResponseEntity<Resource> response = invokePageMethod(controller, methodName);
 
     assertEquals(HttpStatus.OK, response.getStatusCode());
     assertNotNull(response.getBody());
-    assertEquals("text/html", response.getHeaders().getContentType().toString());
+    assertEquals(CONTENT_TYPE_HTML, response.getHeaders().getContentType().toString());
   }
 
-  @Test
-  @DisplayName("Deve retornar recurso html da pagina criar usuario")
-  void deveRetornarRecursoHtmlDaPaginaCriarUsuario() {
-    PaginaUsuarioController controller = new PaginaUsuarioController();
-
-    ResponseEntity<Resource> response = controller.criarUsuarioPage();
-
-    assertEquals(HttpStatus.OK, response.getStatusCode());
-    assertNotNull(response.getBody());
-    assertEquals("text/html", response.getHeaders().getContentType().toString());
-  }
-
-  @Test
-  @DisplayName("Deve retornar recurso html da pagina adicionar comprovante")
-  void deveRetornarRecursoHtmlDaPaginaAdicionarComprovante() {
-    PaginaUsuarioController controller = new PaginaUsuarioController();
-
-    ResponseEntity<Resource> response = controller.adicionarComprovantePage();
-
-    assertEquals(HttpStatus.OK, response.getStatusCode());
-    assertNotNull(response.getBody());
-    assertEquals("text/html", response.getHeaders().getContentType().toString());
-  }
-
-  @Test
-  @DisplayName("Deve exigir usuario autenticado para adicionar comprovante")
-  void deveExigirUsuarioAutenticadoParaAdicionarComprovante() throws Exception {
-    Method method = PaginaUsuarioController.class.getMethod("adicionarComprovantePage");
-
-    PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
-
-    assertNotNull(preAuthorize);
-    assertEquals("isAuthenticated()", preAuthorize.value());
-  }
-
-  @Test
-  @DisplayName("Deve retornar recurso html da pagina home")
-  void deveRetornarRecursoHtmlDaPaginaHome() {
-    PaginaUsuarioController controller = new PaginaUsuarioController();
-
-    ResponseEntity<Resource> response = controller.homePage();
-
-    assertEquals(HttpStatus.OK, response.getStatusCode());
-    assertNotNull(response.getBody());
-    assertEquals("text/html", response.getHeaders().getContentType().toString());
-  }
-
-  @Test
-  @DisplayName("Deve exigir usuario autenticado para home")
-  void deveExigirUsuarioAutenticadoParaHome() throws Exception {
-    Method method = PaginaUsuarioController.class.getMethod("homePage");
-
+  @ParameterizedTest(name = "Deve exigir usuario autenticado para {0}")
+  @MethodSource("authenticatedMethods")
+  void deveExigirUsuarioAutenticadoNasPaginas(String nomePagina, String methodName)
+      throws Exception {
+    Method method = PaginaUsuarioController.class.getMethod(methodName);
     PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
 
     assertNotNull(preAuthorize);
     assertEquals(IS_AUTHENTICATED_EXPRESSION, preAuthorize.value());
   }
 
-  @Test
-  @DisplayName("Deve retornar recurso html da pagina lista comprovantes")
-  void deveRetornarRecursoHtmlDaPaginaListaComprovantes() {
-    PaginaUsuarioController controller = new PaginaUsuarioController();
-
-    ResponseEntity<Resource> response = controller.listaComprovantesPage();
-
-    assertEquals(HttpStatus.OK, response.getStatusCode());
-    assertNotNull(response.getBody());
-    assertEquals("text/html", response.getHeaders().getContentType().toString());
-  }
-
-  @Test
-  @DisplayName("Deve exigir usuario autenticado para lista comprovantes")
-  void deveExigirUsuarioAutenticadoParaListaComprovantes() throws Exception {
-    Method method = PaginaUsuarioController.class.getMethod("listaComprovantesPage");
-
+  @ParameterizedTest(name = "Deve exigir role admin para {0}")
+  @MethodSource("adminOnlyMethods")
+  void deveExigirRoleAdminNasPaginas(String nomePagina, String methodName) throws Exception {
+    Method method = PaginaUsuarioController.class.getMethod(methodName);
     PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
 
     assertNotNull(preAuthorize);
-    assertEquals(IS_AUTHENTICATED_EXPRESSION, preAuthorize.value());
+    assertEquals(ADMIN_EXPRESSION, preAuthorize.value());
   }
 
-  @Test
-  @DisplayName("Deve retornar recurso html da pagina relatorios")
-  void deveRetornarRecursoHtmlDaPaginaRelatorios() {
-    PaginaUsuarioController controller = new PaginaUsuarioController();
-
-    ResponseEntity<Resource> response = controller.relatoriosPage();
-
-    assertEquals(HttpStatus.OK, response.getStatusCode());
-    assertNotNull(response.getBody());
-    assertEquals("text/html", response.getHeaders().getContentType().toString());
+  private static Stream<Arguments> htmlPageMethods() {
+    return Stream.of(
+        Arguments.of("login", "loginPage"),
+        Arguments.of("criar usuario", "criarUsuarioPage"),
+        Arguments.of("adicionar comprovante", "adicionarComprovantePage"),
+        Arguments.of("home", "homePage"),
+        Arguments.of("lista comprovantes", "listaComprovantesPage"),
+        Arguments.of("relatorios", "relatoriosPage"),
+        Arguments.of("relatorio pdf", "relatorioPdfPage"),
+        Arguments.of("admin", "adminPage"));
   }
 
-  @Test
-  @DisplayName("Deve exigir usuario autenticado para relatorios")
-  void deveExigirUsuarioAutenticadoParaRelatorios() throws Exception {
-    Method method = PaginaUsuarioController.class.getMethod("relatoriosPage");
-
-    PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
-
-    assertNotNull(preAuthorize);
-    assertEquals(IS_AUTHENTICATED_EXPRESSION, preAuthorize.value());
+  private static Stream<Arguments> authenticatedMethods() {
+    return Stream.of(
+        Arguments.of("adicionar comprovante", "adicionarComprovantePage"),
+        Arguments.of("home", "homePage"),
+        Arguments.of("lista comprovantes", "listaComprovantesPage"),
+        Arguments.of("relatorios", "relatoriosPage"),
+        Arguments.of("relatorio pdf", "relatorioPdfPage"));
   }
 
-  @Test
-  @DisplayName("Deve retornar recurso html da pagina relatorio pdf")
-  void deveRetornarRecursoHtmlDaPaginaRelatorioPdf() {
-    PaginaUsuarioController controller = new PaginaUsuarioController();
-
-    ResponseEntity<Resource> response = controller.relatorioPdfPage();
-
-    assertEquals(HttpStatus.OK, response.getStatusCode());
-    assertNotNull(response.getBody());
-    assertEquals("text/html", response.getHeaders().getContentType().toString());
+  private static Stream<Arguments> adminOnlyMethods() {
+    return Stream.of(
+        Arguments.of("criar usuario", "criarUsuarioPage"),
+        Arguments.of("admin", "adminPage"));
   }
 
-  @Test
-  @DisplayName("Deve exigir usuario autenticado para relatorio pdf")
-  void deveExigirUsuarioAutenticadoParaRelatorioPdf() throws Exception {
-    Method method = PaginaUsuarioController.class.getMethod("relatorioPdfPage");
-
-    PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
-
-    assertNotNull(preAuthorize);
-    assertEquals(IS_AUTHENTICATED_EXPRESSION, preAuthorize.value());
-  }
-
-  @Test
-  @DisplayName("Deve exigir role admin para criar usuario")
-  void deveExigirRoleAdminParaCriarUsuario() throws Exception {
-    Method method = PaginaUsuarioController.class.getMethod("criarUsuarioPage");
-
-    PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
-
-    assertNotNull(preAuthorize);
-    assertEquals("hasRole('ADMIN')", preAuthorize.value());
-  }
-
-  @Test
-  @DisplayName("Deve retornar recurso html da pagina admin")
-  void deveRetornarRecursoHtmlDaPaginaAdmin() {
-    PaginaUsuarioController controller = new PaginaUsuarioController();
-
-    ResponseEntity<Resource> response = controller.adminPage();
-
-    assertEquals(HttpStatus.OK, response.getStatusCode());
-    assertNotNull(response.getBody());
-    assertEquals("text/html", response.getHeaders().getContentType().toString());
-  }
-
-  @Test
-  @DisplayName("Deve exigir role admin para pagina admin")
-  void deveExigirRoleAdminParaPaginaAdmin() throws Exception {
-    Method method = PaginaUsuarioController.class.getMethod("adminPage");
-
-    PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
-
-    assertNotNull(preAuthorize);
-    assertEquals("hasRole('ADMIN')", preAuthorize.value());
+  @SuppressWarnings("unchecked")
+  private ResponseEntity<Resource> invokePageMethod(
+      PaginaUsuarioController controller, String methodName) throws Exception {
+    Method method = PaginaUsuarioController.class.getMethod(methodName);
+    return (ResponseEntity<Resource>) method.invoke(controller);
   }
 }
