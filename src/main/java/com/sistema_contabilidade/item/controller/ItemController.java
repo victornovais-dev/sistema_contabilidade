@@ -7,11 +7,16 @@ import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ItemArquivoStorageService;
 import jakarta.validation.Valid;
+import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -32,6 +37,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 public class ItemController {
 
   private static final String ID_PATH = "/{id}";
+  private static final String ARQUIVO_PATH = ID_PATH + "/arquivo";
   private static final String ITEM_NAO_ENCONTRADO = "Item nao encontrado";
 
   private final ItemRepository itemRepository;
@@ -70,6 +76,23 @@ public class ItemController {
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, ITEM_NAO_ENCONTRADO));
     return ResponseEntity.ok(ItemResponse.from(item));
+  }
+
+  @GetMapping(ARQUIVO_PATH)
+  public ResponseEntity<InputStreamResource> baixarArquivo(@PathVariable("id") UUID id) {
+    Item item =
+        itemRepository
+            .findById(id)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, ITEM_NAO_ENCONTRADO));
+
+    byte[] arquivoPdf = itemArquivoStorageService.carregarPdf(item.getCaminhoArquivoPdf());
+    String nomeArquivo = Path.of(item.getCaminhoArquivoPdf()).getFileName().toString();
+
+    return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_PDF)
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nomeArquivo + "\"")
+        .body(new InputStreamResource(new ByteArrayInputStream(arquivoPdf)));
   }
 
   @PutMapping(ID_PATH)

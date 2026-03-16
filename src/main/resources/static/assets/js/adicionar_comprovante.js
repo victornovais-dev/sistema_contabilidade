@@ -10,6 +10,11 @@ const typeSelect = document.querySelector("select[name=\"entry_type\"]");
 const form = document.querySelector(".form");
 const confirmOverlay = document.querySelector(".confirm-overlay");
 const confirmClose = document.querySelector(".confirm-close");
+const confirmTitle = document.querySelector(".confirm-card h2");
+const confirmText = document.querySelector(".confirm-card p");
+const confirmIcon = document.querySelector(".confirm-icon");
+let csrfToken = null;
+let lastSubmitOk = false;
 
 const parseDate = (value) => {
   const digits = (value || "").replace(/\D/g, "");
@@ -30,6 +35,77 @@ const todayMidnight = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return today;
+};
+
+const toIsoLocalDate = (value) => {
+  const parsed = parseDate(value);
+  if (!parsed) return null;
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const year = String(parsed.getFullYear());
+  return `${year}-${month}-${day}`;
+};
+
+const nowAsLocalDateTime = () => {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mi = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}`;
+};
+
+const moneyToDecimal = (value) => {
+  const digits = (value || "").replace(/\D/g, "");
+  const cents = Number(digits || 0);
+  return (cents / 100).toFixed(2);
+};
+
+const fileToBase64 = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      const comma = result.indexOf(",");
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(new Error("Falha ao ler arquivo"));
+    reader.readAsDataURL(file);
+  });
+
+const ensureCsrfToken = async () => {
+  if (csrfToken) return csrfToken;
+  const response = await fetch("/api/v1/auth/csrf", {
+    method: "GET",
+    credentials: "same-origin",
+  });
+  if (!response.ok) {
+    throw new Error("Falha ao obter token CSRF");
+  }
+  const data = await response.json();
+  csrfToken = data.token || null;
+  if (!csrfToken) {
+    throw new Error("Token CSRF ausente");
+  }
+  return csrfToken;
+};
+
+const showConfirm = (ok, message) => {
+  lastSubmitOk = ok;
+  if (!confirmOverlay) return;
+  if (confirmTitle) confirmTitle.textContent = ok ? "Comprovante enviado" : "Falha ao enviar";
+  if (confirmText) confirmText.textContent = message;
+  if (confirmIcon) {
+    confirmIcon.textContent = ok ? "✓" : "✕";
+    confirmIcon.style.background = ok ? "#2eb05e" : "#d84b34";
+    confirmIcon.style.boxShadow = ok
+      ? "0 10px 20px rgba(46, 176, 94, 0.35)"
+      : "0 10px 20px rgba(216, 75, 52, 0.35)";
+  }
+  confirmOverlay.classList.add("is-visible");
+  confirmOverlay.setAttribute("aria-hidden", "false");
 };
 
 const readCookie = (name) => {
@@ -229,7 +305,7 @@ if (dateInput) {
 }
 
 if (form) {
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     let hasError = false;
 
@@ -263,6 +339,14 @@ if (form) {
       if (!fileInput.files || fileInput.files.length === 0) {
         fileInput.setCustomValidity("Selecione um Arquivo");
         hasError = true;
+      } else {
+        const selectedFile = fileInput.files[0];
+        const isPdf =
+          selectedFile.type === "application/pdf" || selectedFile.name.toLowerCase().endsWith(".pdf");
+        if (!isPdf) {
+          fileInput.setCustomValidity("Envie um arquivo PDF.");
+          hasError = true;
+        }
       }
     }
 
@@ -281,9 +365,50 @@ if (form) {
       if (typeSelect) typeSelect.reportValidity();
       return;
     }
-    if (confirmOverlay) {
-      confirmOverlay.classList.add("is-visible");
-      confirmOverlay.setAttribute("aria-hidden", "false");
+
+    const file = fileInput.files[0];
+    const dataIso = toIsoLocalDate(dateInput.value);
+    const tipo = typeSelect.value === "receita" ? "RECEITA" : "DESPESA";
+    const accessToken = localStorage.getItem("sc_access_token");
+
+    if (!accessToken) {
+      window.location.href = "/login";
+      return;
+    }
+
+    try {
+      const arquivoPdf = await fileToBase64(file);
+      const token = await ensureCsrfToken();
+      const response = await fetch("/api/v1/itens", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-TOKEN": token,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          valor: moneyToDecimal(moneyInput.value),
+          data: dataIso,
+          horarioCriacao: nowAsLocalDateTime(),
+          arquivoPdf,
+          tipo,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        const message =
+          errorBody.message ||
+          errorBody.error ||
+          `Erro ${response.status} ao enviar comprovante.`;
+        showConfirm(false, message);
+        return;
+      }
+
+      showConfirm(true, "Seu comprovante foi salvo com sucesso.");
+    } catch (error) {
+      showConfirm(false, "Erro ao enviar comprovante. Tente novamente.");
     }
   });
 }
@@ -292,24 +417,24 @@ if (confirmOverlay && confirmClose) {
   confirmClose.addEventListener("click", () => {
     confirmOverlay.classList.remove("is-visible");
     confirmOverlay.setAttribute("aria-hidden", "true");
-    if (form) {
+    if (form && lastSubmitOk) {
       form.reset();
     }
-    if (fileStatus) {
+    if (fileStatus && lastSubmitOk) {
       fileStatus.classList.remove("is-ready");
     }
-    if (fileHint) {
+    if (fileHint && lastSubmitOk) {
       fileHint.textContent = "Nenhum arquivo selecionado";
     }
-    if (moneyInput) {
+    if (moneyInput && lastSubmitOk) {
       moneyInput.setCustomValidity("");
       moneyInput.value = "R$ 0,00";
     }
-    if (dateInput) {
+    if (dateInput && lastSubmitOk) {
       dateInput.setCustomValidity("");
       dateInput.value = "";
     }
-    if (typeSelect) {
+    if (typeSelect && lastSubmitOk) {
       typeSelect.setCustomValidity("");
       typeSelect.value = "";
     }
