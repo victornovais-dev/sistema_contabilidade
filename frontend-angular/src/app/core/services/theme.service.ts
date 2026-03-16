@@ -23,7 +23,7 @@ export class ThemeService {
   }
 
   private applyTheme(mode: ThemeMode): void {
-    document.documentElement.dataset.theme = mode;
+    document.documentElement.dataset["theme"] = mode;
     localStorage.setItem(this.key, mode);
     const expires = new Date(Date.now() + 365 * 864e5).toUTCString();
     document.cookie = `${this.key}=${encodeURIComponent(mode)}; expires=${expires}; path=/`;

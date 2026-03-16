@@ -26,6 +26,17 @@ Esta pasta contém uma base Angular standalone para substituir as páginas está
 
 O dev server sobe em `http://localhost:4200` com proxy para backend Spring em `http://localhost:8080`.
 
+## Testes (TDD e CI)
+
+- Desenvolvimento (watch): `npm test`
+- CI (single run + coverage): `npm run test:ci`
+
+Fluxo recomendado (TDD frontend):
+1. Escrever/ajustar teste primeiro.
+2. Implementar o código para passar no teste.
+3. Refatorar mantendo os testes verdes.
+4. Antes de commit: executar `npm run test:ci`.
+
 ## Estratégia de migração
 
 1. Migrar primeiro `login.html` para `login-page.component.ts`.
