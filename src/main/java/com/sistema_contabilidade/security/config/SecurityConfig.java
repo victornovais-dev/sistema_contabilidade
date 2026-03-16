@@ -71,6 +71,8 @@ public class SecurityConfig {
                       .permitAll()
                       .requestMatchers("/criar_usuario")
                       .hasRole("ADMIN")
+                      .requestMatchers("/admin")
+                      .hasRole("ADMIN")
                       .requestMatchers(
                           "/assets/**",
                           "/partials/**",

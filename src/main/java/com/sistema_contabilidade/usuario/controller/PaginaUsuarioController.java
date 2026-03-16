@@ -60,4 +60,11 @@ public class PaginaUsuarioController {
     Resource resource = new ClassPathResource("static/relatorio_pdf.html");
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
   }
+
+  @GetMapping(value = "/admin", produces = MediaType.TEXT_HTML_VALUE)
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<Resource> adminPage() {
+    Resource resource = new ClassPathResource("static/admin.html");
+    return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
+  }
 }
