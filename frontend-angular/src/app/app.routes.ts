@@ -1,25 +1,39 @@
 import { Routes } from "@angular/router";
 import { authGuard } from "./core/guards/auth.guard";
-import { ShellLayoutComponent } from "./layout/shell-layout.component";
-import { LoginPageComponent } from "./pages/login-page.component";
-import { HomePageComponent } from "./pages/home-page.component";
-import { CriarUsuarioPageComponent } from "./pages/criar-usuario-page.component";
-import { AdicionarComprovantePageComponent } from "./pages/adicionar-comprovante-page.component";
-import { ListaComprovantesPageComponent } from "./pages/lista-comprovantes-page.component";
-import { RelatoriosPageComponent } from "./pages/relatorios-page.component";
 
 export const appRoutes: Routes = [
-  { path: "login", component: LoginPageComponent },
+  {
+    path: "login",
+    loadComponent: () => import("./pages/login-page.component").then((m) => m.LoginPageComponent),
+  },
   {
     path: "",
-    component: ShellLayoutComponent,
     canActivate: [authGuard],
+    loadComponent: () => import("./layout/shell-layout.component").then((m) => m.ShellLayoutComponent),
     children: [
-      { path: "home", component: HomePageComponent },
-      { path: "criar-usuario", component: CriarUsuarioPageComponent },
-      { path: "adicionar-comprovante", component: AdicionarComprovantePageComponent },
-      { path: "lista-comprovantes", component: ListaComprovantesPageComponent },
-      { path: "relatorios", component: RelatoriosPageComponent },
+      {
+        path: "home",
+        loadComponent: () => import("./pages/home-page.component").then((m) => m.HomePageComponent),
+      },
+      {
+        path: "criar-usuario",
+        loadComponent: () =>
+          import("./pages/criar-usuario-page.component").then((m) => m.CriarUsuarioPageComponent),
+      },
+      {
+        path: "adicionar-comprovante",
+        loadComponent: () =>
+          import("./pages/adicionar-comprovante-page.component").then((m) => m.AdicionarComprovantePageComponent),
+      },
+      {
+        path: "lista-comprovantes",
+        loadComponent: () =>
+          import("./pages/lista-comprovantes-page.component").then((m) => m.ListaComprovantesPageComponent),
+      },
+      {
+        path: "relatorios",
+        loadComponent: () => import("./pages/relatorios-page.component").then((m) => m.RelatoriosPageComponent),
+      },
       { path: "", pathMatch: "full", redirectTo: "home" },
     ],
   },

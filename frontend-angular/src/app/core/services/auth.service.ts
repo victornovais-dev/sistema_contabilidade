@@ -23,7 +23,7 @@ export class AuthService {
   logout(): void {
     localStorage.removeItem(this.tokenKey);
     document.cookie = "SC_TOKEN=; Max-Age=0; path=/";
-    this.router.navigateByUrl("/login");
+    this.router.navigate(["/login"]);
   }
 
   token(): string | null {

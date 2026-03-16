@@ -9,6 +9,7 @@ Esta pasta contém uma base Angular standalone para substituir as páginas está
 - `ThemeService` com tema persistido em cookie/localStorage
 - `authGuard` protegendo rotas autenticadas
 - `authInterceptor` adicionando `Authorization: Bearer <token>` em `/api/*`
+- `app.config.ts` com `provideRouter(appRoutes)` (padrão standalone)
 - Rotas base:
   - `/login`
   - `/home`

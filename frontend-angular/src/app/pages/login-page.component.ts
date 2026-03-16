@@ -130,7 +130,7 @@ export class LoginPageComponent {
     this.authService.login(this.form.getRawValue()).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigateByUrl("/home");
+        this.router.navigate(["/home"]);
       },
       error: () => {
         this.loading = false;
