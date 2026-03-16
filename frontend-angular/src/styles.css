@@ -1,0 +1,38 @@
+:root {
+  color-scheme: light;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  --bg: #f7f4ef;
+  --ink: #1b1b1f;
+  --muted: #6f6f7a;
+  --card: rgba(255, 255, 255, 0.86);
+  --stroke: rgba(27, 27, 31, 0.12);
+  --accent: #f97316;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --ink: #f5f4f2;
+  --muted: #b5b5c2;
+  --card: rgba(20, 20, 24, 0.86);
+  --stroke: rgba(255, 255, 255, 0.12);
+  --accent: #fb923c;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+a {
+  color: inherit;
+}
