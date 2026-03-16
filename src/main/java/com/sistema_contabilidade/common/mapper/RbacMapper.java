@@ -8,8 +8,11 @@ import com.sistema_contabilidade.rbac.model.Permissao;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import org.mapstruct.Mapper;
+import org.mapstruct.NullValueMappingStrategy;
 
-@Mapper(componentModel = "spring")
+@Mapper(
+    componentModel = "spring",
+    nullValueIterableMappingStrategy = NullValueMappingStrategy.RETURN_DEFAULT)
 public interface RbacMapper {
 
   RoleDto toRoleDto(Role role);
