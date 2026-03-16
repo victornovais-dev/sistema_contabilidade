@@ -77,8 +77,7 @@ class PaginaUsuarioControllerTest {
 
   private static Stream<Arguments> adminOnlyMethods() {
     return Stream.of(
-        Arguments.of("criar usuario", "criarUsuarioPage"),
-        Arguments.of("admin", "adminPage"));
+        Arguments.of("criar usuario", "criarUsuarioPage"), Arguments.of("admin", "adminPage"));
   }
 
   @SuppressWarnings("unchecked")

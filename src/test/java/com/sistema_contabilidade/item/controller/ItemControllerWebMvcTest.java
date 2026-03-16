@@ -151,9 +151,7 @@ class ItemControllerWebMvcTest {
         .thenReturn(Optional.of(usuarioComRoles("operador", "OPERATOR")));
 
     mockMvc
-        .perform(
-            get("/api/v1/itens/{id}", id)
-                .with(authComRoles("operador@email.com", "OPERATOR")))
+        .perform(get("/api/v1/itens/{id}", id).with(authComRoles("operador@email.com", "OPERATOR")))
         .andExpect(status().isForbidden());
   }
 

@@ -106,5 +106,4 @@ class ItemRecordDtosTest {
 
     assertArrayEquals(new byte[] {1, 2, 3}, request.arquivoPdf());
   }
-
 }
