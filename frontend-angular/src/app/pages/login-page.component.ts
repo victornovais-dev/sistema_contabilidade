@@ -1,14 +1,15 @@
 import { Component, inject } from "@angular/core";
-import { CommonModule } from "@angular/common";
-import { FormBuilder, ReactiveFormsModule, Validators } from "@angular/forms";
+import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from "@angular/forms";
 import { Router } from "@angular/router";
 import { AuthService } from "../core/services/auth.service";
 import { ThemeService } from "../core/services/theme.service";
+import { AutoFocusDirective } from "../shared/directives/auto-focus.directive";
+import { TrimDirective } from "../shared/directives/trim.directive";
 
 @Component({
   selector: "app-login-page",
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [ReactiveFormsModule, AutoFocusDirective, TrimDirective],
   template: `
     <main class="login-page">
       <section class="card">
@@ -16,15 +17,26 @@ import { ThemeService } from "../core/services/theme.service";
         <form [formGroup]="form" (ngSubmit)="submit()">
           <label>
             <span>Email</span>
-            <input type="email" formControlName="email" />
+            <input type="email" formControlName="email" appTrim appAutoFocus />
           </label>
+          @if (form.controls.email.touched && form.controls.email.hasError("required")) {
+            <p class="error">Email é obrigatório.</p>
+          }
+          @if (form.controls.email.touched && form.controls.email.hasError("email")) {
+            <p class="error">Informe um email válido.</p>
+          }
           <label>
             <span>Senha</span>
             <input type="password" formControlName="senha" />
           </label>
+          @if (form.controls.senha.touched && form.controls.senha.hasError("required")) {
+            <p class="error">Senha é obrigatória.</p>
+          }
           <button type="submit" [disabled]="form.invalid || loading">Entrar</button>
         </form>
-        <p class="error" *ngIf="error">{{ error }}</p>
+        @if (error) {
+          <p class="error">{{ error }}</p>
+        }
         <button class="theme" type="button" (click)="themeService.toggleTheme()">Alternar tema</button>
       </section>
     </main>
@@ -94,7 +106,7 @@ import { ThemeService } from "../core/services/theme.service";
   ],
 })
 export class LoginPageComponent {
-  private readonly fb = inject(FormBuilder);
+  private readonly fb = inject(NonNullableFormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   readonly themeService = inject(ThemeService);
@@ -102,7 +114,7 @@ export class LoginPageComponent {
   loading = false;
   error = "";
 
-  readonly form = this.fb.nonNullable.group({
+  readonly form = this.fb.group({
     email: ["", [Validators.required, Validators.email]],
     senha: ["", [Validators.required]],
   });
