@@ -15,6 +15,7 @@ import com.sistema_contabilidade.rbac.model.Permissao;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.PermissaoRepository;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.util.HashSet;
@@ -39,6 +40,7 @@ class RoleServiceTest {
 
   @Mock private UsuarioRepository usuarioRepository;
   @Mock private RbacMapper rbacMapper;
+  @Mock private CustomUserDetailsService customUserDetailsService;
 
   @Test
   @DisplayName("Deve criar role")
@@ -128,6 +130,7 @@ class RoleServiceTest {
     // Assert
     assertEquals(1, resultado.getPermissoes().size());
     verify(roleRepository).save(role);
+    verify(customUserDetailsService).limparCacheUserDetails();
   }
 
   @Test
@@ -190,6 +193,7 @@ class RoleServiceTest {
 
     // Assert
     assertEquals(1, resultado.getRoles().size());
+    verify(customUserDetailsService).atualizarCacheUsuario(usuarioId, "email@email.com");
   }
 
   @Test
@@ -239,6 +243,10 @@ class RoleServiceTest {
 
   private RoleService novoRoleService() {
     return new RoleService(
-        roleRepository, permissaoRepository, usuarioRepository, rbacMapper);
+        roleRepository,
+        permissaoRepository,
+        usuarioRepository,
+        rbacMapper,
+        customUserDetailsService);
   }
 }

@@ -27,6 +27,7 @@ import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.CredentialsContainer;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -69,6 +70,7 @@ class CustomUserDetailsServiceTest {
     assertTrue(
         userDetails.getAuthorities().stream()
             .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN")));
+    assertTrue(!(userDetails instanceof CredentialsContainer));
     verify(setOperations, never()).add(eq(key), any(String[].class));
     verify(redisTemplate, never()).expire(eq(key), any(Duration.class));
   }

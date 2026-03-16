@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.sistema_contabilidade.common.mapper.UsuarioMapper;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.model.Usuario;
@@ -38,6 +39,7 @@ class UsuarioServiceTest {
 
   @Mock private PasswordEncoder passwordEncoder;
   @Mock private UsuarioMapper usuarioMapper;
+  @Mock private CustomUserDetailsService customUserDetailsService;
 
   @InjectMocks private UsuarioService usuarioService;
 
@@ -183,6 +185,8 @@ class UsuarioServiceTest {
     assertEquals("ana.maria@email.com", resultado.getEmail());
     verify(usuarioRepository).findById(id);
     verify(usuarioRepository).save(existente);
+    verify(customUserDetailsService).atualizarCacheUsuario(id, "ana.maria@email.com");
+    verify(customUserDetailsService).removerCacheUsuario(id, "ana@email.com");
   }
 
   @Test
@@ -210,6 +214,8 @@ class UsuarioServiceTest {
 
     assertEquals("Ana Maria", resultado.getNome());
     assertEquals("encoded-nova-senha", existente.getSenha());
+    verify(customUserDetailsService).atualizarCacheUsuario(id, "ana.maria@email.com");
+    verify(customUserDetailsService).removerCacheUsuario(id, "ana@email.com");
   }
 
   @Test
@@ -296,6 +302,9 @@ class UsuarioServiceTest {
 
     assertEquals("Ana Maria", resultado.getNome());
     verify(usuarioRepository).save(existente);
+    verify(customUserDetailsService).atualizarCacheUsuario(id, "ana@email.com");
+    verify(customUserDetailsService, never())
+        .removerCacheUsuario(any(UUID.class), any(String.class));
   }
 
   @Test
@@ -335,6 +344,7 @@ class UsuarioServiceTest {
 
     // Assert
     verify(usuarioRepository).findById(id);
+    verify(customUserDetailsService).removerCacheUsuario(id, "ana@email.com");
     verify(usuarioRepository).delete(usuario);
   }
 

@@ -4,6 +4,7 @@ import com.sistema_contabilidade.common.mapper.UsuarioMapper;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.model.RoleNivel;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.model.Usuario;
@@ -27,6 +28,7 @@ public class UsuarioService {
   private final RoleRepository roleRepository;
   private final PasswordEncoder passwordEncoder;
   private final UsuarioMapper usuarioMapper;
+  private final CustomUserDetailsService customUserDetailsService;
 
   @Transactional
   public UsuarioDto save(UsuarioCreateRequest usuarioCreateRequest) {
@@ -47,6 +49,7 @@ public class UsuarioService {
   public UsuarioDto update(UUID id, UsuarioDto usuarioDto) {
     Usuario usuarioAtualizado = usuarioMapper.toEntity(usuarioDto);
     Usuario usuarioExistente = buscarPorId(id);
+    String emailAnterior = usuarioExistente.getEmail();
     validarEmailDuplicado(usuarioAtualizado.getEmail(), id);
     usuarioExistente.setNome(usuarioAtualizado.getNome());
     usuarioExistente.setEmail(usuarioAtualizado.getEmail());
@@ -54,13 +57,15 @@ public class UsuarioService {
       usuarioExistente.setSenha(passwordEncoder.encode(usuarioAtualizado.getSenha()));
     }
     Usuario salvo = usuarioRepository.save(usuarioExistente);
+    customUserDetailsService.atualizarCacheUsuario(salvo.getId(), salvo.getEmail());
+    if (!emailAnterior.equalsIgnoreCase(salvo.getEmail())) {
+      customUserDetailsService.removerCacheUsuario(salvo.getId(), emailAnterior);
+    }
     return usuarioMapper.toDto(salvo);
   }
 
   public List<UsuarioDto> listarTodos() {
-    return usuarioRepository.findAll().stream()
-        .map(usuarioMapper::toDto)
-        .toList();
+    return usuarioRepository.findAll().stream().map(usuarioMapper::toDto).toList();
   }
 
   public UsuarioDto findById(UUID id) {
@@ -82,6 +87,7 @@ public class UsuarioService {
   @Transactional
   public void deletar(UUID id) {
     Usuario usuario = buscarPorId(id);
+    customUserDetailsService.removerCacheUsuario(usuario.getId(), usuario.getEmail());
     usuarioRepository.delete(usuario);
   }
 

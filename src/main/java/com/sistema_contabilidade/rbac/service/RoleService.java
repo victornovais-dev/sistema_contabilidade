@@ -9,6 +9,7 @@ import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.model.RoleNivel;
 import com.sistema_contabilidade.rbac.repository.PermissaoRepository;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
@@ -26,6 +27,7 @@ public class RoleService {
   private final PermissaoRepository permissaoRepository;
   private final UsuarioRepository usuarioRepository;
   private final RbacMapper rbacMapper;
+  private final CustomUserDetailsService customUserDetailsService;
 
   @Transactional
   public RoleDto criarRole(String nome) {
@@ -73,6 +75,7 @@ public class RoleService {
 
     role.getPermissoes().add(permissao);
     Role roleSalva = roleRepository.save(role);
+    customUserDetailsService.limparCacheUserDetails();
     return rbacMapper.toRoleDto(roleSalva);
   }
 
@@ -92,6 +95,7 @@ public class RoleService {
 
     usuario.getRoles().add(role);
     Usuario usuarioSalvo = usuarioRepository.save(usuario);
+    customUserDetailsService.atualizarCacheUsuario(usuarioSalvo.getId(), usuarioSalvo.getEmail());
     return rbacMapper.toUsuarioComRolesDto(usuarioSalvo);
   }
 

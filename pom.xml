@@ -36,6 +36,7 @@
 		<errorprone.version>2.39.0</errorprone.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<lombok.mapstruct.binding.version>0.2.0</lombok.mapstruct.binding.version>
+		<lombok.version>1.18.42</lombok.version>
 		<dependency.check.maven.plugin.version>12.1.8</dependency.check.maven.plugin.version>
 		<exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
 		<jacoco.maven.plugin.version>0.8.14</jacoco.maven.plugin.version>
@@ -65,6 +66,14 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-cache</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 		<dependency>
@@ -86,6 +95,7 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
+			<version>${lombok.version}</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
@@ -149,6 +159,7 @@
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
+							<version>${lombok.version}</version>
 						</path>
 						<path>
 							<groupId>org.mapstruct</groupId>
