@@ -7,6 +7,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
@@ -22,7 +23,9 @@ import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(name = "usuarios")
+@Table(
+    name = "usuarios",
+    indexes = {@Index(name = "idx_usuarios_email", columnList = "email", unique = true)})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -46,7 +49,7 @@ public class Usuario {
   @Column(nullable = false)
   private String senha;
 
-  @ManyToMany(fetch = FetchType.EAGER)
+  @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "usuario_roles",
       joinColumns = @JoinColumn(name = "usuario_id"),
