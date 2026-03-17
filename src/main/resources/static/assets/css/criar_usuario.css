@@ -182,6 +182,237 @@ html[data-theme="dark"] .field select {
   box-shadow: 0 0 0 3px rgba(216, 75, 52, 0.16);
 }
 
+.role-picker-field {
+  position: relative;
+}
+
+.roles-trigger {
+  height: 50px;
+  border-radius: 14px;
+  border: 1px solid rgba(27, 27, 31, 0.16);
+  background: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.roles-plus {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 1rem;
+  background: rgba(216, 75, 52, 0.18);
+  color: var(--accent);
+}
+
+html[data-theme="dark"] .roles-trigger {
+  background: rgba(20, 20, 24, 0.9);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.roles-card {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, 92vw);
+  border-radius: 24px;
+  border: 1px solid var(--stroke);
+  background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.62),
+      rgba(255, 255, 255, 0.48)
+    );
+  color: var(--ink);
+  box-shadow: 0 24px 56px rgba(20, 20, 24, 0.22);
+  backdrop-filter: blur(14px);
+  padding: 20px;
+  z-index: 40;
+}
+
+.roles-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+html[data-theme="dark"] .roles-card {
+  background: linear-gradient(160deg, rgba(20, 20, 24, 0.64), rgba(20, 20, 24, 0.5));
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.45);
+}
+
+.roles-card-header {
+  font-size: 1.15rem;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.roles-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(27, 27, 31, 0.16);
+  border-radius: 12px;
+  padding: 0 12px;
+  height: 44px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.36);
+}
+
+html[data-theme="dark"] .roles-search-wrap {
+  background: rgba(20, 20, 24, 0.38);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.roles-search-icon {
+  font-size: 0.95rem;
+  opacity: 0.8;
+}
+
+.role-picker-field .roles-search {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.95rem;
+  box-shadow: none;
+}
+
+.role-picker-field .roles-search::placeholder {
+  color: var(--muted);
+}
+
+.role-picker-field .roles-search:focus {
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.roles-options {
+  max-height: 240px;
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+  padding-right: 6px;
+  margin-bottom: 8px;
+  background: transparent;
+  border: 1px solid rgba(27, 27, 31, 0.08);
+  border-radius: 12px;
+  padding: 6px;
+}
+
+html[data-theme="dark"] .roles-options {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.roles-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  padding: 10px 8px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+
+.roles-option:hover {
+  background: rgba(216, 75, 52, 0.1);
+  border-color: rgba(216, 75, 52, 0.2);
+}
+
+.roles-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.roles-actions {
+  display: block;
+  margin-top: 12px;
+}
+
+.roles-confirm {
+  width: 100%;
+  height: 46px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f0684a, #d84b34);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0 14px;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(216, 75, 52, 0.28);
+}
+
+.roles-confirm:hover {
+  transform: translateY(-1px);
+}
+
+.selected-roles {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.roles-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(216, 75, 52, 0.35);
+  background: rgba(216, 75, 52, 0.1);
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 10px;
+}
+
+html[data-theme="dark"] .role-chip {
+  background: rgba(255, 122, 89, 0.18);
+  border-color: rgba(255, 122, 89, 0.45);
+}
+
+.role-chip-remove {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(216, 75, 52, 0.22);
+  color: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
 .btn {
   margin-top: 8px;
   padding: 14px 18px;

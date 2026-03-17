@@ -1,6 +1,9 @@
 const root = document.documentElement;
-const form = document.getElementById("create-user-form");
-const confirmOverlay = document.getElementById("create-user-feedback");
+const form = document.getElementById("update-user-form");
+const loadUserButton = document.getElementById("load-user-btn");
+const emailInput = document.getElementById("email");
+const senhaInput = document.getElementById("senha");
+const confirmOverlay = document.getElementById("update-user-feedback");
 const confirmCard = confirmOverlay.querySelector(".confirm-card");
 const feedbackOkBtn = document.getElementById("feedback-ok-btn");
 const confirmIcon = confirmOverlay.querySelector(".confirm-icon");
@@ -53,9 +56,8 @@ const updateLabel = () => {
   const isDark = root.dataset.theme === "dark";
   toggle.setAttribute("aria-pressed", isDark ? "true" : "false");
   toggle.setAttribute("aria-label", isDark ? "Ativar modo claro" : "Ativar modo escuro");
-  toggle.querySelector(".theme-icon").innerHTML = isDark
-    ? '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4.6" fill="currentColor"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="12" y1="2.4" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21.6"/><line x1="2.4" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21.6" y2="12"/><line x1="5.1" y1="5.1" x2="6.9" y2="6.9"/><line x1="17.1" y1="17.1" x2="18.9" y2="18.9"/><line x1="17.1" y1="6.9" x2="18.9" y2="5.1"/><line x1="5.1" y1="18.9" x2="6.9" y2="17.1"/></g></svg>'
-    : '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4.6" fill="currentColor"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="12" y1="2.4" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21.6"/><line x1="2.4" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21.6" y2="12"/><line x1="5.1" y1="5.1" x2="6.9" y2="6.9"/><line x1="17.1" y1="17.1" x2="18.9" y2="18.9"/><line x1="17.1" y1="6.9" x2="18.9" y2="5.1"/><line x1="5.1" y1="18.9" x2="6.9" y2="17.1"/></g></svg>';
+  toggle.querySelector(".theme-icon").innerHTML =
+    '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4.6" fill="currentColor"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="12" y1="2.4" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21.6"/><line x1="2.4" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21.6" y2="12"/><line x1="5.1" y1="5.1" x2="6.9" y2="6.9"/><line x1="17.1" y1="17.1" x2="18.9" y2="18.9"/><line x1="17.1" y1="6.9" x2="18.9" y2="5.1"/><line x1="5.1" y1="18.9" x2="6.9" y2="17.1"/></g></svg>';
 };
 
 const bindThemeToggle = () => {
@@ -84,6 +86,15 @@ const syncRolesHidden = () => {
   rolesHidden.setCustomValidity(roles.length > 0 ? "" : "Selecione ao menos uma role.");
 };
 
+const setCheckedRoles = (roles) => {
+  rolesOptions.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
+    checkbox.checked = roles.includes(checkbox.value);
+  });
+  selectedRoles.clear();
+  roles.forEach((role) => selectedRoles.add(role));
+  renderSelectedRoles();
+};
+
 const renderSelectedRoles = () => {
   const roles = Array.from(selectedRoles);
   selectedRolesContainer.innerHTML = "";
@@ -107,6 +118,7 @@ const renderSelectedRoles = () => {
     remove.setAttribute("aria-label", `Remover ${role}`);
     remove.textContent = "-";
     remove.addEventListener("click", (event) => {
+      event.preventDefault();
       event.stopPropagation();
       selectedRoles.delete(role);
       const checkbox = rolesOptions.querySelector(`input[value="${role}"]`);
@@ -181,7 +193,8 @@ const showFeedback = (type, message) => {
   confirmCard.classList.remove("is-success", "is-error");
   confirmCard.classList.add(type === "success" ? "is-success" : "is-error");
   confirmIcon.textContent = type === "success" ? "\u2713" : "\u2715";
-  confirmTitle.textContent = type === "success" ? "Usuario criado" : "Erro ao criar usuario";
+  confirmTitle.textContent =
+    type === "success" ? "Usuario atualizado" : "Erro ao atualizar usuario";
   confirmMessage.textContent = message || "";
   confirmMessage.hidden = !message;
   confirmOverlay.classList.add("is-visible");
@@ -193,23 +206,57 @@ feedbackOkBtn.addEventListener("click", () => {
   confirmOverlay.setAttribute("aria-hidden", "true");
 });
 
+const carregarUsuario = async () => {
+  const email = emailInput.value.trim();
+  if (!email) {
+    showFeedback("error", "Informe um email valido.");
+    return;
+  }
+
+  const response = await fetch(`/api/v1/usuarios/por-email?email=${encodeURIComponent(email)}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    credentials: "same-origin",
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    showFeedback("error", data.message || data.error || "Falha ao buscar usuario.");
+    return;
+  }
+
+  senhaInput.value = "";
+  const roles = Array.isArray(data.roles) ? data.roles.map((item) => item.nome).filter(Boolean) : [];
+  setCheckedRoles(roles);
+};
+
+loadUserButton.addEventListener("click", async () => {
+  try {
+    await carregarUsuario();
+  } catch (error) {
+    showFeedback("error", "Erro de conexao com o servidor.");
+  }
+});
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  confirmOverlay.classList.remove("is-visible");
-  confirmOverlay.setAttribute("aria-hidden", "true");
-
+  const email = emailInput.value.trim();
   applySelectedRolesFromChecks();
   const selectedRolesList = Array.from(selectedRoles);
+  if (!email) {
+    showFeedback("error", "Informe um email valido.");
+    return;
+  }
   if (selectedRolesList.length === 0) {
     showFeedback("error", "Selecione ao menos uma role.");
     return;
   }
 
   const payload = {
-    nome: document.getElementById("nome").value.trim(),
-    email: document.getElementById("email").value.trim(),
-    senha: document.getElementById("senha").value,
-    role: selectedRolesList[0] || null,
+    email,
+    senha: senhaInput.value.trim() ? senhaInput.value : null,
     roles: selectedRolesList,
   };
 
@@ -217,31 +264,27 @@ form.addEventListener("submit", async (event) => {
     if (!csrfToken) {
       await carregarCsrfToken();
     }
-    const response = await fetch("/api/v1/usuarios", {
-      method: "POST",
+    const response = await fetch("/api/v1/usuarios/por-email", {
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
         "X-CSRF-TOKEN": csrfToken,
-        Authorization: "Bearer " + token,
+        Authorization: `Bearer ${token}`,
       },
+      credentials: "same-origin",
       body: JSON.stringify(payload),
     });
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      showFeedback("error", data.message || data.error || "Falha ao criar usuario");
+      showFeedback("error", data.message || data.error || "Falha ao atualizar usuario.");
       return;
     }
 
-    form.reset();
-    selectedRoles.clear();
-    rolesOptions.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
-      checkbox.checked = false;
-      checkbox.parentElement.hidden = false;
-    });
-    rolesSearch.value = "";
-    renderSelectedRoles();
-    showFeedback("success", "");
+    const roles = Array.isArray(data.roles) ? data.roles.map((item) => item.nome).filter(Boolean) : [];
+    setCheckedRoles(roles);
+    senhaInput.value = "";
+    showFeedback("success", "Usuario atualizado com sucesso.");
   } catch (error) {
     showFeedback("error", "Erro de conexao com o servidor.");
   }

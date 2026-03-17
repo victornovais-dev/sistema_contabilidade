@@ -1,0 +1,19 @@
+@import url("./criar_usuario.css?v=20260316-6");
+
+.field-inline {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn-inline {
+  margin-top: 0;
+  min-width: 130px;
+  height: 50px;
+  padding: 0 14px;
+}
+
+.search-field {
+  margin-bottom: 2px;
+}

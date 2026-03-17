@@ -1,0 +1,67 @@
+.navbar .logout-btn {
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(249, 115, 22, 0.55);
+  background: rgba(249, 115, 22, 0.2);
+  color: #7c2d12;
+  font-weight: 600;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.22);
+}
+
+html[data-theme="dark"] .navbar .logout-btn {
+  background: rgba(249, 115, 22, 0.42);
+  color: #fff;
+  border-color: rgba(251, 146, 60, 0.72);
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.34);
+}
+
+.navbar .logout-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(216, 75, 52, 0.4);
+}
+
+.navbar .theme-toggle {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-elev);
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+html[data-theme="dark"] .navbar .theme-toggle {
+  background: rgba(20, 20, 24, 0.6);
+}
+
+.navbar .theme-toggle:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--line), var(--brand) 40%);
+}
+
+.navbar .theme-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #101116;
+}
+
+.navbar .theme-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+html[data-theme="dark"] .navbar .theme-icon {
+  color: #f5f4f2;
+}

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Criar Usuario</title>
+    <title>Atualizar Usuario</title>
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
     <script>
       (function () {
@@ -23,7 +23,7 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/css/criar_usuario.css?v=20260316-6" />
+    <link rel="stylesheet" href="assets/css/atualizar_usuario.css?v=20260317-2" />
     <link rel="stylesheet" href="assets/css/navbar.css" />
   </head>
   <body>
@@ -57,26 +57,36 @@
 
     <main class="page page-wide">
       <header class="page-header">
-        <span class="chip">Usuario</span>
-        <h1>Criar usuario</h1>
-        <p>Preencha os dados para cadastrar um novo usuario.</p>
+        <span class="chip">Admin</span>
+        <h1>Atualizar usuario</h1>
+        <p>Busque por email e atualize senha e roles do usuario.</p>
       </header>
 
       <section class="card">
-        <form id="create-user-form" class="form" action="#" method="post">
-          <label class="field">
-            <span>Nome</span>
-            <input id="nome" type="text" name="nome" placeholder="Nome completo" required />
+        <form id="update-user-form" class="form" action="#" method="post">
+          <label class="field search-field">
+            <span>Email do usuario</span>
+            <div class="field-inline">
+              <input
+                id="email"
+                type="email"
+                name="email"
+                placeholder="usuario@email.com"
+                required
+              />
+              <button id="load-user-btn" class="btn btn-inline" type="button">Carregar</button>
+            </div>
           </label>
 
           <label class="field">
-            <span>Email</span>
-            <input id="email" type="email" name="email" placeholder="usuario@email.com" required />
-          </label>
-
-          <label class="field">
-            <span>Senha</span>
-            <input id="senha" type="password" name="senha" placeholder="Minimo 6 caracteres" minlength="6" required />
+            <span>Senha (opcional)</span>
+            <input
+              id="senha"
+              type="password"
+              name="senha"
+              placeholder="Deixe em branco para manter"
+              minlength="6"
+            />
           </label>
 
           <div class="field role-picker-field">
@@ -111,12 +121,12 @@
             <input id="roles-hidden" name="roles_hidden" type="text" required hidden />
           </div>
 
-          <button class="btn" type="submit">Criar usuario</button>
+          <button class="btn" type="submit">Atualizar usuario</button>
         </form>
       </section>
     </main>
 
-    <div id="create-user-feedback" class="confirm-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+    <div id="update-user-feedback" class="confirm-overlay" role="dialog" aria-modal="true" aria-hidden="true">
       <div class="confirm-card" role="status" aria-live="polite">
         <div class="confirm-icon" aria-hidden="true"></div>
         <h2 class="feedback-title"></h2>
@@ -125,6 +135,6 @@
       </div>
     </div>
 
-    <script src="assets/js/criar_usuario.js?v=20260316-4" defer></script>
+    <script src="assets/js/atualizar_usuario.js?v=20260317-2" defer></script>
   </body>
 </html>
