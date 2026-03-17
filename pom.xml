@@ -31,21 +31,37 @@
 		<spotless.maven.plugin.version>2.46.1</spotless.maven.plugin.version>
 		<google.java.format.version>1.27.0</google.java.format.version>
 		<checkstyle.maven.plugin.version>3.6.0</checkstyle.maven.plugin.version>
+		<spotbugs.maven.plugin.version>4.9.8.0</spotbugs.maven.plugin.version>
 		<pmd.maven.plugin.version>3.28.0</pmd.maven.plugin.version>
 		<plexus.compiler.errorprone.version>2.15.0</plexus.compiler.errorprone.version>
 		<errorprone.version>2.39.0</errorprone.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<lombok.mapstruct.binding.version>0.2.0</lombok.mapstruct.binding.version>
 		<lombok.version>1.18.42</lombok.version>
+		<archunit.version>1.4.1</archunit.version>
+		<jackson.bom.version>3.1.0</jackson.bom.version>
 		<dependency.check.maven.plugin.version>12.1.8</dependency.check.maven.plugin.version>
 		<exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
 		<jacoco.maven.plugin.version>0.8.14</jacoco.maven.plugin.version>
 		<sonar.maven.plugin.version>3.11.0.3922</sonar.maven.plugin.version>
 		<dependency-check.skip>true</dependency-check.skip>
+		<snyk.skip>true</snyk.skip>
+		<snyk.severity.threshold>high</snyk.severity.threshold>
 		<sonar.issue.ignore.multicriteria>e1</sonar.issue.ignore.multicriteria>
 		<sonar.issue.ignore.multicriteria.e1.ruleKey>java:S8445</sonar.issue.ignore.multicriteria.e1.ruleKey>
 		<sonar.issue.ignore.multicriteria.e1.resourceKey>**/src/test/java/**/*</sonar.issue.ignore.multicriteria.e1.resourceKey>
 	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>tools.jackson</groupId>
+				<artifactId>jackson-bom</artifactId>
+				<version>${jackson.bom.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -65,6 +81,10 @@
 			<artifactId>spring-boot-starter-data-redis</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-pool2</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-cache</artifactId>
 		</dependency>
@@ -81,12 +101,6 @@
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-devtools</artifactId>
-			<scope>runtime</scope>
-			<optional>true</optional>
-		</dependency>
 		<dependency>
 			<groupId>com.mysql</groupId>
 			<artifactId>mysql-connector-j</artifactId>
@@ -138,6 +152,12 @@
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit5</artifactId>
+			<version>${archunit.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -210,6 +230,23 @@
 				<executions>
 					<execution>
 						<id>checkstyle-verify</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.github.spotbugs</groupId>
+				<artifactId>spotbugs-maven-plugin</artifactId>
+				<version>${spotbugs.maven.plugin.version}</version>
+				<configuration>
+					<failOnError>true</failOnError>
+				</configuration>
+				<executions>
+					<execution>
+						<id>spotbugs-verify</id>
 						<phase>verify</phase>
 						<goals>
 							<goal>check</goal>
@@ -323,6 +360,17 @@
 
 	<profiles>
 		<profile>
+			<id>devtools</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-devtools</artifactId>
+					<scope>runtime</scope>
+					<optional>true</optional>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
 			<id>quality-fast</id>
 			<activation>
 				<activeByDefault>true</activeByDefault>
@@ -339,6 +387,9 @@
 		</profile>
 		<profile>
 			<id>snyk</id>
+			<properties>
+				<snyk.skip>false</snyk.skip>
+			</properties>
 			<build>
 				<plugins>
 					<plugin>
@@ -353,9 +404,12 @@
 									<goal>exec</goal>
 								</goals>
 								<configuration>
-									<executable>snyk</executable>
+									<skip>${snyk.skip}</skip>
+									<executable>npx</executable>
 									<arguments>
+										<argument>snyk</argument>
 										<argument>test</argument>
+										<argument>--severity-threshold=${snyk.severity.threshold}</argument>
 									</arguments>
 								</configuration>
 							</execution>

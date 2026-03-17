@@ -6,11 +6,13 @@
 - `./mvnw checkstyle:check`: Checkstyle (Google Java Style)
 - `./mvnw spotbugs:check`: SpotBugs
 - `./mvnw pmd:check`: PMD
+- `./mvnw -DskipTests compile`: Error Prone (compilação estática)
+- `./mvnw -Dtest=ArchitectureRulesTest test`: ArchUnit
 - `./mvnw dependency-check:check`: OWASP Dependency-Check
 
 ## Quality Rules
 - Use Google Java Style
-- Keep Spotless, Checkstyle, SpotBugs and PMD passing
+- Keep Spotless, Checkstyle, SpotBugs, PMD, Error Prone and ArchUnit passing
 - Keep tests green before commit
 
 ## Security Rules
@@ -26,7 +28,7 @@
 Before every commit:
 1. `./mvnw spotless:apply`
 2. `./mvnw test`
-3. `./mvnw checkstyle:check spotbugs:check pmd:check`
+3. `./mvnw -DskipTests compile checkstyle:check spotbugs:check pmd:check`
 4. `./mvnw verify`
 
 ## Notes
