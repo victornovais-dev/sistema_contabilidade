@@ -13,4 +13,14 @@ public record UsuarioCreateRequest(
         @Size(min = 6, message = "Senha deve ter pelo menos 6 caracteres")
         String senha,
     String role,
-    Set<@NotBlank(message = "Role nao pode ser vazia") String> roles) {}
+    Set<@NotBlank(message = "Role nao pode ser vazia") String> roles) {
+
+  public UsuarioCreateRequest {
+    roles = roles == null ? Set.of() : Set.copyOf(roles);
+  }
+
+  @Override
+  public Set<String> roles() {
+    return Set.copyOf(roles);
+  }
+}

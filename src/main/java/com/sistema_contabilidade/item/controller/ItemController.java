@@ -44,6 +44,8 @@ public class ItemController {
   private static final String ARQUIVO_PATH = ID_PATH + "/arquivo";
   private static final String ITEM_NAO_ENCONTRADO = "Item nao encontrado";
   private static final String ACESSO_NEGADO_ITEM = "Acesso negado ao item";
+  private static final String ARQUIVO_ITEM_NAO_ENCONTRADO = "Arquivo do item nao encontrado";
+  private static final String NOME_ARQUIVO_INVALIDO = "Nome do arquivo invalido";
 
   private final ItemRepository itemRepository;
   private final ItemArquivoStorageService itemArquivoStorageService;
@@ -88,9 +90,17 @@ public class ItemController {
   public ResponseEntity<InputStreamResource> baixarArquivo(
       Authentication authentication, @PathVariable("id") UUID id) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
+    String caminhoArquivoPdf = item.getCaminhoArquivoPdf();
+    if (caminhoArquivoPdf == null || caminhoArquivoPdf.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, ARQUIVO_ITEM_NAO_ENCONTRADO);
+    }
 
-    byte[] arquivoPdf = itemArquivoStorageService.carregarPdf(item.getCaminhoArquivoPdf());
-    String nomeArquivo = Path.of(item.getCaminhoArquivoPdf()).getFileName().toString();
+    byte[] arquivoPdf = itemArquivoStorageService.carregarPdf(caminhoArquivoPdf);
+    Path nomeArquivoPath = Path.of(caminhoArquivoPdf).getFileName();
+    if (nomeArquivoPath == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, NOME_ARQUIVO_INVALIDO);
+    }
+    String nomeArquivo = nomeArquivoPath.toString();
 
     return ResponseEntity.ok()
         .contentType(MediaType.APPLICATION_PDF)
