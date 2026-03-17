@@ -8,12 +8,16 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.common.mapper.RbacMapper;
 import com.sistema_contabilidade.common.mapper.UsuarioMapper;
+import com.sistema_contabilidade.rbac.dto.RoleResumoDto;
+import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
+import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.util.List;
@@ -39,6 +43,7 @@ class UsuarioServiceTest {
 
   @Mock private PasswordEncoder passwordEncoder;
   @Mock private UsuarioMapper usuarioMapper;
+  @Mock private RbacMapper rbacMapper;
   @Mock private CustomUserDetailsService customUserDetailsService;
 
   @InjectMocks private UsuarioService usuarioService;
@@ -387,6 +392,52 @@ class UsuarioServiceTest {
     assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
   }
 
+  @Test
+  @DisplayName("Deve buscar usuario com roles por email")
+  void findComRolesByEmailDeveRetornarDto() {
+    Usuario usuario =
+        novoUsuario(
+            UUID.fromString("55555555-5555-5555-5555-555555555555"), "Admin", "admin@email.com");
+    UsuarioComRolesDto dto =
+        new UsuarioComRolesDto(
+            usuario.getId(), "Admin", "admin@email.com", Set.of(new RoleResumoDto(null, "ADMIN")));
+    when(usuarioRepository.findByEmail("admin@email.com")).thenReturn(Optional.of(usuario));
+    when(rbacMapper.toUsuarioComRolesDto(usuario)).thenReturn(dto);
+
+    UsuarioComRolesDto resultado = usuarioService.findComRolesByEmail("admin@email.com");
+
+    assertEquals("admin@email.com", resultado.getEmail());
+    assertEquals(1, resultado.getRoles().size());
+  }
+
+  @Test
+  @DisplayName("Deve atualizar roles por email")
+  void updateByEmailDeveAtualizarRoles() {
+    Usuario usuario =
+        novoUsuario(
+            UUID.fromString("66666666-6666-6666-6666-666666666666"), "Suporte", "sup@email.com");
+    usuario.getRoles().add(role("CUSTOMER"));
+    UsuarioUpdateByEmailRequest request =
+        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("ADMIN", "SUPPORT"));
+    UsuarioComRolesDto dto =
+        new UsuarioComRolesDto(
+            usuario.getId(),
+            "Suporte",
+            "sup@email.com",
+            Set.of(new RoleResumoDto(null, "ADMIN"), new RoleResumoDto(null, "SUPPORT")));
+    when(usuarioRepository.findByEmail("sup@email.com")).thenReturn(Optional.of(usuario));
+    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(role("ADMIN")));
+    when(roleRepository.findByNome("SUPPORT")).thenReturn(Optional.of(role("SUPPORT")));
+    when(usuarioRepository.save(usuario)).thenReturn(usuario);
+    when(rbacMapper.toUsuarioComRolesDto(usuario)).thenReturn(dto);
+
+    UsuarioComRolesDto resultado = usuarioService.updateByEmail(request);
+
+    assertEquals(2, usuario.getRoles().size());
+    assertEquals(2, resultado.getRoles().size());
+    verify(customUserDetailsService).atualizarCacheUsuario(usuario.getId(), "sup@email.com");
+  }
+
   private Usuario novoUsuario(UUID id, String nome, String email) {
     Usuario usuario = new Usuario();
     usuario.setId(id);
@@ -394,5 +445,11 @@ class UsuarioServiceTest {
     usuario.setEmail(email);
     usuario.setSenha(id == null ? "654321" : "123456");
     return usuario;
+  }
+
+  private Role role(String nome) {
+    Role role = new Role();
+    role.setNome(nome);
+    return role;
   }
 }

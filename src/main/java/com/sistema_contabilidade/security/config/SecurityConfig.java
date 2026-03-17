@@ -43,9 +43,12 @@ public class SecurityConfig {
               headers -> {
                 headers.contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self';"));
                 headers.frameOptions(
-                    org.springframework.security.config.annotation.web.configurers.HeadersConfigurer.FrameOptionsConfig::deny);
+                    org.springframework.security.config.annotation.web.configurers.HeadersConfigurer
+                            .FrameOptionsConfig
+                        ::deny);
                 headers.referrerPolicy(
-                    referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER));
+                    referrer ->
+                        referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER));
                 headers.addHeaderWriter(
                     new StaticHeadersWriter(
                         "Permissions-Policy", "camera=(), microphone=(), geolocation=()"));
@@ -55,36 +58,40 @@ public class SecurityConfig {
           .sessionManagement(
               session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
           .exceptionHandling(
-              exceptions -> exceptions.authenticationEntryPoint(
-                  (request, response, authException) -> {
-                    if (request.getRequestURI().startsWith("/api/")) {
-                      response.sendError(401);
-                      return;
-                    }
-                    response.sendRedirect("/login");
-                  }))
+              exceptions ->
+                  exceptions.authenticationEntryPoint(
+                      (request, response, authException) -> {
+                        if (request.getRequestURI().startsWith("/api/")) {
+                          response.sendError(401);
+                          return;
+                        }
+                        response.sendRedirect("/login");
+                      }))
           .authorizeHttpRequests(
-              auth -> auth.requestMatchers("/", "/login", "/favicon.ico")
-                  .permitAll()
-                  .requestMatchers("/criar_usuario")
-                  .hasRole(ADMIN_ROLE)
-                  .requestMatchers("/admin")
-                  .hasRole(ADMIN_ROLE)
-                  .requestMatchers(
-                      "/assets/**",
-                      "/partials/**",
-                      "/src/**",
-                      "/css/**",
-                      "/js/**",
-                      "/images/**",
-                      "/webjars/**")
-                  .permitAll()
-                  .requestMatchers("/api/v1/auth/**")
-                  .permitAll()
-                  .requestMatchers("/api/v1/admin/**")
-                  .hasRole(ADMIN_ROLE)
-                  .anyRequest()
-                  .authenticated())
+              auth ->
+                  auth.requestMatchers("/", "/login", "/favicon.ico")
+                      .permitAll()
+                      .requestMatchers("/criar_usuario")
+                      .hasRole(ADMIN_ROLE)
+                      .requestMatchers("/atualizar_usuario")
+                      .hasRole(ADMIN_ROLE)
+                      .requestMatchers("/admin")
+                      .hasRole(ADMIN_ROLE)
+                      .requestMatchers(
+                          "/assets/**",
+                          "/partials/**",
+                          "/src/**",
+                          "/css/**",
+                          "/js/**",
+                          "/images/**",
+                          "/webjars/**")
+                      .permitAll()
+                      .requestMatchers("/api/v1/auth/**")
+                      .permitAll()
+                      .requestMatchers("/api/v1/admin/**")
+                      .hasRole(ADMIN_ROLE)
+                      .anyRequest()
+                      .authenticated())
           .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
           .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
       return http.build();
@@ -110,10 +117,7 @@ public class SecurityConfig {
 
   @Bean
   PasswordEncoder passwordEncoder() {
-    // N=16384 (2^14): ~300-400ms por hash — seguro e ~4x mais rapido que o padrao (N=65536).
-    // O padrao Spring v5.8 usa N=65536 (~1500ms), o que causava lentidao perceptivel no login.
-    // Caso queira equilibrio entre seguranca maxima e velocidade, use N=32768 (~700ms).
-    return new SCryptPasswordEncoder(16384, 8, 1, 32, 16);
+    return new SCryptPasswordEncoder(8192, 8, 1, 32, 64);
   }
 
   @Bean

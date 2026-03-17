@@ -58,6 +58,7 @@ class PaginaUsuarioControllerTest {
     return Stream.of(
         Arguments.of("login", "loginPage"),
         Arguments.of("criar usuario", "criarUsuarioPage"),
+        Arguments.of("atualizar usuario", "atualizarUsuarioPage"),
         Arguments.of("adicionar comprovante", "adicionarComprovantePage"),
         Arguments.of("home", "homePage"),
         Arguments.of("lista comprovantes", "listaComprovantesPage"),
@@ -77,7 +78,9 @@ class PaginaUsuarioControllerTest {
 
   private static Stream<Arguments> adminOnlyMethods() {
     return Stream.of(
-        Arguments.of("criar usuario", "criarUsuarioPage"), Arguments.of("admin", "adminPage"));
+        Arguments.of("criar usuario", "criarUsuarioPage"),
+        Arguments.of("atualizar usuario", "atualizarUsuarioPage"),
+        Arguments.of("admin", "adminPage"));
   }
 
   @SuppressWarnings("unchecked")

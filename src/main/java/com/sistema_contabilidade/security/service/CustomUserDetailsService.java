@@ -41,10 +41,14 @@ public class CustomUserDetailsService implements UserDetailsService {
   }
 
   @CacheEvict(value = USER_DETAILS_CACHE, key = "#p1")
-  public void removerCacheUsuario(UUID usuarioId, String username) {}
+  public void removerCacheUsuario(UUID usuarioId, String username) {
+    // No-op intencional: apenas invalida a entrada do cache Caffeine via @CacheEvict.
+  }
 
   @CacheEvict(value = USER_DETAILS_CACHE, allEntries = true)
-  public void limparCacheUserDetails() {}
+  public void limparCacheUserDetails() {
+    // No-op intencional: a limpeza total eh feita pelo proxy de cache via @CacheEvict.
+  }
 
   private Usuario buscarUsuarioPorEmail(String username) {
     return usuarioRepository

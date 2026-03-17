@@ -8,13 +8,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.sistema_contabilidade.rbac.dto.RoleResumoDto;
+import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
+import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -100,6 +105,24 @@ class UsuarioControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve buscar usuario por email com roles")
+  void buscarPorEmailDeveRetornarOk() throws Exception {
+    UsuarioComRolesDto usuario =
+        new UsuarioComRolesDto(
+            UUID.randomUUID(),
+            "Admin",
+            "admin@email.com",
+            Set.of(new RoleResumoDto(null, "ADMIN")));
+    when(usuarioService.findComRolesByEmail("admin@email.com")).thenReturn(usuario);
+
+    mockMvc
+        .perform(get("/api/v1/usuarios/por-email").param("email", "admin@email.com"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value("admin@email.com"))
+        .andExpect(jsonPath("$.roles[*].nome").value(Matchers.hasItem("ADMIN")));
+  }
+
+  @Test
   @DisplayName("Deve atualizar usuario")
   void atualizarDeveRetornarOk() throws Exception {
     UUID id = UUID.fromString("33333333-3333-3333-3333-333333333333");
@@ -123,6 +146,36 @@ class UsuarioControllerWebMvcTest {
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.email").value("dani@email.com"));
+  }
+
+  @Test
+  @DisplayName("Deve atualizar usuario por email com roles")
+  void atualizarPorEmailDeveRetornarOk() throws Exception {
+    UsuarioComRolesDto atualizado =
+        new UsuarioComRolesDto(
+            UUID.randomUUID(),
+            "Dani",
+            "dani@email.com",
+            Set.of(new RoleResumoDto(null, "ADMIN"), new RoleResumoDto(null, "SUPPORT")));
+    when(usuarioService.updateByEmail(
+            org.mockito.ArgumentMatchers.any(UsuarioUpdateByEmailRequest.class)))
+        .thenReturn(atualizado);
+
+    mockMvc
+        .perform(
+            put("/api/v1/usuarios/por-email")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email":"dani@email.com",
+                      "senha":"123456",
+                      "roles":["ADMIN","SUPPORT"]
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value("dani@email.com"))
+        .andExpect(jsonPath("$.roles.length()").value(2));
   }
 
   @Test

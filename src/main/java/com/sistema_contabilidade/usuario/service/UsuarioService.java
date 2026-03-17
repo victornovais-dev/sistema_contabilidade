@@ -1,12 +1,15 @@
 package com.sistema_contabilidade.usuario.service;
 
+import com.sistema_contabilidade.common.mapper.RbacMapper;
 import com.sistema_contabilidade.common.mapper.UsuarioMapper;
+import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.model.RoleNivel;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
+import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
@@ -24,10 +27,12 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class UsuarioService {
 
+  private static final String USUARIO_NAO_ENCONTRADO = "Usuario nao encontrado";
   private final UsuarioRepository usuarioRepository;
   private final RoleRepository roleRepository;
   private final PasswordEncoder passwordEncoder;
   private final UsuarioMapper usuarioMapper;
+  private final RbacMapper rbacMapper;
   private final CustomUserDetailsService customUserDetailsService;
 
   @Transactional
@@ -73,15 +78,34 @@ public class UsuarioService {
         usuarioRepository
             .findById(id)
             .orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario nao encontrado"));
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, USUARIO_NAO_ENCONTRADO));
     return usuarioMapper.toDto(usuario);
+  }
+
+  public UsuarioComRolesDto findComRolesByEmail(String email) {
+    return rbacMapper.toUsuarioComRolesDto(buscarPorEmail(email));
+  }
+
+  @Transactional
+  public UsuarioComRolesDto updateByEmail(UsuarioUpdateByEmailRequest request) {
+    Usuario usuarioExistente = buscarPorEmail(request.email());
+    usuarioExistente.getRoles().clear();
+    normalizarRoles(request.roles()).stream()
+        .map(this::buscarRole)
+        .forEach(usuarioExistente.getRoles()::add);
+    if (request.senha() != null && !request.senha().isBlank()) {
+      usuarioExistente.setSenha(passwordEncoder.encode(request.senha()));
+    }
+    Usuario salvo = usuarioRepository.save(usuarioExistente);
+    customUserDetailsService.atualizarCacheUsuario(salvo.getId(), salvo.getEmail());
+    return rbacMapper.toUsuarioComRolesDto(salvo);
   }
 
   public Usuario buscarPorId(UUID id) {
     return usuarioRepository
         .findById(id)
         .orElseThrow(
-            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario nao encontrado"));
+            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, USUARIO_NAO_ENCONTRADO));
   }
 
   @Transactional
@@ -100,6 +124,14 @@ public class UsuarioService {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Email ja cadastrado");
               }
             });
+  }
+
+  private Usuario buscarPorEmail(String email) {
+    String emailNormalizado = email == null ? "" : email.trim();
+    return usuarioRepository
+        .findByEmail(emailNormalizado)
+        .orElseThrow(
+            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, USUARIO_NAO_ENCONTRADO));
   }
 
   private Role buscarRole(String roleNome) {
@@ -125,6 +157,17 @@ public class UsuarioService {
     }
     if (usuarioCreateRequest.roles() != null) {
       usuarioCreateRequest.roles().stream()
+          .filter(role -> role != null && !role.isBlank())
+          .map(String::trim)
+          .forEach(roles::add);
+    }
+    return normalizarRoles(roles);
+  }
+
+  private Set<String> normalizarRoles(Set<String> rolesEntrada) {
+    Set<String> roles = new LinkedHashSet<>();
+    if (rolesEntrada != null) {
+      rolesEntrada.stream()
           .filter(role -> role != null && !role.isBlank())
           .map(String::trim)
           .forEach(roles::add);

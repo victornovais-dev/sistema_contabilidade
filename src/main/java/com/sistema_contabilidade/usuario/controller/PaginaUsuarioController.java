@@ -26,6 +26,13 @@ public class PaginaUsuarioController {
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
   }
 
+  @GetMapping(value = "/atualizar_usuario", produces = MediaType.TEXT_HTML_VALUE)
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<Resource> atualizarUsuarioPage() {
+    Resource resource = new ClassPathResource("static/atualizar_usuario.html");
+    return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
+  }
+
   @GetMapping(value = "/adicionar_comprovante", produces = MediaType.TEXT_HTML_VALUE)
   @PreAuthorize(IS_AUTHENTICATED_EXPRESSION)
   public ResponseEntity<Resource> adicionarComprovantePage() {

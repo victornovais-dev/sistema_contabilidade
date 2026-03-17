@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.security.service;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -61,8 +62,10 @@ class CustomUserDetailsServiceTest {
   @DisplayName("Deve remover cache sem falhar")
   void deveRemoverCacheSemFalhar() {
     CustomUserDetailsService service = new CustomUserDetailsService(usuarioRepository);
-    service.removerCacheUsuario(
-        UUID.fromString("11111111-1111-1111-1111-111111111111"), "ana@email.com");
+    assertDoesNotThrow(
+        () ->
+            service.removerCacheUsuario(
+                UUID.fromString("11111111-1111-1111-1111-111111111111"), "ana@email.com"));
   }
 
   private Usuario criarUsuarioComRolePermissao() {
