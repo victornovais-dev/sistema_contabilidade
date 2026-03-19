@@ -45,14 +45,15 @@ public class AdminController {
   @PostMapping("/roles/{roleNome}/permissoes")
   @PreAuthorize(ADMIN_ROLE)
   public ResponseEntity<RoleDto> adicionarPermissao(
-      @PathVariable String roleNome, @Valid @RequestBody AssignPermissaoRequest request) {
+      @PathVariable("roleNome") String roleNome,
+      @Valid @RequestBody AssignPermissaoRequest request) {
     return ResponseEntity.ok(roleService.adicionarPermissaoNaRole(roleNome, request.permissao()));
   }
 
   @PostMapping("/usuarios/{usuarioId}/roles/{roleNome}")
   @PreAuthorize(ADMIN_ROLE)
   public ResponseEntity<UsuarioComRolesDto> atribuirRole(
-      @PathVariable UUID usuarioId, @PathVariable String roleNome) {
+      @PathVariable("usuarioId") UUID usuarioId, @PathVariable("roleNome") String roleNome) {
     return ResponseEntity.ok(roleService.atribuirRoleAoUsuario(usuarioId, roleNome));
   }
 }

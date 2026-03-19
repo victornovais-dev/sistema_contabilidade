@@ -2,6 +2,7 @@ package com.sistema_contabilidade.security.config;
 
 import com.sistema_contabilidade.security.filter.JwtAuthFilter;
 import com.sistema_contabilidade.security.filter.RateLimitFilter;
+import com.sistema_contabilidade.security.filter.RequestContextMdcFilter;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class SecurityConfig {
 
   private final JwtAuthFilter jwtAuthFilter;
   private final RateLimitFilter rateLimitFilter;
+  private final RequestContextMdcFilter requestContextMdcFilter;
 
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) {
@@ -90,10 +92,13 @@ public class SecurityConfig {
                       .permitAll()
                       .requestMatchers("/api/v1/admin/**")
                       .hasRole(ADMIN_ROLE)
+                      .requestMatchers("/api/v1/relatorios/roles")
+                      .hasRole(ADMIN_ROLE)
                       .anyRequest()
                       .authenticated())
           .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-          .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+          .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+          .addFilterAfter(requestContextMdcFilter, JwtAuthFilter.class);
       return http.build();
     } catch (Exception exception) {
       throw new IllegalStateException("Falha ao construir SecurityFilterChain", exception);
@@ -108,7 +113,7 @@ public class SecurityConfig {
     configuration.setAllowedOrigins(origins);
     configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
     configuration.setAllowedHeaders(
-        List.of("Authorization", "Content-Type", "X-XSRF-TOKEN", "X-CSRF-TOKEN"));
+        List.of("Authorization", "Content-Type", "X-XSRF-TOKEN", "X-CSRF-TOKEN", "X-Request-ID"));
     configuration.setAllowCredentials(true);
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", configuration);

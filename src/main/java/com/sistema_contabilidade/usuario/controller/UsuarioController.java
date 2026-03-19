@@ -54,7 +54,7 @@ public class UsuarioController {
   }
 
   @GetMapping(ID_PATH)
-  public ResponseEntity<UsuarioDto> buscarPorId(@PathVariable UUID id) {
+  public ResponseEntity<UsuarioDto> buscarPorId(@PathVariable("id") UUID id) {
     return ResponseEntity.ok(usuarioService.findById(id));
   }
 
@@ -67,7 +67,7 @@ public class UsuarioController {
 
   @PutMapping(ID_PATH)
   public ResponseEntity<UsuarioDto> atualizar(
-      @PathVariable UUID id, @Valid @RequestBody UsuarioDto request) {
+      @PathVariable("id") UUID id, @Valid @RequestBody UsuarioDto request) {
     return ResponseEntity.ok(usuarioService.update(id, request));
   }
 
@@ -79,7 +79,7 @@ public class UsuarioController {
   }
 
   @DeleteMapping(ID_PATH)
-  public ResponseEntity<Void> deletar(@PathVariable UUID id) {
+  public ResponseEntity<Void> deletar(@PathVariable("id") UUID id) {
     usuarioService.deletar(id);
     return ResponseEntity.noContent().build();
   }

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name"
+                    defaultValue="sistema_contabilidade"/>
+    <springProperty scope="context" name="LOG_FILE" source="logging.file.name"
+                    defaultValue="logs/app-ecs.json"/>
+    <springProperty scope="context" name="APP_ENV" source="app.logging.environment"
+                    defaultValue="local"/>
+    <springProperty scope="context" name="APP_VERSION" source="app.logging.service-version"
+                    defaultValue="unknown"/>
+    <springProperty scope="context" name="EVENT_DATASET" source="app.logging.event-dataset"
+                    defaultValue="sistema_contabilidade.application"/>
+
+    <appender name="ECS_JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}</file>
+        <append>true</append>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+            <maxFileSize>20MB</maxFileSize>
+            <maxHistory>14</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder class="co.elastic.logging.logback.EcsEncoder">
+            <serviceName>${APP_NAME}</serviceName>
+            <serviceVersion>${APP_VERSION}</serviceVersion>
+            <serviceEnvironment>${APP_ENV}</serviceEnvironment>
+            <eventDataset>${EVENT_DATASET}</eventDataset>
+            <stackTraceAsArray>true</stackTraceAsArray>
+            <includeMarkers>true</includeMarkers>
+        </encoder>
+    </appender>
+
+    <root level="ERROR">
+        <appender-ref ref="ECS_JSON_FILE"/>
+    </root>
+</configuration>

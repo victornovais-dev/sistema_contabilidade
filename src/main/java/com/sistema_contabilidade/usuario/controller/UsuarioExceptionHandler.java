@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 @Slf4j
@@ -61,6 +62,21 @@ public class UsuarioExceptionHandler {
         new ValidationErrorResponse(
             HttpStatus.BAD_REQUEST.value(), "Validation failed", errors, LocalDateTime.now());
     return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler(NoResourceFoundException.class)
+  public ResponseEntity<ErrorResponse> handleNoResourceFoundException(
+      NoResourceFoundException ex, WebRequest request) {
+    if (log.isDebugEnabled()) {
+      log.debug("Recurso estatico nao encontrado: {}", ex.getResourcePath());
+    }
+    ErrorResponse error =
+        new ErrorResponse(
+            HttpStatus.NOT_FOUND.value(),
+            "Recurso nao encontrado",
+            request.getDescription(false),
+            LocalDateTime.now());
+    return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
   }
 
   @ExceptionHandler(Exception.class)
