@@ -27,27 +27,7 @@
     <link rel="stylesheet" href="assets/css/navbar.css" />
   </head>
   <body>
-    <nav class="navbar">
-      <div class="navbar-content">
-        <a class="brand" href="/home" aria-label="Ir para a home">
-          <span class="brand-mark">SC</span>
-          <span class="brand-name">Sistema</span>
-        </a>
-        <div class="nav-actions">
-          <button
-            class="logout-btn"
-            type="button"
-            aria-label="Sair da conta"
-            onclick="localStorage.removeItem('sc_access_token'); document.cookie='SC_TOKEN=; Max-Age=0; path=/'; window.location.href='/login';"
-          >
-            Logout
-          </button>
-          <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Alternar tema">
-            <span class="theme-icon" aria-hidden="true"></span>
-          </button>
-        </div>
-      </div>
-    </nav>
+    <div id="navbar-root" data-navbar-root></div>
 
     <div class="bg">
       <div class="orb orb-1"></div>
@@ -58,137 +38,66 @@
     <main class="page page-wide">
       <header class="page-header">
         <span class="chip">Relatorio</span>
-        <h1>Relatorios</h1>
+        <div class="report-header-row">
+          <h1>Relatorios</h1>
+          <div class="role-filter-box" id="role-filter-box" hidden>
+            <label for="role-filter-select">Role</label>
+            <select id="role-filter-select" aria-label="Filtrar por role"></select>
+          </div>
+        </div>
       </header>
 
-      <section class="card summary-card">
-        <div>
-          <p class="summary-label">Total de receitas</p>
-          <h2 class="summary-value positive">R$ 18,5 mi</h2>
-        </div>
-        <div>
-          <p class="summary-label">Total de despesas</p>
-          <h2 class="summary-value negative">R$ 9,48 mi</h2>
-        </div>
-        <div>
-          <p class="summary-label">Orcamento</p>
-          <h2 class="summary-value">R$ 22,0 mi</h2>
-        </div>
-        <div>
-          <p class="summary-label">Utilizado</p>
-          <h2 class="summary-value negative">43,1%</h2>
-        </div>
-        <div>
-          <p class="summary-label">Saldo final</p>
-          <h2 class="summary-value">R$ 31,02 mi</h2>
-        </div>
-      </section>
+      <section id="report-state" class="card report-state">Carregando relatorios...</section>
 
-      <section class="grid-two">
+      <section class="card summary-card" id="summary-card" hidden></section>
+
+      <section class="grid-two" id="reports-grid" hidden></section>
+
+      <template id="summary-item-template">
+        <div class="summary-item">
+          <p class="summary-label" data-field="label"></p>
+          <h2 class="summary-value" data-field="value"></h2>
+        </div>
+      </template>
+
+      <template id="report-card-template">
         <article class="card report-card">
-          <header class="report-header">
-            <h3>Receitas</h3>
-            <span class="pill positive">10 itens</span>
+          <header data-field="header">
+            <h3 data-field="title"></h3>
+            <span data-field="count"></span>
           </header>
-          <div class="report-list">
-            <div class="report-row">
-              <span>Servico mensal</span>
-              <strong>R$ 9,0 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Projeto especial</span>
-              <strong>R$ 6,5 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Consultoria</span>
-              <strong>R$ 3,0 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Licenciamento</span>
-              <strong>R$ 2,4 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Venda pontual</span>
-              <strong>R$ 1,85 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Suporte premium</span>
-              <strong>R$ 1,2 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Treinamento</span>
-              <strong>R$ 0,95 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Comissao</span>
-              <strong>R$ 0,78 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Parceria</span>
-              <strong>R$ 0,62 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Bonus</span>
-              <strong>R$ 0,45 mi</strong>
-            </div>
-          </div>
+          <div data-field="list"></div>
         </article>
+      </template>
 
-        <article class="card report-card">
-          <header class="report-header">
-            <h3>Despesas</h3>
-            <span class="pill negative">10 itens</span>
-          </header>
-          <div class="report-list">
-            <div class="report-row">
-              <span>Marketing</span>
-              <strong>R$ 2,5 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Infraestrutura</span>
-              <strong>R$ 3,2 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Servicos</span>
-              <strong>R$ 1,48 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Deslocamento</span>
-              <strong>R$ 2,3 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Energia</span>
-              <strong>R$ 0,92 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Telefonia</span>
-              <strong>R$ 0,64 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Softwares</span>
-              <strong>R$ 1,12 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Manutencao</span>
-              <strong>R$ 0,86 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Impostos</span>
-              <strong>R$ 1,54 mi</strong>
-            </div>
-            <div class="report-row">
-              <span>Material</span>
-              <strong>R$ 0,43 mi</strong>
-            </div>
-          </div>
-        </article>
+      <template id="report-row-template">
+        <div data-field="row">
+          <span data-field="label"></span>
+          <strong data-field="value"></strong>
+        </div>
+      </template>
+
+      <template id="report-empty-template">
+        <div data-field="empty">
+          <span>Sem dados no periodo</span>
+        </div>
+      </template>
+
+      <template id="report-overview-row-template">
+        <div class="report-row-overview">
+          <span>Total</span>
+          <strong data-field="value"></strong>
+        </div>
+      </template>
+
+      <section class="report-actions">
+        <button class="btn btn-primary" id="download-report-btn" type="button">
+          Baixar relatorio (CSV)
+        </button>
       </section>
-
-      <div class="report-actions">
-        <button class="btn btn-primary" type="button">Baixar relatorio</button>
-      </div>
     </main>
 
+    <script src="assets/js/navbar.js" defer></script>
     <script src="assets/js/relatorios.js" defer></script>
   </body>
 </html>

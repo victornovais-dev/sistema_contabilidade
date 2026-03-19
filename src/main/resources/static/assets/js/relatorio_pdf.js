@@ -29,6 +29,7 @@ const updateLabel = () => {
 const bindThemeToggle = () => {
   toggle = document.querySelector(".theme-toggle");
   if (!toggle) return;
+  if (toggle.dataset.navbarManaged === "true") return;
   updateLabel();
   toggle.addEventListener("click", () => {
     const isDark = root.dataset.theme === "dark";

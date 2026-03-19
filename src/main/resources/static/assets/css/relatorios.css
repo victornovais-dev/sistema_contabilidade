@@ -132,6 +132,129 @@ html[data-theme="dark"] .grid {
   font-size: clamp(2rem, 3vw, 2.8rem);
 }
 
+.report-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.report-header-row h1 {
+  margin: 12px 0 6px;
+}
+
+.role-filter-box {
+  position: relative;
+  display: inline-grid;
+  gap: 8px;
+  min-width: 230px;
+  padding: 12px 14px;
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow:
+    0 12px 26px rgba(20, 20, 24, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.role-filter-box[hidden] {
+  display: none !important;
+}
+
+.role-filter-box::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 18px 0 0 18px;
+  background: linear-gradient(180deg, #f0684a, #d84b34);
+}
+
+.role-filter-box label {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.role-filter-box select {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 10px 36px 10px 12px;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+  min-height: 40px;
+  background: rgba(255, 255, 255, 0.86);
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(27, 27, 31, 0.55) 50%),
+    linear-gradient(135deg, rgba(27, 27, 31, 0.55) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) 49%,
+    calc(100% - 10px) 49%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    background-color 160ms ease;
+}
+
+.role-filter-box select:hover {
+  border-color: rgba(216, 75, 52, 0.45);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.role-filter-box select:focus {
+  outline: none;
+  border-color: rgba(216, 75, 52, 0.68);
+  box-shadow: 0 0 0 3px rgba(216, 75, 52, 0.18);
+  transform: translateY(-1px);
+}
+
+html[data-theme="dark"] .role-filter-box {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(20, 20, 24, 0.88);
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme="dark"] .role-filter-box label {
+  color: #ff9b7c;
+}
+
+html[data-theme="dark"] .role-filter-box select {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.7) 50%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.7) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) 49%,
+    calc(100% - 10px) 49%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .role-filter-box select:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .btn {
   padding: 12px 18px;
   border-radius: 14px;
@@ -183,6 +306,15 @@ html[data-theme="dark"] .grid {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.report-state {
+  text-align: center;
+  font-weight: 600;
+}
+
+.report-state.is-error {
+  color: #e54444;
+}
+
 .summary-label {
   margin: 0 0 4px;
   color: var(--muted);
@@ -209,65 +341,107 @@ html[data-theme="dark"] .grid {
   gap: 18px;
 }
 
-.report-card {
+.report-card-receitas {
   display: grid;
   gap: 16px;
 }
 
-.report-header {
+.report-card-despesas {
+  display: grid;
+  gap: 16px;
+}
+
+.report-header-receitas {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.report-header h3 {
+.report-header-despesas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.report-header-receitas h3 {
   margin: 0;
   font-size: 1.2rem;
 }
 
-.pill {
+.report-header-despesas h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.report-count-receitas {
   display: inline-flex;
   align-items: center;
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 600;
-  background: rgba(27, 27, 31, 0.08);
-  color: var(--ink);
-}
-
-.pill.positive {
   background: rgba(46, 176, 94, 0.18);
   color: #2eb05e;
 }
 
-.pill.negative {
+.report-count-despesas {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
   background: rgba(229, 68, 68, 0.18);
   color: #e54444;
 }
 
-.report-list {
+.report-list-receitas {
   display: grid;
   gap: 12px;
+  min-height: 220px;
   max-height: 220px;
+  align-content: start;
   overflow-y: auto;
   padding-right: 6px;
 }
 
-.report-list::-webkit-scrollbar {
+.report-list-despesas {
+  display: grid;
+  gap: 12px;
+  min-height: 220px;
+  max-height: 220px;
+  align-content: start;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.report-list-receitas::-webkit-scrollbar {
   width: 8px;
 }
 
-.report-list::-webkit-scrollbar-thumb {
+.report-list-despesas::-webkit-scrollbar {
+  width: 8px;
+}
+
+.report-list-receitas::-webkit-scrollbar-thumb {
   background: rgba(27, 27, 31, 0.2);
   border-radius: 999px;
 }
 
-html[data-theme="dark"] .report-list::-webkit-scrollbar-thumb {
+.report-list-despesas::-webkit-scrollbar-thumb {
+  background: rgba(27, 27, 31, 0.2);
+  border-radius: 999px;
+}
+
+html[data-theme="dark"] .report-list-receitas::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.22);
 }
 
-.report-row {
+html[data-theme="dark"] .report-list-despesas::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.report-row-receitas {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -277,7 +451,76 @@ html[data-theme="dark"] .report-list::-webkit-scrollbar-thumb {
   border: 1px solid rgba(27, 27, 31, 0.08);
 }
 
-html[data-theme="dark"] .report-row {
+.report-row-despesas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(27, 27, 31, 0.08);
+}
+
+.report-row-empty-receitas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(27, 27, 31, 0.08);
+}
+
+.report-row-empty-despesas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(27, 27, 31, 0.08);
+}
+
+.report-row-receitas span,
+.report-row-receitas strong {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.report-row-despesas span,
+.report-row-despesas strong {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.report-row-empty-receitas span {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.report-row-empty-despesas span {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+html[data-theme="dark"] .report-row-receitas {
+  background: rgba(20, 20, 24, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="dark"] .report-row-despesas {
+  background: rgba(20, 20, 24, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="dark"] .report-row-empty-receitas {
+  background: rgba(20, 20, 24, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="dark"] .report-row-empty-despesas {
   background: rgba(20, 20, 24, 0.72);
   border-color: rgba(255, 255, 255, 0.08);
 }
@@ -306,6 +549,11 @@ html[data-theme="dark"] .navbar {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.report-row-overview {
+  border: 1px dashed rgba(27, 27, 31, 0.2);
+  font-weight: 600;
 }
 
 .nav-actions {
