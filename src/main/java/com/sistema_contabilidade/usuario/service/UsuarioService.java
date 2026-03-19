@@ -137,11 +137,11 @@ public class UsuarioService {
   private Role buscarRole(String roleNome) {
     String roleNomePadrao;
     try {
-      roleNomePadrao = RoleNivel.fromNome(roleNome).name();
+      roleNomePadrao = RoleNivel.fromNome(roleNome).valorBanco();
     } catch (IllegalArgumentException ex) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
-          "Role invalida. Use: ADMIN, MANAGER, OPERATOR, SUPPORT, CUSTOMER",
+          "Role invalida. Use: ADMIN, MANAGER, TARCISIO, KIM KATAGUIRI, VALDEMAR",
           ex);
     }
     return roleRepository

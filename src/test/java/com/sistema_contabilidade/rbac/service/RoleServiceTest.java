@@ -178,18 +178,18 @@ class RoleServiceTest {
     usuario.setRoles(new HashSet<>());
     Role role = new Role();
     role.setId(UUID.fromString("33333333-3333-3333-3333-333333333333"));
-    role.setNome("CUSTOMER");
+    role.setNome("VALDEMAR");
     when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.of(usuario));
-    when(roleRepository.findByNome("CUSTOMER")).thenReturn(Optional.of(role));
+    when(roleRepository.findByNome("VALDEMAR")).thenReturn(Optional.of(role));
     when(usuarioRepository.save(any(Usuario.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
     UsuarioComRolesDto usuarioComRolesDto =
         new UsuarioComRolesDto(
-            usuarioId, "Nome", "email@email.com", Set.of(new RoleResumoDto(null, "CUSTOMER")));
+            usuarioId, "Nome", "email@email.com", Set.of(new RoleResumoDto(null, "VALDEMAR")));
     when(rbacMapper.toUsuarioComRolesDto(any())).thenReturn(usuarioComRolesDto);
 
     // Act
-    UsuarioComRolesDto resultado = roleService.atribuirRoleAoUsuario(usuarioId, "CUSTOMER");
+    UsuarioComRolesDto resultado = roleService.atribuirRoleAoUsuario(usuarioId, "VALDEMAR");
 
     // Assert
     assertEquals(1, resultado.getRoles().size());
@@ -206,7 +206,7 @@ class RoleServiceTest {
     ResponseStatusException ex =
         assertThrows(
             ResponseStatusException.class,
-            () -> roleService.atribuirRoleAoUsuario(usuarioId, "CUSTOMER"));
+            () -> roleService.atribuirRoleAoUsuario(usuarioId, "VALDEMAR"));
 
     assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
   }
@@ -220,12 +220,12 @@ class RoleServiceTest {
     usuario.setId(usuarioId);
     usuario.setRoles(new HashSet<>());
     when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.of(usuario));
-    when(roleRepository.findByNome("CUSTOMER")).thenReturn(Optional.empty());
+    when(roleRepository.findByNome("VALDEMAR")).thenReturn(Optional.empty());
 
     ResponseStatusException ex =
         assertThrows(
             ResponseStatusException.class,
-            () -> roleService.atribuirRoleAoUsuario(usuarioId, "CUSTOMER"));
+            () -> roleService.atribuirRoleAoUsuario(usuarioId, "VALDEMAR"));
 
     assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
   }

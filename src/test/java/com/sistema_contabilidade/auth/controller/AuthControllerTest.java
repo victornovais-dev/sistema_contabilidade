@@ -1,12 +1,14 @@
 package com.sistema_contabilidade.auth.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
 import com.sistema_contabilidade.auth.service.AuthService;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.DefaultCsrfToken;
 
@@ -55,6 +58,24 @@ class AuthControllerTest {
 
     assertEquals(HttpStatus.OK, result.getStatusCode());
     assertEquals("victor@email.com", result.getBody());
+  }
+
+  @Test
+  @DisplayName("Deve retornar roles do usuario autenticado no endpoint meRoles")
+  void meRolesDeveRetornarRoles() {
+    Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
+    doReturn(
+            List.of(
+                new SimpleGrantedAuthority("ROLE_ADMIN"),
+                new SimpleGrantedAuthority("ROLE_SUPPORT"),
+                new SimpleGrantedAuthority("ITEM_CREATE")))
+        .when(authentication)
+        .getAuthorities();
+
+    ResponseEntity<List<String>> result = authController.meRoles(authentication);
+
+    assertEquals(HttpStatus.OK, result.getStatusCode());
+    assertEquals(List.of("ADMIN", "SUPPORT"), result.getBody());
   }
 
   @Test

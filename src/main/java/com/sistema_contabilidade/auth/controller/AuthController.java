@@ -4,7 +4,10 @@ import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
 import com.sistema_contabilidade.auth.service.AuthService;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -32,6 +35,23 @@ public class AuthController {
   @GetMapping("/me")
   public ResponseEntity<String> me(Authentication authentication) {
     return ResponseEntity.ok(authentication.getName());
+  }
+
+  @GetMapping("/me/roles")
+  public ResponseEntity<List<String>> meRoles(Authentication authentication) {
+    if (authentication == null || authentication.getAuthorities() == null) {
+      return ResponseEntity.status(401).body(List.of());
+    }
+    List<String> roles =
+        authentication.getAuthorities().stream()
+            .map(authority -> authority.getAuthority())
+            .filter(Objects::nonNull)
+            .filter(authority -> authority.startsWith("ROLE_"))
+            .map(authority -> authority.substring("ROLE_".length()))
+            .distinct()
+            .sorted()
+            .collect(Collectors.toList());
+    return ResponseEntity.ok(roles);
   }
 
   @GetMapping("/csrf")

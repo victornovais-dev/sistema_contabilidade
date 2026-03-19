@@ -101,11 +101,11 @@ public class RoleService {
 
   private String parseRoleNome(String nome) {
     try {
-      return RoleNivel.fromNome(nome).name();
+      return RoleNivel.fromNome(nome).valorBanco();
     } catch (IllegalArgumentException e) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
-          "Role invalida. Use: ADMIN, MANAGER, OPERATOR, SUPPORT, CUSTOMER",
+          "Role invalida. Use: ADMIN, MANAGER, TARCISIO, KIM KATAGUIRI, VALDEMAR",
           e);
     }
   }

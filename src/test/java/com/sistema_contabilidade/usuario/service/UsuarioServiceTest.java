@@ -80,19 +80,19 @@ class UsuarioServiceTest {
   void criarComMultiplasRolesDeveSalvarUsuario() {
     UsuarioCreateRequest request =
         new UsuarioCreateRequest(
-            "Ana", "ana@email.com", "123456", null, Set.of("ADMIN", "SUPPORT"));
+            "Ana", "ana@email.com", "123456", null, Set.of("ADMIN", "VALDEMAR"));
     Usuario salvo =
         novoUsuario(
             UUID.fromString("12121212-1212-1212-1212-121212121212"), "Ana", "ana@email.com");
     Role admin = new Role();
     admin.setNome("ADMIN");
-    Role support = new Role();
-    support.setNome("SUPPORT");
+    Role valdemar = new Role();
+    valdemar.setNome("VALDEMAR");
     UsuarioDto response = new UsuarioDto(salvo.getId(), salvo.getNome(), salvo.getEmail(), null);
 
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
     when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(admin));
-    when(roleRepository.findByNome("SUPPORT")).thenReturn(Optional.of(support));
+    when(roleRepository.findByNome("VALDEMAR")).thenReturn(Optional.of(valdemar));
     when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
     when(usuarioRepository.save(any(Usuario.class))).thenReturn(salvo);
     when(usuarioMapper.toDto(salvo)).thenReturn(response);
@@ -101,7 +101,7 @@ class UsuarioServiceTest {
 
     assertEquals(response, resultado);
     verify(roleRepository).findByNome("ADMIN");
-    verify(roleRepository).findByNome("SUPPORT");
+    verify(roleRepository).findByNome("VALDEMAR");
   }
 
   @Test
@@ -416,18 +416,18 @@ class UsuarioServiceTest {
     Usuario usuario =
         novoUsuario(
             UUID.fromString("66666666-6666-6666-6666-666666666666"), "Suporte", "sup@email.com");
-    usuario.getRoles().add(role("CUSTOMER"));
+    usuario.getRoles().add(role("TARCISIO"));
     UsuarioUpdateByEmailRequest request =
-        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("ADMIN", "SUPPORT"));
+        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("ADMIN", "VALDEMAR"));
     UsuarioComRolesDto dto =
         new UsuarioComRolesDto(
             usuario.getId(),
             "Suporte",
             "sup@email.com",
-            Set.of(new RoleResumoDto(null, "ADMIN"), new RoleResumoDto(null, "SUPPORT")));
+            Set.of(new RoleResumoDto(null, "ADMIN"), new RoleResumoDto(null, "VALDEMAR")));
     when(usuarioRepository.findByEmail("sup@email.com")).thenReturn(Optional.of(usuario));
     when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(role("ADMIN")));
-    when(roleRepository.findByNome("SUPPORT")).thenReturn(Optional.of(role("SUPPORT")));
+    when(roleRepository.findByNome("VALDEMAR")).thenReturn(Optional.of(role("VALDEMAR")));
     when(usuarioRepository.save(usuario)).thenReturn(usuario);
     when(rbacMapper.toUsuarioComRolesDto(usuario)).thenReturn(dto);
 
