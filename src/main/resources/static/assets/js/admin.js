@@ -33,6 +33,9 @@ const initTheme = () => {
   if (!themeToggle) {
     return;
   }
+  if (themeToggle.dataset.navbarManaged === "true") {
+    return;
+  }
   themeToggle.addEventListener("click", () => {
     const isDark = root.dataset.theme === "dark";
     root.dataset.theme = isDark ? "light" : "dark";

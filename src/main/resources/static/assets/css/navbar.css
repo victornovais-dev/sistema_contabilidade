@@ -65,3 +65,53 @@ html[data-theme="dark"] .navbar .theme-toggle {
 html[data-theme="dark"] .navbar .theme-icon {
   color: #f5f4f2;
 }
+
+.navbar .nav-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+}
+
+.navbar .nav-link {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: color-mix(in oklab, var(--ink), #fff 10%);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.navbar .nav-link:hover {
+  border-color: color-mix(in oklab, var(--brand), #ffffff 20%);
+  background: color-mix(in oklab, var(--brand) 14%, transparent);
+  color: var(--ink);
+}
+
+.navbar .nav-link.is-active {
+  border-color: color-mix(in oklab, var(--brand), #ffffff 20%);
+  background: color-mix(in oklab, var(--brand) 18%, transparent);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .navbar .nav-link {
+  color: #f5f4f2;
+}
+
+html[data-theme="dark"] .navbar .nav-link:hover {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 980px) {
+  .navbar .nav-links {
+    display: none;
+  }
+}

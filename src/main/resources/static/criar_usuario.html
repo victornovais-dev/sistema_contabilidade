@@ -27,27 +27,7 @@
     <link rel="stylesheet" href="assets/css/navbar.css" />
   </head>
   <body>
-    <nav class="navbar">
-      <div class="navbar-content">
-        <a class="brand" href="/home" aria-label="Ir para a home">
-          <span class="brand-mark">SC</span>
-          <span class="brand-name">Sistema</span>
-        </a>
-        <div class="nav-actions">
-          <button
-            class="logout-btn"
-            type="button"
-            aria-label="Sair da conta"
-            onclick="localStorage.removeItem('sc_access_token'); document.cookie='SC_TOKEN=; Max-Age=0; path=/'; window.location.href='/login';"
-          >
-            Logout
-          </button>
-          <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Alternar tema">
-            <span class="theme-icon" aria-hidden="true"></span>
-          </button>
-        </div>
-      </div>
-    </nav>
+    <div id="navbar-root" data-navbar-root></div>
 
     <div class="bg">
       <div class="orb orb-1"></div>
@@ -98,9 +78,9 @@
               <div id="roles-options" class="roles-options">
                 <label class="roles-option"><input type="checkbox" value="ADMIN" /> <span>ADMIN</span></label>
                 <label class="roles-option"><input type="checkbox" value="MANAGER" /> <span>MANAGER</span></label>
-                <label class="roles-option"><input type="checkbox" value="OPERATOR" /> <span>OPERATOR</span></label>
-                <label class="roles-option"><input type="checkbox" value="SUPPORT" /> <span>SUPPORT</span></label>
-                <label class="roles-option"><input type="checkbox" value="CUSTOMER" /> <span>CUSTOMER</span></label>
+                <label class="roles-option"><input type="checkbox" value="TARCISIO" /> <span>TARCISIO</span></label>
+                <label class="roles-option"><input type="checkbox" value="KIM KATAGUIRI" /> <span>KIM KATAGUIRI</span></label>
+                <label class="roles-option"><input type="checkbox" value="VALDEMAR" /> <span>VALDEMAR</span></label>
               </div>
               <div class="roles-actions">
                 <button id="roles-confirm" class="roles-confirm" type="button">OK</button>
@@ -125,6 +105,7 @@
       </div>
     </div>
 
+    <script src="assets/js/navbar.js" defer></script>
     <script src="assets/js/criar_usuario.js?v=20260316-4" defer></script>
   </body>
 </html>

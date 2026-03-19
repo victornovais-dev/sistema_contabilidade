@@ -4,15 +4,14 @@
       <span class="brand-mark">SC</span>
       <span class="brand-name">Sistema</span>
     </a>
+    <div class="nav-links" aria-label="Navegacao principal">
+      <a class="nav-link" href="/home">Home</a>
+      <a class="nav-link" href="/adicionar_comprovante">Adicionar</a>
+      <a class="nav-link" href="/lista_comprovantes">Comprovantes</a>
+      <a class="nav-link" href="/relatorios">Relatorios</a>
+    </div>
     <div class="nav-actions">
-      <button
-        class="logout-btn"
-        type="button"
-        aria-label="Sair da conta"
-        onclick="localStorage.removeItem('sc_access_token'); document.cookie='SC_TOKEN=; Max-Age=0; path=/'; window.location.href='/login';"
-      >
-        Logout
-      </button>
+      <button class="logout-btn" type="button" aria-label="Sair da conta">Logout</button>
       <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Alternar tema">
         <span class="theme-icon" aria-hidden="true"></span>
       </button>

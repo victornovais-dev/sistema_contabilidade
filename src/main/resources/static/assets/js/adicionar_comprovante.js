@@ -136,6 +136,7 @@ const updateLabel = () => {
 const bindThemeToggle = () => {
   toggle = document.querySelector(".theme-toggle");
   if (!toggle) return;
+  if (toggle.dataset.navbarManaged === "true") return;
   updateLabel();
   toggle.addEventListener("click", () => {
     const isDark = root.dataset.theme === "dark";
@@ -368,7 +369,15 @@ if (form) {
 
     const file = fileInput.files[0];
     const dataIso = toIsoLocalDate(dateInput.value);
-    const tipo = typeSelect.value === "receita" ? "RECEITA" : "DESPESA";
+    const tipoSelecionado = String(typeSelect?.value || "").trim().toUpperCase();
+    if (tipoSelecionado !== "RECEITA" && tipoSelecionado !== "DESPESA") {
+      if (typeSelect) {
+        typeSelect.setCustomValidity("Selecione um tipo valido.");
+        typeSelect.reportValidity();
+      }
+      return;
+    }
+    const tipo = tipoSelecionado;
     const accessToken = localStorage.getItem("sc_access_token");
 
     if (!accessToken) {

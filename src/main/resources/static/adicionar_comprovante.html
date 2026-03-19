@@ -38,27 +38,7 @@
       </div>
     </div>
 
-    <nav class="navbar">
-      <div class="navbar-content">
-        <a class="brand" href="/home" aria-label="Ir para a home">
-          <span class="brand-mark">SC</span>
-          <span class="brand-name">Sistema</span>
-        </a>
-        <div class="nav-actions">
-          <button
-            class="logout-btn"
-            type="button"
-            aria-label="Sair da conta"
-            onclick="localStorage.removeItem('sc_access_token'); document.cookie='SC_TOKEN=; Max-Age=0; path=/'; window.location.href='/login';"
-          >
-            Logout
-          </button>
-          <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Alternar tema">
-            <span class="theme-icon" aria-hidden="true"></span>
-          </button>
-        </div>
-      </div>
-    </nav>
+    <div id="navbar-root" data-navbar-root></div>
 
     <div class="bg">
       <div class="orb orb-1"></div>
@@ -80,8 +60,8 @@
                 <span>Tipo de comprovande</span>
                 <select name="entry_type" required>
                   <option value="" disabled selected>Selecione</option>
-                  <option value="receita">Receita</option>
-                  <option value="despesa">Despesa</option>
+                  <option value="RECEITA">Receita</option>
+                  <option value="DESPESA">Despesa</option>
                 </select>
               </label>
               <label class="field field-amount">
@@ -144,6 +124,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="assets/js/navbar.js" defer></script>
     <script src="assets/js/adicionar_comprovante.js" defer></script>
   </body>
 </html>
