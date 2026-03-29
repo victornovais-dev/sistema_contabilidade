@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
@@ -70,7 +70,6 @@
       <section id="list-state" class="list-state" hidden></section>
       <section class="list" id="items-list"></section>
     </main>
-
     <template id="item-card-template">
       <article class="item-card">
         <div class="item-info">
@@ -89,15 +88,62 @@
           <div class="item-label">Horário</div>
           <div class="item-value" data-field="horario"></div>
         </div>
+        <div class="item-info item-info--descricao">
+          <div class="item-label">Descrição</div>
+          <div class="item-value" data-field="descricao"></div>
+        </div>
+        <div class="item-info item-info--razao">
+          <div class="item-label">Razão social / Nome</div>
+          <div class="item-value" data-field="razaoSocialNome"></div>
+        </div>
+        <div class="item-info item-info--cnpj">
+          <div class="item-label">CNPJ / CPF</div>
+          <div class="item-value" data-field="cnpjCpf"></div>
+        </div>
         <div class="item-actions">
+          <button class="btn btn-info item-observacao" type="button" aria-label="Ver observação">
+            <span class="icon-info" aria-hidden="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+                <path
+                  d="M12 10v6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+                <circle cx="12" cy="7.5" r="1" fill="currentColor" />
+              </svg>
+            </span>
+          </button>
+          <button class="btn btn-secondary item-upload" type="button" aria-label="Gerenciar anexos">
+            <span class="icon-upload" aria-hidden="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  d="M12 4l-5 5m5-5l5 5M12 4v12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M5 20h14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
+          </button>
           <a class="btn btn-secondary item-download" target="_blank" rel="noopener noreferrer">
-            Baixar arquivo
+            Baixar arquivos
           </a>
           <button class="btn btn-danger delete-item" type="button">Excluir</button>
         </div>
       </article>
     </template>
-
     <div class="confirm-overlay" role="dialog" aria-modal="true" aria-hidden="true">
       <div class="confirm-card" role="status" aria-live="polite">
         <div class="confirm-icon" aria-hidden="true">!</div>
@@ -110,8 +156,62 @@
       </div>
     </div>
 
+    <div class="upload-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="upload-card">
+        <div class="upload-header">
+          <div>
+            <h2>Arquivos do comprovante</h2>
+          </div>
+          <button class="btn btn-secondary upload-close" type="button">Fechar</button>
+        </div>
+        <div class="upload-content">
+          <div class="upload-list">
+            <h3>Arquivos existentes</h3>
+            <ul class="upload-files" id="upload-files"></ul>
+          </div>
+          <div class="upload-form">
+            <label class="upload-field">
+              <span>Enviar Arquivos</span>
+              <div class="upload-drop" data-upload-drop>
+                <input
+                  class="upload-input"
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  multiple
+                />
+                <div class="upload-drop-content">
+                  <span class="upload-drop-icon" aria-hidden="true">⬆</span>
+                  <strong>Pesquisar arquivos</strong>
+                  <span>Arraste e solte PDFs aqui</span>
+                </div>
+              </div>
+              <div class="upload-selected" id="upload-selected"></div>
+            </label>
+            <button class="btn upload-save" type="button">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="observacao-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="observacao-card">
+        <div class="observacao-header">
+          <div>
+            <h2>Observação</h2>
+          </div>
+          <button class="btn btn-secondary observacao-close" type="button">Fechar</button>
+        </div>
+        <div class="observacao-content" id="observacao-content"></div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="assets/js/navbar.js" defer></script>
     <script src="assets/js/lista_comprovantes.js" defer></script>
   </body>
 </html>
+
+
+
+
+
