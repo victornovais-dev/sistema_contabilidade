@@ -8,15 +8,12 @@ import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +23,6 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -38,8 +34,6 @@ public class RelatorioFinanceiroService {
 
   private static final DateTimeFormatter DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("pt-BR"));
-  private static final BigDecimal CEM = BigDecimal.valueOf(100);
-  private static final int ROLE_BUDGET_PARTS = 2;
   private static final float PAGE_TOP = 780f;
   private static final float PAGE_LEFT = 50f;
   private static final float LINE_HEIGHT = 16f;
@@ -47,12 +41,6 @@ public class RelatorioFinanceiroService {
 
   private final ItemRepository itemRepository;
   private final RoleRepository roleRepository;
-
-  @Value("${app.relatorio.orcamento.roles:ADMIN:20000000}")
-  private String roleBudgetConfig;
-
-  @Value("${app.relatorio.orcamento.default:0}")
-  private BigDecimal defaultBudget;
 
   public RelatorioFinanceiroResponse gerar(Authentication authentication) {
     return gerar(authentication, null);
@@ -78,20 +66,8 @@ public class RelatorioFinanceiroService {
     BigDecimal totalDespesas = somarValores(despesas);
     BigDecimal saldoFinal = totalReceitas.subtract(totalDespesas);
 
-    BigDecimal orcamento =
-        roleFiltroNormalizada == null
-            ? calcularOrcamento(roleNomesAutenticado)
-            : calcularOrcamento(Set.of(roleFiltroNormalizada));
-    BigDecimal utilizadoPercentual = calcularUtilizadoPercentual(orcamento, totalDespesas);
-
     return new RelatorioFinanceiroResponse(
-        orcamento,
-        totalReceitas,
-        totalDespesas,
-        saldoFinal,
-        utilizadoPercentual,
-        receitas,
-        despesas);
+        totalReceitas, totalDespesas, saldoFinal, receitas, despesas);
   }
 
   public List<String> listarRolesDisponiveis(Authentication authentication) {
@@ -144,8 +120,6 @@ public class RelatorioFinanceiroService {
     lines.add(new PdfLine(true, "Resumo"));
     lines.add(new PdfLine(false, "Total de receitas: " + moeda(relatorio.totalReceitas())));
     lines.add(new PdfLine(false, "Total de despesas: " + moeda(relatorio.totalDespesas())));
-    lines.add(new PdfLine(false, "Orcamento: " + moeda(relatorio.orcamento())));
-    lines.add(new PdfLine(false, "Utilizado: " + percentual(relatorio.utilizadoPercentual())));
     lines.add(new PdfLine(false, "Saldo final: " + moeda(relatorio.saldoFinal())));
     lines.add(new PdfLine(false, ""));
     lines.add(new PdfLine(true, "Receitas"));
@@ -240,19 +214,6 @@ public class RelatorioFinanceiroService {
         .collect(Collectors.toSet());
   }
 
-  private BigDecimal calcularOrcamento(Set<String> roleNomes) {
-    if (roleNomes.isEmpty()) {
-      return defaultBudget.max(BigDecimal.ZERO);
-    }
-    Map<String, BigDecimal> roleBudgets = parseRoleBudgetConfig();
-    return roleNomes.stream()
-        .map(roleBudgets::get)
-        .filter(java.util.Objects::nonNull)
-        .max(BigDecimal::compareTo)
-        .orElse(defaultBudget)
-        .max(BigDecimal.ZERO);
-  }
-
   private String normalizarRole(String role) {
     if (role == null || role.isBlank()) {
       return null;
@@ -260,45 +221,8 @@ public class RelatorioFinanceiroService {
     return role.trim().toUpperCase(Locale.ROOT);
   }
 
-  private Map<String, BigDecimal> parseRoleBudgetConfig() {
-    Map<String, BigDecimal> result = new LinkedHashMap<>();
-    if (roleBudgetConfig == null || roleBudgetConfig.isBlank()) {
-      return result;
-    }
-    String[] entries = roleBudgetConfig.split(",");
-    for (String entry : entries) {
-      String[] parts = entry.split(":");
-      if (parts.length != ROLE_BUDGET_PARTS) {
-        continue;
-      }
-      String role = parts[0].trim().toUpperCase(Locale.ROOT);
-      String value = parts[1].trim();
-      if (role.isBlank() || value.isBlank()) {
-        continue;
-      }
-      try {
-        result.put(role, new BigDecimal(value));
-      } catch (NumberFormatException ignored) {
-        // Ignora entradas invalidas.
-      }
-    }
-    return result;
-  }
-
-  private BigDecimal calcularUtilizadoPercentual(BigDecimal orcamento, BigDecimal totalDespesas) {
-    if (orcamento == null || orcamento.compareTo(BigDecimal.ZERO) <= 0) {
-      return BigDecimal.ZERO;
-    }
-    return totalDespesas.multiply(CEM).divide(orcamento, 2, RoundingMode.HALF_UP);
-  }
-
   private String moeda(BigDecimal valor) {
     return NumberFormatProvider.currency().format(valor == null ? BigDecimal.ZERO : valor);
-  }
-
-  private String percentual(BigDecimal valor) {
-    BigDecimal percentual = valor == null ? BigDecimal.ZERO : valor;
-    return NumberFormatProvider.percent().format(percentual) + "%";
   }
 
   private record PdfLine(boolean bold, String value) {}
@@ -310,12 +234,6 @@ public class RelatorioFinanceiroService {
               java.text.NumberFormat.getCurrencyInstance(Locale.forLanguageTag("pt-BR"));
       format.setMaximumFractionDigits(2);
       format.setMinimumFractionDigits(2);
-      return format;
-    }
-
-    private static java.text.DecimalFormat percent() {
-      java.text.DecimalFormat format = new java.text.DecimalFormat("0.00");
-      format.setRoundingMode(RoundingMode.HALF_UP);
       return format;
     }
   }

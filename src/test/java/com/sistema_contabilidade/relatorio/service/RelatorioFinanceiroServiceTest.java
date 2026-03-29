@@ -27,7 +27,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,13 +39,8 @@ class RelatorioFinanceiroServiceTest {
   @InjectMocks private RelatorioFinanceiroService relatorioFinanceiroService;
 
   @Test
-  @DisplayName("Deve gerar relatorio com visao completa para admin e orcamento de 20 milhoes")
+  @DisplayName("Deve gerar relatorio com visao completa para admin")
   void deveGerarRelatorioParaAdmin() {
-    ReflectionTestUtils.setField(
-        relatorioFinanceiroService, "roleBudgetConfig", "ADMIN:20000000,OPERATOR:5000000");
-    ReflectionTestUtils.setField(
-        relatorioFinanceiroService, "defaultBudget", new BigDecimal("1000000"));
-
     Item receita = criarItem(TipoItem.RECEITA, "1000000.00", "2026-03-10T09:00:00");
     Item despesa = criarItem(TipoItem.DESPESA, "2000000.00", "2026-03-11T10:00:00");
     when(itemRepository.findAll()).thenReturn(List.of(receita, despesa));
@@ -57,11 +51,9 @@ class RelatorioFinanceiroServiceTest {
 
     RelatorioFinanceiroResponse response = relatorioFinanceiroService.gerar(auth);
 
-    assertEquals(new BigDecimal("20000000"), response.orcamento());
     assertEquals(new BigDecimal("1000000.00"), response.totalReceitas());
     assertEquals(new BigDecimal("2000000.00"), response.totalDespesas());
     assertEquals(new BigDecimal("-1000000.00"), response.saldoFinal());
-    assertEquals(new BigDecimal("10.00"), response.utilizadoPercentual());
     assertEquals(1, response.receitas().size());
     assertEquals(1, response.despesas().size());
     verify(itemRepository).findAll();
@@ -71,10 +63,6 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve gerar relatorio com itens visiveis por role para usuario nao admin")
   void deveGerarRelatorioParaNaoAdmin() {
-    ReflectionTestUtils.setField(
-        relatorioFinanceiroService, "roleBudgetConfig", "ADMIN:20000000,OPERATOR:5000000");
-    ReflectionTestUtils.setField(relatorioFinanceiroService, "defaultBudget", BigDecimal.ZERO);
-
     Item receita = criarItem(TipoItem.RECEITA, "500.00", "2026-03-12T08:30:00");
     when(itemRepository.findAllVisiveisPorRoleNomes(Set.of("OPERATOR")))
         .thenReturn(List.of(receita));
@@ -85,11 +73,9 @@ class RelatorioFinanceiroServiceTest {
 
     RelatorioFinanceiroResponse response = relatorioFinanceiroService.gerar(auth);
 
-    assertEquals(new BigDecimal("5000000"), response.orcamento());
     assertEquals(new BigDecimal("500.00"), response.totalReceitas());
     assertEquals(BigDecimal.ZERO, response.totalDespesas());
     assertEquals(new BigDecimal("500.00"), response.saldoFinal());
-    assertEquals(BigDecimal.ZERO.setScale(2), response.utilizadoPercentual());
     verify(itemRepository).findAllVisiveisPorRoleNomes(Set.of("OPERATOR"));
     verify(itemRepository, never()).findAll();
   }
@@ -97,10 +83,6 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve permitir admin filtrar relatorio por role informada")
   void deveGerarRelatorioFiltradoPorRoleQuandoAdmin() {
-    ReflectionTestUtils.setField(
-        relatorioFinanceiroService, "roleBudgetConfig", "ADMIN:20000000,OPERATOR:5000000");
-    ReflectionTestUtils.setField(relatorioFinanceiroService, "defaultBudget", BigDecimal.ZERO);
-
     Item despesa = criarItem(TipoItem.DESPESA, "1200.00", "2026-03-12T08:30:00");
     when(itemRepository.findAllVisiveisPorRoleNomes(Set.of("OPERATOR")))
         .thenReturn(List.of(despesa));
@@ -111,9 +93,7 @@ class RelatorioFinanceiroServiceTest {
 
     RelatorioFinanceiroResponse response = relatorioFinanceiroService.gerar(auth, "operator");
 
-    assertEquals(new BigDecimal("5000000"), response.orcamento());
     assertEquals(new BigDecimal("1200.00"), response.totalDespesas());
-    assertEquals(new BigDecimal("0.02"), response.utilizadoPercentual());
     verify(itemRepository).findAllVisiveisPorRoleNomes(Set.of("OPERATOR"));
     verify(itemRepository, never()).findAll();
   }
@@ -155,11 +135,9 @@ class RelatorioFinanceiroServiceTest {
   void deveGerarPdfValido() {
     RelatorioFinanceiroResponse response =
         new RelatorioFinanceiroResponse(
-            new BigDecimal("20000000"),
             new BigDecimal("1000.00"),
             new BigDecimal("250.00"),
             new BigDecimal("750.00"),
-            new BigDecimal("98.75"),
             List.of(),
             List.of());
 

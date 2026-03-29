@@ -126,9 +126,6 @@ const formatCurrency = (value) => {
   })}`;
 };
 
-const formatPercent = (value) =>
-  `${Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
-
 const formatDate = (isoDate) => {
   if (!isoDate) return "-";
   const [year, month, day] = String(isoDate).split("-");
@@ -229,11 +226,8 @@ const renderRelatorio = () => {
   reportsGrid.innerHTML = "";
 
   const relatorio = state.relatorio;
-  const utilizadoNumero = Number(relatorio.utilizadoPercentual || 0);
   addSummaryMetric("Total de receitas", formatCurrency(relatorio.totalReceitas), "positive");
   addSummaryMetric("Total de despesas", formatCurrency(relatorio.totalDespesas), "negative");
-  addSummaryMetric("Orcamento", formatCurrency(relatorio.orcamento));
-  addSummaryMetric("Utilizado", formatPercent(utilizadoNumero));
   addSummaryMetric(
     "Saldo final",
     formatCurrency(relatorio.saldoFinal),

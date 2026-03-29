@@ -4,11 +4,9 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record RelatorioFinanceiroResponse(
-    BigDecimal orcamento,
     BigDecimal totalReceitas,
     BigDecimal totalDespesas,
     BigDecimal saldoFinal,
-    BigDecimal utilizadoPercentual,
     List<RelatorioItemDto> receitas,
     List<RelatorioItemDto> despesas) {
 
