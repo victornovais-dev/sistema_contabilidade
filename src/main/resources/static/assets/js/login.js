@@ -14,6 +14,14 @@ const writeCookie = (name, value, days = 365) => {
   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
 };
 
+const writeSessionCookie = (name, value, hours = 8) => {
+  const maxAgeSeconds = Math.max(1, Math.floor(hours * 3600));
+  const expires = new Date(Date.now() + maxAgeSeconds * 1000).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(
+    value,
+  )}; expires=${expires}; Max-Age=${maxAgeSeconds}; path=/`;
+};
+
 const savedTheme = readCookie("theme") || localStorage.getItem("theme");
 root.dataset.theme = savedTheme === "dark" ? "dark" : "light";
 writeCookie("theme", root.dataset.theme);
@@ -85,7 +93,7 @@ loginForm.addEventListener("submit", async (event) => {
     }
 
     localStorage.setItem("sc_access_token", data.accessToken);
-    writeCookie("SC_TOKEN", data.accessToken);
+    writeSessionCookie("SC_TOKEN", data.accessToken, 8);
     feedback.textContent = "Login realizado com sucesso. Redirecionando...";
     window.location.href = "/home";
   } catch (error) {
