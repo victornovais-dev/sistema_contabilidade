@@ -113,7 +113,7 @@ html[data-theme="dark"] .grid {
 }
 
 .page-wide {
-  width: min(1040px, 96vw);
+  width: min(1160px, 96vw);
 }
 
 .card {
@@ -355,6 +355,19 @@ html[data-theme="dark"] .theme-icon {
   box-shadow: 0 10px 18px rgba(27, 27, 31, 0.08);
 }
 
+.field textarea {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(27, 27, 31, 0.16);
+  font-size: 1rem;
+  font-family: inherit;
+  background-color: rgba(255, 255, 255, 0.85);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  min-height: 110px;
+  box-shadow: 0 10px 18px rgba(27, 27, 31, 0.08);
+  resize: vertical;
+}
+
 .date-input {
   color-scheme: light;
 }
@@ -427,6 +440,13 @@ html[data-theme="dark"] .field input {
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.32);
 }
 
+html[data-theme="dark"] .field textarea {
+  background-color: rgba(20, 20, 24, 0.9);
+  color: var(--ink);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.32);
+}
+
 .field select:focus {
   outline: none;
   border-color: rgba(216, 75, 52, 0.7);
@@ -471,6 +491,13 @@ html[data-theme="dark"] .field select option {
     0 10px 18px rgba(27, 27, 31, 0.08);
 }
 
+.field textarea:focus {
+  outline: none;
+  border-color: rgba(216, 75, 52, 0.7);
+  box-shadow: 0 0 0 3px rgba(216, 75, 52, 0.16),
+    0 10px 18px rgba(27, 27, 31, 0.08);
+}
+
 .row {
   display: flex;
   flex-direction: column;
@@ -480,11 +507,17 @@ html[data-theme="dark"] .field select option {
 }
 
 .row-fields {
-  gap: 22px;
+  gap: 32px;
+  padding: 0 24px;
 }
 
 .row-fields .field {
   flex: 1 1 220px;
+}
+
+.field-side {
+  display: grid;
+  gap: 16px;
 }
 
 .checkbox {
@@ -821,8 +854,8 @@ html[data-theme="dark"] .flatpickr-current-month .year-dropdown option {
   }
 
 .row-fields .field {
-  flex: 0 0 50%;
-  max-width: 50%;
+  flex: 0 0 100%;
+  max-width: 100%;
 }
 
 .field-stack {
@@ -833,6 +866,20 @@ html[data-theme="dark"] .flatpickr-current-month .year-dropdown option {
 }
 
 .field-stack .field {
+  flex: none;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.field-side {
+  display: grid;
+  gap: 16px;
+  flex: 0 0 50%;
+  max-width: 50%;
+}
+
+.field-side .field {
   flex: none;
   max-width: 100%;
   margin-left: 0;

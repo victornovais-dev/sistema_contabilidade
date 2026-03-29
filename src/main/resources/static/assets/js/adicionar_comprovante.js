@@ -7,6 +7,10 @@ const dropOverlay = document.querySelector(".drop-overlay");
 const moneyInput = document.querySelector(".money-input");
 const dateInput = document.querySelector(".date-input");
 const typeSelect = document.querySelector("select[name=\"entry_type\"]");
+const descricaoSelect = document.querySelector("select[name=\"descricao\"]");
+const razaoSocialNomeInput = document.querySelector("input[name=\"razao_social_nome\"]");
+const cnpjCpfInput = document.querySelector("input[name=\"cnpj_cpf\"]");
+const observacaoInput = document.querySelector("textarea[name=\"observacao\"]");
 const form = document.querySelector(".form");
 const confirmOverlay = document.querySelector(".confirm-overlay");
 const confirmClose = document.querySelector(".confirm-close");
@@ -63,6 +67,31 @@ const moneyToDecimal = (value) => {
   return (cents / 100).toFixed(2);
 };
 
+const sanitizeRazaoSocial = (value) => {
+  if (!value) return "";
+  const cleaned = value.replace(/[^\p{L}\p{N} .&'/-]/gu, "");
+  return cleaned.replace(/\s{2,}/g, " ").toUpperCase();
+};
+
+const formatCpfCnpj = (value) => {
+  const digits = (value || "").replace(/\D/g, "").slice(0, 14);
+  if (digits.length <= 11) {
+    const cpf = digits.slice(0, 11);
+    let out = cpf.slice(0, 3);
+    if (cpf.length > 3) out += "." + cpf.slice(3, 6);
+    if (cpf.length > 6) out += "." + cpf.slice(6, 9);
+    if (cpf.length > 9) out += "-" + cpf.slice(9, 11);
+    return out;
+  }
+  const cnpj = digits.slice(0, 14);
+  let out = cnpj.slice(0, 2);
+  if (cnpj.length > 2) out += "." + cnpj.slice(2, 5);
+  if (cnpj.length > 5) out += "." + cnpj.slice(5, 8);
+  if (cnpj.length > 8) out += "/" + cnpj.slice(8, 12);
+  if (cnpj.length > 12) out += "-" + cnpj.slice(12, 14);
+  return out;
+};
+
 const fileToBase64 = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -74,6 +103,19 @@ const fileToBase64 = (file) =>
     reader.onerror = () => reject(new Error("Falha ao ler arquivo"));
     reader.readAsDataURL(file);
   });
+
+const filesToBase64 = async (files) => {
+  if (!files || files.length === 0) return [];
+  const array = Array.from(files);
+  const encoded = [];
+  for (const file of array) {
+    encoded.push(await fileToBase64(file));
+  }
+  return encoded;
+};
+
+const filesToNames = (files) =>
+  files && files.length > 0 ? Array.from(files).map((file) => file.name) : [];
 
 const ensureCsrfToken = async () => {
   if (csrfToken) return csrfToken;
@@ -151,23 +193,26 @@ bindThemeToggle();
 
 if (fileInput && fileHint && fileStatus) {
   fileInput.addEventListener("change", () => {
-    const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-    const fileName = file ? file.name : "Nenhum arquivo selecionado";
-    fileHint.textContent = fileName;
-
-    if (!file) {
+    const files = fileInput.files ? Array.from(fileInput.files) : [];
+    if (files.length === 0) {
+      fileHint.textContent = "Nenhum arquivo selecionado";
       fileStatus.classList.remove("is-ready");
       return;
+    }
+    if (files.length === 1) {
+      fileHint.textContent = files[0].name;
+    } else {
+      fileHint.textContent = `${files.length} arquivos selecionados`;
     }
     fileStatus.classList.add("is-ready");
   });
 }
 
 if (fileInput) {
-  const setDroppedFile = (file) => {
-    if (!file) return;
+  const setDroppedFiles = (files) => {
+    if (!files || files.length === 0) return;
     const dataTransfer = new DataTransfer();
-    dataTransfer.items.add(file);
+    Array.from(files).forEach((file) => dataTransfer.items.add(file));
     fileInput.files = dataTransfer.files;
     fileInput.dispatchEvent(new Event("change", { bubbles: true }));
   };
@@ -189,8 +234,8 @@ if (fileInput) {
     event.preventDefault();
     dragDepth = 0;
     if (dropOverlay) dropOverlay.classList.remove("is-visible");
-    const file = event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files[0] : null;
-    setDroppedFile(file);
+    const files = event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : null;
+    setDroppedFiles(files);
   });
 
   document.addEventListener("dragleave", (event) => {
@@ -305,6 +350,22 @@ if (dateInput) {
   });
 }
 
+if (razaoSocialNomeInput) {
+  const applyRazaoMask = () => {
+    razaoSocialNomeInput.value = sanitizeRazaoSocial(razaoSocialNomeInput.value);
+  };
+  razaoSocialNomeInput.addEventListener("input", applyRazaoMask);
+  razaoSocialNomeInput.addEventListener("blur", applyRazaoMask);
+}
+
+if (cnpjCpfInput) {
+  const applyCpfCnpjMask = () => {
+    cnpjCpfInput.value = formatCpfCnpj(cnpjCpfInput.value);
+  };
+  cnpjCpfInput.addEventListener("input", applyCpfCnpjMask);
+  cnpjCpfInput.addEventListener("blur", applyCpfCnpjMask);
+}
+
 if (form) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -337,15 +398,14 @@ if (form) {
 
     if (fileInput) {
       fileInput.setCustomValidity("");
-      if (!fileInput.files || fileInput.files.length === 0) {
-        fileInput.setCustomValidity("Selecione um Arquivo");
-        hasError = true;
-      } else {
-        const selectedFile = fileInput.files[0];
-        const isPdf =
-          selectedFile.type === "application/pdf" || selectedFile.name.toLowerCase().endsWith(".pdf");
-        if (!isPdf) {
-          fileInput.setCustomValidity("Envie um arquivo PDF.");
+      const files = fileInput.files ? Array.from(fileInput.files) : [];
+      if (files.length > 0) {
+        const invalid = files.find(
+          (file) =>
+            file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf"),
+        );
+        if (invalid) {
+          fileInput.setCustomValidity("Envie somente arquivos PDF.");
           hasError = true;
         }
       }
@@ -354,7 +414,15 @@ if (form) {
     if (typeSelect) {
       typeSelect.setCustomValidity("");
       if (!typeSelect.value) {
-        typeSelect.setCustomValidity("Selecione o tipo de comprovante.");
+        typeSelect.setCustomValidity("Selecione o tipo de lançamento.");
+        hasError = true;
+      }
+    }
+
+    if (descricaoSelect) {
+      descricaoSelect.setCustomValidity("");
+      if (!descricaoSelect.value) {
+        descricaoSelect.setCustomValidity("Selecione a descrição.");
         hasError = true;
       }
     }
@@ -364,10 +432,11 @@ if (form) {
       if (dateInput) dateInput.reportValidity();
       if (fileInput) fileInput.reportValidity();
       if (typeSelect) typeSelect.reportValidity();
+      if (descricaoSelect) descricaoSelect.reportValidity();
       return;
     }
 
-    const file = fileInput.files[0];
+    const files = fileInput.files ? Array.from(fileInput.files) : [];
     const dataIso = toIsoLocalDate(dateInput.value);
     const tipoSelecionado = String(typeSelect?.value || "").trim().toUpperCase();
     if (tipoSelecionado !== "RECEITA" && tipoSelecionado !== "DESPESA") {
@@ -386,7 +455,8 @@ if (form) {
     }
 
     try {
-      const arquivoPdf = await fileToBase64(file);
+      const arquivosPdf = await filesToBase64(files);
+      const nomesArquivos = filesToNames(files);
       const token = await ensureCsrfToken();
       const response = await fetch("/api/v1/itens", {
         method: "POST",
@@ -400,8 +470,13 @@ if (form) {
           valor: moneyToDecimal(moneyInput.value),
           data: dataIso,
           horarioCriacao: nowAsLocalDateTime(),
-          arquivoPdf,
+          arquivosPdf,
+          nomesArquivos,
           tipo,
+          descricao: descricaoSelect?.value || null,
+          razaoSocialNome: razaoSocialNomeInput?.value || null,
+          cnpjCpf: cnpjCpfInput?.value || null,
+          observacao: observacaoInput?.value || null,
         }),
       });
 
@@ -446,6 +521,22 @@ if (confirmOverlay && confirmClose) {
     if (typeSelect && lastSubmitOk) {
       typeSelect.setCustomValidity("");
       typeSelect.value = "";
+    }
+    if (descricaoSelect && lastSubmitOk) {
+      descricaoSelect.setCustomValidity("");
+      descricaoSelect.value = "";
+    }
+    if (razaoSocialNomeInput && lastSubmitOk) {
+      razaoSocialNomeInput.setCustomValidity("");
+      razaoSocialNomeInput.value = "";
+    }
+    if (cnpjCpfInput && lastSubmitOk) {
+      cnpjCpfInput.setCustomValidity("");
+      cnpjCpfInput.value = "";
+    }
+    if (observacaoInput && lastSubmitOk) {
+      observacaoInput.setCustomValidity("");
+      observacaoInput.value = "";
     }
   });
 }

@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
@@ -53,11 +53,11 @@
       </header>
 
       <section class="card card-horizontal">
-        <form class="form" action="#" method="post">
+        <form class="form" action="#" method="post" accept-charset="UTF-8">
           <div class="row row-fields">
             <div class="field-stack">
               <label class="field field-type">
-                <span>Tipo de comprovande</span>
+                <span>Tipo de lançamento</span>
                 <select name="entry_type" required>
                   <option value="" disabled selected>Selecione</option>
                   <option value="RECEITA">Receita</option>
@@ -88,24 +88,66 @@
                   required
                 />
               </label>
+              <label class="field field-observacao">
+                <span>Observação</span>
+                <textarea
+                  name="observacao"
+                  rows="3"
+                  placeholder="Digite observações adicionais"
+                ></textarea>
+              </label>
             </div>
 
-            <label class="field field-file">
-              <span>Anexar comprovante</span>
+            <div class="field-side">
+              <label class="field field-description">
+                <span>Descrição</span>
+                <select name="descricao" required>
+                  <option value="" disabled selected>Selecione</option>
+                  <option value="ALUGUEL">Aluguel</option>
+                  <option value="ENERGIA">Energia elétrica</option>
+                  <option value="AGUA">Água</option>
+                  <option value="SERVICOS">Serviços</option>
+                  <option value="IMPOSTOS">Impostos</option>
+                  <option value="MATERIAIS">Materiais</option>
+                  <option value="OUTROS">Outros</option>
+                </select>
+              </label>
+              <label class="field field-razao-social">
+                <span>Razão social / Nome</span>
+                <input
+                  type="text"
+                  name="razao_social_nome"
+                  placeholder="Digite a razão social ou nome"
+                  autocomplete="off"
+                />
+              </label>
+              <label class="field field-cnpj-cpf">
+                <span>CNPJ / CPF</span>
+                <input
+                  type="text"
+                  name="cnpj_cpf"
+                  inputmode="numeric"
+                  placeholder="00.000.000/0000-00"
+                  autocomplete="off"
+                />
+              </label>
+              <label class="field field-file">
+                <span>Anexar comprovante</span>
               <input
                 class="file-input"
                 id="receipt"
                 type="file"
                 name="receipt"
                 accept=".pdf,application/pdf"
-                required
+                multiple
               />
-              <label class="btn btn-secondary file-button" for="receipt">Escolher arquivo</label>
-              <div class="file-info">
-                <small class="file-hint">Nenhum arquivo selecionado</small>
-                <div class="file-status" aria-live="polite" aria-label="Status do upload"></div>
-              </div>
-            </label>
+                <label class="btn btn-secondary file-button" for="receipt">Escolher arquivo</label>
+                <div class="file-info">
+                  <small class="file-hint">Nenhum arquivo selecionado</small>
+                  <div class="file-status" aria-live="polite" aria-label="Status do upload"></div>
+                </div>
+              </label>
+            </div>
           </div>
 
           <button class="btn" type="submit">Salvar</button>
