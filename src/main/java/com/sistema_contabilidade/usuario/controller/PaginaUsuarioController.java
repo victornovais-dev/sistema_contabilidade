@@ -19,6 +19,12 @@ public class PaginaUsuarioController {
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
   }
 
+  @GetMapping(value = "/404", produces = MediaType.TEXT_HTML_VALUE)
+  public ResponseEntity<Resource> notFoundPage() {
+    Resource resource = new ClassPathResource("static/404.html");
+    return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
+  }
+
   @GetMapping(value = "/criar_usuario", produces = MediaType.TEXT_HTML_VALUE)
   @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Resource> criarUsuarioPage() {

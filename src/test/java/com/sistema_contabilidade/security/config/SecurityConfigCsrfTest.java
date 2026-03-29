@@ -19,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -89,5 +90,19 @@ class SecurityConfigCsrfTest {
         .perform(get("/home.html"))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/login"));
+  }
+
+  @Test
+  @DisplayName("Deve redirecionar para 404 ao acessar admin sem role admin")
+  void deveRedirecionarPara404AoAcessarAdminSemRoleAdmin() throws Exception {
+    var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
+    when(jwtService.extractUsername("token_manager")).thenReturn("manager@email.com");
+    when(jwtService.isTokenValid("token_manager", userDetails)).thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(get("/admin").cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_manager")))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/404"));
   }
 }

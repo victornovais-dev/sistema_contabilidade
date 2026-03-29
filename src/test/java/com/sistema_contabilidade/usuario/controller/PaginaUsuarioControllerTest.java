@@ -57,6 +57,7 @@ class PaginaUsuarioControllerTest {
   private static Stream<Arguments> htmlPageMethods() {
     return Stream.of(
         Arguments.of("login", "loginPage"),
+        Arguments.of("404", "notFoundPage"),
         Arguments.of("criar usuario", "criarUsuarioPage"),
         Arguments.of("atualizar usuario", "atualizarUsuarioPage"),
         Arguments.of("adicionar comprovante", "adicionarComprovantePage"),

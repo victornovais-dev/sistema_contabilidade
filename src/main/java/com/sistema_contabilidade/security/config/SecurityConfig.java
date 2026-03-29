@@ -31,6 +31,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
   private static final String ADMIN_ROLE = "ADMIN";
+  private static final String ADMIN_PATH = "/admin";
 
   private final JwtAuthFilter jwtAuthFilter;
   private final RateLimitFilter rateLimitFilter;
@@ -61,23 +62,38 @@ public class SecurityConfig {
               session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
           .exceptionHandling(
               exceptions ->
-                  exceptions.authenticationEntryPoint(
-                      (request, response, authException) -> {
-                        if (request.getRequestURI().startsWith("/api/")) {
-                          response.sendError(401);
-                          return;
-                        }
-                        response.sendRedirect("/login");
-                      }))
+                  exceptions
+                      .authenticationEntryPoint(
+                          (request, response, authException) -> {
+                            String requestUri = request.getRequestURI();
+                            if (requestUri.startsWith("/api/")) {
+                              response.sendError(401);
+                              return;
+                            }
+                            response.sendRedirect("/login");
+                          })
+                      .accessDeniedHandler(
+                          (request, response, accessDeniedException) -> {
+                            String requestUri = request.getRequestURI();
+                            if (ADMIN_PATH.equals(requestUri)) {
+                              response.sendRedirect("/404");
+                              return;
+                            }
+                            if (requestUri.startsWith("/api/")) {
+                              response.sendError(403);
+                              return;
+                            }
+                            response.sendError(403);
+                          }))
           .authorizeHttpRequests(
               auth ->
-                  auth.requestMatchers("/", "/login", "/favicon.ico")
+                  auth.requestMatchers("/", "/login", "/404", "/favicon.ico")
                       .permitAll()
                       .requestMatchers("/criar_usuario")
                       .hasRole(ADMIN_ROLE)
                       .requestMatchers("/atualizar_usuario")
                       .hasRole(ADMIN_ROLE)
-                      .requestMatchers("/admin")
+                      .requestMatchers(ADMIN_PATH)
                       .hasRole(ADMIN_ROLE)
                       .requestMatchers(
                           "/assets/**",
