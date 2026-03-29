@@ -39,6 +39,10 @@ class ItemRepositoryTest {
     item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 14, 10, 0));
     item.setCaminhoArquivoPdf("uploads/itens/comprovante.pdf");
     item.setTipo(TipoItem.DESPESA);
+    item.setDescricao("IMPOSTOS");
+    item.setRazaoSocialNome("EMPRESA TESTE");
+    item.setCnpjCpf("12.345.678/0001-99");
+    item.setObservacao("Observacao de teste");
     item.setCriadoPor(criarUsuarioComRole("ana@email.com", "OPERATOR"));
 
     Item salvo = itemRepository.save(item);
@@ -91,6 +95,10 @@ class ItemRepositoryTest {
     item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 14, 10, 0));
     item.setCaminhoArquivoPdf(caminhoPdf);
     item.setTipo(tipoItem);
+    item.setDescricao("SERVICOS");
+    item.setRazaoSocialNome("EMPRESA TESTE");
+    item.setCnpjCpf("12.345.678/0001-99");
+    item.setObservacao("Observacao de teste");
     item.setCriadoPor(criadoPor);
     return item;
   }

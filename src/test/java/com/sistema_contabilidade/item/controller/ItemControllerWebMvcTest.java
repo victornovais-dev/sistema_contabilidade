@@ -11,7 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sistema_contabilidade.item.model.Item;
+import com.sistema_contabilidade.item.model.ItemArquivo;
 import com.sistema_contabilidade.item.model.TipoItem;
+import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ItemArquivoStorageService;
 import com.sistema_contabilidade.rbac.model.Role;
@@ -46,6 +48,7 @@ class ItemControllerWebMvcTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private ItemRepository itemRepository;
+  @MockitoBean private ItemArquivoRepository itemArquivoRepository;
   @MockitoBean private ItemArquivoStorageService itemArquivoStorageService;
   @MockitoBean private UsuarioRepository usuarioRepository;
   @MockitoBean private JwtService jwtService;
@@ -61,6 +64,14 @@ class ItemControllerWebMvcTest {
     item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 12, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/item-lista.pdf");
     item.setTipo(TipoItem.RECEITA);
+    item.setDescricao("ALUGUEL");
+    item.setRazaoSocialNome("EMPRESA TESTE");
+    item.setCnpjCpf("12.345.678/0001-99");
+    item.setObservacao("Observacao de teste");
+    ItemArquivo arquivoLista = new ItemArquivo();
+    arquivoLista.setCaminhoArquivoPdf("uploads/itens/item-lista.pdf");
+    arquivoLista.setItem(item);
+    item.getArquivos().add(arquivoLista);
     when(itemRepository.findAll()).thenReturn(List.of(item));
 
     mockMvc
@@ -80,8 +91,17 @@ class ItemControllerWebMvcTest {
     item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 18, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/item-criado.pdf");
     item.setTipo(TipoItem.DESPESA);
-    when(itemArquivoStorageService.salvarPdf(org.mockito.ArgumentMatchers.any(byte[].class)))
-        .thenReturn("uploads/itens/item-criado.pdf");
+    item.setDescricao("SERVICOS");
+    item.setRazaoSocialNome("FORNECEDOR TESTE");
+    item.setCnpjCpf("123.456.789-00");
+    item.setObservacao("Observacao do teste");
+    ItemArquivo arquivoCriado = new ItemArquivo();
+    arquivoCriado.setCaminhoArquivoPdf("uploads/itens/item-criado.pdf");
+    arquivoCriado.setItem(item);
+    item.getArquivos().add(arquivoCriado);
+    when(itemArquivoStorageService.salvarPdfs(
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList()))
+        .thenReturn(List.of("uploads/itens/item-criado.pdf"));
     when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class))).thenReturn(item);
     when(usuarioRepository.findByEmail("operador@email.com"))
         .thenReturn(Optional.of(usuarioComRoles("OPERADOR", "OPERATOR")));
@@ -97,14 +117,24 @@ class ItemControllerWebMvcTest {
                       "valor":120.50,
                       "data":"2026-03-15",
                       "horarioCriacao":"2026-03-15T18:00:00",
-                      "arquivoPdf":"cGRm",
-                      "tipo":"DESPESA"
+                      "arquivosPdf":["cGRm","cGRmMg=="],
+                      "nomesArquivos":["documento-1.pdf","documento-2.pdf"],
+                      "tipo":"DESPESA",
+                      "descricao":"SERVICOS",
+                      "razaoSocialNome":"FORNECEDOR TESTE",
+                      "cnpjCpf":"123.456.789-00",
+                      "observacao":"Observacao do teste"
                     }
                     """))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.valor").value(120.50))
         .andExpect(jsonPath("$.caminhoArquivoPdf").value("uploads/itens/item-criado.pdf"))
-        .andExpect(jsonPath("$.tipo").value("DESPESA"));
+        .andExpect(jsonPath("$.tipo").value("DESPESA"))
+        .andExpect(jsonPath("$.descricao").value("SERVICOS"))
+        .andExpect(jsonPath("$.razaoSocialNome").value("FORNECEDOR TESTE"))
+        .andExpect(jsonPath("$.cnpjCpf").value("123.456.789-00"))
+        .andExpect(jsonPath("$.observacao").value("Observacao do teste"))
+        .andExpect(jsonPath("$.arquivosPdf[0]").value("uploads/itens/item-criado.pdf"));
   }
 
   @Test
@@ -118,6 +148,14 @@ class ItemControllerWebMvcTest {
     item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 8, 30, 0));
     item.setCaminhoArquivoPdf("uploads/itens/item-busca.pdf");
     item.setTipo(TipoItem.RECEITA);
+    item.setDescricao("ALUGUEL");
+    item.setRazaoSocialNome("EMPRESA TESTE");
+    item.setCnpjCpf("12.345.678/0001-99");
+    item.setObservacao("Observacao de teste");
+    ItemArquivo arquivoBusca = new ItemArquivo();
+    arquivoBusca.setCaminhoArquivoPdf("uploads/itens/item-busca.pdf");
+    arquivoBusca.setItem(item);
+    item.getArquivos().add(arquivoBusca);
     when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
 
     mockMvc
@@ -166,6 +204,14 @@ class ItemControllerWebMvcTest {
     item.setHorarioCriacao(LocalDateTime.of(2026, 3, 16, 10, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/comprovante-1.pdf");
     item.setTipo(TipoItem.DESPESA);
+    item.setDescricao("IMPOSTOS");
+    item.setRazaoSocialNome("EMPRESA TESTE");
+    item.setCnpjCpf("12.345.678/0001-99");
+    item.setObservacao("Observacao de teste");
+    ItemArquivo arquivoDownload = new ItemArquivo();
+    arquivoDownload.setCaminhoArquivoPdf("uploads/itens/comprovante-1.pdf");
+    arquivoDownload.setItem(item);
+    item.getArquivos().add(arquivoDownload);
     byte[] conteudoPdf = "pdf-teste".getBytes();
 
     when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
@@ -205,9 +251,18 @@ class ItemControllerWebMvcTest {
     item.setHorarioCriacao(LocalDateTime.of(2026, 3, 16, 11, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/antigo.pdf");
     item.setTipo(TipoItem.RECEITA);
+    item.setDescricao("ALUGUEL");
+    item.setRazaoSocialNome("EMPRESA TESTE");
+    item.setCnpjCpf("12.345.678/0001-99");
+    item.setObservacao("Observacao antiga");
+    ItemArquivo arquivoAntigo = new ItemArquivo();
+    arquivoAntigo.setCaminhoArquivoPdf("uploads/itens/antigo.pdf");
+    arquivoAntigo.setItem(item);
+    item.getArquivos().add(arquivoAntigo);
     when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
-    when(itemArquivoStorageService.salvarPdf(org.mockito.ArgumentMatchers.any(byte[].class)))
-        .thenReturn("uploads/itens/novo.pdf");
+    when(itemArquivoStorageService.salvarPdfs(
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList()))
+        .thenReturn(List.of("uploads/itens/novo.pdf"));
     when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class))).thenReturn(item);
 
     mockMvc
@@ -221,8 +276,13 @@ class ItemControllerWebMvcTest {
                       "valor":250.10,
                       "data":"2026-03-16",
                       "horarioCriacao":"2026-03-16T11:10:00",
-                      "arquivoPdf":"cGRm",
-                      "tipo":"DESPESA"
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["novo.pdf"],
+                      "tipo":"DESPESA",
+                      "descricao":"OUTROS",
+                      "razaoSocialNome":"EMPRESA TESTE",
+                      "cnpjCpf":"12.345.678/0001-99",
+                      "observacao":"Observacao nova"
                     }
                     """))
         .andExpect(status().isOk())
@@ -246,8 +306,13 @@ class ItemControllerWebMvcTest {
                       "valor":250.10,
                       "data":"2026-03-16",
                       "horarioCriacao":"2026-03-16T11:10:00",
-                      "arquivoPdf":"cGRm",
-                      "tipo":"DESPESA"
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["novo.pdf"],
+                      "tipo":"DESPESA",
+                      "descricao":"OUTROS",
+                      "razaoSocialNome":"EMPRESA TESTE",
+                      "cnpjCpf":"12.345.678/0001-99",
+                      "observacao":"Observacao nova"
                     }
                     """))
         .andExpect(status().isNotFound());
@@ -299,5 +364,55 @@ class ItemControllerWebMvcTest {
       usuario.getRoles().add(role);
     }
     return usuario;
+  }
+
+  @Test
+  @DisplayName("Deve listar arquivos do item")
+  void listarArquivosDeveRetornarOk() throws Exception {
+    UUID id = UUID.fromString("99999999-2222-3333-4444-555555555555");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    ItemArquivo arquivo = new ItemArquivo();
+    arquivo.setId(UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+    arquivo.setCaminhoArquivoPdf("uploads/itens/extra.pdf");
+    arquivo.setItem(item);
+    item.getArquivos().add(arquivo);
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens/{id}/arquivos", id).with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].caminhoArquivoPdf").value("uploads/itens/extra.pdf"));
+  }
+
+  @Test
+  @DisplayName("Deve adicionar arquivos ao item")
+  void adicionarArquivosDeveRetornarOk() throws Exception {
+    UUID id = UUID.fromString("99999999-aaaa-bbbb-cccc-111111111111");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemArquivoStorageService.salvarPdfs(
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList()))
+        .thenReturn(List.of("uploads/itens/novo-1.pdf", "uploads/itens/novo-2.pdf"));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class))).thenReturn(item);
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens/{id}/arquivos", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "arquivosPdf":["cGRm","cGRm"],
+                      "nomesArquivos":["extra-1.pdf","extra-2.pdf"]
+                    }
+                    """))
+        .andExpect(status().isOk());
   }
 }

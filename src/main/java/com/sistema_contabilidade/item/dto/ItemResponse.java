@@ -5,6 +5,7 @@ import com.sistema_contabilidade.item.model.TipoItem;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record ItemResponse(
@@ -13,7 +14,21 @@ public record ItemResponse(
     LocalDate data,
     LocalDateTime horarioCriacao,
     String caminhoArquivoPdf,
-    TipoItem tipo) {
+    TipoItem tipo,
+    String descricao,
+    String razaoSocialNome,
+    String cnpjCpf,
+    String observacao,
+    List<String> arquivosPdf) {
+
+  public ItemResponse {
+    arquivosPdf = arquivosPdf == null ? List.of() : List.copyOf(arquivosPdf);
+  }
+
+  @Override
+  public List<String> arquivosPdf() {
+    return arquivosPdf == null ? List.of() : List.copyOf(arquivosPdf);
+  }
 
   public static ItemResponse from(Item item) {
     return new ItemResponse(
@@ -22,6 +37,11 @@ public record ItemResponse(
         item.getData(),
         item.getHorarioCriacao(),
         item.getCaminhoArquivoPdf(),
-        item.getTipo());
+        item.getTipo(),
+        item.getDescricao(),
+        item.getRazaoSocialNome(),
+        item.getCnpjCpf(),
+        item.getObservacao(),
+        item.getArquivos().stream().map(arquivo -> arquivo.getCaminhoArquivoPdf()).toList());
   }
 }

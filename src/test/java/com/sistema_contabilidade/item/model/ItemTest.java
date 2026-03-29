@@ -25,11 +25,19 @@ class ItemTest {
     item.setHorarioCriacao(horarioCriacao);
     item.setCaminhoArquivoPdf(caminhoArquivoPdf);
     item.setTipo(TipoItem.RECEITA);
+    item.setDescricao("ALUGUEL");
+    item.setRazaoSocialNome("EMPRESA TESTE");
+    item.setCnpjCpf("12.345.678/0001-99");
+    item.setObservacao("Observacao de teste");
 
     assertEquals(valor, item.getValor());
     assertEquals(data, item.getData());
     assertEquals(horarioCriacao, item.getHorarioCriacao());
     assertEquals(caminhoArquivoPdf, item.getCaminhoArquivoPdf());
     assertEquals(TipoItem.RECEITA, item.getTipo());
+    assertEquals("ALUGUEL", item.getDescricao());
+    assertEquals("EMPRESA TESTE", item.getRazaoSocialNome());
+    assertEquals("12.345.678/0001-99", item.getCnpjCpf());
+    assertEquals("Observacao de teste", item.getObservacao());
   }
 }

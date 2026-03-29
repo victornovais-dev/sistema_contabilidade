@@ -19,6 +19,7 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
       from Item i
       join i.criadoPor u
       join u.roles r
+      left join fetch i.arquivos
       where r.nome in :roleNomes
       """)
   List<Item> findAllVisiveisPorRoleNomes(@Param("roleNomes") Set<String> roleNomes);
@@ -29,6 +30,7 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
       from Item i
       left join fetch i.criadoPor u
       left join fetch u.roles
+      left join fetch i.arquivos
       where i.id = :id
       """)
   Optional<Item> findByIdComCriadorERoles(@Param("id") UUID id);

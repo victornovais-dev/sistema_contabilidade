@@ -11,6 +11,7 @@ import com.sistema_contabilidade.item.model.TipoItem;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -25,15 +26,33 @@ class ItemRecordDtosTest {
     LocalDate data = LocalDate.of(2026, 3, 15);
     LocalDateTime horarioCriacao = LocalDateTime.of(2026, 3, 15, 18, 0, 0);
     byte[] arquivoPdf = "pdf".getBytes();
+    byte[] arquivoPdf2 = "pdf2".getBytes();
+    List<String> nomesArquivos = List.of("documento-1.pdf", "documento-2.pdf");
     ItemUpsertRequest request =
         new ItemUpsertRequest(
-            new BigDecimal("99.90"), data, horarioCriacao, arquivoPdf, TipoItem.RECEITA);
+            new BigDecimal("99.90"),
+            data,
+            horarioCriacao,
+            List.of(arquivoPdf, arquivoPdf2),
+            nomesArquivos,
+            TipoItem.RECEITA,
+            "ALUGUEL",
+            "EMPRESA TESTE",
+            "123.456.789-00",
+            "Observacao");
 
     assertEquals(new BigDecimal("99.90"), request.valor());
     assertEquals(data, request.data());
     assertEquals(horarioCriacao, request.horarioCriacao());
-    assertArrayEquals(arquivoPdf, request.arquivoPdf());
+    assertEquals(2, request.arquivosPdf().size());
+    assertArrayEquals(arquivoPdf, request.arquivosPdf().get(0));
+    assertArrayEquals(arquivoPdf2, request.arquivosPdf().get(1));
+    assertEquals(nomesArquivos, request.nomesArquivos());
     assertEquals(TipoItem.RECEITA, request.tipo());
+    assertEquals("ALUGUEL", request.descricao());
+    assertEquals("EMPRESA TESTE", request.razaoSocialNome());
+    assertEquals("123.456.789-00", request.cnpjCpf());
+    assertEquals("Observacao", request.observacao());
   }
 
   @Test
@@ -50,6 +69,10 @@ class ItemRecordDtosTest {
     item.setHorarioCriacao(horarioCriacao);
     item.setCaminhoArquivoPdf(caminhoArquivoPdf);
     item.setTipo(TipoItem.RECEITA);
+    item.setDescricao("ALUGUEL");
+    item.setRazaoSocialNome("EMPRESA TESTE");
+    item.setCnpjCpf("12.345.678/0001-99");
+    item.setObservacao("Observacao de teste");
 
     ItemResponse response = ItemResponse.from(item);
 
@@ -59,6 +82,10 @@ class ItemRecordDtosTest {
     assertEquals(horarioCriacao, response.horarioCriacao());
     assertEquals(caminhoArquivoPdf, response.caminhoArquivoPdf());
     assertEquals(TipoItem.RECEITA, response.tipo());
+    assertEquals("ALUGUEL", response.descricao());
+    assertEquals("EMPRESA TESTE", response.razaoSocialNome());
+    assertEquals("12.345.678/0001-99", response.cnpjCpf());
+    assertEquals("Observacao de teste", response.observacao());
   }
 
   @Test
@@ -68,13 +95,40 @@ class ItemRecordDtosTest {
     LocalDateTime horarioCriacao = LocalDateTime.of(2026, 3, 15, 18, 0, 0);
     ItemUpsertRequest requestA =
         new ItemUpsertRequest(
-            new BigDecimal("99.90"), data, horarioCriacao, new byte[] {1, 2, 3}, TipoItem.RECEITA);
+            new BigDecimal("99.90"),
+            data,
+            horarioCriacao,
+            List.of(new byte[] {1, 2, 3}),
+            List.of("arquivo-1.pdf"),
+            TipoItem.RECEITA,
+            "ALUGUEL",
+            "EMPRESA A",
+            "123.456.789-00",
+            "Obs");
     ItemUpsertRequest requestB =
         new ItemUpsertRequest(
-            new BigDecimal("99.90"), data, horarioCriacao, new byte[] {1, 2, 3}, TipoItem.RECEITA);
+            new BigDecimal("99.90"),
+            data,
+            horarioCriacao,
+            List.of(new byte[] {1, 2, 3}),
+            List.of("arquivo-1.pdf"),
+            TipoItem.RECEITA,
+            "ALUGUEL",
+            "EMPRESA A",
+            "123.456.789-00",
+            "Obs");
     ItemUpsertRequest requestDiferente =
         new ItemUpsertRequest(
-            new BigDecimal("99.90"), data, horarioCriacao, new byte[] {9, 9, 9}, TipoItem.RECEITA);
+            new BigDecimal("99.90"),
+            data,
+            horarioCriacao,
+            List.of(new byte[] {9, 9, 9}),
+            List.of("arquivo-2.pdf"),
+            TipoItem.RECEITA,
+            "ALUGUEL",
+            "EMPRESA B",
+            "123.456.789-00",
+            "Obs");
 
     assertEquals(requestA, Objects.requireNonNull(requestA));
     assertEquals(requestA, requestB);
@@ -85,7 +139,8 @@ class ItemRecordDtosTest {
     assertNotEquals(true, equalsNull);
     assertNotEquals(true, equalsOutroTipo);
     assertNotNull(requestA.toString());
-    assertTrue(requestA.toString().contains("arquivoPdf=[1, 2, 3]"));
+    assertTrue(requestA.toString().contains("arquivosPdf=[[1, 2, 3]]"));
+    assertTrue(requestA.toString().contains("nomesArquivos=[arquivo-1.pdf]"));
   }
 
   @Test
@@ -97,13 +152,18 @@ class ItemRecordDtosTest {
             new BigDecimal("10.00"),
             LocalDate.of(2026, 3, 16),
             LocalDateTime.of(2026, 3, 16, 10, 0),
-            arquivoPdf,
-            TipoItem.RECEITA);
+            List.of(arquivoPdf),
+            List.of("arquivo-1.pdf"),
+            TipoItem.RECEITA,
+            "ALUGUEL",
+            "EMPRESA TESTE",
+            "123.456.789-00",
+            "Obs");
 
     arquivoPdf[0] = 9;
-    byte[] retorno = request.arquivoPdf();
+    byte[] retorno = request.arquivosPdf().get(0);
     retorno[1] = 9;
 
-    assertArrayEquals(new byte[] {1, 2, 3}, request.arquivoPdf());
+    assertArrayEquals(new byte[] {1, 2, 3}, request.arquivosPdf().get(0));
   }
 }

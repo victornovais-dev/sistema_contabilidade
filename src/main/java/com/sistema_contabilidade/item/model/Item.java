@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.item.model;
 
 import com.sistema_contabilidade.usuario.model.Usuario;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -10,10 +11,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -43,6 +47,21 @@ public class Item {
 
   @Column(name = "caminho_arquivo_pdf", length = 500)
   private String caminhoArquivoPdf;
+
+  @Column(length = 120)
+  private String descricao;
+
+  @Column(name = "razao_social", length = 200)
+  private String razaoSocialNome;
+
+  @Column(name = "cnpj_cpf", length = 20)
+  private String cnpjCpf;
+
+  @Column(length = 500)
+  private String observacao;
+
+  @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<ItemArquivo> arquivos = new ArrayList<>();
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
