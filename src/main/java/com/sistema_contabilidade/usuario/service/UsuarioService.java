@@ -86,6 +86,10 @@ public class UsuarioService {
     return rbacMapper.toUsuarioComRolesDto(buscarPorEmail(email));
   }
 
+  public String findNomeByEmail(String email) {
+    return buscarPorEmail(email).getNome();
+  }
+
   @Transactional
   public UsuarioComRolesDto updateByEmail(UsuarioUpdateByEmailRequest request) {
     Usuario usuarioExistente = buscarPorEmail(request.email());

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
+import com.sistema_contabilidade.usuario.dto.UsuarioMeResponse;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import java.util.List;
 import java.util.UUID;
@@ -18,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -77,6 +79,20 @@ class UsuarioControllerTest {
     assertEquals(HttpStatus.OK, resultado.getStatusCode());
     assertEquals(2, resultado.getBody().size());
     verify(usuarioService).listarTodos();
+  }
+
+  @Test
+  @DisplayName("Deve retornar primeiro nome do usuario autenticado no endpoint /me")
+  void meDeveRetornarNomeDoUsuarioAutenticado() {
+    Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
+    when(authentication.getName()).thenReturn("victor@email.com");
+    when(usuarioService.findNomeByEmail("victor@email.com")).thenReturn("Victor Hugo");
+
+    ResponseEntity<UsuarioMeResponse> resultado = usuarioController.me(authentication);
+
+    assertEquals(HttpStatus.OK, resultado.getStatusCode());
+    assertEquals("Victor Hugo", resultado.getBody().nome());
+    verify(usuarioService).findNomeByEmail("victor@email.com");
   }
 
   @Test

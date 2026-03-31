@@ -3,6 +3,7 @@ package com.sistema_contabilidade.usuario.controller;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
+import com.sistema_contabilidade.usuario.dto.UsuarioMeResponse;
 import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -51,6 +53,14 @@ public class UsuarioController {
   public ResponseEntity<List<UsuarioDto>> listarTodos() {
     List<UsuarioDto> response = usuarioService.listarTodos();
     return ResponseEntity.ok(response);
+  }
+
+  @GetMapping("/me")
+  @PreAuthorize("isAuthenticated()")
+  public ResponseEntity<UsuarioMeResponse> me(Authentication authentication) {
+    String email = authentication == null ? null : authentication.getName();
+    String nome = usuarioService.findNomeByEmail(email);
+    return ResponseEntity.ok(new UsuarioMeResponse(nome));
   }
 
   @GetMapping(ID_PATH)
