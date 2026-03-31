@@ -8,6 +8,7 @@ const moneyInput = document.querySelector(".money-input");
 const dateInput = document.querySelector(".date-input");
 const typeSelect = document.querySelector("select[name=\"entry_type\"]");
 const descricaoSelect = document.querySelector("select[name=\"descricao\"]");
+const customSelects = document.querySelectorAll("[data-custom-select]");
 const razaoSocialNomeInput = document.querySelector("input[name=\"razao_social_nome\"]");
 const cnpjCpfInput = document.querySelector("input[name=\"cnpj_cpf\"]");
 const observacaoInput = document.querySelector("textarea[name=\"observacao\"]");
@@ -190,6 +191,78 @@ const bindThemeToggle = () => {
 };
 
 bindThemeToggle();
+
+const bindCustomSelect = (selectElement) => {
+  if (!(selectElement instanceof HTMLSelectElement)) return null;
+  const wrapper = selectElement.closest("[data-custom-select]");
+  if (!wrapper) return null;
+  const trigger = wrapper.querySelector(".custom-select-trigger");
+  const menu = wrapper.querySelector(".custom-select-menu");
+  const options = wrapper.querySelectorAll(".custom-select-option");
+  if (!(trigger instanceof HTMLButtonElement) || !(menu instanceof HTMLElement)) return null;
+
+  const close = () => {
+    menu.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+  };
+
+  const open = () => {
+    menu.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+  };
+
+  const syncFromSelect = () => {
+    const selected = selectElement.selectedOptions && selectElement.selectedOptions.length > 0
+      ? selectElement.selectedOptions[0]
+      : null;
+    const label = selected ? String(selected.textContent || "").trim() : "";
+    trigger.textContent = label || "Selecione";
+
+    options.forEach((node) => {
+      if (!(node instanceof HTMLElement)) return;
+      node.classList.toggle("is-active", (node.dataset.value || "") === selectElement.value);
+    });
+  };
+
+  trigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    trigger.classList.remove("is-invalid");
+    if (menu.hidden) open();
+    else close();
+  });
+
+  options.forEach((option) => {
+    option.addEventListener("click", () => {
+      const value = option.dataset.value || "";
+      selectElement.value = value;
+      selectElement.dispatchEvent(new Event("change", { bubbles: true }));
+      selectElement.setCustomValidity("");
+      trigger.classList.remove("is-invalid");
+      syncFromSelect();
+      close();
+    });
+  });
+
+  document.addEventListener(
+    "mousedown",
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (trigger.contains(target)) return;
+      if (menu.contains(target)) return;
+      close();
+    },
+    { capture: true },
+  );
+
+  selectElement.addEventListener("change", syncFromSelect);
+  syncFromSelect();
+
+  return { trigger, open, close, syncFromSelect };
+};
+
+const customType = typeSelect ? bindCustomSelect(typeSelect) : null;
+const customDescricao = descricaoSelect ? bindCustomSelect(descricaoSelect) : null;
 
 if (fileInput && fileHint && fileStatus) {
   fileInput.addEventListener("change", () => {
@@ -415,6 +488,11 @@ if (form) {
       typeSelect.setCustomValidity("");
       if (!typeSelect.value) {
         typeSelect.setCustomValidity("Selecione o tipo de lançamento.");
+        if (customType?.trigger) {
+          customType.trigger.classList.add("is-invalid");
+          customType.open();
+          customType.trigger.focus();
+        }
         hasError = true;
       }
     }
@@ -423,6 +501,11 @@ if (form) {
       descricaoSelect.setCustomValidity("");
       if (!descricaoSelect.value) {
         descricaoSelect.setCustomValidity("Selecione a descrição.");
+        if (customDescricao?.trigger) {
+          customDescricao.trigger.classList.add("is-invalid");
+          customDescricao.open();
+          customDescricao.trigger.focus();
+        }
         hasError = true;
       }
     }

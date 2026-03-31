@@ -5,28 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Registrar Gasto</title>
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
-    <script>
-      (function () {
-        try {
-          var match = document.cookie.match(/(?:^|;\s*)theme=([^;]+)/);
-          var cookieTheme = match ? decodeURIComponent(match[1]) : null;
-          var theme = cookieTheme || localStorage.getItem("theme");
-          document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
-        } catch (error) {
-          document.documentElement.dataset.theme = "light";
-        }
-      })();
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
-    />
+    <script src="assets/js/theme-init.js"></script>
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css" />
     <link rel="stylesheet" href="assets/css/adicionar_comprovante.css" />
     <link rel="stylesheet" href="assets/css/navbar.css" />
   </head>
@@ -58,11 +38,29 @@
             <div class="field-stack">
               <label class="field field-type">
                 <span>Tipo de lançamento</span>
-                <select name="entry_type" required>
-                  <option value="" disabled selected>Selecione</option>
-                  <option value="RECEITA">Receita</option>
-                  <option value="DESPESA">Despesa</option>
-                </select>
+                <div class="custom-select" data-custom-select>
+                  <button
+                    class="custom-select-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                  >
+                    Selecione
+                  </button>
+                  <div class="custom-select-menu" role="listbox" hidden>
+                    <button class="custom-select-option" type="button" role="option" data-value="RECEITA">
+                      Receita
+                    </button>
+                    <button class="custom-select-option" type="button" role="option" data-value="DESPESA">
+                      Despesa
+                    </button>
+                  </div>
+                  <select class="native-select" name="entry_type" required aria-hidden="true">
+                    <option value="" disabled selected>Selecione</option>
+                    <option value="RECEITA">Receita</option>
+                    <option value="DESPESA">Despesa</option>
+                  </select>
+                </div>
               </label>
               <label class="field field-amount">
                 <span>Valor</span>
@@ -101,16 +99,49 @@
             <div class="field-side">
               <label class="field field-description">
                 <span>Descrição</span>
-                <select name="descricao" required>
-                  <option value="" disabled selected>Selecione</option>
-                  <option value="ALUGUEL">Aluguel</option>
-                  <option value="ENERGIA">Energia elétrica</option>
-                  <option value="AGUA">Água</option>
-                  <option value="SERVICOS">Serviços</option>
-                  <option value="IMPOSTOS">Impostos</option>
-                  <option value="MATERIAIS">Materiais</option>
-                  <option value="OUTROS">Outros</option>
-                </select>
+                <div class="custom-select" data-custom-select>
+                  <button
+                    class="custom-select-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                  >
+                    Selecione
+                  </button>
+                  <div class="custom-select-menu" role="listbox" hidden>
+                    <button class="custom-select-option" type="button" role="option" data-value="ALUGUEL">
+                      Aluguel
+                    </button>
+                    <button class="custom-select-option" type="button" role="option" data-value="ENERGIA">
+                      Energia elétrica
+                    </button>
+                    <button class="custom-select-option" type="button" role="option" data-value="AGUA">
+                      Água
+                    </button>
+                    <button class="custom-select-option" type="button" role="option" data-value="SERVICOS">
+                      Serviços
+                    </button>
+                    <button class="custom-select-option" type="button" role="option" data-value="IMPOSTOS">
+                      Impostos
+                    </button>
+                    <button class="custom-select-option" type="button" role="option" data-value="MATERIAIS">
+                      Materiais
+                    </button>
+                    <button class="custom-select-option" type="button" role="option" data-value="OUTROS">
+                      Outros
+                    </button>
+                  </div>
+                  <select class="native-select" name="descricao" required aria-hidden="true">
+                    <option value="" disabled selected>Selecione</option>
+                    <option value="ALUGUEL">Aluguel</option>
+                    <option value="ENERGIA">Energia elétrica</option>
+                    <option value="AGUA">Água</option>
+                    <option value="SERVICOS">Serviços</option>
+                    <option value="IMPOSTOS">Impostos</option>
+                    <option value="MATERIAIS">Materiais</option>
+                    <option value="OUTROS">Outros</option>
+                  </select>
+                </div>
               </label>
               <label class="field field-razao-social">
                 <span>Razão social / Nome</span>
@@ -165,7 +196,7 @@
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/js/navbar.js" defer></script>
     <script src="assets/js/adicionar_comprovante.js" defer></script>
   </body>
