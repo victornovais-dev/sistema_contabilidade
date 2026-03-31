@@ -7,10 +7,10 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,18 +39,18 @@ public class AuthController {
 
   @GetMapping("/me/roles")
   public ResponseEntity<List<String>> meRoles(Authentication authentication) {
-    if (authentication == null || authentication.getAuthorities() == null) {
+    if (authentication == null) {
       return ResponseEntity.status(401).body(List.of());
     }
     List<String> roles =
         authentication.getAuthorities().stream()
-            .map(authority -> authority.getAuthority())
+            .map(GrantedAuthority::getAuthority)
             .filter(Objects::nonNull)
             .filter(authority -> authority.startsWith("ROLE_"))
             .map(authority -> authority.substring("ROLE_".length()))
             .distinct()
             .sorted()
-            .collect(Collectors.toList());
+            .toList();
     return ResponseEntity.ok(roles);
   }
 
