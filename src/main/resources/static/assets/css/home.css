@@ -109,8 +109,168 @@ html[data-theme="dark"] .grid {
   width: min(1100px, 92vw);
   display: grid;
   gap: 32px;
-  padding: 20px 0 56px;
+  padding: 34px 0 56px;
   margin: 0 auto;
+  min-height: calc(100vh - 64px);
+  align-content: start;
+  justify-items: start;
+}
+
+.welcome-left {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding-left: 4px;
+}
+
+.welcome-line {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.725rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: color-mix(in oklab, var(--ink), #ffffff 6%);
+}
+
+.welcome-name {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.home-metrics {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.metric-card {
+  background: rgba(27, 27, 31, 0.04);
+  border: 1px solid rgba(27, 27, 31, 0.08);
+  border-radius: 18px;
+  padding: 14px 16px;
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+  display: grid;
+  gap: 8px;
+  min-height: 112px;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-1px);
+  background: rgba(27, 27, 31, 0.07);
+  border-color: rgba(27, 27, 31, 0.14);
+}
+
+html[data-theme="dark"] .metric-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 14px 46px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+html[data-theme="dark"] .metric-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 58px rgba(0, 0, 0, 0.28);
+}
+
+.metric-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: color-mix(in oklab, var(--muted), var(--ink) 14%);
+}
+
+.metric-value {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.metric-value-positive {
+  color: #2eb05e;
+}
+
+.metric-value-negative {
+  color: #ff6040;
+}
+
+.metric-value-neutral {
+  color: color-mix(in oklab, var(--ink), #000 12%);
+}
+
+html[data-theme="dark"] .metric-value-positive {
+  color: #39d37b;
+}
+
+html[data-theme="dark"] .metric-value-negative {
+  color: #ff6b55;
+}
+
+html[data-theme="dark"] .metric-value-neutral {
+  color: #fff;
+}
+
+html[data-theme="dark"] .metric-title {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.metric-pill {
+  width: max-content;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.metric-pill-positive {
+  color: #2eb05e;
+  background: rgba(46, 176, 94, 0.12);
+  border: none;
+}
+
+.metric-pill-negative {
+  color: #ff6040;
+  background: rgba(255, 96, 64, 0.12);
+  border: none;
+}
+
+.metric-pill-neutral {
+  color: color-mix(in oklab, var(--muted), var(--ink) 10%);
+  background: rgba(27, 27, 31, 0.06);
+  border: none;
+}
+
+html[data-theme="dark"] .metric-pill-positive {
+  color: #39d37b;
+  background: rgba(57, 211, 123, 0.14);
+}
+
+html[data-theme="dark"] .metric-pill-negative {
+  color: #ff6b55;
+  background: rgba(255, 107, 85, 0.14);
+}
+
+html[data-theme="dark"] .metric-pill-neutral {
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+@media (min-width: 640px) {
+  .home-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .chip {
@@ -193,6 +353,24 @@ html[data-theme="dark"] .grid {
   font-size: 0.85rem;
   color: var(--muted);
   margin-bottom: 8px;
+}
+
+.progress-note {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+html[data-theme="dark"] .progress-note {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.progress-note strong {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .progress-bar {
@@ -453,5 +631,10 @@ html[data-theme="dark"] .theme-icon {
 
   .highlights {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
   }
 }
