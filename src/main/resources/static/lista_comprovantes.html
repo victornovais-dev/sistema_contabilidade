@@ -5,25 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Comprovantes</title>
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
-    <script>
-      (function () {
-        try {
-          var match = document.cookie.match(/(?:^|;\s*)theme=([^;]+)/);
-          var cookieTheme = match ? decodeURIComponent(match[1]) : null;
-          var theme = cookieTheme || localStorage.getItem("theme");
-          document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
-        } catch (error) {
-          document.documentElement.dataset.theme = "light";
-        }
-      })();
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+    <script src="assets/js/theme-init.js"></script>
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css" />
     <link rel="stylesheet" href="assets/css/lista_comprovantes.css" />
     <link rel="stylesheet" href="assets/css/navbar.css" />
   </head>
@@ -43,28 +26,175 @@
       </header>
 
       <section class="filters filters-card">
-        <label class="filter-field">
-          <span>Pesquisar</span>
+        <label class="filter-field filter-type">
+          <span>Tipo</span>
+          <div class="filter-field-input-wrap filter-type-wrap">
+            <button
+              class="filter-type-trigger"
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+            >
+              Todos
+            </button>
+            <div class="filter-type-menu" role="listbox" hidden>
+              <button class="filter-type-option is-active" type="button" role="option" data-value="">
+                Todos
+              </button>
+              <button class="filter-type-option" type="button" role="option" data-value="receita">
+                Receita
+              </button>
+              <button class="filter-type-option" type="button" role="option" data-value="despesa">
+                Despesa
+              </button>
+            </div>
+          </div>
+        </label>
+        <label class="filter-field filter-date">
+          <span>Data</span>
           <div class="filter-field-input-wrap">
             <span class="filter-field-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="h-4 w-4">
-                <rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.6" />
+                <rect
+                  x="3"
+                  y="5"
+                  width="18"
+                  height="16"
+                  rx="3"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                />
                 <path d="M3 9h18" fill="none" stroke="currentColor" stroke-width="1.6" />
-                <path d="M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path
+                  d="M8 3v4M16 3v4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                />
               </svg>
             </span>
-            <input class="filter-date-range" type="text" placeholder="Filtrar por período" />
+            <input
+              class="filter-date-range"
+              type="text"
+              inputmode="numeric"
+              placeholder="Selecione o período"
+              autocomplete="off"
+            />
           </div>
         </label>
-        <label class="filter-field filter-type">
-          <span>Tipo</span>
-          <select class="filter-type-select">
-            <option value="">Todos</option>
-            <option value="receita">Receita</option>
-            <option value="despesa">Despesa</option>
-          </select>
-        </label>
+        <div class="filter-collapsible is-collapsed" data-filter-extra id="filter-extra">
+          <label class="filter-field filter-descricao">
+            <span>Descrição</span>
+            <div class="filter-field-input-wrap">
+              <span class="filter-field-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="h-4 w-4">
+                  <circle
+                    cx="11"
+                    cy="11"
+                    r="7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                  />
+                  <path
+                    d="M16.5 16.5l4 4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </span>
+              <div class="filter-descricao-wrap">
+                <button
+                  class="filter-descricao-trigger"
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-expanded="false"
+                >
+                  Todas
+                </button>
+                <div class="filter-descricao-menu" role="listbox" hidden>
+                  <button
+                    class="filter-descricao-option is-active"
+                    type="button"
+                    role="option"
+                    data-value=""
+                  >
+                    Todas
+                  </button>
+                  <button class="filter-descricao-option" type="button" role="option" data-value="ALUGUEL">
+                    Aluguel
+                  </button>
+                  <button class="filter-descricao-option" type="button" role="option" data-value="ENERGIA">
+                    Energia elétrica
+                  </button>
+                  <button class="filter-descricao-option" type="button" role="option" data-value="AGUA">
+                    Água
+                  </button>
+                  <button class="filter-descricao-option" type="button" role="option" data-value="SERVICOS">
+                    Serviços
+                  </button>
+                  <button class="filter-descricao-option" type="button" role="option" data-value="IMPOSTOS">
+                    Impostos
+                  </button>
+                  <button class="filter-descricao-option" type="button" role="option" data-value="MATERIAIS">
+                    Materiais
+                  </button>
+                  <button class="filter-descricao-option" type="button" role="option" data-value="OUTROS">
+                    Outros
+                  </button>
+                </div>
+              </div>
+            </div>
+          </label>
+          <label class="filter-field filter-field-razao">
+            <span>Nome</span>
+            <div class="filter-field-input-wrap">
+              <span class="filter-field-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="h-4 w-4">
+                  <circle
+                    cx="11"
+                    cy="11"
+                    r="7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                  />
+                  <path
+                    d="M16.5 16.5l4 4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </span>
+              <input
+                class="filter-razao-input"
+                type="text"
+                placeholder="Buscar razão social / nome"
+              />
+            </div>
+          </label>
+        </div>
         <button class="btn btn-secondary filter-clear" type="button">Limpar</button>
+        <button class="filter-toggle is-collapsed" type="button" aria-expanded="false" aria-controls="filter-extra">
+          <span class="filter-toggle-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M6 9l6 6 6-6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+        </button>
       </section>
 
       <section id="list-state" class="list-state" hidden></section>
@@ -72,33 +202,35 @@
     </main>
     <template id="item-card-template">
       <article class="item-card">
-        <div class="item-info">
-          <div class="item-label">Valor</div>
-          <div class="item-value" data-field="valor"></div>
-        </div>
-        <div class="item-info">
-          <div class="item-label">Tipo</div>
-          <div class="item-value" data-field="tipo"></div>
-        </div>
-        <div class="item-info">
-          <div class="item-label">Data</div>
-          <div class="item-value" data-field="data"></div>
-        </div>
-        <div class="item-info">
-          <div class="item-label">Horário</div>
-          <div class="item-value" data-field="horario"></div>
-        </div>
-        <div class="item-info item-info--descricao">
-          <div class="item-label">Descrição</div>
-          <div class="item-value" data-field="descricao"></div>
-        </div>
-        <div class="item-info item-info--razao">
-          <div class="item-label">Razão social / Nome</div>
-          <div class="item-value" data-field="razaoSocialNome"></div>
-        </div>
-        <div class="item-info item-info--cnpj">
-          <div class="item-label">CNPJ / CPF</div>
-          <div class="item-value" data-field="cnpjCpf"></div>
+        <div class="item-grid">
+          <div class="item-info">
+            <div class="item-label">Valor</div>
+            <div class="item-value" data-field="valor"></div>
+          </div>
+          <div class="item-info">
+            <div class="item-label">Tipo</div>
+            <div class="item-value" data-field="tipo"></div>
+          </div>
+          <div class="item-info">
+            <div class="item-label">Data</div>
+            <div class="item-value" data-field="data"></div>
+          </div>
+          <div class="item-info">
+            <div class="item-label">Horário</div>
+            <div class="item-value" data-field="horario"></div>
+          </div>
+          <div class="item-info item-info--descricao">
+            <div class="item-label">Descrição</div>
+            <div class="item-value" data-field="descricao"></div>
+          </div>
+          <div class="item-info item-info--razao">
+            <div class="item-label">Razão social / Nome</div>
+            <div class="item-value" data-field="razaoSocialNome"></div>
+          </div>
+          <div class="item-info item-info--cnpj">
+            <div class="item-label">CNPJ / CPF</div>
+            <div class="item-value" data-field="cnpjCpf"></div>
+          </div>
         </div>
         <div class="item-actions">
           <button class="btn btn-info item-observacao" type="button" aria-label="Ver observação">
@@ -162,7 +294,10 @@
           <div>
             <h2>Arquivos do comprovante</h2>
           </div>
-          <button class="btn btn-secondary upload-close" type="button">Fechar</button>
+          <div class="upload-actions">
+            <button class="btn btn-secondary upload-edit" type="button">Editar</button>
+            <button class="btn btn-secondary upload-close" type="button">Fechar</button>
+          </div>
         </div>
         <div class="upload-content">
           <div class="upload-list">
@@ -187,7 +322,7 @@
               </div>
               <div class="upload-selected" id="upload-selected"></div>
             </label>
-            <button class="btn upload-save" type="button">Salvar</button>
+            <button class="btn upload-save" type="button" hidden>Salvar</button>
           </div>
         </div>
       </div>
@@ -199,19 +334,24 @@
           <div>
             <h2>Observação</h2>
           </div>
-          <button class="btn btn-secondary observacao-close" type="button">Fechar</button>
+          <div class="observacao-actions">
+            <button class="btn btn-secondary observacao-edit" type="button">Editar</button>
+            <button class="btn observacao-save" type="button" hidden>Salvar</button>
+            <button class="btn btn-secondary observacao-close" type="button">Fechar</button>
+          </div>
         </div>
-        <div class="observacao-content" id="observacao-content"></div>
+        <textarea
+          class="observacao-content observacao-input"
+          id="observacao-content"
+          readonly
+          maxlength="500"
+          placeholder="Nenhuma observação registrada."
+        ></textarea>
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/js/navbar.js" defer></script>
     <script src="assets/js/lista_comprovantes.js" defer></script>
   </body>
 </html>
-
-
-
-
-
