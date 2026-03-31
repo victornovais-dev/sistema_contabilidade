@@ -1,9 +1,5 @@
 package com.sistema_contabilidade.item.dto;
 
-import com.sistema_contabilidade.item.model.TipoItem;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -63,65 +59,44 @@ final class ItemRequestArraySupport {
     return builder.toString();
   }
 
-  static int requestHashCode(
-      BigDecimal valor,
-      LocalDate data,
-      LocalDateTime horarioCriacao,
-      List<byte[]> arquivosPdf,
-      List<String> nomesArquivos,
-      TipoItem tipo,
-      String descricao,
-      String razaoSocialNome,
-      String cnpjCpf,
-      String observacao) {
+  static int requestHashCode(ItemUpsertRequest request) {
     int result =
         Objects.hash(
-            valor,
-            data,
-            horarioCriacao,
-            tipo,
-            descricao,
-            razaoSocialNome,
-            cnpjCpf,
-            observacao,
-            nomesArquivos);
-    result = 31 * result + listHashCode(arquivosPdf);
+            request.valor(),
+            request.data(),
+            request.horarioCriacao(),
+            request.tipo(),
+            request.descricao(),
+            request.razaoSocialNome(),
+            request.cnpjCpf(),
+            request.observacao(),
+            request.nomesArquivos());
+    result = 31 * result + listHashCode(request.arquivosPdf());
     return result;
   }
 
-  static String requestToString(
-      String typeName,
-      BigDecimal valor,
-      LocalDate data,
-      LocalDateTime horarioCriacao,
-      List<byte[]> arquivosPdf,
-      List<String> nomesArquivos,
-      TipoItem tipo,
-      String descricao,
-      String razaoSocialNome,
-      String cnpjCpf,
-      String observacao) {
+  static String requestToString(String typeName, ItemUpsertRequest request) {
     return typeName
         + "[valor="
-        + valor
+        + request.valor()
         + ", data="
-        + data
+        + request.data()
         + ", horarioCriacao="
-        + horarioCriacao
+        + request.horarioCriacao()
         + ", arquivosPdf="
-        + listToString(arquivosPdf)
+        + listToString(request.arquivosPdf())
         + ", nomesArquivos="
-        + nomesArquivos
+        + request.nomesArquivos()
         + ", tipo="
-        + tipo
+        + request.tipo()
         + ", descricao="
-        + descricao
+        + request.descricao()
         + ", razaoSocialNome="
-        + razaoSocialNome
+        + request.razaoSocialNome()
         + ", cnpjCpf="
-        + cnpjCpf
+        + request.cnpjCpf()
         + ", observacao="
-        + observacao
+        + request.observacao()
         + "]";
   }
 }

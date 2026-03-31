@@ -66,32 +66,11 @@ public record ItemUpsertRequest(
 
   @Override
   public int hashCode() {
-    return ItemRequestArraySupport.requestHashCode(
-        valor,
-        data,
-        horarioCriacao,
-        arquivosPdf,
-        nomesArquivos,
-        tipo,
-        descricao,
-        razaoSocialNome,
-        cnpjCpf,
-        observacao);
+    return ItemRequestArraySupport.requestHashCode(this);
   }
 
   @Override
   public String toString() {
-    return ItemRequestArraySupport.requestToString(
-        "ItemUpsertRequest",
-        valor,
-        data,
-        horarioCriacao,
-        arquivosPdf,
-        nomesArquivos,
-        tipo,
-        descricao,
-        razaoSocialNome,
-        cnpjCpf,
-        observacao);
+    return ItemRequestArraySupport.requestToString("ItemUpsertRequest", this);
   }
 }

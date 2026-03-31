@@ -9,12 +9,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@Slf4j
 public class ItemArquivoStorageService {
 
   private static final String PDF_EXTENSION = ".pdf";
@@ -115,6 +117,29 @@ public class ItemArquivoStorageService {
     } catch (IOException ex) {
       throw new ResponseStatusException(
           HttpStatus.INTERNAL_SERVER_ERROR, "Erro ao ler arquivo PDF", ex);
+    }
+  }
+
+  public void deletarPdf(String caminhoArquivoPdf) {
+    if (caminhoArquivoPdf == null || caminhoArquivoPdf.isBlank()) {
+      return;
+    }
+
+    Path caminhoInformado = Path.of(caminhoArquivoPdf).normalize();
+    Path caminhoBase = diretorioArquivos.toAbsolutePath().normalize();
+    Path caminhoReal = caminhoInformado.toAbsolutePath().normalize();
+
+    if (!caminhoReal.startsWith(caminhoBase)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Caminho de arquivo invalido");
+    }
+
+    try {
+      Files.deleteIfExists(caminhoReal);
+    } catch (IOException ex) {
+      // Prefer removing the DB link even if filesystem cleanup fails (e.g., file locked on
+      // Windows).
+      // The orphan file can be handled by maintenance/cleanup routines.
+      log.warn("Falha ao deletar PDF no filesystem: {}", caminhoReal, ex);
     }
   }
 }

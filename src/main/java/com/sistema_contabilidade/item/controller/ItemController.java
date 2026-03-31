@@ -2,6 +2,7 @@ package com.sistema_contabilidade.item.controller;
 
 import com.sistema_contabilidade.item.dto.ItemArquivoResponse;
 import com.sistema_contabilidade.item.dto.ItemArquivosUploadRequest;
+import com.sistema_contabilidade.item.dto.ItemObservacaoUpdateRequest;
 import com.sistema_contabilidade.item.dto.ItemResponse;
 import com.sistema_contabilidade.item.dto.ItemUpsertRequest;
 import com.sistema_contabilidade.item.model.Item;
@@ -30,9 +31,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -214,6 +217,37 @@ public class ItemController {
     return ResponseEntity.ok(response);
   }
 
+  @DeleteMapping(ID_PATH + "/arquivos/{arquivoId}")
+  @Transactional
+  public ResponseEntity<Void> deletarArquivo(
+      Authentication authentication,
+      @PathVariable("id") UUID id,
+      @PathVariable("arquivoId") UUID arquivoId) {
+    Item item = buscarItemAutorizadoPorId(id, authentication);
+    ItemArquivo arquivo =
+        item.getArquivos().stream()
+            .filter(entry -> arquivoId.equals(entry.getId()))
+            .findFirst()
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(HttpStatus.NOT_FOUND, ARQUIVO_ITEM_NAO_ENCONTRADO));
+
+    itemArquivoStorageService.deletarPdf(arquivo.getCaminhoArquivoPdf());
+    item.getArquivos().removeIf(entry -> arquivoId.equals(entry.getId()));
+
+    if (item.getCaminhoArquivoPdf() != null
+        && item.getCaminhoArquivoPdf().equals(arquivo.getCaminhoArquivoPdf())) {
+      String novoCaminho =
+          item.getArquivos().isEmpty()
+              ? null
+              : item.getArquivos().getFirst().getCaminhoArquivoPdf();
+      item.setCaminhoArquivoPdf(novoCaminho);
+    }
+
+    itemRepository.save(item);
+    return ResponseEntity.noContent().build();
+  }
+
   @PutMapping(ID_PATH)
   public ResponseEntity<ItemResponse> atualizar(
       Authentication authentication,
@@ -222,6 +256,18 @@ public class ItemController {
     Item item = buscarItemAutorizadoPorId(id, authentication);
     applyRequest(item, request);
 
+    Item salvo = itemRepository.save(item);
+    return ResponseEntity.ok(ItemResponse.from(salvo));
+  }
+
+  @PatchMapping(ID_PATH + "/observacao")
+  public ResponseEntity<ItemResponse> atualizarObservacao(
+      Authentication authentication,
+      @PathVariable("id") UUID id,
+      @Valid @RequestBody ItemObservacaoUpdateRequest request) {
+    Item item = buscarItemAutorizadoPorId(id, authentication);
+    String observacao = request.observacao();
+    item.setObservacao(observacao == null ? null : observacao.trim());
     Item salvo = itemRepository.save(item);
     return ResponseEntity.ok(ItemResponse.from(salvo));
   }
