@@ -34,3 +34,5 @@ build/
 .env
 logs/
 uploads/itens/*.pdf
+.tmp_sonar_coverage.json
+.tmp_sonar_issues.json
