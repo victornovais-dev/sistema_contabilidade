@@ -1,6 +1,9 @@
 package com.sistema_contabilidade.item.service;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -10,6 +13,8 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @DisplayName("ItemArquivoStorageService unit tests")
 class ItemArquivoStorageServiceTest {
@@ -40,8 +45,129 @@ class ItemArquivoStorageServiceTest {
 
     List<String> caminhos = service.salvarPdfs(List.of(conteudoA, conteudoB));
 
-    assertTrue(caminhos.size() == 2);
+    assertEquals(2, caminhos.size());
     assertArrayEquals(conteudoA, Files.readAllBytes(Path.of(caminhos.get(0))));
     assertArrayEquals(conteudoB, Files.readAllBytes(Path.of(caminhos.get(1))));
+  }
+
+  @Test
+  @DisplayName("Deve sanitizar nome do arquivo ao salvar PDF")
+  void deveSanitizarNomeDoArquivoAoSalvarPdf() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+    byte[] conteudo = "pdf-test".getBytes();
+
+    String caminhoSalvo = service.salvarPdf(conteudo, " relatorio-ca 2026 ");
+    Path arquivoSalvo = Path.of(caminhoSalvo);
+
+    assertTrue(Files.exists(arquivoSalvo));
+    assertEquals("relatorio_ca_2026.pdf", arquivoSalvo.getFileName().toString());
+  }
+
+  @Test
+  @DisplayName("Deve aplicar suffix quando arquivo ja existe")
+  void deveAplicarSuffixQuandoArquivoJaExiste() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+    byte[] conteudo = "pdf-test".getBytes();
+
+    String primeiro = service.salvarPdf(conteudo, "duplicado.pdf");
+    String segundo = service.salvarPdf(conteudo, "duplicado.pdf");
+
+    assertNotEquals(primeiro, segundo);
+    assertTrue(Path.of(segundo).getFileName().toString().startsWith("duplicado_"));
+    assertTrue(Path.of(segundo).getFileName().toString().endsWith(".pdf"));
+  }
+
+  @Test
+  @DisplayName("Deve remover diretorios do nome informado")
+  void deveRemoverDiretoriosDoNomeInformado() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+    byte[] conteudo = "pdf-test".getBytes();
+
+    String caminhoSalvo = service.salvarPdf(conteudo, "pasta/subpasta/arquivo-final.pdf");
+
+    assertEquals("arquivo_final.pdf", Path.of(caminhoSalvo).getFileName().toString());
+  }
+
+  @Test
+  @DisplayName("Deve adicionar extensao pdf quando ausente")
+  void deveAdicionarExtensaoPdfQuandoAusente() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+    byte[] conteudo = "pdf-test".getBytes();
+
+    String caminhoSalvo = service.salvarPdf(conteudo, "arquivo");
+
+    assertEquals("arquivo.pdf", Path.of(caminhoSalvo).getFileName().toString());
+  }
+
+  @Test
+  @DisplayName("Deve carregar PDF salvo")
+  void deveCarregarPdfSalvo() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+    byte[] conteudo = "pdf-test".getBytes();
+    String caminhoSalvo = service.salvarPdf(conteudo, "carregar.pdf");
+
+    byte[] carregado = service.carregarPdf(caminhoSalvo);
+
+    assertArrayEquals(conteudo, carregado);
+  }
+
+  @Test
+  @DisplayName("Deve falhar ao carregar arquivo fora do diretorio base")
+  void deveFalharAoCarregarArquivoForaDoDiretorioBase() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+    Path caminhoFora = tempDir.resolve("fora.pdf");
+    String caminhoForaTexto = caminhoFora.toString();
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> service.carregarPdf(caminhoForaTexto));
+
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve retornar 404 para caminho vazio")
+  void deveRetornar404ParaCaminhoVazio() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> service.carregarPdf("  "));
+
+    assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve deletar PDF salvo")
+  void deveDeletarPdfSalvo() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+    byte[] conteudo = "pdf-test".getBytes();
+    String caminhoSalvo = service.salvarPdf(conteudo, "deletar.pdf");
+    Path arquivo = Path.of(caminhoSalvo);
+    assertTrue(Files.exists(arquivo));
+
+    service.deletarPdf(caminhoSalvo);
+
+    assertTrue(!Files.exists(arquivo));
+  }
+
+  @Test
+  @DisplayName("Deve falhar ao deletar arquivo fora do diretorio base")
+  void deveFalharAoDeletarArquivoForaDoDiretorioBase() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+    Path caminhoFora = tempDir.resolve("fora.pdf");
+    String caminhoForaTexto = caminhoFora.toString();
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> service.deletarPdf(caminhoForaTexto));
+
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
   }
 }

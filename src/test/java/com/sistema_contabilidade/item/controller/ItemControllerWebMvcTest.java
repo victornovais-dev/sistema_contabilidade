@@ -1,8 +1,12 @@
 package com.sistema_contabilidade.item.controller;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -21,6 +25,7 @@ import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
+import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -28,6 +33,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -79,6 +86,18 @@ class ItemControllerWebMvcTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].valor").value(10.00))
         .andExpect(jsonPath("$[0].tipo").value("RECEITA"));
+  }
+
+  @Test
+  @DisplayName("Deve retornar lista vazia quando usuario nao possui roles")
+  void listarTodosDeveRetornarVazioQuandoUsuarioNaoPossuiRoles() throws Exception {
+    when(usuarioRepository.findByEmail("semroles@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("semroles")));
+
+    mockMvc
+        .perform(get("/api/v1/itens").with(authComRoles("semroles@email.com")))
+        .andExpect(status().isOk())
+        .andExpect(content().json("[]"));
   }
 
   @Test
@@ -229,6 +248,21 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve retornar 404 no download quando item nao tem arquivo")
+  void baixarArquivoDeveRetornarNotFoundQuandoItemSemArquivo() throws Exception {
+    UUID id = UUID.fromString("23232323-2222-2222-2222-222222222222");
+    Item item = new Item();
+    item.setId(id);
+    item.setCaminhoArquivoPdf(" ");
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens/{id}/arquivo", id).with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
   @DisplayName("Deve retornar 404 no download quando item nao existe")
   void baixarArquivoDeveRetornarNotFoundQuandoItemNaoExiste() throws Exception {
     UUID id = UUID.fromString("33333333-3333-3333-3333-333333333333");
@@ -238,6 +272,77 @@ class ItemControllerWebMvcTest {
         .perform(
             get("/api/v1/itens/{id}/arquivo", id).with(authComRoles("admin@email.com", "ADMIN")))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("Deve retornar 404 ao baixar arquivo por id inexistente")
+  void baixarArquivoPorIdDeveRetornarNotFoundQuandoArquivoNaoExiste() throws Exception {
+    UUID id = UUID.fromString("34343434-4444-4444-4444-444444444444");
+    UUID arquivoId = UUID.fromString("45454545-5555-5555-5555-555555555555");
+    Item item = new Item();
+    item.setId(id);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemArquivoRepository.findById(arquivoId)).thenReturn(Optional.empty());
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens/{id}/arquivos/{arquivoId}", id, arquivoId)
+                .with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("Deve retornar 404 ao baixar ZIP quando item sem arquivos")
+  void baixarTodosArquivosDeveRetornarNotFoundQuandoSemArquivos() throws Exception {
+    UUID id = UUID.fromString("56565656-6666-6666-6666-666666666666");
+    Item item = new Item();
+    item.setId(id);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens/{id}/arquivos/download", id)
+                .with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("Deve baixar ZIP com arquivos e observacao")
+  void baixarTodosArquivosDeveRetornarZipComObservacao() throws Exception {
+    UUID id = UUID.fromString("77777777-8888-9999-0000-111111111111");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    item.setObservacao(null);
+
+    ItemArquivo arquivo = new ItemArquivo();
+    arquivo.setId(UUID.fromString("12121212-1313-1414-1515-161616161616"));
+    arquivo.setCaminhoArquivoPdf("uploads/itens/arquivo-teste.pdf");
+    arquivo.setItem(item);
+    item.getArquivos().add(arquivo);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemArquivoStorageService.carregarPdf("uploads/itens/arquivo-teste.pdf"))
+        .thenReturn("conteudo".getBytes());
+
+    byte[] payload =
+        mockMvc
+            .perform(
+                get("/api/v1/itens/{id}/arquivos/download", id)
+                    .with(authComRoles("admin@email.com", "ADMIN")))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType(MediaType.APPLICATION_OCTET_STREAM))
+            .andExpect(
+                header()
+                    .string(
+                        "Content-Disposition",
+                        "attachment; filename=\"comprovantes-" + id + ".zip\""))
+            .andReturn()
+            .getResponse()
+            .getContentAsByteArray();
+
+    List<String> entries = zipEntries(payload);
+    assertTrue(entries.contains("arquivo-teste.pdf"));
+    assertTrue(entries.contains("observacao.txt"));
   }
 
   @Test
@@ -414,5 +519,100 @@ class ItemControllerWebMvcTest {
                     }
                     """))
         .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("Deve atualizar observacao via PATCH sem alterar arquivos")
+  void atualizarObservacaoDeveRetornarOk() throws Exception {
+    UUID id = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    item.setObservacao("Antes");
+    ItemArquivo arquivo = new ItemArquivo();
+    arquivo.setCaminhoArquivoPdf("uploads/itens/keep.pdf");
+    arquivo.setItem(item);
+    item.getArquivos().add(arquivo);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/observacao", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"observacao":"Nova observacao"}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.observacao").value("Nova observacao"));
+
+    assertEquals(1, item.getArquivos().size());
+    assertEquals("uploads/itens/keep.pdf", item.getArquivos().getFirst().getCaminhoArquivoPdf());
+  }
+
+  @Test
+  @DisplayName("Deve retornar 400 ao adicionar arquivos sem PDFs")
+  void adicionarArquivosDeveRetornarBadRequestQuandoSemArquivos() throws Exception {
+    UUID id = UUID.fromString("99999999-aaaa-bbbb-cccc-222222222222");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens/{id}/arquivos", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "arquivosPdf":[]
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("Deve deletar arquivo do item")
+  void deletarArquivoDeveRetornarNoContent() throws Exception {
+    UUID itemId = UUID.fromString("22222222-3333-4444-5555-666666666666");
+    UUID arquivoId = UUID.fromString("99999999-8888-7777-6666-555555555555");
+    Item item = new Item();
+    item.setId(itemId);
+    item.setTipo(TipoItem.RECEITA);
+    item.setCaminhoArquivoPdf("uploads/itens/keep.pdf");
+    ItemArquivo arquivo = new ItemArquivo();
+    arquivo.setId(arquivoId);
+    arquivo.setCaminhoArquivoPdf("uploads/itens/keep.pdf");
+    arquivo.setItem(item);
+    item.getArquivos().add(arquivo);
+
+    when(itemRepository.findByIdComCriadorERoles(itemId)).thenReturn(Optional.of(item));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            delete("/api/v1/itens/{id}/arquivos/{arquivoId}", itemId, arquivoId)
+                .with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isNoContent());
+
+    assertTrue(item.getArquivos().isEmpty());
+    assertNull(item.getCaminhoArquivoPdf());
+  }
+
+  private List<String> zipEntries(byte[] payload) throws Exception {
+    List<String> entries = new ArrayList<>();
+    try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(payload))) {
+      ZipEntry entry;
+      while ((entry = zip.getNextEntry()) != null) {
+        entries.add(entry.getName());
+      }
+    }
+    return entries;
   }
 }

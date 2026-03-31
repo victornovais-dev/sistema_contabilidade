@@ -166,4 +166,19 @@ class ItemRecordDtosTest {
 
     assertArrayEquals(new byte[] {1, 2, 3}, request.arquivosPdf().get(0));
   }
+
+  @Test
+  @DisplayName("Deve fazer copia defensiva em ItemArquivosUploadRequest")
+  void deveFazerCopiaDefensivaEmItemArquivosUploadRequest() {
+    byte[] pdf = new byte[] {1, 2, 3};
+    ItemArquivosUploadRequest request =
+        new ItemArquivosUploadRequest(List.of(pdf), List.of("arquivo.pdf"));
+
+    pdf[0] = 9;
+    byte[] retorno = request.arquivosPdf().get(0);
+    retorno[1] = 9;
+
+    assertArrayEquals(new byte[] {1, 2, 3}, request.arquivosPdf().get(0));
+    assertEquals(List.of("arquivo.pdf"), request.nomesArquivos());
+  }
 }
