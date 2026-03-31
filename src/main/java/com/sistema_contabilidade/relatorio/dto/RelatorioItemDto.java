@@ -8,10 +8,20 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record RelatorioItemDto(
-    UUID id, TipoItem tipo, BigDecimal valor, LocalDate data, LocalDateTime horarioCriacao) {
+    UUID id,
+    TipoItem tipo,
+    BigDecimal valor,
+    LocalDate data,
+    LocalDateTime horarioCriacao,
+    String descricao) {
 
   public static RelatorioItemDto from(Item item) {
     return new RelatorioItemDto(
-        item.getId(), item.getTipo(), item.getValor(), item.getData(), item.getHorarioCriacao());
+        item.getId(),
+        item.getTipo(),
+        item.getValor(),
+        item.getData(),
+        item.getHorarioCriacao(),
+        item.getDescricao());
   }
 }

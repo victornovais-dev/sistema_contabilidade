@@ -15,7 +15,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -25,6 +24,7 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -32,8 +32,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class RelatorioFinanceiroService {
 
+  private static final Locale LOCALE_PT_BR = Locale.forLanguageTag("pt-BR");
   private static final DateTimeFormatter DATE_TIME_FORMATTER =
-      DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("pt-BR"));
+      DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", LOCALE_PT_BR);
   private static final float PAGE_TOP = 780f;
   private static final float PAGE_LEFT = 50f;
   private static final float LINE_HEIGHT = 16f;
@@ -140,7 +141,7 @@ public class RelatorioFinanceiroService {
                 new PdfLine(
                     false,
                     String.format(
-                        Locale.forLanguageTag("pt-BR"),
+                        LOCALE_PT_BR,
                         "%s | %s | %s",
                         item.data() != null
                             ? item.data().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
@@ -204,14 +205,14 @@ public class RelatorioFinanceiroService {
   }
 
   private Set<String> extrairRoleNomes(Authentication authentication) {
-    if (authentication == null || authentication.getAuthorities() == null) {
+    if (authentication == null) {
       return Set.of();
     }
     return authentication.getAuthorities().stream()
-        .map(authority -> authority.getAuthority())
+        .map(GrantedAuthority::getAuthority)
         .filter(authority -> authority != null && authority.startsWith("ROLE_"))
         .map(authority -> authority.substring("ROLE_".length()))
-        .collect(Collectors.toSet());
+        .collect(java.util.stream.Collectors.toSet());
   }
 
   private String normalizarRole(String role) {
@@ -230,8 +231,7 @@ public class RelatorioFinanceiroService {
   private static final class NumberFormatProvider {
     private static java.text.DecimalFormat currency() {
       java.text.DecimalFormat format =
-          (java.text.DecimalFormat)
-              java.text.NumberFormat.getCurrencyInstance(Locale.forLanguageTag("pt-BR"));
+          (java.text.DecimalFormat) java.text.NumberFormat.getCurrencyInstance(LOCALE_PT_BR);
       format.setMaximumFractionDigits(2);
       format.setMinimumFractionDigits(2);
       return format;

@@ -126,6 +126,18 @@ const formatCurrency = (value) => {
   })}`;
 };
 
+const formatPercent = (ratio) => {
+  const numeric = Number(ratio);
+  if (!Number.isFinite(numeric)) {
+    return "0%";
+  }
+  return numeric.toLocaleString("pt-BR", {
+    style: "percent",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+};
+
 const formatDate = (isoDate) => {
   if (!isoDate) return "-";
   const [year, month, day] = String(isoDate).split("-");
@@ -137,6 +149,20 @@ const formatTime = (isoDateTime) => {
   const date = new Date(isoDateTime);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+};
+
+const formatDescricao = (value) => {
+  const key = String(value || "").trim().toUpperCase();
+  const labels = {
+    ALUGUEL: "Aluguel",
+    ENERGIA: "Energia elétrica",
+    AGUA: "Água",
+    SERVICOS: "Serviços",
+    IMPOSTOS: "Impostos",
+    MATERIAIS: "Materiais",
+    OUTROS: "Outros",
+  };
+  return labels[key] || (key ? String(value) : "-");
 };
 
 const showState = (message, isError = false) => {
@@ -157,8 +183,9 @@ const hideState = () => {
   if (reportsGrid) reportsGrid.hidden = false;
 };
 
-const addSummaryMetric = (label, value, variant = "") => {
+const addSummaryMetric = (label, value, options = {}) => {
   if (!summaryCard || !summaryItemTemplate) return;
+  const { variant = "", color = "", styleVars = null } = options || {};
   const node = summaryItemTemplate.content.cloneNode(true);
   const labelElement = node.querySelector('[data-field="label"]');
   const valueElement = node.querySelector('[data-field="value"]');
@@ -166,7 +193,22 @@ const addSummaryMetric = (label, value, variant = "") => {
   labelElement.textContent = label;
   valueElement.textContent = value;
   if (variant) valueElement.classList.add(variant);
+  if (color) valueElement.style.color = color;
+  if (styleVars && typeof styleVars === "object") {
+    Object.entries(styleVars).forEach(([key, value]) => {
+      if (!key) return;
+      valueElement.style.setProperty(String(key), String(value));
+    });
+  }
   summaryCard.appendChild(node);
+};
+
+const clamp01 = (value) => Math.min(1, Math.max(0, Number(value)));
+
+const utilizedHue = (ratio) => {
+  // 0% => green (120deg), 100% => red (0deg)
+  const t = clamp01(ratio);
+  return (1 - t) * 120;
 };
 
 const createReportCard = (title, items, styleConfig) => {
@@ -212,7 +254,12 @@ const createReportCard = (title, items, styleConfig) => {
     if (styleConfig.rowClass) {
       rowElement.classList.add(styleConfig.rowClass);
     }
-    labelElement.textContent = `${formatDate(item.data)} ${formatTime(item.horarioCriacao)}`;
+    labelElement.textContent = formatDate(item.data);
+    labelElement.classList.add("report-row-date");
+    const descNode = document.createElement("span");
+    descNode.className = "report-row-desc";
+    descNode.textContent = formatDescricao(item.descricao);
+    rowElement.insertBefore(descNode, valueElement);
     valueElement.textContent = formatCurrency(item.valor);
     listElement.appendChild(row);
   });
@@ -226,13 +273,27 @@ const renderRelatorio = () => {
   reportsGrid.innerHTML = "";
 
   const relatorio = state.relatorio;
-  addSummaryMetric("Total de receitas", formatCurrency(relatorio.totalReceitas), "positive");
-  addSummaryMetric("Total de despesas", formatCurrency(relatorio.totalDespesas), "negative");
-  addSummaryMetric(
-    "Saldo final",
-    formatCurrency(relatorio.saldoFinal),
-    Number(relatorio.saldoFinal || 0) < 0 ? "negative" : "positive",
-  );
+  const receitasTotal = Number(relatorio.totalReceitas || 0);
+  const despesasTotal = Number(relatorio.totalDespesas || 0);
+  const utilizadoRatio = receitasTotal > 0 ? despesasTotal / receitasTotal : 0;
+
+  // Order: receitas | despesas | utilizado | saldo final
+  addSummaryMetric("Total de receitas", formatCurrency(relatorio.totalReceitas), {
+    variant: "positive",
+  });
+  addSummaryMetric("Total de despesas", formatCurrency(relatorio.totalDespesas), {
+    variant: "negative",
+  });
+  addSummaryMetric("Utilizado", formatPercent(utilizadoRatio), {
+    variant: "utilizado",
+    styleVars: {
+      "--util-hue": utilizedHue(utilizadoRatio).toFixed(1),
+      "--util-hue2": Math.max(0, utilizedHue(utilizadoRatio) - 18).toFixed(1),
+    },
+  });
+  addSummaryMetric("Saldo final", formatCurrency(relatorio.saldoFinal), {
+    variant: Number(relatorio.saldoFinal || 0) < 0 ? "negative" : "positive",
+  });
 
   const receitas = Array.isArray(relatorio.receitas) ? relatorio.receitas : [];
   const despesas = Array.isArray(relatorio.despesas) ? relatorio.despesas : [];

@@ -308,7 +308,12 @@ html[data-theme="dark"] .role-filter-box select option {
 .summary-card {
   display: grid;
   gap: 6px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+}
+
+.summary-item {
+  text-align: center;
 }
 
 .report-state {
@@ -341,9 +346,46 @@ html[data-theme="dark"] .role-filter-box select option {
   color: #e54444;
 }
 
+.summary-value.warning {
+  color: var(--accent);
+}
+
+.summary-value.utilizado {
+  position: relative;
+  display: inline-block;
+  z-index: 0;
+  /* Gradient text (computed via CSS vars set in JS). */
+  background-image: linear-gradient(
+    135deg,
+    hsl(var(--util-hue, 120) 82% 56% / 0.98),
+    hsl(var(--util-hue2, 102) 88% 42% / 0.98)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.12));
+}
+
+html[data-theme="light"] .summary-value.utilizado {
+  filter: drop-shadow(0 12px 18px rgba(20, 20, 24, 0.12));
+}
+
 .grid-two {
   display: grid;
   gap: 18px;
+}
+
+@media (max-width: 720px) {
+  .summary-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .summary-card {
+    grid-template-columns: 1fr;
+  }
 }
 
 .report-card-receitas {
@@ -447,9 +489,11 @@ html[data-theme="dark"] .report-list-despesas::-webkit-scrollbar-thumb {
 }
 
 .report-row-receitas {
-  display: flex;
+  display: grid;
+  /* Keep columns aligned across rows (date | descricao | valor). */
+  grid-template-columns: 112px 1fr 148px;
   align-items: center;
-  justify-content: space-between;
+  column-gap: 14px;
   padding: 12px 14px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.7);
@@ -457,9 +501,11 @@ html[data-theme="dark"] .report-list-despesas::-webkit-scrollbar-thumb {
 }
 
 .report-row-despesas {
-  display: flex;
+  display: grid;
+  /* Keep columns aligned across rows (date | descricao | valor). */
+  grid-template-columns: 112px 1fr 148px;
   align-items: center;
-  justify-content: space-between;
+  column-gap: 14px;
   padding: 12px 14px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.7);
@@ -498,6 +544,34 @@ html[data-theme="dark"] .report-list-despesas::-webkit-scrollbar-thumb {
 .report-row-despesas strong {
   font-size: 1rem;
   line-height: 1;
+}
+
+.report-row-date {
+  text-align: left;
+  opacity: 0.9;
+  font-weight: 700;
+  justify-self: start;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-row-desc {
+  text-align: center;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-self: center;
+}
+
+.report-row-receitas strong,
+.report-row-despesas strong {
+  display: block;
+  justify-self: stretch;
+  text-align: right;
+  width: 100%;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .report-row-empty-receitas span {
