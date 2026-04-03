@@ -11,6 +11,7 @@ import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
+import jakarta.servlet.http.Cookie;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -26,7 +27,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -66,12 +66,12 @@ class LoginConcurrencyTest {
             JsonNode payload =
                 OBJECT_MAPPER.readTree(csrfResult.getResponse().getContentAsString());
             String csrfToken = payload.get("token").asText();
-            MockHttpSession session = (MockHttpSession) csrfResult.getRequest().getSession(false);
+            Cookie csrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
 
             mockMvc
                 .perform(
                     post("/api/v1/auth/login")
-                        .session(session)
+                        .cookie(csrfCookie)
                         .header("X-CSRF-TOKEN", csrfToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(

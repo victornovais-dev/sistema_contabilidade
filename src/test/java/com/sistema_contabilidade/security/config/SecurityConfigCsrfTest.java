@@ -12,13 +12,13 @@ import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.service.AuthService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -65,12 +65,12 @@ class SecurityConfigCsrfTest {
         mockMvc.perform(get("/api/v1/auth/csrf")).andExpect(status().isOk()).andReturn();
     JsonNode payload = new ObjectMapper().readTree(csrfResult.getResponse().getContentAsString());
     String csrfToken = payload.get("token").asText();
-    MockHttpSession session = (MockHttpSession) csrfResult.getRequest().getSession(false);
+    Cookie csrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
 
     mockMvc
         .perform(
             post("/api/v1/auth/login")
-                .session(session)
+                .cookie(csrfCookie)
                 .header("X-CSRF-TOKEN", csrfToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
