@@ -4,6 +4,7 @@ import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.dto.UsuarioMeResponse;
+import com.sistema_contabilidade.usuario.dto.UsuarioSelfUpdateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import jakarta.validation.Valid;
@@ -39,6 +40,7 @@ public class UsuarioController {
   private final UsuarioService usuarioService;
 
   @PostMapping
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<UsuarioDto> criar(@Valid @RequestBody UsuarioCreateRequest request) {
     UsuarioDto criado = usuarioService.save(request);
     URI location =
@@ -50,6 +52,7 @@ public class UsuarioController {
   }
 
   @GetMapping
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<List<UsuarioDto>> listarTodos() {
     List<UsuarioDto> response = usuarioService.listarTodos();
     return ResponseEntity.ok(response);
@@ -63,7 +66,16 @@ public class UsuarioController {
     return ResponseEntity.ok(new UsuarioMeResponse(nome));
   }
 
+  @PutMapping("/me")
+  @PreAuthorize("isAuthenticated()")
+  public ResponseEntity<UsuarioDto> atualizarPerfil(
+      Authentication authentication, @Valid @RequestBody UsuarioSelfUpdateRequest request) {
+    String email = authentication == null ? null : authentication.getName();
+    return ResponseEntity.ok(usuarioService.updatePerfil(email, request));
+  }
+
   @GetMapping(ID_PATH)
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<UsuarioDto> buscarPorId(@PathVariable("id") UUID id) {
     return ResponseEntity.ok(usuarioService.findById(id));
   }
@@ -76,6 +88,7 @@ public class UsuarioController {
   }
 
   @PutMapping(ID_PATH)
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<UsuarioDto> atualizar(
       @PathVariable("id") UUID id, @Valid @RequestBody UsuarioDto request) {
     return ResponseEntity.ok(usuarioService.update(id, request));
@@ -89,6 +102,7 @@ public class UsuarioController {
   }
 
   @DeleteMapping(ID_PATH)
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> deletar(@PathVariable("id") UUID id) {
     usuarioService.deletar(id);
     return ResponseEntity.noContent().build();

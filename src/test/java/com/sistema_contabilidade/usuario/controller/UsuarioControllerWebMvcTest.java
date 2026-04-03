@@ -52,7 +52,8 @@ class UsuarioControllerWebMvcTest {
         .perform(get("/api/v1/usuarios"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].nome").value("Ana"))
-        .andExpect(jsonPath("$[0].email").value("ana@email.com"));
+        .andExpect(jsonPath("$[0].email").value("ana@email.com"))
+        .andExpect(jsonPath("$[0].senha").doesNotExist());
   }
 
   @Test
@@ -77,7 +78,8 @@ class UsuarioControllerWebMvcTest {
                     """))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.nome").value("Bia"))
-        .andExpect(jsonPath("$.email").value("bia@email.com"));
+        .andExpect(jsonPath("$.email").value("bia@email.com"))
+        .andExpect(jsonPath("$.senha").doesNotExist());
   }
 
   @Test
@@ -145,7 +147,8 @@ class UsuarioControllerWebMvcTest {
                     }
                     """))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.email").value("dani@email.com"));
+        .andExpect(jsonPath("$.email").value("dani@email.com"))
+        .andExpect(jsonPath("$.senha").doesNotExist());
   }
 
   @Test
@@ -204,5 +207,32 @@ class UsuarioControllerWebMvcTest {
                     """))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.message").value("Validation failed"));
+  }
+
+  @Test
+  @DisplayName("Deve atualizar o proprio perfil")
+  void atualizarPerfilDeveRetornarOk() throws Exception {
+    UUID id = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    UsuarioDto atualizado = new UsuarioDto(id, "Dani", "dani@email.com", null);
+    when(usuarioService.updatePerfil(
+            org.mockito.ArgumentMatchers.nullable(String.class),
+            org.mockito.ArgumentMatchers.any()))
+        .thenReturn(atualizado);
+
+    mockMvc
+        .perform(
+            put("/api/v1/usuarios/me")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "nome":"Dani",
+                      "email":"dani@email.com",
+                      "senha":"123456"
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value("dani@email.com"))
+        .andExpect(jsonPath("$.senha").doesNotExist());
   }
 }

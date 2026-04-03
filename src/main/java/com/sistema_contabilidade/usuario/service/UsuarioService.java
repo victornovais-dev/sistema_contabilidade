@@ -9,6 +9,7 @@ import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
+import com.sistema_contabilidade.usuario.dto.UsuarioSelfUpdateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
@@ -60,6 +61,24 @@ public class UsuarioService {
     usuarioExistente.setEmail(usuarioAtualizado.getEmail());
     if (usuarioAtualizado.getSenha() != null && !usuarioAtualizado.getSenha().isBlank()) {
       usuarioExistente.setSenha(passwordEncoder.encode(usuarioAtualizado.getSenha()));
+    }
+    Usuario salvo = usuarioRepository.save(usuarioExistente);
+    customUserDetailsService.atualizarCacheUsuario(salvo.getId(), salvo.getEmail());
+    if (!emailAnterior.equalsIgnoreCase(salvo.getEmail())) {
+      customUserDetailsService.removerCacheUsuario(salvo.getId(), emailAnterior);
+    }
+    return usuarioMapper.toDto(salvo);
+  }
+
+  @Transactional
+  public UsuarioDto updatePerfil(String emailAutenticado, UsuarioSelfUpdateRequest request) {
+    Usuario usuarioExistente = buscarPorEmail(emailAutenticado);
+    String emailAnterior = usuarioExistente.getEmail();
+    validarEmailDuplicado(request.email(), usuarioExistente.getId());
+    usuarioExistente.setNome(request.nome());
+    usuarioExistente.setEmail(request.email());
+    if (request.senha() != null && !request.senha().isBlank()) {
+      usuarioExistente.setSenha(passwordEncoder.encode(request.senha()));
     }
     Usuario salvo = usuarioRepository.save(usuarioExistente);
     customUserDetailsService.atualizarCacheUsuario(salvo.getId(), salvo.getEmail());

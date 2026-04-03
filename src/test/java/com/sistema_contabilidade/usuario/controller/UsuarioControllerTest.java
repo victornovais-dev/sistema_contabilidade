@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.dto.UsuarioMeResponse;
+import com.sistema_contabilidade.usuario.dto.UsuarioSelfUpdateRequest;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import java.util.List;
 import java.util.UUID;
@@ -93,6 +94,28 @@ class UsuarioControllerTest {
     assertEquals(HttpStatus.OK, resultado.getStatusCode());
     assertEquals("Victor Hugo", resultado.getBody().nome());
     verify(usuarioService).findNomeByEmail("victor@email.com");
+  }
+
+  @Test
+  @DisplayName("Deve atualizar o perfil do usuario autenticado")
+  void atualizarPerfilDeveDelegarParaService() {
+    Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
+    when(authentication.getName()).thenReturn("victor@email.com");
+    UsuarioSelfUpdateRequest request =
+        new UsuarioSelfUpdateRequest("Victor", "victor@email.com", "nova-senha");
+    UsuarioDto atualizado =
+        new UsuarioDto(
+            UUID.fromString("11111111-1111-1111-1111-111111111111"),
+            "Victor",
+            "victor@email.com",
+            null);
+    when(usuarioService.updatePerfil("victor@email.com", request)).thenReturn(atualizado);
+
+    ResponseEntity<UsuarioDto> resultado = usuarioController.atualizarPerfil(authentication, request);
+
+    assertEquals(HttpStatus.OK, resultado.getStatusCode());
+    assertEquals("Victor", resultado.getBody().getNome());
+    verify(usuarioService).updatePerfil("victor@email.com", request);
   }
 
   @Test
