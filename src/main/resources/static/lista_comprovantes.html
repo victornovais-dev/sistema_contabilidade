@@ -199,6 +199,7 @@
 
       <section id="list-state" class="list-state" hidden></section>
       <section class="list" id="items-list"></section>
+      <nav class="pagination" id="pagination" aria-label="Paginação" hidden></nav>
     </main>
     <template id="item-card-template">
       <article class="item-card">
@@ -216,7 +217,7 @@
             <div class="item-value" data-field="data"></div>
           </div>
           <div class="item-info">
-            <div class="item-label">Horário</div>
+            <div class="item-label">Data Inserção</div>
             <div class="item-value" data-field="horario"></div>
           </div>
           <div class="item-info item-info--descricao">
@@ -322,7 +323,7 @@
               </div>
               <div class="upload-selected" id="upload-selected"></div>
             </label>
-            <button class="btn upload-save" type="button" hidden>Salvar</button>
+            <button class="btn btn-danger upload-save" type="button" hidden>Salvar</button>
           </div>
         </div>
       </div>
@@ -336,7 +337,6 @@
           </div>
           <div class="observacao-actions">
             <button class="btn btn-secondary observacao-edit" type="button">Editar</button>
-            <button class="btn observacao-save" type="button" hidden>Salvar</button>
             <button class="btn btn-secondary observacao-close" type="button">Fechar</button>
           </div>
         </div>
@@ -347,6 +347,9 @@
           maxlength="500"
           placeholder="Nenhuma observação registrada."
         ></textarea>
+        <div class="observacao-footer">
+          <button class="btn btn-danger observacao-save" type="button" hidden>Salvar</button>
+        </div>
       </div>
     </div>
 

@@ -3,6 +3,10 @@
   filteredItems: [],
   pendingDeleteId: null,
   csrfToken: null,
+  pagination: {
+    page: 1,
+    pageSize: 10,
+  },
 };
 
 const filterDateInput = document.querySelector(".filter-date-range");
@@ -20,6 +24,7 @@ const filterRazaoToggle = document.querySelector(".filter-toggle");
 const filterExtraField = document.querySelector("[data-filter-extra]");
 const listState = document.getElementById("list-state");
 const itemsList = document.getElementById("items-list");
+const pagination = document.getElementById("pagination");
 const itemCardTemplate = document.getElementById("item-card-template");
 const confirmOverlay = document.querySelector(".confirm-overlay");
 const confirmCancel = document.querySelector(".confirm-cancel");
@@ -46,24 +51,54 @@ let dateFilterReady = false;
 let monthMenuCloseHandlerBound = false;
 let yearMenuCloseHandlerBound = false;
 let observacaoIsEditing = false;
+let retainedUploadFiles = [];
+let settingUploadFilesProgrammatically = false;
 
 const getAccessToken = () => localStorage.getItem("sc_access_token");
 
 const setUploadSaveVisible = (visible) => {
   if (!uploadSave) return;
-  if (visible) {
-    uploadSave.hidden = false;
-    uploadSave.removeAttribute("hidden");
-  } else {
-    uploadSave.hidden = true;
-    uploadSave.setAttribute("hidden", "");
-  }
+  setButtonVisibleSmooth(uploadSave, visible);
 };
 
 const updateUploadSaveVisibility = () => {
   const hasNewFiles = uploadInput?.files && Array.from(uploadInput.files).some(isPdfFile);
   const hasDeletes = pendingDeleteArquivoIds.size > 0;
   setUploadSaveVisible(Boolean(uploadIsEditing || hasNewFiles || hasDeletes));
+};
+
+const smoothHideTimers = new WeakMap();
+const SMOOTH_HIDE_MS = 100;
+
+const setButtonVisibleSmooth = (button, visible) => {
+  if (!(button instanceof HTMLButtonElement)) return;
+  const previousTimer = smoothHideTimers.get(button);
+  if (previousTimer) {
+    window.clearTimeout(previousTimer);
+    smoothHideTimers.delete(button);
+  }
+
+  if (visible) {
+    button.hidden = false;
+    button.removeAttribute("hidden");
+    button.classList.remove("is-hiding");
+    return;
+  }
+
+  if (button.hidden) {
+    button.setAttribute("hidden", "");
+    button.classList.remove("is-hiding");
+    return;
+  }
+
+  button.classList.add("is-hiding");
+  const timer = window.setTimeout(() => {
+    button.hidden = true;
+    button.setAttribute("hidden", "");
+    button.classList.remove("is-hiding");
+    smoothHideTimers.delete(button);
+  }, SMOOTH_HIDE_MS);
+  smoothHideTimers.set(button, timer);
 };
 
 const isPdfFile = (file) => {
@@ -100,6 +135,16 @@ const formatDate = (isoDate) => {
 const formatTime = (isoDateTime) => {
   const date = new Date(isoDateTime);
   return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+};
+
+const formatDateTime = (isoDateTime) => {
+  const date = new Date(isoDateTime);
+  if (!Number.isFinite(date.getTime())) {
+    return "-";
+  }
+  const datePart = date.toLocaleDateString("pt-BR");
+  const timePart = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return `${datePart} ${timePart}`;
 };
 
 const formatDescricao = (value) => {
@@ -572,7 +617,7 @@ const createItemCard = (item) => {
   node.querySelector('[data-field="tipo"]').textContent =
     item.tipo === "RECEITA" ? "Receita" : "Despesa";
   node.querySelector('[data-field="data"]').textContent = formatDate(item.data);
-  node.querySelector('[data-field="horario"]').textContent = formatTime(item.horarioCriacao);
+  node.querySelector('[data-field="horario"]').textContent = formatDateTime(item.horarioCriacao);
   node.querySelector('[data-field="descricao"]').textContent = formatDescricao(item.descricao);
   const razaoText = formatText(item.razaoSocialNome);
   const razaoNode = node.querySelector('[data-field="razaoSocialNome"]');
@@ -623,23 +668,150 @@ const updateDownloadButton = (itemId, hasArquivos) => {
   }
 };
 
+const clampPaginationPage = () => {
+  const pageSize = state.pagination.pageSize;
+  const totalPages = Math.max(1, Math.ceil(state.filteredItems.length / pageSize));
+  state.pagination.page = Math.min(Math.max(1, state.pagination.page), totalPages);
+  return totalPages;
+};
+
+const resetPagination = () => {
+  state.pagination.page = 1;
+};
+
+const createPaginationButton = ({ label, page, disabled = false, current = false }) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "pagination-btn";
+  button.textContent = label;
+  button.dataset.page = String(page);
+  button.disabled = disabled;
+  if (current) {
+    button.classList.add("is-current");
+    button.setAttribute("aria-current", "page");
+  }
+  return button;
+};
+
+const createPaginationEllipsis = () => {
+  const span = document.createElement("span");
+  span.className = "pagination-ellipsis";
+  span.textContent = "…";
+  span.setAttribute("aria-hidden", "true");
+  return span;
+};
+
+const renderPagination = () => {
+  if (!pagination) return;
+
+  if (state.filteredItems.length === 0) {
+    pagination.hidden = true;
+    pagination.innerHTML = "";
+    return;
+  }
+
+  const totalPages = clampPaginationPage();
+  if (totalPages <= 1) {
+    pagination.hidden = true;
+    pagination.innerHTML = "";
+    return;
+  }
+
+  const currentPage = state.pagination.page;
+  pagination.hidden = false;
+  pagination.innerHTML = "";
+
+  pagination.appendChild(
+    createPaginationButton({
+      label: "‹",
+      page: currentPage - 1,
+      disabled: currentPage <= 1,
+    }),
+  );
+
+  const addPage = (page) => {
+    pagination.appendChild(
+      createPaginationButton({
+        label: String(page),
+        page,
+        current: page === currentPage,
+      }),
+    );
+  };
+
+  const addEllipsis = () => pagination.appendChild(createPaginationEllipsis());
+
+  if (totalPages <= 7) {
+    for (let page = 1; page <= totalPages; page += 1) {
+      addPage(page);
+    }
+  } else if (currentPage <= 4) {
+    addPage(1);
+    addPage(2);
+    addPage(3);
+    addPage(4);
+    addPage(5);
+    addEllipsis();
+    addPage(totalPages);
+  } else if (currentPage >= totalPages - 3) {
+    addPage(1);
+    addEllipsis();
+    for (let page = totalPages - 4; page <= totalPages; page += 1) {
+      addPage(page);
+    }
+  } else {
+    addPage(1);
+    addEllipsis();
+    addPage(currentPage - 1);
+    addPage(currentPage);
+    addPage(currentPage + 1);
+    addEllipsis();
+    addPage(totalPages);
+  }
+
+  pagination.appendChild(
+    createPaginationButton({
+      label: "›",
+      page: currentPage + 1,
+      disabled: currentPage >= totalPages,
+    }),
+  );
+};
+
 const renderItems = () => {
   if (!itemsList) return;
   itemsList.innerHTML = "";
   if (state.filteredItems.length === 0) {
     showListState("Nenhum comprovante encontrado.");
+    if (pagination) {
+      pagination.hidden = true;
+      pagination.innerHTML = "";
+    }
     return;
   }
   hideListState();
 
+  const totalPages = clampPaginationPage();
+  const page = state.pagination.page;
+  const pageSize = state.pagination.pageSize;
+  const startIndex = (page - 1) * pageSize;
+  const pageItems = state.filteredItems.slice(startIndex, startIndex + pageSize);
+
   const fragment = document.createDocumentFragment();
-  state.filteredItems.forEach((item) => {
+  pageItems.forEach((item) => {
     fragment.appendChild(createItemCard(item));
   });
   itemsList.appendChild(fragment);
+
+  if (totalPages > 1) {
+    renderPagination();
+  } else if (pagination) {
+    pagination.hidden = true;
+    pagination.innerHTML = "";
+  }
 };
 
-const applyFilters = () => {
+const applyFilters = (resetPage = true) => {
   const type = (filterTypeValue || "").trim();
   const { start, end } = parseDateRange(filterDateInput?.value || "");
   const descricaoFilter = (filterDescricaoValue || "").trim().toUpperCase();
@@ -675,6 +847,9 @@ const applyFilters = () => {
     return true;
   });
 
+  if (resetPage) {
+    resetPagination();
+  }
   renderItems();
 };
 
@@ -704,6 +879,14 @@ const openUploadModal = async (id) => {
   hideListState();
   uploadIsEditing = false;
   pendingDeleteArquivoIds = new Set();
+  retainedUploadFiles = [];
+  if (uploadInput) {
+    uploadInput.value = "";
+  }
+  if (uploadSelected) {
+    uploadSelected.innerHTML = "";
+    uploadSelected.classList.remove("is-grid");
+  }
   if (uploadFiles) uploadFiles.classList.remove("is-editing");
   updateUploadSaveVisibility();
   uploadOverlay.classList.add("is-visible");
@@ -716,11 +899,13 @@ const closeUploadModal = () => {
   if (!uploadOverlay) return;
   uploadOverlay.classList.remove("is-visible");
   uploadOverlay.setAttribute("aria-hidden", "true");
+  retainedUploadFiles = [];
   if (uploadInput) {
     uploadInput.value = "";
   }
   if (uploadSelected) {
     uploadSelected.innerHTML = "";
+    uploadSelected.classList.remove("is-grid");
   }
   if (uploadDrop) {
     uploadDrop.classList.remove("is-active");
@@ -798,13 +983,7 @@ const patchObservacao = async (id, observacao) => {
 
 const setObservacaoSaveVisible = (visible) => {
   if (!observacaoSave) return;
-  if (visible) {
-    observacaoSave.hidden = false;
-    observacaoSave.removeAttribute("hidden");
-  } else {
-    observacaoSave.hidden = true;
-    observacaoSave.setAttribute("hidden", "");
-  }
+  setButtonVisibleSmooth(observacaoSave, visible);
 };
 
 const startObservacaoEdit = () => {
@@ -937,6 +1116,38 @@ const filesToBase64 = async (files) => {
 const filesToNames = (files) =>
   files && files.length > 0 ? Array.from(files).map((file) => file.name) : [];
 
+const uploadFileKey = (file) => {
+  if (!file) return "";
+  return `${file.name}::${file.size}::${file.lastModified}`;
+};
+
+const mergeUploadFiles = (existing, incoming) => {
+  const merged = [];
+  const seen = new Set();
+
+  const pushUnique = (file) => {
+    if (!(file instanceof File)) return;
+    const key = uploadFileKey(file);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(file);
+  };
+
+  (existing || []).forEach(pushUnique);
+  (incoming || []).forEach(pushUnique);
+  return merged;
+};
+
+const setUploadInputFiles = (files) => {
+  if (!uploadInput) return;
+  const dataTransfer = new DataTransfer();
+  (files || []).forEach((file) => dataTransfer.items.add(file));
+  settingUploadFilesProgrammatically = true;
+  uploadInput.files = dataTransfer.files;
+  uploadInput.dispatchEvent(new Event("change", { bubbles: true }));
+  settingUploadFilesProgrammatically = false;
+};
+
 const deleteArquivo = async (itemId, arquivoId) => {
   const accessToken = getAccessToken();
   if (!accessToken) {
@@ -1021,6 +1232,23 @@ const uploadArquivos = async (files) => {
   return savedArquivos;
 };
 
+const replaceUploadInputFiles = (files) => {
+  const next = Array.isArray(files) ? files : files ? Array.from(files) : [];
+  retainedUploadFiles = next;
+  setUploadInputFiles(next);
+};
+
+const fileMatches = (a, b) => {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return (
+    a.name === b.name &&
+    a.size === b.size &&
+    a.lastModified === b.lastModified &&
+    String(a.type || "") === String(b.type || "")
+  );
+};
+
 const saveUploadChanges = async () => {
   if (!pendingUploadItemId) return;
   const newFiles = uploadInput?.files ? Array.from(uploadInput.files).filter(isPdfFile) : [];
@@ -1044,8 +1272,12 @@ const saveUploadChanges = async () => {
     pendingDeleteArquivoIds = new Set();
     uploadIsEditing = false;
     if (uploadFiles) uploadFiles.classList.remove("is-editing");
+    retainedUploadFiles = [];
     if (uploadInput) uploadInput.value = "";
-    if (uploadSelected) uploadSelected.innerHTML = "";
+    if (uploadSelected) {
+      uploadSelected.innerHTML = "";
+      uploadSelected.classList.remove("is-grid");
+    }
     updateUploadSaveVisibility();
     await loadItemArquivos(pendingUploadItemId);
   } catch (error) {
@@ -1061,9 +1293,19 @@ const saveUploadChanges = async () => {
 const renderSelectedFiles = (files) => {
   if (!uploadSelected) return;
   uploadSelected.innerHTML = "";
-  const pdfs = files && files.length > 0 ? Array.from(files).filter(isPdfFile) : [];
+  const allFiles =
+    uploadInput?.files && uploadInput.files.length > 0
+      ? Array.from(uploadInput.files)
+      : files && files.length > 0
+        ? Array.from(files)
+        : [];
+  const pdfs = allFiles.filter(isPdfFile);
+  uploadSelected.classList.toggle("is-grid", pdfs.length > 1);
   updateUploadSaveVisibility();
-  if (pdfs.length === 0) return;
+  if (pdfs.length === 0) {
+    uploadSelected.classList.remove("is-grid");
+    return;
+  }
   pdfs.forEach((file) => {
     const card = document.createElement("div");
     card.className = "upload-file-card is-loading";
@@ -1073,8 +1315,31 @@ const renderSelectedFiles = (files) => {
     const name = document.createElement("div");
     name.className = "upload-file-name";
     name.textContent = file.name || "Arquivo.pdf";
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "upload-file-remove-selected";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", "Remover PDF selecionado");
+    remove.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const current = uploadInput?.files ? Array.from(uploadInput.files) : [];
+      let removed = false;
+      const kept = current.filter((entry) => {
+        if (!removed && fileMatches(entry, file)) {
+          removed = true;
+          return false;
+        }
+        return true;
+      });
+      replaceUploadInputFiles(kept);
+      renderSelectedFiles(uploadInput?.files);
+    });
     card.appendChild(icon);
     card.appendChild(name);
+    card.appendChild(remove);
     uploadSelected.appendChild(card);
   });
 };
@@ -1083,9 +1348,10 @@ const bindUploadDrop = () => {
   if (!uploadDrop || !uploadInput) return;
   const setFiles = (files) => {
     if (!files || files.length === 0) return;
-    const dataTransfer = new DataTransfer();
-    Array.from(files).forEach((file) => dataTransfer.items.add(file));
-    uploadInput.files = dataTransfer.files;
+    const picked = Array.from(files);
+    const merged = mergeUploadFiles(retainedUploadFiles, picked);
+    retainedUploadFiles = merged;
+    setUploadInputFiles(merged);
   };
 
   uploadDrop.addEventListener("dragenter", (event) => {
@@ -1104,7 +1370,6 @@ const bindUploadDrop = () => {
     event.preventDefault();
     uploadDrop.classList.remove("is-active");
     setFiles(event.dataTransfer?.files);
-    renderSelectedFiles(event.dataTransfer?.files);
   });
 };
 
@@ -1251,7 +1516,7 @@ const deletePendingItem = async () => {
 
   state.items = state.items.filter((item) => item.id !== state.pendingDeleteId);
   closeDeleteModal();
-  applyFilters();
+  applyFilters(false);
 };
 
 const bindEvents = () => {
@@ -1450,6 +1715,21 @@ const bindEvents = () => {
     });
   }
 
+  if (pagination && itemsList) {
+    pagination.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest("button[data-page]");
+      if (!(button instanceof HTMLButtonElement)) return;
+      if (button.disabled) return;
+      const next = Number(button.dataset.page);
+      if (!Number.isFinite(next)) return;
+      state.pagination.page = next;
+      renderItems();
+      itemsList.scrollIntoView({ block: "start" });
+    });
+  }
+
   if (confirmCancel) {
     confirmCancel.addEventListener("click", closeDeleteModal);
   }
@@ -1496,7 +1776,20 @@ const init = async () => {
   bindUploadDrop();
   bindUploadEditActions();
   if (uploadInput) {
-    uploadInput.addEventListener("change", () => renderSelectedFiles(uploadInput.files));
+    retainedUploadFiles = uploadInput.files ? Array.from(uploadInput.files) : [];
+    uploadInput.addEventListener("change", () => {
+      const picked = uploadInput.files ? Array.from(uploadInput.files) : [];
+
+      if (settingUploadFilesProgrammatically) {
+        retainedUploadFiles = picked;
+        renderSelectedFiles(uploadInput.files);
+        return;
+      }
+
+      const merged = mergeUploadFiles(retainedUploadFiles, picked);
+      retainedUploadFiles = merged;
+      setUploadInputFiles(merged);
+    });
   }
   try {
     await loadItems();

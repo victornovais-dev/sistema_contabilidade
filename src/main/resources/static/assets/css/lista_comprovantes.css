@@ -138,6 +138,67 @@ html[data-theme="dark"] .grid {
   gap: 12px;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 0 4px;
+}
+
+.pagination-btn {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid rgba(27, 27, 31, 0.32);
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(27, 27, 31, 0.55);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pagination-btn.is-current {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 12px 26px rgba(216, 75, 52, 0.22);
+}
+
+.pagination-ellipsis {
+  color: var(--muted);
+  font-weight: 700;
+  padding: 0 2px;
+}
+
+html[data-theme="dark"] .pagination-btn {
+  border-color: rgba(255, 255, 255, 0.6);
+  color: #fff;
+}
+
+html[data-theme="dark"] .pagination-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
 .list-state {
   background: var(--card);
   border: 1px solid var(--stroke);
@@ -1034,21 +1095,39 @@ html[data-theme="light"] .flatpickr-current-month .year-dropdown option {
 
 
 .item-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: stretch;
-  background: var(--card);
+  background: transparent;
   border: 1px solid var(--stroke);
   border-radius: 18px;
   padding: 18px 22px;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(12px);
+  overflow: hidden;
+  transform: translateZ(0);
+  will-change: transform;
   transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
 }
 
+.item-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 0;
+}
+
+.item-card > * {
+  position: relative;
+  z-index: 1;
+}
+
 .item-card:hover {
-  transform: translateY(-1px);
+  transform: translate3d(0, -1px, 0);
   border-color: rgba(216, 75, 52, 0.28);
   box-shadow: 0 18px 40px rgba(20, 20, 24, 0.22);
 }
@@ -1191,7 +1270,8 @@ html[data-theme="light"] .flatpickr-current-month .year-dropdown option {
 
 .btn-danger {
   background: linear-gradient(135deg, #ff6b6b, #e54444);
-  box-shadow: none;
+  box-shadow: 0 10px 22px rgba(229, 68, 68, 0.28);
+  color: #fff;
 }
 
 .btn:hover {
@@ -1597,8 +1677,20 @@ html[data-theme="dark"] .upload-drop {
 
 .upload-selected {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   margin-top: 6px;
+}
+
+.upload-selected.is-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .upload-selected.is-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .upload-file-card {
@@ -1632,6 +1724,8 @@ html[data-theme="dark"] .upload-file-card {
 }
 
 .upload-file-name {
+  flex: 1;
+  min-width: 0;
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--ink);
@@ -1640,9 +1734,46 @@ html[data-theme="dark"] .upload-file-card {
   text-overflow: ellipsis;
 }
 
+.upload-file-remove-selected {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 122, 89, 0.22);
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+html[data-theme="light"] .upload-file-remove-selected {
+  border-color: rgba(27, 27, 31, 0.14);
+  background: rgba(255, 122, 89, 0.18);
+  color: #1b1b1f;
+}
+
 .upload-save {
   width: 240px;
   margin: 0 auto;
+}
+
+.upload-save,
+.observacao-save {
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    opacity 100ms ease-out;
+}
+
+.upload-save.is-hiding,
+.observacao-save.is-hiding {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .upload-actions {
@@ -1719,12 +1850,27 @@ html[data-theme="light"] .upload-file-remove {
 
 .observacao-card {
   width: min(560px, 92vw);
-  background: var(--card);
+  background: #e6e6e6;
   border: 1px solid var(--stroke);
   border-radius: 22px;
   padding: 22px;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(14px);
+}
+
+html[data-theme="dark"] .observacao-card {
+  background: #15171c;
+}
+
+.observacao-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 14px;
+}
+
+.observacao-footer .observacao-save {
+  width: 240px;
+  margin: 0 auto;
+  color: #fff;
 }
 
 .observacao-header {
