@@ -23,12 +23,13 @@ class PaginaUsuarioControllerTest {
 
   @ParameterizedTest(name = "Deve retornar recurso html da pagina {0}")
   @MethodSource("htmlPageMethods")
-  void deveRetornarRecursoHtmlDasPaginas(String nomePagina, String methodName) throws Exception {
+  void deveRetornarRecursoHtmlDasPaginas(
+      String nomePagina, String methodName, HttpStatus expectedStatus) throws Exception {
     PaginaUsuarioController controller = new PaginaUsuarioController();
 
     ResponseEntity<Resource> response = invokePageMethod(controller, methodName);
 
-    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals(expectedStatus, response.getStatusCode());
     assertNotNull(response.getBody());
     assertEquals(CONTENT_TYPE_HTML, response.getHeaders().getContentType().toString());
   }
@@ -56,16 +57,16 @@ class PaginaUsuarioControllerTest {
 
   private static Stream<Arguments> htmlPageMethods() {
     return Stream.of(
-        Arguments.of("login", "loginPage"),
-        Arguments.of("404", "notFoundPage"),
-        Arguments.of("criar usuario", "criarUsuarioPage"),
-        Arguments.of("atualizar usuario", "atualizarUsuarioPage"),
-        Arguments.of("adicionar comprovante", "adicionarComprovantePage"),
-        Arguments.of("home", "homePage"),
-        Arguments.of("lista comprovantes", "listaComprovantesPage"),
-        Arguments.of("relatorios", "relatoriosPage"),
-        Arguments.of("relatorio pdf", "relatorioPdfPage"),
-        Arguments.of("admin", "adminPage"));
+        Arguments.of("login", "loginPage", HttpStatus.OK),
+        Arguments.of("404", "notFoundPage", HttpStatus.NOT_FOUND),
+        Arguments.of("criar usuario", "criarUsuarioPage", HttpStatus.OK),
+        Arguments.of("atualizar usuario", "atualizarUsuarioPage", HttpStatus.OK),
+        Arguments.of("adicionar comprovante", "adicionarComprovantePage", HttpStatus.OK),
+        Arguments.of("home", "homePage", HttpStatus.OK),
+        Arguments.of("lista comprovantes", "listaComprovantesPage", HttpStatus.OK),
+        Arguments.of("relatorios", "relatoriosPage", HttpStatus.OK),
+        Arguments.of("relatorio pdf", "relatorioPdfPage", HttpStatus.OK),
+        Arguments.of("admin", "adminPage", HttpStatus.OK));
   }
 
   private static Stream<Arguments> authenticatedMethods() {

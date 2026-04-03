@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -19,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -40,7 +42,7 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) {
     try {
-      http.csrf(Customizer.withDefaults())
+      http.csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository()))
           .cors(Customizer.withDefaults())
           .headers(
               headers -> {
@@ -87,7 +89,7 @@ public class SecurityConfig {
                           }))
           .authorizeHttpRequests(
               auth ->
-                  auth.requestMatchers("/", "/login", "/404", "/favicon.ico")
+                  auth.requestMatchers("/", "/login", "/404", "/error", "/error/**", "/favicon.ico")
                       .permitAll()
                       .requestMatchers("/criar_usuario")
                       .hasRole(ADMIN_ROLE)
@@ -106,6 +108,12 @@ public class SecurityConfig {
                       .permitAll()
                       .requestMatchers("/api/v1/auth/**")
                       .permitAll()
+                      .requestMatchers("/api/v1/usuarios/me")
+                      .authenticated()
+                      .requestMatchers(HttpMethod.PUT, "/api/v1/usuarios/me")
+                      .authenticated()
+                      .requestMatchers("/api/v1/usuarios/**")
+                      .hasRole(ADMIN_ROLE)
                       .requestMatchers("/api/v1/admin/**")
                       .hasRole(ADMIN_ROLE)
                       .requestMatchers("/api/v1/relatorios/roles")
@@ -119,6 +127,14 @@ public class SecurityConfig {
     } catch (Exception exception) {
       throw new IllegalStateException("Falha ao construir SecurityFilterChain", exception);
     }
+  }
+
+  @Bean
+  CookieCsrfTokenRepository csrfTokenRepository() {
+    CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+    repository.setCookiePath("/");
+    repository.setHeaderName("X-CSRF-TOKEN");
+    return repository;
   }
 
   @Bean

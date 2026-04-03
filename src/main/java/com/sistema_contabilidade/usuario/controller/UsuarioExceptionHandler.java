@@ -1,10 +1,14 @@
 package com.sistema_contabilidade.usuario.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -18,6 +22,14 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RestControllerAdvice
 @Slf4j
 public class UsuarioExceptionHandler {
+
+  private static boolean acceptsHtml(HttpServletRequest request) {
+    if (request == null) {
+      return false;
+    }
+    String accept = request.getHeader("Accept");
+    return accept != null && accept.contains(MediaType.TEXT_HTML_VALUE);
+  }
 
   @ExceptionHandler(AuthenticationException.class)
   public ResponseEntity<ErrorResponse> handleAuthenticationException(
@@ -65,16 +77,24 @@ public class UsuarioExceptionHandler {
   }
 
   @ExceptionHandler(NoResourceFoundException.class)
-  public ResponseEntity<ErrorResponse> handleNoResourceFoundException(
-      NoResourceFoundException ex, WebRequest request) {
+  public ResponseEntity<?> handleNoResourceFoundException(
+      NoResourceFoundException ex, WebRequest webRequest, HttpServletRequest httpRequest) {
     if (log.isDebugEnabled()) {
       log.debug("Recurso estatico nao encontrado: {}", ex.getResourcePath());
     }
+
+    if (acceptsHtml(httpRequest) && !httpRequest.getRequestURI().startsWith("/api/")) {
+      Resource resource = new ClassPathResource("static/error/404.html");
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .contentType(MediaType.TEXT_HTML)
+          .body(resource);
+    }
+
     ErrorResponse error =
         new ErrorResponse(
             HttpStatus.NOT_FOUND.value(),
             "Recurso nao encontrado",
-            request.getDescription(false),
+            webRequest.getDescription(false),
             LocalDateTime.now());
     return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
   }

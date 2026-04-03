@@ -2,6 +2,7 @@ package com.sistema_contabilidade.usuario.controller;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,7 +23,9 @@ public class PaginaUsuarioController {
   @GetMapping(value = "/404", produces = MediaType.TEXT_HTML_VALUE)
   public ResponseEntity<Resource> notFoundPage() {
     Resource resource = new ClassPathResource("static/404.html");
-    return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .contentType(MediaType.TEXT_HTML)
+        .body(resource);
   }
 
   @GetMapping(value = "/criar_usuario", produces = MediaType.TEXT_HTML_VALUE)
