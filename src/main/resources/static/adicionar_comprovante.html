@@ -105,41 +105,13 @@
                     type="button"
                     aria-haspopup="listbox"
                     aria-expanded="false"
+                    disabled
                   >
                     Selecione
                   </button>
-                  <div class="custom-select-menu" role="listbox" hidden>
-                    <button class="custom-select-option" type="button" role="option" data-value="ALUGUEL">
-                      Aluguel
-                    </button>
-                    <button class="custom-select-option" type="button" role="option" data-value="ENERGIA">
-                      Energia elétrica
-                    </button>
-                    <button class="custom-select-option" type="button" role="option" data-value="AGUA">
-                      Água
-                    </button>
-                    <button class="custom-select-option" type="button" role="option" data-value="SERVICOS">
-                      Serviços
-                    </button>
-                    <button class="custom-select-option" type="button" role="option" data-value="IMPOSTOS">
-                      Impostos
-                    </button>
-                    <button class="custom-select-option" type="button" role="option" data-value="MATERIAIS">
-                      Materiais
-                    </button>
-                    <button class="custom-select-option" type="button" role="option" data-value="OUTROS">
-                      Outros
-                    </button>
-                  </div>
-                  <select class="native-select" name="descricao" required aria-hidden="true">
+                  <div class="custom-select-menu" role="listbox" hidden></div>
+                  <select class="native-select" name="descricao" required aria-hidden="true" disabled>
                     <option value="" disabled selected>Selecione</option>
-                    <option value="ALUGUEL">Aluguel</option>
-                    <option value="ENERGIA">Energia elétrica</option>
-                    <option value="AGUA">Água</option>
-                    <option value="SERVICOS">Serviços</option>
-                    <option value="IMPOSTOS">Impostos</option>
-                    <option value="MATERIAIS">Materiais</option>
-                    <option value="OUTROS">Outros</option>
                   </select>
                 </div>
               </label>
@@ -162,7 +134,7 @@
                   autocomplete="off"
                 />
               </label>
-              <label class="field field-file">
+              <div class="field field-file">
                 <span>Anexar comprovante</span>
               <input
                 class="file-input"
@@ -175,9 +147,9 @@
                 <label class="btn btn-secondary file-button" for="receipt">Escolher arquivo</label>
                 <div class="file-info">
                   <small class="file-hint">Nenhum arquivo selecionado</small>
-                  <div class="file-status" aria-live="polite" aria-label="Status do upload"></div>
                 </div>
-              </label>
+                <div class="receipt-selected" id="receipt-selected" aria-live="polite"></div>
+              </div>
             </div>
           </div>
 

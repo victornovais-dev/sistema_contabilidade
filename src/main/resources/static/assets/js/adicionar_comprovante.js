@@ -13,6 +13,7 @@ const razaoSocialNomeInput = document.querySelector("input[name=\"razao_social_n
 const cnpjCpfInput = document.querySelector("input[name=\"cnpj_cpf\"]");
 const observacaoInput = document.querySelector("textarea[name=\"observacao\"]");
 const form = document.querySelector(".form");
+const receiptSelected = document.getElementById("receipt-selected");
 const confirmOverlay = document.querySelector(".confirm-overlay");
 const confirmClose = document.querySelector(".confirm-close");
 const confirmTitle = document.querySelector(".confirm-card h2");
@@ -20,6 +21,10 @@ const confirmText = document.querySelector(".confirm-card p");
 const confirmIcon = document.querySelector(".confirm-icon");
 let csrfToken = null;
 let lastSubmitOk = false;
+let monthMenuCloseHandlerBound = false;
+let yearMenuCloseHandlerBound = false;
+let retainedReceiptFiles = [];
+let settingReceiptFilesProgrammatically = false;
 
 const parseDate = (value) => {
   const digits = (value || "").replace(/\D/g, "");
@@ -118,11 +123,20 @@ const filesToBase64 = async (files) => {
 const filesToNames = (files) =>
   files && files.length > 0 ? Array.from(files).map((file) => file.name) : [];
 
-const ensureCsrfToken = async () => {
-  if (csrfToken) return csrfToken;
+const isPdfFile = (file) => {
+  if (!file) return false;
+  const name = String(file.name || "").toLowerCase();
+  return file.type === "application/pdf" || name.endsWith(".pdf");
+};
+
+const ensureCsrfToken = async (forceRefresh = false) => {
+  if (!forceRefresh && csrfToken) return csrfToken;
+  const accessToken = localStorage.getItem("sc_access_token");
   const response = await fetch("/api/v1/auth/csrf", {
     method: "GET",
     credentials: "same-origin",
+    cache: "no-store",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
   });
   if (!response.ok) {
     throw new Error("Falha ao obter token CSRF");
@@ -133,6 +147,18 @@ const ensureCsrfToken = async () => {
     throw new Error("Token CSRF ausente");
   }
   return csrfToken;
+};
+
+const extractErrorMessage = async (response, fallbackMessage) => {
+  try {
+    const payload = await response.json();
+    if (payload && typeof payload === "object") {
+      return payload.message || payload.error || fallbackMessage;
+    }
+  } catch (error) {
+    // Keep fallback message when payload is not JSON.
+  }
+  return fallbackMessage;
 };
 
 const showConfirm = (ok, message) => {
@@ -198,7 +224,6 @@ const bindCustomSelect = (selectElement) => {
   if (!wrapper) return null;
   const trigger = wrapper.querySelector(".custom-select-trigger");
   const menu = wrapper.querySelector(".custom-select-menu");
-  const options = wrapper.querySelectorAll(".custom-select-option");
   if (!(trigger instanceof HTMLButtonElement) || !(menu instanceof HTMLElement)) return null;
 
   const close = () => {
@@ -207,6 +232,7 @@ const bindCustomSelect = (selectElement) => {
   };
 
   const open = () => {
+    if (trigger.disabled) return;
     menu.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
   };
@@ -218,7 +244,7 @@ const bindCustomSelect = (selectElement) => {
     const label = selected ? String(selected.textContent || "").trim() : "";
     trigger.textContent = label || "Selecione";
 
-    options.forEach((node) => {
+    wrapper.querySelectorAll(".custom-select-option").forEach((node) => {
       if (!(node instanceof HTMLElement)) return;
       node.classList.toggle("is-active", (node.dataset.value || "") === selectElement.value);
     });
@@ -231,16 +257,18 @@ const bindCustomSelect = (selectElement) => {
     else close();
   });
 
-  options.forEach((option) => {
-    option.addEventListener("click", () => {
-      const value = option.dataset.value || "";
-      selectElement.value = value;
-      selectElement.dispatchEvent(new Event("change", { bubbles: true }));
-      selectElement.setCustomValidity("");
-      trigger.classList.remove("is-invalid");
-      syncFromSelect();
-      close();
-    });
+  menu.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const option = target.closest(".custom-select-option");
+    if (!(option instanceof HTMLElement)) return;
+    const value = option.dataset.value || "";
+    selectElement.value = value;
+    selectElement.dispatchEvent(new Event("change", { bubbles: true }));
+    selectElement.setCustomValidity("");
+    trigger.classList.remove("is-invalid");
+    syncFromSelect();
+    close();
   });
 
   document.addEventListener(
@@ -264,30 +292,255 @@ const bindCustomSelect = (selectElement) => {
 const customType = typeSelect ? bindCustomSelect(typeSelect) : null;
 const customDescricao = descricaoSelect ? bindCustomSelect(descricaoSelect) : null;
 
-if (fileInput && fileHint && fileStatus) {
+const RECEITA_DESCRICOES = ["CONTA FEFEC", "CONTA FP", "CONTA DC"];
+
+const DESPESA_DESCRICOES = [
+  "Publicidade por materiais impressos",
+  "Publicidade na internet",
+  "Publicidade por carro de som",
+  "Produção de programas de rádio, TV ou vídeo",
+  "Impulsionamento de conteúdo",
+  "Serviços prestados por terceiros",
+  "Serviços advocatícios",
+  "Serviços contábeis",
+  "Atividades de militância e mobilização de rua",
+  "Remuneração de pessoal",
+  "Aluguel de imóveis",
+  "Aluguel de veículos",
+  "Combustíveis e lubrificantes",
+  "Energia elétrica",
+  "Água",
+  "Internet",
+  "Telefone",
+  "Material de expediente",
+  "Material de campanha (não publicitário)",
+  "Alimentação",
+  "Transporte ou deslocamento",
+  "Hospedagem",
+  "Organização de eventos",
+  "Produção de jingles, vinhetas e slogans",
+  "Produção de material gráfico",
+  "Criação e inclusão de páginas na internet",
+  "Manutenção de sites",
+  "Softwares e ferramentas digitais",
+  "Taxas bancárias",
+  "Encargos financeiros",
+  "Multas eleitorais",
+  "Doações a outros candidatos/partidos",
+  "Baixa de estimáveis em dinheiro",
+  "Outras despesas",
+];
+
+const resetNativeSelect = (selectElement) => {
+  if (!(selectElement instanceof HTMLSelectElement)) return;
+  selectElement.value = "";
+  selectElement.setCustomValidity("");
+};
+
+const renderDescricaoOptions = (descriptions) => {
+  if (!descricaoSelect) return;
+  const wrapper = descricaoSelect.closest("[data-custom-select]");
+  if (!wrapper) return;
+  const menu = wrapper.querySelector(".custom-select-menu");
+  if (!(menu instanceof HTMLElement)) return;
+
+  const ordered = (descriptions || [])
+    .filter((value) => value != null && String(value).trim().length > 0)
+    .map((value) => String(value))
+    .sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+
+  descricaoSelect.querySelectorAll("option:not([value=\"\"])").forEach((opt) => opt.remove());
+  ordered.forEach((label) => {
+    const option = document.createElement("option");
+    option.value = label;
+    option.textContent = label;
+    descricaoSelect.appendChild(option);
+  });
+
+  menu.innerHTML = "";
+  ordered.forEach((label) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "custom-select-option";
+    button.setAttribute("role", "option");
+    button.dataset.value = label;
+    button.textContent = label;
+    menu.appendChild(button);
+  });
+
+  menu.classList.toggle("is-scroll", ordered.length > 10);
+
+  customDescricao?.syncFromSelect?.();
+  customDescricao?.close?.();
+};
+
+const setDescricaoEnabled = (enabled) => {
+  if (!descricaoSelect) return;
+  const wrapper = descricaoSelect.closest("[data-custom-select]");
+  if (!wrapper) return;
+  const trigger = wrapper.querySelector(".custom-select-trigger");
+
+  if (trigger instanceof HTMLButtonElement) {
+    trigger.disabled = !enabled;
+    trigger.classList.remove("is-invalid");
+    if (!enabled) {
+      trigger.textContent = "Selecione";
+    }
+  }
+
+  descricaoSelect.disabled = !enabled;
+  if (!enabled) {
+    resetNativeSelect(descricaoSelect);
+    customDescricao?.syncFromSelect?.();
+    customDescricao?.close?.();
+  }
+};
+
+const updateDescricaoByTipo = (tipoValue) => {
+  const tipo = String(tipoValue || "").trim().toUpperCase();
+
+  if (tipo === "RECEITA") {
+    renderDescricaoOptions(RECEITA_DESCRICOES);
+    setDescricaoEnabled(true);
+    resetNativeSelect(descricaoSelect);
+    customDescricao?.syncFromSelect?.();
+    return;
+  }
+
+  if (tipo === "DESPESA") {
+    renderDescricaoOptions(DESPESA_DESCRICOES);
+    setDescricaoEnabled(true);
+    resetNativeSelect(descricaoSelect);
+    customDescricao?.syncFromSelect?.();
+    return;
+  }
+
+  renderDescricaoOptions([]);
+  setDescricaoEnabled(false);
+};
+
+if (typeSelect) {
+  typeSelect.addEventListener("change", () => updateDescricaoByTipo(typeSelect.value));
+  updateDescricaoByTipo(typeSelect.value);
+}
+
+const updateReceiptGrid = (files) => {
+  if (!receiptSelected) return;
+  const list = Array.isArray(files) ? files : [];
+  const pdfCount = list.filter(isPdfFile).length;
+  receiptSelected.classList.toggle("is-grid", pdfCount > 1);
+};
+
+const updateReceiptHint = (files) => {
+  if (!fileHint) return;
+  const list = Array.isArray(files) ? files : [];
+  if (list.length === 0) {
+    fileHint.textContent = "Nenhum arquivo selecionado";
+    if (fileStatus) fileStatus.classList.remove("is-ready");
+    if (receiptSelected) {
+      receiptSelected.classList.remove("is-grid");
+      receiptSelected.innerHTML = "";
+    }
+    return;
+  }
+  fileHint.textContent = "";
+  if (fileStatus) fileStatus.classList.add("is-ready");
+
+  if (receiptSelected) {
+    receiptSelected.innerHTML = "";
+    const pdfFiles = list.filter(isPdfFile);
+    updateReceiptGrid(pdfFiles);
+    pdfFiles.forEach((file) => {
+      const card = document.createElement("div");
+      card.className = "receipt-file-card";
+
+      const icon = document.createElement("div");
+      icon.className = "receipt-file-icon";
+      icon.textContent = "PDF";
+
+      const name = document.createElement("div");
+      name.className = "receipt-file-name";
+      name.textContent = file.name || "Arquivo.pdf";
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "receipt-file-remove";
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", "Remover PDF selecionado");
+      remove.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const key = receiptFileKey(file);
+        const kept = retainedReceiptFiles.filter((entry) => receiptFileKey(entry) !== key);
+        retainedReceiptFiles = kept;
+        setReceiptFiles(kept);
+      });
+
+      card.appendChild(icon);
+      card.appendChild(name);
+      card.appendChild(remove);
+      receiptSelected.appendChild(card);
+    });
+  }
+};
+
+const receiptFileKey = (file) => {
+  if (!file) return "";
+  return `${file.name}::${file.size}::${file.lastModified}`;
+};
+
+const mergeReceiptFiles = (existing, incoming) => {
+  const merged = [];
+  const seen = new Set();
+  const pushUnique = (file) => {
+    if (!(file instanceof File)) return;
+    const key = receiptFileKey(file);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(file);
+  };
+
+  (existing || []).forEach(pushUnique);
+  (incoming || []).forEach(pushUnique);
+  return merged;
+};
+
+const setReceiptFiles = (files) => {
+  if (!fileInput) return;
+  const dataTransfer = new DataTransfer();
+  (files || []).forEach((file) => dataTransfer.items.add(file));
+  settingReceiptFilesProgrammatically = true;
+  fileInput.files = dataTransfer.files;
+  fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+  settingReceiptFilesProgrammatically = false;
+};
+
+if (fileInput) {
+  retainedReceiptFiles = fileInput.files ? Array.from(fileInput.files) : [];
+  updateReceiptHint(retainedReceiptFiles);
+
   fileInput.addEventListener("change", () => {
-    const files = fileInput.files ? Array.from(fileInput.files) : [];
-    if (files.length === 0) {
-      fileHint.textContent = "Nenhum arquivo selecionado";
-      fileStatus.classList.remove("is-ready");
+    const picked = fileInput.files ? Array.from(fileInput.files) : [];
+
+    // When we set `fileInput.files` ourselves (DataTransfer), just sync the UI/state.
+    if (settingReceiptFilesProgrammatically) {
+      retainedReceiptFiles = picked;
+      updateReceiptHint(picked);
       return;
     }
-    if (files.length === 1) {
-      fileHint.textContent = files[0].name;
-    } else {
-      fileHint.textContent = `${files.length} arquivos selecionados`;
-    }
-    fileStatus.classList.add("is-ready");
+
+    // Native file picker replaces FileList; merge new picks into retained list.
+    const merged = mergeReceiptFiles(retainedReceiptFiles, picked);
+    setReceiptFiles(merged);
   });
 }
 
 if (fileInput) {
   const setDroppedFiles = (files) => {
     if (!files || files.length === 0) return;
-    const dataTransfer = new DataTransfer();
-    Array.from(files).forEach((file) => dataTransfer.items.add(file));
-    fileInput.files = dataTransfer.files;
-    fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+    const picked = Array.from(files);
+    const merged = mergeReceiptFiles(retainedReceiptFiles, picked);
+    setReceiptFiles(merged);
   };
 
   let dragDepth = 0;
@@ -357,56 +610,299 @@ if (dateInput) {
   };
 
   if (window.flatpickr) {
+    const maxDate = todayMidnight();
+
     const ensureYearDropdown = (instance) => {
       const container = instance?.calendarContainer;
       if (!container) return;
+
       const currentMonth = container.querySelector(".flatpickr-current-month");
       const numWrapper = container.querySelector(".numInputWrapper");
       const yearInput = container.querySelector(".cur-year");
       if (!currentMonth || !yearInput) return;
 
-      let select = container.querySelector("select.year-dropdown");
-      if (!select) {
-        select = document.createElement("select");
-        select.className = "year-dropdown";
-        currentMonth.insertBefore(select, numWrapper || yearInput);
-        select.addEventListener("change", (event) => {
-          const nextYear = Number(event.target.value);
-          if (!Number.isNaN(nextYear)) {
-            instance.changeYear(nextYear);
-          }
+      const minYear = 2000;
+      const maxYear = maxDate.getFullYear();
+
+      // Remove legacy injected native dropdown if present.
+      const legacySelect = currentMonth.querySelector("select.year-dropdown");
+      if (legacySelect instanceof HTMLElement) {
+        legacySelect.remove();
+      }
+
+      let trigger = currentMonth.querySelector("button.sc-year-trigger");
+      if (!(trigger instanceof HTMLButtonElement)) {
+        trigger = document.createElement("button");
+        trigger.type = "button";
+        trigger.className = "sc-year-trigger";
+        trigger.setAttribute("aria-haspopup", "listbox");
+        trigger.setAttribute("aria-expanded", "false");
+        currentMonth.appendChild(trigger);
+      }
+
+      let menu = container.querySelector("div.sc-year-menu");
+      if (!(menu instanceof HTMLDivElement)) {
+        menu = document.createElement("div");
+        menu.className = "sc-year-menu";
+        menu.setAttribute("role", "listbox");
+        menu.hidden = true;
+        container.appendChild(menu);
+      }
+
+      trigger.textContent = String(instance.currentYear);
+
+      if (menu.childElementCount === 0) {
+        for (let year = maxYear; year >= minYear; year -= 1) {
+          const option = document.createElement("button");
+          option.type = "button";
+          option.className = "sc-year-option";
+          option.setAttribute("role", "option");
+          option.dataset.year = String(year);
+          option.textContent = String(year);
+          option.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            instance.changeYear(year);
+            trigger.textContent = String(year);
+            menu.hidden = true;
+            trigger.setAttribute("aria-expanded", "false");
+            ensureMonthDropdown(instance);
+            ensureYearDropdown(instance);
+          });
+          menu.appendChild(option);
+        }
+      }
+
+      const positionMenu = () => {
+        const rect = trigger.getBoundingClientRect();
+        const calendarRect = container.getBoundingClientRect();
+        const top = rect.bottom - calendarRect.top + 8;
+        const left = rect.left - calendarRect.left;
+        menu.style.top = `${Math.max(44, top)}px`;
+        menu.style.left = `${Math.max(12, left)}px`;
+      };
+
+      const updateSelection = () => {
+        menu.querySelectorAll(".sc-year-option").forEach((node) => {
+          if (!(node instanceof HTMLElement)) return;
+          const isActive = node.dataset.year === String(instance.currentYear);
+          node.classList.toggle("is-active", isActive);
+          node.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+      };
+
+      updateSelection();
+
+      trigger.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        positionMenu();
+        const willOpen = menu.hidden;
+        menu.hidden = !willOpen;
+        trigger.setAttribute("aria-expanded", String(willOpen));
+        if (willOpen) updateSelection();
+      };
+
+      if (!yearMenuCloseHandlerBound) {
+        yearMenuCloseHandlerBound = true;
+        document.addEventListener(
+          "mousedown",
+          (event) => {
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            const openMenu = document.querySelector("div.sc-year-menu");
+            if (!(openMenu instanceof HTMLDivElement) || openMenu.hidden) return;
+            const openTrigger = document.querySelector("button.sc-year-trigger");
+            if (openTrigger && openTrigger.contains(target)) return;
+            if (openMenu.contains(target)) return;
+            openMenu.hidden = true;
+            if (openTrigger instanceof HTMLButtonElement) {
+              openTrigger.setAttribute("aria-expanded", "false");
+            }
+          },
+          { capture: true },
+        );
+      }
+
+      if (numWrapper) {
+        numWrapper.style.display = "none";
+      }
+      yearInput.style.display = "none";
+    };
+
+    const ensureMonthDropdown = (instance) => {
+      const container = instance?.calendarContainer;
+      if (!container) return;
+
+      const currentMonth = container.querySelector(".flatpickr-current-month");
+      if (!currentMonth) return;
+
+      // Hide Flatpickr's native month label/select to avoid duplicated month text.
+      const nativeCurMonth = currentMonth.querySelector(".cur-month");
+      if (nativeCurMonth instanceof HTMLElement) {
+        nativeCurMonth.style.display = "none";
+      }
+
+      // Flatpickr may render a native <select> for month; native option colors are OS-controlled.
+      const nativeMonthSelect = currentMonth.querySelector(".flatpickr-monthDropdown-months");
+      if (nativeMonthSelect instanceof HTMLElement) {
+        nativeMonthSelect.style.display = "none";
+      }
+
+      let trigger = container.querySelector("button.sc-month-trigger");
+      if (!(trigger instanceof HTMLButtonElement)) {
+        trigger = document.createElement("button");
+        trigger.type = "button";
+        trigger.className = "sc-month-trigger";
+        trigger.setAttribute("aria-haspopup", "listbox");
+        trigger.setAttribute("aria-expanded", "false");
+        // Place before year dropdown (it gets injected into currentMonth).
+        currentMonth.insertBefore(trigger, currentMonth.firstChild);
+      }
+
+      let menu = container.querySelector("div.sc-month-menu");
+      if (!(menu instanceof HTMLDivElement)) {
+        menu = document.createElement("div");
+        menu.className = "sc-month-menu";
+        menu.setAttribute("role", "listbox");
+        menu.hidden = true;
+        container.appendChild(menu);
+      }
+
+      const months = [
+        "Janeiro",
+        "Fevereiro",
+        "Março",
+        "Abril",
+        "Maio",
+        "Junho",
+        "Julho",
+        "Agosto",
+        "Setembro",
+        "Outubro",
+        "Novembro",
+        "Dezembro",
+      ];
+
+      trigger.textContent = months[instance.currentMonth] || "";
+
+      if (menu.childElementCount === 0) {
+        months.forEach((label, index) => {
+          const option = document.createElement("button");
+          option.type = "button";
+          option.className = "sc-month-option";
+          option.setAttribute("role", "option");
+          option.dataset.monthIndex = String(index);
+          option.textContent = label;
+          option.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (option.disabled) {
+              return;
+            }
+            instance.changeMonth(index - instance.currentMonth);
+            trigger.textContent = label;
+            menu.hidden = true;
+            trigger.setAttribute("aria-expanded", "false");
+          });
+          menu.appendChild(option);
         });
       }
 
-      const minYear = 2000;
-      const maxYear = new Date().getFullYear();
-      if (select.options.length === 0) {
-        for (let y = maxYear; y >= minYear; y -= 1) {
-          const option = document.createElement("option");
-          option.value = String(y);
-          option.textContent = String(y);
-          select.appendChild(option);
-        }
-      }
-      select.value = String(instance.currentYear);
+      const positionMenu = () => {
+        const rect = trigger.getBoundingClientRect();
+        const calendarRect = container.getBoundingClientRect();
+        const top = rect.bottom - calendarRect.top + 8;
+        const left = rect.left - calendarRect.left;
+        menu.style.top = `${Math.max(44, top)}px`;
+        menu.style.left = `${Math.max(12, left)}px`;
+      };
 
-      if (numWrapper) numWrapper.style.display = "none";
-      yearInput.style.display = "none";
+      const updateSelection = () => {
+        const maxYear = maxDate.getFullYear();
+        const isCurrentYear = instance.currentYear === maxYear;
+        const maxMonth = maxDate.getMonth();
+
+        // Clamp month when switching to current year (avoid selecting future months).
+        if (isCurrentYear && instance.currentMonth > maxMonth) {
+          instance.changeMonth(maxMonth - instance.currentMonth);
+          trigger.textContent = months[maxMonth] || trigger.textContent;
+        }
+
+        menu.querySelectorAll(".sc-month-option").forEach((node) => {
+          if (!(node instanceof HTMLElement)) return;
+          const isActive = node.dataset.monthIndex === String(instance.currentMonth);
+          node.classList.toggle("is-active", isActive);
+          node.setAttribute("aria-selected", isActive ? "true" : "false");
+
+          if (node instanceof HTMLButtonElement) {
+            const monthIndex = Number(node.dataset.monthIndex);
+            const isFutureMonth = isCurrentYear && monthIndex > maxMonth;
+            node.hidden = isFutureMonth;
+            node.disabled = false;
+            node.classList.remove("is-disabled");
+            node.removeAttribute("aria-disabled");
+          }
+        });
+      };
+
+      updateSelection();
+
+      trigger.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        positionMenu();
+        const willOpen = menu.hidden;
+        menu.hidden = !willOpen;
+        trigger.setAttribute("aria-expanded", String(willOpen));
+        if (willOpen) {
+          updateSelection();
+        }
+      };
+
+      if (!monthMenuCloseHandlerBound) {
+        monthMenuCloseHandlerBound = true;
+        document.addEventListener(
+          "mousedown",
+          (event) => {
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            const openMenu = document.querySelector("div.sc-month-menu");
+            if (!(openMenu instanceof HTMLDivElement) || openMenu.hidden) return;
+            const openTrigger = document.querySelector("button.sc-month-trigger");
+            if (openTrigger && openTrigger.contains(target)) return;
+            if (openMenu.contains(target)) return;
+            openMenu.hidden = true;
+            if (openTrigger instanceof HTMLButtonElement) {
+              openTrigger.setAttribute("aria-expanded", "false");
+            }
+          },
+          { capture: true },
+        );
+      }
     };
 
     window.flatpickr(dateInput, {
       dateFormat: "d/m/Y",
       allowInput: true,
-      maxDate: "today",
-      yearSelectorType: "dropdown",
+      clickOpens: true,
+      maxDate,
+      monthSelectorType: "static",
       onReady: (_, __, instance) => {
+        ensureMonthDropdown(instance);
         ensureYearDropdown(instance);
         dateInput.setCustomValidity("");
       },
+      onMonthChange: (_, __, instance) => {
+        ensureMonthDropdown(instance);
+        ensureYearDropdown(instance);
+      },
       onYearChange: (_, __, instance) => {
+        ensureMonthDropdown(instance);
         ensureYearDropdown(instance);
       },
       onOpen: (_, __, instance) => {
+        ensureMonthDropdown(instance);
         ensureYearDropdown(instance);
       },
       onChange: () => {
@@ -497,7 +993,7 @@ if (form) {
       }
     }
 
-    if (descricaoSelect) {
+    if (descricaoSelect && !descricaoSelect.disabled) {
       descricaoSelect.setCustomValidity("");
       if (!descricaoSelect.value) {
         descricaoSelect.setCustomValidity("Selecione a descrição.");
@@ -515,7 +1011,7 @@ if (form) {
       if (dateInput) dateInput.reportValidity();
       if (fileInput) fileInput.reportValidity();
       if (typeSelect) typeSelect.reportValidity();
-      if (descricaoSelect) descricaoSelect.reportValidity();
+      if (descricaoSelect && !descricaoSelect.disabled) descricaoSelect.reportValidity();
       return;
     }
 
@@ -540,40 +1036,75 @@ if (form) {
     try {
       const arquivosPdf = await filesToBase64(files);
       const nomesArquivos = filesToNames(files);
-      const token = await ensureCsrfToken();
-      const response = await fetch("/api/v1/itens", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-TOKEN": token,
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          valor: moneyToDecimal(moneyInput.value),
-          data: dataIso,
-          horarioCriacao: nowAsLocalDateTime(),
-          arquivosPdf,
-          nomesArquivos,
-          tipo,
-          descricao: descricaoSelect?.value || null,
-          razaoSocialNome: razaoSocialNomeInput?.value || null,
-          cnpjCpf: cnpjCpfInput?.value || null,
-          observacao: observacaoInput?.value || null,
-        }),
-      });
+
+      const payload = {
+        valor: moneyToDecimal(moneyInput.value),
+        data: dataIso,
+        horarioCriacao: nowAsLocalDateTime(),
+        arquivosPdf,
+        nomesArquivos,
+        tipo,
+        descricao: descricaoSelect?.value || null,
+        razaoSocialNome: razaoSocialNomeInput?.value || null,
+        cnpjCpf: cnpjCpfInput?.value || null,
+        observacao: observacaoInput?.value || null,
+      };
+
+      const postWithToken = async (token) =>
+        fetch("/api/v1/itens", {
+          method: "POST",
+          credentials: "same-origin",
+          redirect: "manual",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": token,
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+      let token = await ensureCsrfToken();
+      let response = await postWithToken(token);
+
+      const isRedirect =
+        response.type === "opaqueredirect" ||
+        response.redirected ||
+        (typeof response.status === "number" && response.status >= 300 && response.status < 400);
+      if (isRedirect) {
+        window.location.href = "/login";
+        throw new Error("Sessão expirada. Faça login novamente.");
+      }
+
+      if (response.status === 401) {
+        window.location.href = "/login";
+        throw new Error("Sessão expirada. Faça login novamente.");
+      }
+
+      if (response.status === 403) {
+        token = await ensureCsrfToken(true);
+        response = await postWithToken(token);
+      }
+
+      const isRedirectAfterRetry =
+        response.type === "opaqueredirect" ||
+        response.redirected ||
+        (typeof response.status === "number" && response.status >= 300 && response.status < 400);
+      if (isRedirectAfterRetry) {
+        window.location.href = "/login";
+        throw new Error("Sessão expirada. Faça login novamente.");
+      }
 
       if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        const message =
-          errorBody.message ||
-          errorBody.error ||
-          `Erro ${response.status} ao enviar comprovante.`;
+        const message = await extractErrorMessage(
+          response,
+          `Erro ${response.status} ao enviar comprovante.`,
+        );
         showConfirm(false, message);
         return;
       }
 
       showConfirm(true, "Seu comprovante foi salvo com sucesso.");
+      csrfToken = null;
     } catch (error) {
       showConfirm(false, "Erro ao enviar comprovante. Tente novamente.");
     }
@@ -587,11 +1118,10 @@ if (confirmOverlay && confirmClose) {
     if (form && lastSubmitOk) {
       form.reset();
     }
-    if (fileStatus && lastSubmitOk) {
-      fileStatus.classList.remove("is-ready");
-    }
-    if (fileHint && lastSubmitOk) {
-      fileHint.textContent = "Nenhum arquivo selecionado";
+    if (fileInput && lastSubmitOk) {
+      retainedReceiptFiles = [];
+      fileInput.value = "";
+      updateReceiptHint([]);
     }
     if (moneyInput && lastSubmitOk) {
       moneyInput.setCustomValidity("");
@@ -603,11 +1133,22 @@ if (confirmOverlay && confirmClose) {
     }
     if (typeSelect && lastSubmitOk) {
       typeSelect.setCustomValidity("");
-      typeSelect.value = "";
+      typeSelect.selectedIndex = 0;
+      if (customType?.trigger) {
+        customType.trigger.classList.remove("is-invalid");
+      }
+      customType?.close?.();
+      customType?.syncFromSelect?.();
+      typeSelect.dispatchEvent(new Event("change", { bubbles: true }));
     }
     if (descricaoSelect && lastSubmitOk) {
       descricaoSelect.setCustomValidity("");
-      descricaoSelect.value = "";
+      descricaoSelect.selectedIndex = 0;
+      if (customDescricao?.trigger) {
+        customDescricao.trigger.classList.remove("is-invalid");
+      }
+      customDescricao?.close?.();
+      customDescricao?.syncFromSelect?.();
     }
     if (razaoSocialNomeInput && lastSubmitOk) {
       razaoSocialNomeInput.setCustomValidity("");
@@ -620,6 +1161,9 @@ if (confirmOverlay && confirmClose) {
     if (observacaoInput && lastSubmitOk) {
       observacaoInput.setCustomValidity("");
       observacaoInput.value = "";
+    }
+    if (lastSubmitOk) {
+      csrfToken = null;
     }
   });
 }
