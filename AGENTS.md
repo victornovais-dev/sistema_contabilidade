@@ -34,3 +34,5 @@ Before every commit:
 ## Notes
 - Prefer `./mvnw` instead of global Maven
 - Keep commits focused by feature/package
+- Before running Maven in PowerShell, load Java 25 with:
+  - `.\scripts\use-java25.ps1`
