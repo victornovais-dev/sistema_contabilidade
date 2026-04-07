@@ -65,7 +65,6 @@ class PaginaUsuarioControllerTest {
         Arguments.of("home", "homePage", HttpStatus.OK),
         Arguments.of("lista comprovantes", "listaComprovantesPage", HttpStatus.OK),
         Arguments.of("relatorios", "relatoriosPage", HttpStatus.OK),
-        Arguments.of("relatorio pdf", "relatorioPdfPage", HttpStatus.OK),
         Arguments.of("admin", "adminPage", HttpStatus.OK));
   }
 
@@ -74,8 +73,7 @@ class PaginaUsuarioControllerTest {
         Arguments.of("adicionar comprovante", "adicionarComprovantePage"),
         Arguments.of("home", "homePage"),
         Arguments.of("lista comprovantes", "listaComprovantesPage"),
-        Arguments.of("relatorios", "relatoriosPage"),
-        Arguments.of("relatorio pdf", "relatorioPdfPage"));
+        Arguments.of("relatorios", "relatoriosPage"));
   }
 
   private static Stream<Arguments> adminOnlyMethods() {

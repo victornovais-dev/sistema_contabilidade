@@ -77,7 +77,7 @@ public class UsuarioExceptionHandler {
   }
 
   @ExceptionHandler(NoResourceFoundException.class)
-  public ResponseEntity<?> handleNoResourceFoundException(
+  public ResponseEntity<Object> handleNoResourceFoundException(
       NoResourceFoundException ex, WebRequest webRequest, HttpServletRequest httpRequest) {
     if (log.isDebugEnabled()) {
       log.debug("Recurso estatico nao encontrado: {}", ex.getResourcePath());

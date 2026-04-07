@@ -36,11 +36,12 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 public class UsuarioController {
 
   private static final String ID_PATH = "/{id}";
+  private static final String ADMIN_EXPRESSION = "hasRole('ADMIN')";
 
   private final UsuarioService usuarioService;
 
   @PostMapping
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_EXPRESSION)
   public ResponseEntity<UsuarioDto> criar(@Valid @RequestBody UsuarioCreateRequest request) {
     UsuarioDto criado = usuarioService.save(request);
     URI location =
@@ -52,7 +53,7 @@ public class UsuarioController {
   }
 
   @GetMapping
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_EXPRESSION)
   public ResponseEntity<List<UsuarioDto>> listarTodos() {
     List<UsuarioDto> response = usuarioService.listarTodos();
     return ResponseEntity.ok(response);
@@ -75,34 +76,34 @@ public class UsuarioController {
   }
 
   @GetMapping(ID_PATH)
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_EXPRESSION)
   public ResponseEntity<UsuarioDto> buscarPorId(@PathVariable("id") UUID id) {
     return ResponseEntity.ok(usuarioService.findById(id));
   }
 
   @GetMapping("/por-email")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_EXPRESSION)
   public ResponseEntity<UsuarioComRolesDto> buscarPorEmail(
       @RequestParam("email") @NotBlank @Email String email) {
     return ResponseEntity.ok(usuarioService.findComRolesByEmail(email));
   }
 
   @PutMapping(ID_PATH)
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_EXPRESSION)
   public ResponseEntity<UsuarioDto> atualizar(
       @PathVariable("id") UUID id, @Valid @RequestBody UsuarioDto request) {
     return ResponseEntity.ok(usuarioService.update(id, request));
   }
 
   @PutMapping("/por-email")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_EXPRESSION)
   public ResponseEntity<UsuarioComRolesDto> atualizarPorEmail(
       @Valid @RequestBody UsuarioUpdateByEmailRequest request) {
     return ResponseEntity.ok(usuarioService.updateByEmail(request));
   }
 
   @DeleteMapping(ID_PATH)
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_EXPRESSION)
   public ResponseEntity<Void> deletar(@PathVariable("id") UUID id) {
     usuarioService.deletar(id);
     return ResponseEntity.noContent().build();

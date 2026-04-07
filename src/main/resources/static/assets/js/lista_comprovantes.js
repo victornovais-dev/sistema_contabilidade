@@ -12,7 +12,6 @@
 const filterDateInput = document.querySelector(".filter-date-range");
 const filterDescricaoTrigger = document.querySelector(".filter-descricao-trigger");
 const filterDescricaoMenu = document.querySelector(".filter-descricao-menu");
-const filterDescricaoOptions = document.querySelectorAll(".filter-descricao-option");
 let filterDescricaoValue = "";
 const filterRazaoInput = document.querySelector(".filter-razao-input");
 const filterTypeTrigger = document.querySelector(".filter-type-trigger");
@@ -53,6 +52,45 @@ let yearMenuCloseHandlerBound = false;
 let observacaoIsEditing = false;
 let retainedUploadFiles = [];
 let settingUploadFilesProgrammatically = false;
+
+const RECEITA_DESCRICOES = ["CONTA FEFEC", "CONTA FP", "CONTA DC"];
+
+const DESPESA_DESCRICOES = [
+  "Publicidade por materiais impressos",
+  "Publicidade na internet",
+  "Publicidade por carro de som",
+  "Produ\u00E7\u00E3o de programas de r\u00E1dio, TV ou v\u00EDdeo",
+  "Impulsionamento de conte\u00FAdo",
+  "Servi\u00E7os prestados por terceiros",
+  "Servi\u00E7os advocat\u00EDcios",
+  "Servi\u00E7os cont\u00E1beis",
+  "Atividades de milit\u00E2ncia e mobiliza\u00E7\u00E3o de rua",
+  "Remunera\u00E7\u00E3o de pessoal",
+  "Aluguel de im\u00F3veis",
+  "Aluguel de ve\u00EDculos",
+  "Combust\u00EDveis e lubrificantes",
+  "Energia el\u00E9trica",
+  "\u00C1gua",
+  "Internet",
+  "Telefone",
+  "Material de expediente",
+  "Material de campanha (n\u00E3o publicit\u00E1rio)",
+  "Alimenta\u00E7\u00E3o",
+  "Transporte ou deslocamento",
+  "Hospedagem",
+  "Organiza\u00E7\u00E3o de eventos",
+  "Produ\u00E7\u00E3o de jingles, vinhetas e slogans",
+  "Produ\u00E7\u00E3o de material gr\u00E1fico",
+  "Cria\u00E7\u00E3o e inclus\u00E3o de p\u00E1ginas na internet",
+  "Manuten\u00E7\u00E3o de sites",
+  "Softwares e ferramentas digitais",
+  "Taxas banc\u00E1rias",
+  "Encargos financeiros",
+  "Multas eleitorais",
+  "Doa\u00E7\u00F5es a outros candidatos/partidos",
+  "Baixa de estim\u00E1veis em dinheiro",
+  "Outras despesas",
+];
 
 const getAccessToken = () => localStorage.getItem("sc_access_token");
 
@@ -151,14 +189,67 @@ const formatDescricao = (value) => {
   const key = String(value || "").trim().toUpperCase();
   const labels = {
     ALUGUEL: "Aluguel",
-    ENERGIA: "Energia elétrica",
-    AGUA: "Ãgua",
-    SERVICOS: "ServiÃ§os",
+    ENERGIA: "Energia el\u00E9trica",
+    AGUA: "\u00C1gua",
+    SERVICOS: "Servi\u00E7os",
     IMPOSTOS: "Impostos",
     MATERIAIS: "Materiais",
     OUTROS: "Outros",
   };
   return labels[key] || (value ? String(value) : "-");
+};
+
+const getFilterDescricaoOptions = () =>
+  Array.from(filterDescricaoMenu?.querySelectorAll(".filter-descricao-option") || []);
+
+const closeFilterDescricaoMenu = () => {
+  if (!filterDescricaoMenu || !filterDescricaoTrigger) return;
+  filterDescricaoMenu.hidden = true;
+  filterDescricaoTrigger.setAttribute("aria-expanded", "false");
+};
+
+const getDescricaoOptionsByTipo = (tipoValue) => {
+  const tipo = String(tipoValue || "").trim().toLowerCase();
+  if (tipo === "receita") {
+    return [...RECEITA_DESCRICOES];
+  }
+  if (tipo === "despesa") {
+    return [...DESPESA_DESCRICOES];
+  }
+  return [...new Set([...RECEITA_DESCRICOES, ...DESPESA_DESCRICOES])].sort((a, b) =>
+    a.localeCompare(b, "pt-BR", { sensitivity: "base" }),
+  );
+};
+
+const renderFilterDescricaoOptions = (tipoValue) => {
+  if (!filterDescricaoMenu || !filterDescricaoTrigger) return;
+
+  const options = getDescricaoOptionsByTipo(tipoValue);
+  const shouldKeepSelection = options.some((option) => option === filterDescricaoValue);
+  if (!shouldKeepSelection) {
+    filterDescricaoValue = "";
+  }
+
+  filterDescricaoMenu.innerHTML = "";
+
+  const createOption = (value, label, active) => {
+    const button = document.createElement("button");
+    button.className = `filter-descricao-option${active ? " is-active" : ""}`;
+    button.type = "button";
+    button.setAttribute("role", "option");
+    button.dataset.value = value;
+    button.textContent = label;
+    return button;
+  };
+
+  filterDescricaoMenu.appendChild(createOption("", "Todas", filterDescricaoValue === ""));
+  options.forEach((option) => {
+    filterDescricaoMenu.appendChild(
+      createOption(option, option, String(option) === String(filterDescricaoValue)),
+    );
+  });
+
+  filterDescricaoTrigger.textContent = filterDescricaoValue || "Todas";
 };
 
 const formatText = (value) => (value ? String(value) : "-");
@@ -1570,11 +1661,6 @@ const bindEvents = () => {
   }
 
   if (filterDescricaoTrigger && filterDescricaoMenu) {
-    const closeMenu = () => {
-      filterDescricaoMenu.hidden = true;
-      filterDescricaoTrigger.setAttribute("aria-expanded", "false");
-    };
-
     filterDescricaoTrigger.addEventListener("click", (event) => {
       event.preventDefault();
       const willOpen = filterDescricaoMenu.hidden;
@@ -1582,16 +1668,18 @@ const bindEvents = () => {
       filterDescricaoTrigger.setAttribute("aria-expanded", String(willOpen));
     });
 
-    filterDescricaoOptions.forEach((option) => {
-      option.addEventListener("click", () => {
-        const value = option.dataset.value || "";
-        filterDescricaoValue = value;
-        filterDescricaoTrigger.textContent = option.textContent || "Todas";
-        filterDescricaoOptions.forEach((node) => node.classList.remove("is-active"));
-        option.classList.add("is-active");
-        closeMenu();
-        applyFilters();
-      });
+    filterDescricaoMenu.addEventListener("click", (event) => {
+      const option = event.target instanceof Element
+        ? event.target.closest(".filter-descricao-option")
+        : null;
+      if (!(option instanceof HTMLButtonElement)) return;
+
+      filterDescricaoValue = option.dataset.value || "";
+      filterDescricaoTrigger.textContent = option.textContent || "Todas";
+      getFilterDescricaoOptions().forEach((node) => node.classList.remove("is-active"));
+      option.classList.add("is-active");
+      closeFilterDescricaoMenu();
+      applyFilters();
     });
 
     document.addEventListener(
@@ -1601,7 +1689,7 @@ const bindEvents = () => {
         if (!(target instanceof Node)) return;
         if (filterDescricaoTrigger.contains(target)) return;
         if (filterDescricaoMenu.contains(target)) return;
-        closeMenu();
+        closeFilterDescricaoMenu();
       },
       { capture: true },
     );
@@ -1631,6 +1719,7 @@ const bindEvents = () => {
         filterTypeTrigger.textContent = option.textContent || "Todos";
         filterTypeOptions.forEach((node) => node.classList.remove("is-active"));
         option.classList.add("is-active");
+        renderFilterDescricaoOptions(filterTypeValue);
         closeMenu();
         applyFilters();
       });
@@ -1660,13 +1749,12 @@ const bindEvents = () => {
       }
       filterDescricaoValue = "";
       if (filterDescricaoTrigger) filterDescricaoTrigger.textContent = "Todas";
-      filterDescricaoOptions.forEach((node) => node.classList.remove("is-active"));
-      if (filterDescricaoOptions[0]) filterDescricaoOptions[0].classList.add("is-active");
       if (filterRazaoInput) filterRazaoInput.value = "";
       filterTypeValue = "";
       if (filterTypeTrigger) filterTypeTrigger.textContent = "Todos";
       filterTypeOptions.forEach((node) => node.classList.remove("is-active"));
       if (filterTypeOptions[0]) filterTypeOptions[0].classList.add("is-active");
+      renderFilterDescricaoOptions(filterTypeValue);
       applyFilters();
     });
   }
@@ -1680,12 +1768,13 @@ const bindEvents = () => {
         if (filterRazaoInput) filterRazaoInput.value = "";
         filterDescricaoValue = "";
         if (filterDescricaoTrigger) filterDescricaoTrigger.textContent = "Todas";
-        filterDescricaoOptions.forEach((node) => node.classList.remove("is-active"));
-        if (filterDescricaoOptions[0]) filterDescricaoOptions[0].classList.add("is-active");
+        renderFilterDescricaoOptions(filterTypeValue);
         applyFilters();
       }
     });
   }
+
+  renderFilterDescricaoOptions(filterTypeValue);
 
   if (itemsList) {
     itemsList.addEventListener("click", (event) => {

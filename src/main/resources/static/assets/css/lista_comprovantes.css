@@ -458,7 +458,9 @@ html[data-theme="light"] .filter-type-option.is-active {
   position: absolute;
   top: calc(100% + 10px);
   left: 0;
-  width: 240px;
+  width: min(360px, calc(100vw - 48px));
+  max-height: 320px;
+  overflow-y: auto;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(20, 20, 24, 0.98);

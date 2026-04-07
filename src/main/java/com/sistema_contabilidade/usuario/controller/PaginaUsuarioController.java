@@ -70,13 +70,6 @@ public class PaginaUsuarioController {
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
   }
 
-  @GetMapping(value = "/relatorio_pdf", produces = MediaType.TEXT_HTML_VALUE)
-  @PreAuthorize(IS_AUTHENTICATED_EXPRESSION)
-  public ResponseEntity<Resource> relatorioPdfPage() {
-    Resource resource = new ClassPathResource("static/relatorio_pdf.html");
-    return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
-  }
-
   @GetMapping(value = "/admin", produces = MediaType.TEXT_HTML_VALUE)
   @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Resource> adminPage() {

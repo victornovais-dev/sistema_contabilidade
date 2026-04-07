@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.item.service;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -48,6 +49,16 @@ class ItemArquivoStorageServiceTest {
     assertEquals(2, caminhos.size());
     assertArrayEquals(conteudoA, Files.readAllBytes(Path.of(caminhos.get(0))));
     assertArrayEquals(conteudoB, Files.readAllBytes(Path.of(caminhos.get(1))));
+  }
+
+  @Test
+  @DisplayName("Deve retornar lista vazia ao salvar multiplos PDFs nulos ou vazios")
+  void deveRetornarListaVaziaAoSalvarMultiplosPdfsNulosOuVazios() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+
+    assertTrue(service.salvarPdfs(null).isEmpty());
+    assertTrue(service.salvarPdfs(List.of()).isEmpty());
   }
 
   @Test
@@ -104,6 +115,19 @@ class ItemArquivoStorageServiceTest {
   }
 
   @Test
+  @DisplayName("Deve truncar nome de arquivo muito longo")
+  void deveTruncarNomeDeArquivoMuitoLongo() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+    byte[] conteudo = "pdf-test".getBytes();
+    String nomeLongo = "a".repeat(140);
+
+    String caminhoSalvo = service.salvarPdf(conteudo, nomeLongo);
+
+    assertTrue(Path.of(caminhoSalvo).getFileName().toString().length() <= 120);
+  }
+
+  @Test
   @DisplayName("Deve carregar PDF salvo")
   void deveCarregarPdfSalvo() {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
@@ -143,6 +167,19 @@ class ItemArquivoStorageServiceTest {
   }
 
   @Test
+  @DisplayName("Deve retornar 404 para arquivo inexistente dentro do diretorio base")
+  void deveRetornar404ParaArquivoInexistenteDentroDoDiretorioBase() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+    String caminhoInexistente = tempDir.resolve("uploads").resolve("itens").resolve("nao-existe.pdf").toString();
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> service.carregarPdf(caminhoInexistente));
+
+    assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+  }
+
+  @Test
   @DisplayName("Deve deletar PDF salvo")
   void deveDeletarPdfSalvo() {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
@@ -169,5 +206,14 @@ class ItemArquivoStorageServiceTest {
         assertThrows(ResponseStatusException.class, () -> service.deletarPdf(caminhoForaTexto));
 
     assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve ignorar delecao quando caminho for vazio")
+  void deveIgnorarDelecaoQuandoCaminhoForVazio() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
+
+    assertDoesNotThrow(() -> service.deletarPdf(" "));
   }
 }

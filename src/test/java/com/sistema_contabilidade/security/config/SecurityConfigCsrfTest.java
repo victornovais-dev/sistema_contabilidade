@@ -15,8 +15,8 @@ import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
-import java.util.UUID;
 import jakarta.servlet.http.Cookie;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -145,7 +145,9 @@ class SecurityConfigCsrfTest {
 
     MvcResult csrfResult =
         mockMvc
-            .perform(get("/api/v1/auth/csrf").cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_manager")))
+            .perform(
+                get("/api/v1/auth/csrf")
+                    .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_manager")))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode payload = new ObjectMapper().readTree(csrfResult.getResponse().getContentAsString());

@@ -111,7 +111,8 @@ class UsuarioControllerTest {
             null);
     when(usuarioService.updatePerfil("victor@email.com", request)).thenReturn(atualizado);
 
-    ResponseEntity<UsuarioDto> resultado = usuarioController.atualizarPerfil(authentication, request);
+    ResponseEntity<UsuarioDto> resultado =
+        usuarioController.atualizarPerfil(authentication, request);
 
     assertEquals(HttpStatus.OK, resultado.getStatusCode());
     assertEquals("Victor", resultado.getBody().getNome());

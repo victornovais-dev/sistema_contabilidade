@@ -64,7 +64,7 @@ class RelatorioControllerWebMvcTest {
     byte[] pdf = "%PDF-1.4 teste".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
 
     when(relatorioFinanceiroService.gerar(any(), eq(null))).thenReturn(relatorio);
-    when(relatorioFinanceiroService.gerarPdf(relatorio)).thenReturn(pdf);
+    when(relatorioFinanceiroService.gerarPdf(any(), eq(relatorio))).thenReturn(pdf);
 
     mockMvc
         .perform(get("/api/v1/relatorios/financeiro/pdf"))

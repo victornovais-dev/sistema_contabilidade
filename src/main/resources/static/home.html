@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Boas-vindas</title>
+    <title>Home | Sistema</title>
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
     <script src="assets/js/theme-init.js"></script>
     <link rel="stylesheet" href="assets/css/home.css" />
@@ -12,41 +12,103 @@
   <body>
     <div id="navbar-root" data-navbar-root></div>
 
-    <div class="bg">
+    <div class="bg" aria-hidden="true">
       <div class="orb orb-1"></div>
       <div class="orb orb-2"></div>
       <div class="grid"></div>
     </div>
 
-    <main class="page page-wide">
-      <section class="welcome-left" aria-label="Boas-vindas">
-        <p class="welcome-line">
-          <span class="welcome-prefix" data-welcome-prefix>Bem vindo de volta,</span>
-          <span class="welcome-name" data-first-name>...</span>
-          <span aria-hidden="true">👋</span>
-        </p>
+    <main class="dashboard-shell">
+      <section class="dashboard-hero" aria-label="Boas-vindas">
+        <div class="dashboard-hero-copy">
+          <h1 class="dashboard-title">
+            <span class="welcome-prefix" data-welcome-prefix>Bem-vindo de volta,</span>
+            <span class="welcome-name" data-first-name>...</span>
+            <span class="welcome-wave" aria-hidden="true">&#128075;</span>
+          </h1>
+          <p class="dashboard-subtitle">
+            <span data-current-month>Abril de 2026</span>
+            <span class="subtitle-separator">&middot;</span>
+            <span>Saldo atualizado agora</span>
+          </p>
+        </div>
+
+        <a class="dashboard-primary-action" href="/adicionar_comprovante">+ Novo Lan&ccedil;amento</a>
       </section>
 
-      <section class="home-metrics" aria-label="Resumo financeiro">
-        <article class="metric-card metric-card-positive">
-          <h2 class="metric-title">Receita</h2>
-          <p class="metric-value metric-value-positive" data-metric="receitas">R$ 0,00</p>
-          <p class="metric-pill metric-pill-positive" data-pill="receitas" hidden></p>
+      <section class="metrics-grid" aria-label="Resumo financeiro">
+        <article class="metric-card metric-card-income">
+          <p class="metric-label">Receitas</p>
+          <p class="metric-amount metric-amount-positive" data-metric="receitas">R$ 0,00</p>
+          <p class="metric-chip metric-chip-positive" data-pill="receitas">Entradas no per&iacute;odo</p>
         </article>
-        <article class="metric-card metric-card-negative">
-          <h2 class="metric-title">Despesas</h2>
-          <p class="metric-value metric-value-negative" data-metric="despesas">R$ 0,00</p>
-          <p class="metric-pill metric-pill-negative" data-pill="despesas" hidden></p>
+
+        <article class="metric-card metric-card-expense">
+          <p class="metric-label">Despesas</p>
+          <p class="metric-amount metric-amount-negative" data-metric="despesas">R$ 0,00</p>
+          <p class="metric-chip metric-chip-negative" data-pill="despesas">Sa&iacute;das no per&iacute;odo</p>
         </article>
-        <article class="metric-card metric-card-positive">
-          <h2 class="metric-title">Resultado líquido</h2>
-          <p class="metric-value metric-value-positive" data-metric="saldoFinal">R$ 0,00</p>
-          <p class="metric-pill metric-pill-positive" data-pill="saldoFinal" hidden></p>
+
+        <article class="metric-card metric-card-balance">
+          <p class="metric-label">Utilizado</p>
+          <p class="metric-amount metric-amount-utilizado" data-metric="utilizado">0%</p>
+          <p class="metric-chip metric-chip-positive" data-pill="utilizado">Atualizado hoje</p>
         </article>
-        <article class="metric-card metric-card-neutral">
-          <h2 class="metric-title">Saldo Final</h2>
-          <p class="metric-value metric-value-neutral" data-metric="saldoEmCaixa">R$ 0,00</p>
-          <p class="metric-pill metric-pill-neutral">Saldo</p>
+
+        <article class="metric-card metric-card-cash">
+          <p class="metric-label">Saldo final</p>
+          <p class="metric-amount metric-amount-neutral" data-metric="saldoEmCaixa">R$ 0,00</p>
+          <p class="metric-chip metric-chip-neutral" hidden></p>
+        </article>
+      </section>
+
+      <section class="dashboard-content" aria-label="Painel financeiro">
+        <article class="panel-card chart-panel">
+          <header class="panel-header">
+            <h2>Receitas vs Despesas</h2>
+            <a href="/relatorios" class="panel-link">Ver relat&oacute;rio &rarr;</a>
+          </header>
+
+          <div class="chart-stage" role="img" aria-label="Comparativo visual entre receitas e despesas por m&ecirc;s">
+            <div class="chart-columns" data-income-expense-chart>
+              <div class="chart-month">
+                <div class="chart-bars">
+                  <span class="chart-bar chart-bar-income" style="--bar-height: 16%"></span>
+                  <span class="chart-bar chart-bar-expense" style="--bar-height: 14%"></span>
+                </div>
+                <span class="chart-month-label">...</span>
+              </div>
+            </div>
+
+            <div class="chart-legend" aria-hidden="true">
+              <span class="chart-legend-item">
+                <span class="chart-legend-dot chart-legend-dot-income"></span>
+                Receitas
+              </span>
+              <span class="chart-legend-item">
+                <span class="chart-legend-dot chart-legend-dot-expense"></span>
+                Despesas
+              </span>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel-card ledger-panel">
+          <header class="panel-header">
+            <h2>&Uacute;ltimos lan&ccedil;amentos</h2>
+            <a href="/lista_comprovantes" class="panel-link">Ver todos &rarr;</a>
+          </header>
+
+          <div class="ledger-list" data-latest-launches>
+            <article class="ledger-item">
+              <div class="ledger-icon ledger-icon-positive">&uarr;</div>
+              <div class="ledger-copy">
+                <h3>Lancamento recente</h3>
+                <p>Carregando itens...</p>
+              </div>
+              <strong class="ledger-value ledger-value-positive">R$ 0,00</strong>
+            </article>
+          </div>
         </article>
       </section>
     </main>
@@ -54,5 +116,7 @@
     <script src="assets/js/navbar.js" defer></script>
     <script src="assets/js/home-welcome.js" defer></script>
     <script src="assets/js/home-metrics.js" defer></script>
+    <script src="assets/js/home-income-expense-chart.js" defer></script>
+    <script src="assets/js/home-latest-launches.js" defer></script>
   </body>
 </html>

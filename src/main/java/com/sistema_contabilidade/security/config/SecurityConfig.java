@@ -131,7 +131,8 @@ public class SecurityConfig {
 
   @Bean
   CookieCsrfTokenRepository csrfTokenRepository() {
-    CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+    CookieCsrfTokenRepository repository = new CookieCsrfTokenRepository();
+    repository.setCookieCustomizer(builder -> builder.httpOnly(true));
     repository.setCookiePath("/");
     repository.setHeaderName("X-CSRF-TOKEN");
     return repository;
