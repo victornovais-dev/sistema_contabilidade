@@ -1,5 +1,5 @@
 ---
-name: security-tests
+name: springboot-security-tests
 description: >
   Criar testes integrados de segurança para aplicações Java Spring Boot usando JUnit 5,
   Spring Security Test, MockMvc, Testcontainers, REST Assured e JaCoCo.
