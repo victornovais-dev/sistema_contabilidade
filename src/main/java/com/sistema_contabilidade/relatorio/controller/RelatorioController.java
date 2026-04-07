@@ -33,7 +33,7 @@ public class RelatorioController {
   public ResponseEntity<byte[]> baixarRelatorioFinanceiroPdf(
       Authentication authentication, @RequestParam(name = "role", required = false) String role) {
     RelatorioFinanceiroResponse relatorio = relatorioFinanceiroService.gerar(authentication, role);
-    byte[] payload = relatorioFinanceiroService.gerarPdf(relatorio);
+    byte[] payload = relatorioFinanceiroService.gerarPdf(authentication, relatorio);
     return ResponseEntity.ok()
         .header(
             HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"relatorio-financeiro.pdf\"")
