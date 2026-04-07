@@ -17,6 +17,7 @@ import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
+import com.sistema_contabilidade.usuario.dto.UsuarioSelfUpdateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
@@ -436,6 +437,79 @@ class UsuarioServiceTest {
     assertEquals(2, usuario.getRoles().size());
     assertEquals(2, resultado.getRoles().size());
     verify(customUserDetailsService).atualizarCacheUsuario(usuario.getId(), "sup@email.com");
+  }
+
+  @Test
+  @DisplayName("Deve atualizar o proprio perfil com troca de email e senha")
+  void updatePerfilDeveAtualizarEmailESenha() {
+    Usuario usuario =
+        novoUsuario(
+            UUID.fromString("77777777-7777-7777-7777-777777777777"), "Ana", "ana@email.com");
+    UsuarioSelfUpdateRequest request =
+        new UsuarioSelfUpdateRequest("Ana Clara", "ana.clara@email.com", "nova-senha");
+    Usuario salvo =
+        novoUsuario(
+            usuario.getId(), "Ana Clara", "ana.clara@email.com");
+    salvo.setSenha("encoded-nova-senha");
+    UsuarioDto dto =
+        new UsuarioDto(usuario.getId(), "Ana Clara", "ana.clara@email.com", null);
+
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
+    when(usuarioRepository.findByEmail("ana.clara@email.com")).thenReturn(Optional.empty());
+    when(passwordEncoder.encode("nova-senha")).thenReturn("encoded-nova-senha");
+    when(usuarioRepository.save(usuario)).thenReturn(salvo);
+    when(usuarioMapper.toDto(salvo)).thenReturn(dto);
+
+    UsuarioDto resultado = usuarioService.updatePerfil("ana@email.com", request);
+
+    assertEquals("Ana Clara", resultado.getNome());
+    verify(customUserDetailsService).atualizarCacheUsuario(usuario.getId(), "ana.clara@email.com");
+    verify(customUserDetailsService).removerCacheUsuario(usuario.getId(), "ana@email.com");
+  }
+
+  @Test
+  @DisplayName("Deve buscar nome por email normalizado")
+  void findNomeByEmailDeveBuscarNomePorEmailNormalizado() {
+    Usuario usuario =
+        novoUsuario(
+            UUID.fromString("88888888-8888-8888-8888-888888888888"), "Maria", "maria@email.com");
+    when(usuarioRepository.findByEmail("maria@email.com")).thenReturn(Optional.of(usuario));
+
+    String nome = usuarioService.findNomeByEmail("  maria@email.com ");
+
+    assertEquals("Maria", nome);
+  }
+
+  @Test
+  @DisplayName("Deve retornar role nao encontrada ao salvar com role ausente")
+  void saveDeveRetornarRoleNaoEncontradaQuandoRoleNaoExistir() {
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN", null);
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> usuarioService.save(request));
+
+    assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    assertEquals("Role nao encontrada", ex.getReason());
+  }
+
+  @Test
+  @DisplayName("Deve retornar bad request ao atualizar roles por email sem roles")
+  void updateByEmailSemRolesDeveRetornarBadRequest() {
+    UsuarioUpdateByEmailRequest request =
+        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of());
+    Usuario usuario =
+        novoUsuario(
+            UUID.fromString("99999999-9999-9999-9999-999999999999"), "Suporte", "sup@email.com");
+    when(usuarioRepository.findByEmail("sup@email.com")).thenReturn(Optional.of(usuario));
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> usuarioService.updateByEmail(request));
+
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    assertEquals("Ao menos uma role deve ser informada", ex.getReason());
   }
 
   private Usuario novoUsuario(UUID id, String nome, String email) {

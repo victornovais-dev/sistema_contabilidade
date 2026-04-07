@@ -1,14 +1,18 @@
 package com.sistema_contabilidade.usuario.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.core.io.Resource;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -132,6 +136,48 @@ class UsuarioExceptionHandlerTest {
 
     assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
     assertEquals("An unexpected error occurred", response.getBody().message());
+  }
+
+  @Test
+  @DisplayName("Deve retornar pagina HTML 404 para requisicao de pagina")
+  void deveRetornarPaginaHtml404ParaRequisicaoDePagina() {
+    UsuarioExceptionHandler handler = new UsuarioExceptionHandler();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/relatorios");
+    request.addHeader("Accept", MediaType.TEXT_HTML_VALUE);
+    org.springframework.web.servlet.resource.NoResourceFoundException exception =
+        Mockito.mock(org.springframework.web.servlet.resource.NoResourceFoundException.class);
+    Mockito.when(exception.getResourcePath()).thenReturn("/relatorios");
+
+    ResponseEntity<Object> response =
+        handler.handleNoResourceFoundException(
+            exception,
+            new ServletWebRequest(request),
+            request);
+
+    assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    assertEquals(MediaType.TEXT_HTML, response.getHeaders().getContentType());
+    assertInstanceOf(Resource.class, response.getBody());
+  }
+
+  @Test
+  @DisplayName("Deve retornar JSON 404 para requisicao de API")
+  void deveRetornarJson404ParaRequisicaoDeApi() {
+    UsuarioExceptionHandler handler = new UsuarioExceptionHandler();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/inexistente");
+    request.addHeader("Accept", MediaType.APPLICATION_JSON_VALUE);
+    org.springframework.web.servlet.resource.NoResourceFoundException exception =
+        Mockito.mock(org.springframework.web.servlet.resource.NoResourceFoundException.class);
+    Mockito.when(exception.getResourcePath()).thenReturn("/api/v1/inexistente");
+
+    ResponseEntity<Object> response =
+        handler.handleNoResourceFoundException(
+            exception,
+            new ServletWebRequest(request),
+            request);
+
+    assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    ErrorResponse body = assertInstanceOf(ErrorResponse.class, response.getBody());
+    assertEquals("Recurso nao encontrado", body.message());
   }
 
   private static class DummyController {

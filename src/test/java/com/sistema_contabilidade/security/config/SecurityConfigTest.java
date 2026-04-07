@@ -7,11 +7,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.sistema_contabilidade.security.filter.JwtAuthFilter;
 import com.sistema_contabilidade.security.filter.RateLimitFilter;
 import com.sistema_contabilidade.security.filter.RequestContextMdcFilter;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 
@@ -52,5 +56,28 @@ class SecurityConfigTest {
     String encoded = encoder.encode(raw);
 
     assertTrue(encoder.matches(raw, encoded));
+  }
+
+  @Test
+  @DisplayName("Deve configurar cookie CSRF como HttpOnly e cabecalho customizado")
+  void deveConfigurarCookieCsrfComoHttpOnlyECabecalhoCustomizado() {
+    SecurityConfig config =
+        new SecurityConfig(
+            Mockito.mock(JwtAuthFilter.class),
+            Mockito.mock(RateLimitFilter.class),
+            Mockito.mock(RequestContextMdcFilter.class));
+
+    CsrfTokenRepository repository = config.csrfTokenRepository();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    CsrfToken token = repository.generateToken(request);
+
+    repository.saveToken(token, request, response);
+
+    Cookie cookie = response.getCookie("XSRF-TOKEN");
+    assertNotNull(cookie);
+    assertTrue(cookie.isHttpOnly());
+    assertEquals("/", cookie.getPath());
+    assertEquals("X-CSRF-TOKEN", token.getHeaderName());
   }
 }
