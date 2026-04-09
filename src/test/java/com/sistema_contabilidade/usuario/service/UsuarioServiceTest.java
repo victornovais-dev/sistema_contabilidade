@@ -62,7 +62,7 @@ class UsuarioServiceTest {
     role.setNome("ADMIN");
     UsuarioDto response = new UsuarioDto(salvo.getId(), salvo.getNome(), salvo.getEmail(), null);
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
-    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(role));
+    when(roleRepository.findByNomeIgnoreCase("ADMIN")).thenReturn(Optional.of(role));
     when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
     when(usuarioRepository.save(any(Usuario.class))).thenReturn(salvo);
     when(usuarioMapper.toDto(salvo)).thenReturn(response);
@@ -73,7 +73,7 @@ class UsuarioServiceTest {
     // Assert
     assertEquals(response, resultado);
     verify(usuarioRepository).save(any(Usuario.class));
-    verify(roleRepository).findByNome("ADMIN");
+    verify(roleRepository).findByNomeIgnoreCase("ADMIN");
   }
 
   @Test
@@ -81,19 +81,19 @@ class UsuarioServiceTest {
   void criarComMultiplasRolesDeveSalvarUsuario() {
     UsuarioCreateRequest request =
         new UsuarioCreateRequest(
-            "Ana", "ana@email.com", "123456", null, Set.of("ADMIN", "VALDEMAR"));
+            "Ana", "ana@email.com", "123456", null, Set.of("ADMIN", "TARCISIO"));
     Usuario salvo =
         novoUsuario(
             UUID.fromString("12121212-1212-1212-1212-121212121212"), "Ana", "ana@email.com");
     Role admin = new Role();
     admin.setNome("ADMIN");
-    Role valdemar = new Role();
-    valdemar.setNome("VALDEMAR");
+    Role tarcisio = new Role();
+    tarcisio.setNome("TARCISIO");
     UsuarioDto response = new UsuarioDto(salvo.getId(), salvo.getNome(), salvo.getEmail(), null);
 
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
-    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(admin));
-    when(roleRepository.findByNome("VALDEMAR")).thenReturn(Optional.of(valdemar));
+    when(roleRepository.findByNomeIgnoreCase("ADMIN")).thenReturn(Optional.of(admin));
+    when(roleRepository.findByNomeIgnoreCase("TARCISIO")).thenReturn(Optional.of(tarcisio));
     when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
     when(usuarioRepository.save(any(Usuario.class))).thenReturn(salvo);
     when(usuarioMapper.toDto(salvo)).thenReturn(response);
@@ -101,8 +101,31 @@ class UsuarioServiceTest {
     UsuarioDto resultado = usuarioService.save(request);
 
     assertEquals(response, resultado);
-    verify(roleRepository).findByNome("ADMIN");
-    verify(roleRepository).findByNome("VALDEMAR");
+    verify(roleRepository).findByNomeIgnoreCase("ADMIN");
+    verify(roleRepository).findByNomeIgnoreCase("TARCISIO");
+  }
+
+  @Test
+  @DisplayName("Deve criar usuario com role cadastrada dinamicamente no banco")
+  void criarComRoleDinamicaDeveSalvarUsuario() {
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "MARCOS PONTES", null);
+    Usuario salvo =
+        novoUsuario(
+            UUID.fromString("34343434-3434-3434-3434-343434343434"), "Ana", "ana@email.com");
+    Role role = role("MARCOS PONTES");
+    UsuarioDto response = new UsuarioDto(salvo.getId(), salvo.getNome(), salvo.getEmail(), null);
+
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+    when(roleRepository.findByNomeIgnoreCase("MARCOS PONTES")).thenReturn(Optional.of(role));
+    when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
+    when(usuarioRepository.save(any(Usuario.class))).thenReturn(salvo);
+    when(usuarioMapper.toDto(salvo)).thenReturn(response);
+
+    UsuarioDto resultado = usuarioService.save(request);
+
+    assertEquals(response, resultado);
+    verify(roleRepository).findByNomeIgnoreCase("MARCOS PONTES");
   }
 
   @Test
@@ -262,12 +285,13 @@ class UsuarioServiceTest {
     UsuarioCreateRequest request =
         new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "INVALIDA", null);
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+    when(roleRepository.findByNomeIgnoreCase("INVALIDA")).thenReturn(Optional.empty());
 
     ResponseStatusException ex =
         assertThrows(ResponseStatusException.class, () -> usuarioService.save(request));
 
     assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-    assertTrue(ex.getReason().contains("Role invalida"));
+    assertTrue(ex.getReason().contains("Role nao encontrada"));
     verify(usuarioRepository, never()).save(any(Usuario.class));
   }
 
@@ -419,16 +443,16 @@ class UsuarioServiceTest {
             UUID.fromString("66666666-6666-6666-6666-666666666666"), "Suporte", "sup@email.com");
     usuario.getRoles().add(role("TARCISIO"));
     UsuarioUpdateByEmailRequest request =
-        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("ADMIN", "VALDEMAR"));
+        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("ADMIN", "TARCISIO"));
     UsuarioComRolesDto dto =
         new UsuarioComRolesDto(
             usuario.getId(),
             "Suporte",
             "sup@email.com",
-            Set.of(new RoleResumoDto(null, "ADMIN"), new RoleResumoDto(null, "VALDEMAR")));
+            Set.of(new RoleResumoDto(null, "ADMIN"), new RoleResumoDto(null, "TARCISIO")));
     when(usuarioRepository.findByEmail("sup@email.com")).thenReturn(Optional.of(usuario));
-    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(role("ADMIN")));
-    when(roleRepository.findByNome("VALDEMAR")).thenReturn(Optional.of(role("VALDEMAR")));
+    when(roleRepository.findByNomeIgnoreCase("ADMIN")).thenReturn(Optional.of(role("ADMIN")));
+    when(roleRepository.findByNomeIgnoreCase("TARCISIO")).thenReturn(Optional.of(role("TARCISIO")));
     when(usuarioRepository.save(usuario)).thenReturn(usuario);
     when(rbacMapper.toUsuarioComRolesDto(usuario)).thenReturn(dto);
 
@@ -440,6 +464,35 @@ class UsuarioServiceTest {
   }
 
   @Test
+  @DisplayName("Deve atualizar roles por email com role dinamica cadastrada no banco")
+  void updateByEmailComRoleDinamicaDeveAtualizarRoles() {
+    Usuario usuario =
+        novoUsuario(
+            UUID.fromString("56565656-5656-5656-5656-565656565656"), "Suporte", "sup@email.com");
+    UsuarioUpdateByEmailRequest request =
+        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("MARCOS PONTES"));
+    UsuarioComRolesDto dto =
+        new UsuarioComRolesDto(
+            usuario.getId(),
+            "Suporte",
+            "sup@email.com",
+            Set.of(new RoleResumoDto(null, "MARCOS PONTES")));
+
+    when(usuarioRepository.findByEmail("sup@email.com")).thenReturn(Optional.of(usuario));
+    when(roleRepository.findByNomeIgnoreCase("MARCOS PONTES"))
+        .thenReturn(Optional.of(role("MARCOS PONTES")));
+    when(usuarioRepository.save(usuario)).thenReturn(usuario);
+    when(rbacMapper.toUsuarioComRolesDto(usuario)).thenReturn(dto);
+
+    UsuarioComRolesDto resultado = usuarioService.updateByEmail(request);
+
+    assertEquals(1, usuario.getRoles().size());
+    assertEquals("MARCOS PONTES", usuario.getRoles().iterator().next().getNome());
+    assertEquals(1, resultado.getRoles().size());
+    verify(customUserDetailsService).atualizarCacheUsuario(usuario.getId(), "sup@email.com");
+  }
+
+  @Test
   @DisplayName("Deve atualizar o proprio perfil com troca de email e senha")
   void updatePerfilDeveAtualizarEmailESenha() {
     Usuario usuario =
@@ -447,12 +500,9 @@ class UsuarioServiceTest {
             UUID.fromString("77777777-7777-7777-7777-777777777777"), "Ana", "ana@email.com");
     UsuarioSelfUpdateRequest request =
         new UsuarioSelfUpdateRequest("Ana Clara", "ana.clara@email.com", "nova-senha");
-    Usuario salvo =
-        novoUsuario(
-            usuario.getId(), "Ana Clara", "ana.clara@email.com");
+    Usuario salvo = novoUsuario(usuario.getId(), "Ana Clara", "ana.clara@email.com");
     salvo.setSenha("encoded-nova-senha");
-    UsuarioDto dto =
-        new UsuarioDto(usuario.getId(), "Ana Clara", "ana.clara@email.com", null);
+    UsuarioDto dto = new UsuarioDto(usuario.getId(), "Ana Clara", "ana.clara@email.com", null);
 
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
     when(usuarioRepository.findByEmail("ana.clara@email.com")).thenReturn(Optional.empty());
@@ -486,13 +536,13 @@ class UsuarioServiceTest {
     UsuarioCreateRequest request =
         new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN", null);
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
-    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.empty());
+    when(roleRepository.findByNomeIgnoreCase("ADMIN")).thenReturn(Optional.empty());
 
     ResponseStatusException ex =
         assertThrows(ResponseStatusException.class, () -> usuarioService.save(request));
 
-    assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
-    assertEquals("Role nao encontrada", ex.getReason());
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    assertTrue(ex.getReason().contains("Role nao encontrada"));
   }
 
   @Test

@@ -6,9 +6,7 @@ import java.util.Locale;
 public enum RoleNivel {
   ADMIN("ADMIN"),
   MANAGER("MANAGER"),
-  TARCISIO("TARCISIO"),
-  KIM_KATAGUIRI("KIM KATAGUIRI"),
-  VALDEMAR("VALDEMAR");
+  TARCISIO("TARCISIO");
 
   private final String nomeBanco;
 

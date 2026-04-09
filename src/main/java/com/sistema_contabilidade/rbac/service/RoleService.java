@@ -6,13 +6,15 @@ import com.sistema_contabilidade.rbac.dto.RoleDto;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.rbac.model.Permissao;
 import com.sistema_contabilidade.rbac.model.Role;
-import com.sistema_contabilidade.rbac.model.RoleNivel;
 import com.sistema_contabilidade.rbac.repository.PermissaoRepository;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,7 +33,7 @@ public class RoleService {
 
   @Transactional
   public RoleDto criarRole(String nome) {
-    String roleNomePadrao = parseRoleNome(nome);
+    String roleNomePadrao = normalizarRoleNome(nome);
     roleRepository
         .findByNome(roleNomePadrao)
         .ifPresent(
@@ -60,7 +62,7 @@ public class RoleService {
 
   @Transactional
   public RoleDto adicionarPermissaoNaRole(String roleNome, String permissaoNome) {
-    String roleNomePadrao = parseRoleNome(roleNome);
+    String roleNomePadrao = normalizarRoleNome(roleNome);
     Role role =
         roleRepository
             .findByNome(roleNomePadrao)
@@ -81,7 +83,7 @@ public class RoleService {
 
   @Transactional
   public UsuarioComRolesDto atribuirRoleAoUsuario(UUID usuarioId, String roleNome) {
-    String roleNomePadrao = parseRoleNome(roleNome);
+    String roleNomePadrao = normalizarRoleNome(roleNome);
     Usuario usuario =
         usuarioRepository
             .findById(usuarioId)
@@ -99,14 +101,26 @@ public class RoleService {
     return rbacMapper.toUsuarioComRolesDto(usuarioSalvo);
   }
 
-  private String parseRoleNome(String nome) {
-    try {
-      return RoleNivel.fromNome(nome).valorBanco();
-    } catch (IllegalArgumentException e) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST,
-          "Role invalida. Use: ADMIN, MANAGER, TARCISIO, KIM KATAGUIRI, VALDEMAR",
-          e);
+  @Transactional
+  public List<RoleDto> listarRoles() {
+    return roleRepository.findAll().stream()
+        .map(rbacMapper::toRoleDto)
+        .sorted(Comparator.comparing(RoleDto::getNome, String.CASE_INSENSITIVE_ORDER))
+        .toList();
+  }
+
+  @Transactional
+  public List<PermissaoDto> listarPermissoes() {
+    return permissaoRepository.findAll().stream()
+        .map(rbacMapper::toPermissaoDto)
+        .sorted(Comparator.comparing(PermissaoDto::getNome, String.CASE_INSENSITIVE_ORDER))
+        .toList();
+  }
+
+  private String normalizarRoleNome(String nome) {
+    if (nome == null || nome.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nome da role e obrigatorio");
     }
+    return nome.trim().replace('_', ' ').replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
   }
 }

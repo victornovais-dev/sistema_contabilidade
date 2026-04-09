@@ -4,7 +4,6 @@ import com.sistema_contabilidade.common.mapper.RbacMapper;
 import com.sistema_contabilidade.common.mapper.UsuarioMapper;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.rbac.model.Role;
-import com.sistema_contabilidade.rbac.model.RoleNivel;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
@@ -158,19 +157,13 @@ public class UsuarioService {
   }
 
   private Role buscarRole(String roleNome) {
-    String roleNomePadrao;
-    try {
-      roleNomePadrao = RoleNivel.fromNome(roleNome).valorBanco();
-    } catch (IllegalArgumentException ex) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST,
-          "Role invalida. Use: ADMIN, MANAGER, TARCISIO, KIM KATAGUIRI, VALDEMAR",
-          ex);
-    }
+    String roleNomeNormalizado = roleNome == null ? "" : roleNome.trim();
     return roleRepository
-        .findByNome(roleNomePadrao)
+        .findByNomeIgnoreCase(roleNomeNormalizado)
         .orElseThrow(
-            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Role nao encontrada"));
+            () ->
+                new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Role nao encontrada: " + roleNomeNormalizado));
   }
 
   private Set<String> extrairRolesSolicitadas(UsuarioCreateRequest usuarioCreateRequest) {

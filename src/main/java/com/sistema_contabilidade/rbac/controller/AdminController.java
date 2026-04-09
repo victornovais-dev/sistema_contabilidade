@@ -8,6 +8,7 @@ import com.sistema_contabilidade.rbac.dto.RoleDto;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.rbac.service.RoleService;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,18 @@ public class AdminController {
   private static final String ADMIN_ROLE = "hasRole('ADMIN')";
 
   private final RoleService roleService;
+
+  @org.springframework.web.bind.annotation.GetMapping("/roles")
+  @PreAuthorize(ADMIN_ROLE)
+  public ResponseEntity<List<RoleDto>> listarRoles() {
+    return ResponseEntity.ok(roleService.listarRoles());
+  }
+
+  @org.springframework.web.bind.annotation.GetMapping("/permissoes")
+  @PreAuthorize(ADMIN_ROLE)
+  public ResponseEntity<List<PermissaoDto>> listarPermissoes() {
+    return ResponseEntity.ok(roleService.listarPermissoes());
+  }
 
   @PostMapping("/roles")
   @PreAuthorize(ADMIN_ROLE)

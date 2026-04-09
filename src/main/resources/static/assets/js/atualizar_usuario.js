@@ -20,6 +20,7 @@ const rolesConfirm = document.getElementById("roles-confirm");
 const selectedRolesContainer = document.getElementById("selected-roles");
 const rolesHidden = document.getElementById("roles-hidden");
 const selectedRoles = new Set();
+let availableRoles = [];
 
 const readCookie = (name) => {
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -36,10 +37,32 @@ root.dataset.theme = savedTheme === "dark" ? "dark" : "light";
 writeCookie("theme", root.dataset.theme);
 localStorage.setItem("theme", root.dataset.theme);
 
-const carregarCsrfToken = async () => {
+const extractErrorMessage = async (response, fallbackMessage) => {
+  try {
+    const payload = await response.json();
+    if (payload && typeof payload === "object") {
+      return payload.message || payload.error || fallbackMessage;
+    }
+  } catch (error) {
+    // Keep fallback message when payload is not JSON.
+  }
+  return fallbackMessage;
+};
+
+const carregarCsrfToken = async (forceRefresh = false) => {
+  if (!forceRefresh && csrfToken) {
+    return csrfToken;
+  }
+
   const response = await fetch("/api/v1/auth/csrf", {
     method: "GET",
     credentials: "same-origin",
+    cache: "no-store",
+    headers: token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {},
   });
   if (!response.ok) {
     throw new Error("Falha ao obter token CSRF");
@@ -49,6 +72,7 @@ const carregarCsrfToken = async () => {
   if (!csrfToken) {
     throw new Error("Token CSRF ausente na resposta");
   }
+  return csrfToken;
 };
 
 const updateLabel = () => {
@@ -87,12 +111,79 @@ const syncRolesHidden = () => {
   rolesHidden.setCustomValidity(roles.length > 0 ? "" : "Selecione ao menos uma role.");
 };
 
+const renderRoleOptions = (roles) => {
+  if (!rolesOptions) return;
+
+  availableRoles = Array.isArray(roles)
+    ? [...new Set(roles.map((role) => String(role || "").trim()).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "pt-BR"),
+      )
+    : [];
+
+  rolesOptions.innerHTML = "";
+
+  if (availableRoles.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "roles-empty";
+    empty.textContent = "Nenhuma role cadastrada.";
+    rolesOptions.appendChild(empty);
+    return;
+  }
+
+  availableRoles.forEach((role) => {
+    const label = document.createElement("label");
+    label.className = "roles-option";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = role;
+
+    const span = document.createElement("span");
+    span.textContent = role;
+
+    label.appendChild(input);
+    label.appendChild(span);
+    rolesOptions.appendChild(label);
+  });
+};
+
+const loadAvailableRoles = async () => {
+  const response = await fetch("/api/v1/admin/roles", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    credentials: "same-origin",
+  });
+
+  if (response.status === 401) {
+    window.location.href = "/login";
+    return;
+  }
+
+  const data = await response.json().catch(() => []);
+  if (!response.ok) {
+    throw new Error("Falha ao carregar roles cadastradas.");
+  }
+
+  const roles = Array.isArray(data) ? data.map((item) => item?.nome).filter(Boolean) : [];
+  renderRoleOptions(roles);
+};
+
 const setCheckedRoles = (roles) => {
+  const normalizedRoles = Array.isArray(roles)
+    ? [...new Set(roles.map((role) => String(role || "").trim()).filter(Boolean))]
+    : [];
+  const missingRoles = normalizedRoles.filter((role) => !availableRoles.includes(role));
+  if (missingRoles.length > 0) {
+    renderRoleOptions([...availableRoles, ...missingRoles]);
+  }
+
   rolesOptions.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
-    checkbox.checked = roles.includes(checkbox.value);
+    checkbox.checked = normalizedRoles.includes(checkbox.value);
   });
   selectedRoles.clear();
-  roles.forEach((role) => selectedRoles.add(role));
+  normalizedRoles.forEach((role) => selectedRoles.add(role));
   renderSelectedRoles();
 };
 
@@ -262,33 +353,57 @@ form.addEventListener("submit", async (event) => {
   };
 
   try {
-    if (!csrfToken) {
-      await carregarCsrfToken();
-    }
-    const response = await fetch("/api/v1/usuarios/por-email", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-TOKEN": csrfToken,
-        Authorization: `Bearer ${token}`,
-      },
-      credentials: "same-origin",
-      body: JSON.stringify(payload),
-    });
-    const data = await response.json().catch(() => ({}));
+    const enviarAtualizacao = async (csrf) =>
+      fetch("/api/v1/usuarios/por-email", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-TOKEN": csrf,
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
+      });
 
-    if (!response.ok) {
-      showFeedback("error", data.message || data.error || "Falha ao atualizar usuario.");
+    let tokenCsrf = await carregarCsrfToken();
+    let response = await enviarAtualizacao(tokenCsrf);
+
+    if (response.status === 403) {
+      tokenCsrf = await carregarCsrfToken(true);
+      response = await enviarAtualizacao(tokenCsrf);
+    }
+
+    if (response.status === 401) {
+      window.location.href = "/login";
       return;
     }
 
+    if (!response.ok) {
+      showFeedback(
+        "error",
+        await extractErrorMessage(response, "Falha ao atualizar usuario."),
+      );
+      return;
+    }
+
+    const data = await response.json().catch(() => ({}));
     const roles = Array.isArray(data.roles) ? data.roles.map((item) => item.nome).filter(Boolean) : [];
     setCheckedRoles(roles);
     senhaInput.value = "";
+    csrfToken = null;
     showFeedback("success", "Usuario atualizado com sucesso.");
   } catch (error) {
     showFeedback("error", "Erro de conexao com o servidor.");
   }
 });
 
-renderSelectedRoles();
+const init = async () => {
+  renderSelectedRoles();
+  try {
+    await loadAvailableRoles();
+  } catch (error) {
+    showFeedback("error", "Nao foi possivel carregar as roles cadastradas.");
+  }
+};
+
+init();

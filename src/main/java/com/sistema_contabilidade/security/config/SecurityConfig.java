@@ -16,8 +16,8 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -34,6 +34,7 @@ public class SecurityConfig {
 
   private static final String ADMIN_ROLE = "ADMIN";
   private static final String ADMIN_PATH = "/admin";
+  private static final String MANAGE_ROLES_PATH = "/gerenciar_roles";
 
   private final JwtAuthFilter jwtAuthFilter;
   private final RateLimitFilter rateLimitFilter;
@@ -77,7 +78,8 @@ public class SecurityConfig {
                       .accessDeniedHandler(
                           (request, response, accessDeniedException) -> {
                             String requestUri = request.getRequestURI();
-                            if (ADMIN_PATH.equals(requestUri)) {
+                            if (ADMIN_PATH.equals(requestUri)
+                                || MANAGE_ROLES_PATH.equals(requestUri)) {
                               response.sendRedirect("/404");
                               return;
                             }
@@ -96,6 +98,8 @@ public class SecurityConfig {
                       .requestMatchers("/atualizar_usuario")
                       .hasRole(ADMIN_ROLE)
                       .requestMatchers(ADMIN_PATH)
+                      .hasRole(ADMIN_ROLE)
+                      .requestMatchers(MANAGE_ROLES_PATH)
                       .hasRole(ADMIN_ROLE)
                       .requestMatchers(
                           "/assets/**",
@@ -117,7 +121,7 @@ public class SecurityConfig {
                       .requestMatchers("/api/v1/admin/**")
                       .hasRole(ADMIN_ROLE)
                       .requestMatchers("/api/v1/relatorios/roles")
-                      .hasRole(ADMIN_ROLE)
+                      .authenticated()
                       .anyRequest()
                       .authenticated())
           .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
@@ -155,7 +159,7 @@ public class SecurityConfig {
 
   @Bean
   PasswordEncoder passwordEncoder() {
-    return new SCryptPasswordEncoder(8192, 8, 1, 32, 64);
+    return PasswordEncoderFactories.createDelegatingPasswordEncoder();
   }
 
   @Bean
