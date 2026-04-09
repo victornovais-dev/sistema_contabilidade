@@ -14,6 +14,7 @@ import org.mockito.Mockito;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.cors.CorsConfiguration;
@@ -55,7 +56,28 @@ class SecurityConfigTest {
     String raw = "senha-forte";
     String encoded = encoder.encode(raw);
 
+    assertTrue(encoded.startsWith("{scrypt}"));
     assertTrue(encoder.matches(raw, encoded));
+  }
+
+  @Test
+  @DisplayName("Deve aceitar hashes SCrypt legados sem prefixo")
+  void deveAceitarHashesSCryptLegadosSemPrefixo() {
+    SecurityConfig config =
+        new SecurityConfig(
+            Mockito.mock(JwtAuthFilter.class),
+            Mockito.mock(RateLimitFilter.class),
+            Mockito.mock(RequestContextMdcFilter.class));
+
+    PasswordEncoder encoder = config.passwordEncoder();
+    String raw = "senha-legada";
+    String legacyV41 = SCryptPasswordEncoder.defaultsForSpringSecurity_v4_1().encode(raw);
+    String legacyV58 = SCryptPasswordEncoder.defaultsForSpringSecurity_v5_8().encode(raw);
+
+    assertTrue(encoder.matches(raw, legacyV41));
+    assertTrue(encoder.matches(raw, legacyV58));
+    assertTrue(encoder.upgradeEncoding(legacyV41));
+    assertTrue(encoder.upgradeEncoding(legacyV58));
   }
 
   @Test
