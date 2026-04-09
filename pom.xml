@@ -47,6 +47,7 @@
 		<dependency-check.skip>true</dependency-check.skip>
 		<snyk.skip>true</snyk.skip>
 		<snyk.severity.threshold>high</snyk.severity.threshold>
+		<aws.sdk.version>2.25.60</aws.sdk.version>
 		<sonar.issue.ignore.multicriteria>e1</sonar.issue.ignore.multicriteria>
 		<sonar.issue.ignore.multicriteria.e1.ruleKey>java:S8445</sonar.issue.ignore.multicriteria.e1.ruleKey>
 		<sonar.issue.ignore.multicriteria.e1.resourceKey>**/src/test/java/**/*</sonar.issue.ignore.multicriteria.e1.resourceKey>
@@ -183,6 +184,11 @@
 			<groupId>co.elastic.logging</groupId>
 			<artifactId>logback-ecs-encoder</artifactId>
 			<version>1.7.0</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
