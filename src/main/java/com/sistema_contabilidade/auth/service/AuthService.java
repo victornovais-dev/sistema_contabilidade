@@ -2,6 +2,7 @@ package com.sistema_contabilidade.auth.service;
 
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
+import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
@@ -27,6 +28,7 @@ public class AuthService {
   private final JwtService jwtService;
   private final UsuarioRepository usuarioRepository;
   private final PasswordEncoder passwordEncoder;
+  private final CustomUserDetailsService customUserDetailsService;
 
   @Value("${app.auth.login-diagnostics.enabled:false}")
   private boolean loginDiagnosticsEnabled;
@@ -40,6 +42,7 @@ public class AuthService {
         authenticationManager.authenticate(
             new UsernamePasswordAuthenticationToken(request.email(), request.senha()));
     UserDetails userDetails = extrairUserDetails(authentication);
+    atualizarSenhaSeNecessario(request);
     String token = jwtService.generateToken(userDetails);
     return new JwtLoginResponse(token, "Bearer");
   }
@@ -60,6 +63,8 @@ public class AuthService {
       }
       throw credenciaisInvalidas();
     }
+
+    atualizarSenhaSeNecessario(usuario, request.senha());
 
     UserDetails userDetails =
         org.springframework.security.core.userdetails.User.withUsername(usuario.getEmail())
@@ -94,5 +99,24 @@ public class AuthService {
         HttpStatus.UNAUTHORIZED,
         "Credenciais invalidas",
         new AuthenticationCredentialsNotFoundException("Principal sem UserDetails"));
+  }
+
+  private void atualizarSenhaSeNecessario(LoginRequest request) {
+    Usuario usuario = usuarioRepository.findByEmail(request.email()).orElse(null);
+    if (usuario == null) {
+      return;
+    }
+    atualizarSenhaSeNecessario(usuario, request.senha());
+  }
+
+  private void atualizarSenhaSeNecessario(Usuario usuario, String senhaEmTextoPlano) {
+    if (!passwordEncoder.upgradeEncoding(usuario.getSenha())) {
+      return;
+    }
+
+    usuario.setSenha(passwordEncoder.encode(senhaEmTextoPlano));
+    Usuario usuarioAtualizado = usuarioRepository.save(usuario);
+    customUserDetailsService.atualizarCacheUsuario(
+        usuarioAtualizado.getId(), usuarioAtualizado.getEmail());
   }
 }

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
+import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
@@ -37,6 +38,7 @@ class AuthServiceTest {
   @Mock private JwtService jwtService;
   @Mock private UsuarioRepository usuarioRepository;
   @Mock private PasswordEncoder passwordEncoder;
+  @Mock private CustomUserDetailsService customUserDetailsService;
 
   @InjectMocks private AuthService authService;
 
@@ -46,10 +48,16 @@ class AuthServiceTest {
     // Arrange
     LoginRequest request = new LoginRequest("ana@email.com", "123456");
     UserDetails userDetails = new User("ana@email.com", "123456", Collections.emptyList());
+    Usuario usuario = new Usuario();
+    usuario.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
+    usuario.setEmail("ana@email.com");
+    usuario.setSenha("{scrypt}hash-atual");
     when(authenticationManager.authenticate(org.mockito.ArgumentMatchers.any()))
         .thenReturn(
             new UsernamePasswordAuthenticationToken(
                 userDetails, userDetails.getPassword(), userDetails.getAuthorities()));
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
+    when(passwordEncoder.upgradeEncoding("{scrypt}hash-atual")).thenReturn(false);
     when(jwtService.generateToken(userDetails)).thenReturn("jwt-token");
 
     // Act
@@ -59,6 +67,35 @@ class AuthServiceTest {
     assertEquals("jwt-token", response.accessToken());
     assertEquals("Bearer", response.tokenType());
     verify(authenticationManager).authenticate(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  @DisplayName("Deve atualizar hash legado para SCrypt no login com sucesso")
+  void loginDeveAtualizarHashQuandoNecessario() {
+    LoginRequest request = new LoginRequest("ana@email.com", "123456");
+    UserDetails userDetails = new User("ana@email.com", "123456", Collections.emptyList());
+    Usuario usuario = new Usuario();
+    usuario.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
+    usuario.setEmail("ana@email.com");
+    usuario.setSenha("$d0801$hash-legado");
+    when(authenticationManager.authenticate(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(
+            new UsernamePasswordAuthenticationToken(
+                userDetails, userDetails.getPassword(), userDetails.getAuthorities()));
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
+    when(passwordEncoder.upgradeEncoding("$d0801$hash-legado")).thenReturn(true);
+    when(passwordEncoder.encode("123456")).thenReturn("{scrypt}hash-novo");
+    when(usuarioRepository.save(usuario)).thenReturn(usuario);
+    when(jwtService.generateToken(userDetails)).thenReturn("jwt-token");
+
+    JwtLoginResponse response = authService.login(request);
+
+    assertEquals("jwt-token", response.accessToken());
+    assertEquals("{scrypt}hash-novo", usuario.getSenha());
+    verify(usuarioRepository).save(usuario);
+    verify(customUserDetailsService)
+        .atualizarCacheUsuario(
+            UUID.fromString("11111111-1111-1111-1111-111111111111"), "ana@email.com");
   }
 
   @Test
@@ -74,6 +111,7 @@ class AuthServiceTest {
 
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
     when(passwordEncoder.matches("123456", "hash")).thenReturn(true);
+    when(passwordEncoder.upgradeEncoding("hash")).thenReturn(false);
     when(jwtService.generateToken(org.mockito.ArgumentMatchers.any())).thenReturn("jwt-token");
 
     JwtLoginResponse response = authService.login(request);
