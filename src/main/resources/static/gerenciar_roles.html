@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gerenciar Roles</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <script src="/assets/js/theme-init.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/css/gerenciar_roles.css" />
+    <link rel="stylesheet" href="/assets/css/navbar.css" />
+  </head>
+  <body>
+    <div id="navbar-root" data-navbar-root></div>
+
+    <div class="bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="page page-wide">
+      <header class="page-header">
+        <span class="chip">RBAC</span>
+        <div class="page-header-row">
+          <div>
+            <h1>Gerenciar Roles</h1>
+            <p>Crie roles, cadastre permissoes e vincule permissoes as roles existentes.</p>
+          </div>
+        </div>
+      </header>
+
+      <section class="list-state" id="roles-feedback" hidden></section>
+
+      <section class="grid-two">
+        <article class="card panel-card">
+          <header class="panel-header">
+            <h2>Criar role</h2>
+            <span class="panel-pill">Novo</span>
+          </header>
+          <form id="create-role-form" class="stack-form">
+            <label class="field">
+              <span>Nome da role</span>
+              <input id="role-name" type="text" placeholder="Ex.: MARCOS PONTES" required />
+            </label>
+            <button class="btn" type="submit">Criar role</button>
+          </form>
+        </article>
+
+        <article class="card panel-card">
+          <header class="panel-header">
+            <h2>Criar permissao</h2>
+            <span class="panel-pill">Novo</span>
+          </header>
+          <form id="create-permission-form" class="stack-form">
+            <label class="field">
+              <span>Nome da permissao</span>
+              <input id="permission-name" type="text" placeholder="Ex.: ITEM_READ" required />
+            </label>
+            <button class="btn" type="submit">Criar permissao</button>
+          </form>
+        </article>
+      </section>
+
+      <section class="card panel-card">
+        <header class="panel-header">
+          <h2>Vincular permissao a role</h2>
+          <span class="panel-pill">Associacao</span>
+        </header>
+        <form id="assign-permission-form" class="assign-form">
+          <label class="field">
+            <span>Role</span>
+            <select id="assign-role-select" required>
+              <option value="" selected disabled>Selecione</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Permissao</span>
+            <select id="assign-permission-select" required>
+              <option value="" selected disabled>Selecione</option>
+            </select>
+          </label>
+          <button class="btn" type="submit">Vincular permissao</button>
+        </form>
+      </section>
+
+      <section class="grid-two">
+        <article class="card report-card" aria-labelledby="roles-title">
+          <header class="report-header">
+            <h2 id="roles-title">Roles cadastradas</h2>
+            <span class="report-count" id="roles-count">0</span>
+          </header>
+          <div class="report-list" id="roles-list">
+            <div class="report-row-empty">
+              <span>Carregando roles...</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card report-card" aria-labelledby="permissions-title">
+          <header class="report-header">
+            <h2 id="permissions-title">Permissoes cadastradas</h2>
+            <span class="report-count" id="permissions-count">0</span>
+          </header>
+          <div class="report-list" id="permissions-list">
+            <div class="report-row-empty">
+              <span>Carregando permissoes...</span>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="/assets/js/navbar.js" defer></script>
+    <script src="/assets/js/gerenciar_roles.js" defer></script>
+  </body>
+</html>

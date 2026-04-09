@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class PaginaUsuarioController {
 
   private static final String IS_AUTHENTICATED_EXPRESSION = "isAuthenticated()";
+  private static final String ADMIN_ROLE_EXPRESSION = "hasRole('ADMIN')";
 
   @GetMapping(value = "/login", produces = MediaType.TEXT_HTML_VALUE)
   public ResponseEntity<Resource> loginPage() {
@@ -29,14 +30,14 @@ public class PaginaUsuarioController {
   }
 
   @GetMapping(value = "/criar_usuario", produces = MediaType.TEXT_HTML_VALUE)
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_ROLE_EXPRESSION)
   public ResponseEntity<Resource> criarUsuarioPage() {
     Resource resource = new ClassPathResource("static/criar_usuario.html");
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
   }
 
   @GetMapping(value = "/atualizar_usuario", produces = MediaType.TEXT_HTML_VALUE)
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_ROLE_EXPRESSION)
   public ResponseEntity<Resource> atualizarUsuarioPage() {
     Resource resource = new ClassPathResource("static/atualizar_usuario.html");
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
@@ -71,9 +72,16 @@ public class PaginaUsuarioController {
   }
 
   @GetMapping(value = "/admin", produces = MediaType.TEXT_HTML_VALUE)
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize(ADMIN_ROLE_EXPRESSION)
   public ResponseEntity<Resource> adminPage() {
     Resource resource = new ClassPathResource("static/admin.html");
+    return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
+  }
+
+  @GetMapping(value = "/gerenciar_roles", produces = MediaType.TEXT_HTML_VALUE)
+  @PreAuthorize(ADMIN_ROLE_EXPRESSION)
+  public ResponseEntity<Resource> gerenciarRolesPage() {
+    Resource resource = new ClassPathResource("static/gerenciar_roles.html");
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
   }
 }

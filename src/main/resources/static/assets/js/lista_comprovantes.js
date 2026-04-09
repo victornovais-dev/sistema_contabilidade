@@ -3,6 +3,8 @@
   filteredItems: [],
   pendingDeleteId: null,
   csrfToken: null,
+  availableRoles: [],
+  selectedRole: "",
   pagination: {
     page: 1,
     pageSize: 10,
@@ -21,6 +23,26 @@ let filterTypeValue = "";
 const filterClear = document.querySelector(".filter-clear");
 const filterRazaoToggle = document.querySelector(".filter-toggle");
 const filterExtraField = document.querySelector("[data-filter-extra]");
+const roleFilterBox = document.getElementById("role-filter-box");
+const roleFilterSelect = document.getElementById("role-filter-select");
+const roleDropdown =
+  typeof window.createRoleDropdown === "function" && roleFilterSelect
+    ? window.createRoleDropdown({
+        select: roleFilterSelect,
+        onChange: async (value) => {
+          state.selectedRole = value || "";
+          try {
+            await loadItems();
+          } catch (error) {
+            showListState(
+              error instanceof Error
+                ? error.message
+                : "Erro ao carregar comprovantes do político selecionado."
+            );
+          }
+        },
+      })
+    : null;
 const listState = document.getElementById("list-state");
 const itemsList = document.getElementById("items-list");
 const pagination = document.getElementById("pagination");
@@ -93,6 +115,65 @@ const DESPESA_DESCRICOES = [
 ];
 
 const getAccessToken = () => localStorage.getItem("sc_access_token");
+
+const buildRoleQuery = () => {
+  if (!state.selectedRole) return "";
+  const params = new URLSearchParams({ role: state.selectedRole });
+  return `?${params.toString()}`;
+};
+
+const orderRoles = (roles) => {
+  const normalizedRoles = Array.isArray(roles)
+    ? [...new Set(roles.map((role) => String(role || "").trim()).filter(Boolean))]
+    : [];
+  if (!normalizedRoles.length) return [];
+
+  const firstRole = normalizedRoles.includes("ADMIN") ? "ADMIN" : normalizedRoles[0];
+  const remaining = normalizedRoles.filter((role) => role !== firstRole && role !== "MANAGER");
+  remaining.sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+  if (!normalizedRoles.includes("MANAGER") || firstRole === "MANAGER") {
+    return [firstRole, ...remaining];
+  }
+
+  return [firstRole, "MANAGER", ...remaining];
+};
+
+const removeRoleFilterBox = () => {
+  state.availableRoles = [];
+  state.selectedRole = "";
+  if (roleFilterBox) {
+    roleFilterBox.hidden = true;
+  }
+  if (roleFilterSelect) {
+    roleFilterSelect.innerHTML = '<option value="" disabled selected>Selecione</option>';
+  }
+  roleDropdown?.clear();
+};
+
+const renderRoleOptions = (roles) => {
+  roleDropdown?.setOptions(roles);
+};
+
+const applyRoleOptions = (roles) => {
+  if (!roleFilterBox || !roleFilterSelect) return;
+  const orderedRoles = orderRoles(roles);
+  state.availableRoles = orderedRoles;
+  if (orderedRoles.length === 0) {
+    removeRoleFilterBox();
+    return;
+  }
+
+  renderRoleOptions(orderedRoles);
+
+  if (!state.selectedRole || !orderedRoles.includes(state.selectedRole)) {
+    state.selectedRole = orderedRoles.includes("ADMIN") ? "ADMIN" : orderedRoles[0];
+  }
+
+  roleFilterSelect.value = state.selectedRole;
+  roleFilterBox.hidden = false;
+  roleDropdown?.setValue(state.selectedRole);
+};
 
 const setUploadSaveVisible = (visible) => {
   if (!uploadSave) return;
@@ -1526,7 +1607,7 @@ const loadItems = async () => {
   }
 
   showListState("Carregando comprovantes...");
-  const response = await fetch("/api/v1/itens", {
+  const response = await fetch(`/api/v1/itens${buildRoleQuery()}`, {
     method: "GET",
     credentials: "same-origin",
     headers: {
@@ -1553,6 +1634,32 @@ const loadItems = async () => {
     return dateB - dateA;
   });
   applyFilters();
+};
+
+const loadRoleFilterOptions = async () => {
+  if (!roleFilterBox || !roleFilterSelect) return;
+  const accessToken = getAccessToken();
+  if (!accessToken) return;
+
+  const response = await fetch("/api/v1/itens/roles", {
+    method: "GET",
+    credentials: "same-origin",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (response.status === 401) {
+    window.location.href = "/login";
+    return;
+  }
+  if (!response.ok) {
+    removeRoleFilterBox();
+    return;
+  }
+
+  const roles = await response.json();
+  applyRoleOptions(roles);
 };
 
 const openDeleteModal = (id) => {
@@ -1879,6 +1986,11 @@ const init = async () => {
       retainedUploadFiles = merged;
       setUploadInputFiles(merged);
     });
+  }
+  try {
+    await loadRoleFilterOptions();
+  } catch (error) {
+    removeRoleFilterBox();
   }
   try {
     await loadItems();

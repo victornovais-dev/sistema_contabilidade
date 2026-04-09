@@ -48,18 +48,18 @@ class RoleServiceTest {
     RoleService roleService = novoRoleService();
 
     // Arrange
-    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.empty());
+    when(roleRepository.findByNome("MARCOS PONTES")).thenReturn(Optional.empty());
     Role role = new Role();
-    role.setNome("ADMIN");
+    role.setNome("MARCOS PONTES");
     when(roleRepository.save(any(Role.class))).thenReturn(role);
-    RoleDto roleDto = new RoleDto(null, "ADMIN", Set.of());
+    RoleDto roleDto = new RoleDto(null, "MARCOS PONTES", Set.of());
     when(rbacMapper.toRoleDto(role)).thenReturn(roleDto);
 
     // Act
-    RoleDto resultado = roleService.criarRole("ADMIN");
+    RoleDto resultado = roleService.criarRole("Marcos Pontes");
 
     // Assert
-    assertEquals("ADMIN", resultado.getNome());
+    assertEquals("MARCOS PONTES", resultado.getNome());
   }
 
   @Test
@@ -67,11 +67,11 @@ class RoleServiceTest {
   void deveRetornarConflitoAoCriarRoleExistente() {
     RoleService roleService = novoRoleService();
     Role existente = new Role();
-    existente.setNome("ADMIN");
-    when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(existente));
+    existente.setNome("MARCOS PONTES");
+    when(roleRepository.findByNome("MARCOS PONTES")).thenReturn(Optional.of(existente));
 
     ResponseStatusException ex =
-        assertThrows(ResponseStatusException.class, () -> roleService.criarRole("ADMIN"));
+        assertThrows(ResponseStatusException.class, () -> roleService.criarRole("Marcos Pontes"));
 
     assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
   }
@@ -178,18 +178,18 @@ class RoleServiceTest {
     usuario.setRoles(new HashSet<>());
     Role role = new Role();
     role.setId(UUID.fromString("33333333-3333-3333-3333-333333333333"));
-    role.setNome("VALDEMAR");
+    role.setNome("TARCISIO");
     when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.of(usuario));
-    when(roleRepository.findByNome("VALDEMAR")).thenReturn(Optional.of(role));
+    when(roleRepository.findByNome("TARCISIO")).thenReturn(Optional.of(role));
     when(usuarioRepository.save(any(Usuario.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
     UsuarioComRolesDto usuarioComRolesDto =
         new UsuarioComRolesDto(
-            usuarioId, "Nome", "email@email.com", Set.of(new RoleResumoDto(null, "VALDEMAR")));
+            usuarioId, "Nome", "email@email.com", Set.of(new RoleResumoDto(null, "TARCISIO")));
     when(rbacMapper.toUsuarioComRolesDto(any())).thenReturn(usuarioComRolesDto);
 
     // Act
-    UsuarioComRolesDto resultado = roleService.atribuirRoleAoUsuario(usuarioId, "VALDEMAR");
+    UsuarioComRolesDto resultado = roleService.atribuirRoleAoUsuario(usuarioId, "TARCISIO");
 
     // Assert
     assertEquals(1, resultado.getRoles().size());
@@ -206,7 +206,7 @@ class RoleServiceTest {
     ResponseStatusException ex =
         assertThrows(
             ResponseStatusException.class,
-            () -> roleService.atribuirRoleAoUsuario(usuarioId, "VALDEMAR"));
+            () -> roleService.atribuirRoleAoUsuario(usuarioId, "TARCISIO"));
 
     assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
   }
@@ -220,23 +220,23 @@ class RoleServiceTest {
     usuario.setId(usuarioId);
     usuario.setRoles(new HashSet<>());
     when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.of(usuario));
-    when(roleRepository.findByNome("VALDEMAR")).thenReturn(Optional.empty());
+    when(roleRepository.findByNome("TARCISIO")).thenReturn(Optional.empty());
 
     ResponseStatusException ex =
         assertThrows(
             ResponseStatusException.class,
-            () -> roleService.atribuirRoleAoUsuario(usuarioId, "VALDEMAR"));
+            () -> roleService.atribuirRoleAoUsuario(usuarioId, "TARCISIO"));
 
     assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
   }
 
   @Test
-  @DisplayName("Deve retornar 400 quando role for invalida")
-  void deveRetornarBadRequestQuandoRoleInvalida() {
+  @DisplayName("Deve retornar 400 quando nome da role for vazio")
+  void deveRetornarBadRequestQuandoNomeDaRoleForVazio() {
     RoleService roleService = novoRoleService();
 
     ResponseStatusException ex =
-        assertThrows(ResponseStatusException.class, () -> roleService.criarRole("USER"));
+        assertThrows(ResponseStatusException.class, () -> roleService.criarRole("   "));
 
     assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
   }

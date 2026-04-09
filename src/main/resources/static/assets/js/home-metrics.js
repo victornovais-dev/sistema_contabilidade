@@ -1,6 +1,4 @@
 (() => {
-  const getAccessToken = () => localStorage.getItem("sc_access_token");
-
   const formatCurrency = (value) => {
     const numericValue = Number(value || 0);
     const signal = numericValue < 0 ? "-" : "";
@@ -57,20 +55,9 @@
   };
 
   const load = async () => {
-    const accessToken = getAccessToken();
-    if (!accessToken) return;
-
     try {
-      const response = await fetch("/api/v1/relatorios/financeiro", {
-        method: "GET",
-        credentials: "same-origin",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      if (!response.ok) return;
-
-      const data = await response.json().catch(() => ({}));
+      const data = await window.scHomeDashboardData?.load();
+      if (!data) return;
       const receitas = Number(data.totalReceitas || 0);
       const despesas = Number(data.totalDespesas || 0);
       const saldoFinal = Number(data.saldoFinal || 0);
@@ -91,4 +78,7 @@
   };
 
   load();
+  window.addEventListener("sc:home-role-change", () => {
+    load();
+  });
 })();

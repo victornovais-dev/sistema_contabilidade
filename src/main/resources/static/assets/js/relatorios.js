@@ -1,7 +1,6 @@
 const state = {
   relatorio: null,
   selectedRole: "",
-  isAdmin: false,
 };
 
 const summaryCard = document.getElementById("summary-card");
@@ -10,6 +9,20 @@ const reportState = document.getElementById("report-state");
 const downloadReportButton = document.getElementById("download-report-btn");
 const roleFilterBox = document.getElementById("role-filter-box");
 const roleFilterSelect = document.getElementById("role-filter-select");
+const roleDropdown =
+  typeof window.createRoleDropdown === "function" && roleFilterSelect
+    ? window.createRoleDropdown({
+        select: roleFilterSelect,
+        onChange: async (value) => {
+          state.selectedRole = value || "";
+          try {
+            await loadRelatorio();
+          } catch (error) {
+            showState("Erro ao carregar relatorios. Tente novamente.", true);
+          }
+        },
+      })
+    : null;
 
 const summaryItemTemplate = document.getElementById("summary-item-template");
 const reportCardTemplate = document.getElementById("report-card-template");
@@ -38,17 +51,24 @@ const CARD_STYLE_CONFIG = {
 const getAccessToken = () => localStorage.getItem("sc_access_token");
 
 const buildRoleQuery = () => {
-  if (!state.isAdmin || !state.selectedRole) return "";
+  if (!state.selectedRole) return "";
   const params = new URLSearchParams({ role: state.selectedRole });
   return `?${params.toString()}`;
 };
 
 const removeRoleFilterBox = () => {
-  state.isAdmin = false;
   state.selectedRole = "";
   if (roleFilterBox) {
-    roleFilterBox.remove();
+    roleFilterBox.hidden = true;
   }
+  if (roleFilterSelect) {
+    roleFilterSelect.innerHTML = '<option value="" disabled selected>Selecione</option>';
+  }
+  roleDropdown?.clear();
+};
+
+const renderRoleOptions = (roles) => {
+  roleDropdown?.setOptions(roles);
 };
 
 const orderRoles = (roles) => {
@@ -71,19 +91,12 @@ const orderRoles = (roles) => {
 const applyRoleOptions = (roles) => {
   if (!roleFilterBox || !roleFilterSelect) return;
   const orderedRoles = orderRoles(roles);
-  if (!orderedRoles.length) {
+  if (orderedRoles.length <= 1) {
     removeRoleFilterBox();
     return;
   }
 
-  state.isAdmin = true;
-  roleFilterSelect.innerHTML = "";
-  orderedRoles.forEach((role) => {
-    const option = document.createElement("option");
-    option.value = role;
-    option.textContent = role;
-    roleFilterSelect.appendChild(option);
-  });
+  renderRoleOptions(orderedRoles);
 
   if (
     (!state.selectedRole || !orderedRoles.includes(state.selectedRole)) &&
@@ -96,6 +109,7 @@ const applyRoleOptions = (roles) => {
 
   roleFilterSelect.value = state.selectedRole;
   roleFilterBox.hidden = false;
+  roleDropdown?.setValue(state.selectedRole);
 };
 
 const formatCompactNumber = (value) => {
@@ -324,7 +338,7 @@ const loadRelatorio = async () => {
     return;
   }
   if (response.status === 403) {
-    throw new Error("Acesso negado ao relatorio para a role selecionada.");
+    throw new Error("Acesso negado ao relatorio para o político selecionado.");
   }
   if (!response.ok) {
     throw new Error("Nao foi possivel carregar o relatorio financeiro.");
@@ -353,7 +367,7 @@ const downloadPdf = async () => {
     return;
   }
   if (response.status === 403) {
-    throw new Error("Acesso negado para gerar PDF da role selecionada.");
+    throw new Error("Acesso negado para gerar PDF do político selecionado.");
   }
   if (!response.ok) {
     throw new Error("Nao foi possivel gerar o PDF.");
@@ -410,16 +424,6 @@ const bindEvents = () => {
     }
   });
 
-  if (roleFilterSelect) {
-    roleFilterSelect.addEventListener("change", async () => {
-      state.selectedRole = roleFilterSelect.value || "";
-      try {
-        await loadRelatorio();
-      } catch (error) {
-        showState("Erro ao carregar relatorios. Tente novamente.", true);
-      }
-    });
-  }
 };
 
 const init = async () => {

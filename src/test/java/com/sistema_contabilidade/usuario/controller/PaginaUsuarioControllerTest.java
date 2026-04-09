@@ -65,7 +65,8 @@ class PaginaUsuarioControllerTest {
         Arguments.of("home", "homePage", HttpStatus.OK),
         Arguments.of("lista comprovantes", "listaComprovantesPage", HttpStatus.OK),
         Arguments.of("relatorios", "relatoriosPage", HttpStatus.OK),
-        Arguments.of("admin", "adminPage", HttpStatus.OK));
+        Arguments.of("admin", "adminPage", HttpStatus.OK),
+        Arguments.of("gerenciar roles", "gerenciarRolesPage", HttpStatus.OK));
   }
 
   private static Stream<Arguments> authenticatedMethods() {
@@ -80,7 +81,8 @@ class PaginaUsuarioControllerTest {
     return Stream.of(
         Arguments.of("criar usuario", "criarUsuarioPage"),
         Arguments.of("atualizar usuario", "atualizarUsuarioPage"),
-        Arguments.of("admin", "adminPage"));
+        Arguments.of("admin", "adminPage"),
+        Arguments.of("gerenciar roles", "gerenciarRolesPage"));
   }
 
   @SuppressWarnings("unchecked")

@@ -36,6 +36,7 @@ class ItemRecordDtosTest {
             List.of(arquivoPdf, arquivoPdf2),
             nomesArquivos,
             TipoItem.RECEITA,
+            "FINANCEIRO",
             "ALUGUEL",
             "EMPRESA TESTE",
             "123.456.789-00",
@@ -49,6 +50,7 @@ class ItemRecordDtosTest {
     assertArrayEquals(arquivoPdf2, request.arquivosPdf().get(1));
     assertEquals(nomesArquivos, request.nomesArquivos());
     assertEquals(TipoItem.RECEITA, request.tipo());
+    assertEquals("FINANCEIRO", request.role());
     assertEquals("ALUGUEL", request.descricao());
     assertEquals("EMPRESA TESTE", request.razaoSocialNome());
     assertEquals("123.456.789-00", request.cnpjCpf());
@@ -69,6 +71,7 @@ class ItemRecordDtosTest {
     item.setHorarioCriacao(horarioCriacao);
     item.setCaminhoArquivoPdf(caminhoArquivoPdf);
     item.setTipo(TipoItem.RECEITA);
+    item.setRoleNome("FINANCEIRO");
     item.setDescricao("ALUGUEL");
     item.setRazaoSocialNome("EMPRESA TESTE");
     item.setCnpjCpf("12.345.678/0001-99");
@@ -82,6 +85,7 @@ class ItemRecordDtosTest {
     assertEquals(horarioCriacao, response.horarioCriacao());
     assertEquals(caminhoArquivoPdf, response.caminhoArquivoPdf());
     assertEquals(TipoItem.RECEITA, response.tipo());
+    assertEquals("FINANCEIRO", response.role());
     assertEquals("ALUGUEL", response.descricao());
     assertEquals("EMPRESA TESTE", response.razaoSocialNome());
     assertEquals("12.345.678/0001-99", response.cnpjCpf());
@@ -101,6 +105,7 @@ class ItemRecordDtosTest {
             List.of(new byte[] {1, 2, 3}),
             List.of("arquivo-1.pdf"),
             TipoItem.RECEITA,
+            "FINANCEIRO",
             "ALUGUEL",
             "EMPRESA A",
             "123.456.789-00",
@@ -113,6 +118,7 @@ class ItemRecordDtosTest {
             List.of(new byte[] {1, 2, 3}),
             List.of("arquivo-1.pdf"),
             TipoItem.RECEITA,
+            "FINANCEIRO",
             "ALUGUEL",
             "EMPRESA A",
             "123.456.789-00",
@@ -125,6 +131,7 @@ class ItemRecordDtosTest {
             List.of(new byte[] {9, 9, 9}),
             List.of("arquivo-2.pdf"),
             TipoItem.RECEITA,
+            "OPERADOR",
             "ALUGUEL",
             "EMPRESA B",
             "123.456.789-00",
@@ -141,6 +148,7 @@ class ItemRecordDtosTest {
     assertNotNull(requestA.toString());
     assertTrue(requestA.toString().contains("arquivosPdf=[[1, 2, 3]]"));
     assertTrue(requestA.toString().contains("nomesArquivos=[arquivo-1.pdf]"));
+    assertTrue(requestA.toString().contains("role=FINANCEIRO"));
   }
 
   @Test
@@ -155,6 +163,7 @@ class ItemRecordDtosTest {
             List.of(arquivoPdf),
             List.of("arquivo-1.pdf"),
             TipoItem.RECEITA,
+            "FINANCEIRO",
             "ALUGUEL",
             "EMPRESA TESTE",
             "123.456.789-00",

@@ -66,6 +66,7 @@ final class ItemRequestArraySupport {
             request.data(),
             request.horarioCriacao(),
             request.tipo(),
+            request.role(),
             request.descricao(),
             request.razaoSocialNome(),
             request.cnpjCpf(),
@@ -89,6 +90,8 @@ final class ItemRequestArraySupport {
         + request.nomesArquivos()
         + ", tipo="
         + request.tipo()
+        + ", role="
+        + request.role()
         + ", descricao="
         + request.descricao()
         + ", razaoSocialNome="

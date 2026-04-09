@@ -36,6 +36,24 @@
         <form class="form" action="#" method="post" accept-charset="UTF-8">
           <div class="row row-fields">
             <div class="field-stack">
+              <label class="field field-role" id="role-field" hidden>
+                <span>Político</span>
+                <div class="custom-select" data-custom-select>
+                  <button
+                    class="custom-select-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    disabled
+                  >
+                    Selecione
+                  </button>
+                  <div class="custom-select-menu" role="listbox" hidden></div>
+                  <select class="native-select" name="role" aria-hidden="true" disabled>
+                    <option value="" disabled selected>Selecione</option>
+                  </select>
+                </div>
+              </label>
               <label class="field field-type">
                 <span>Tipo de lançamento</span>
                 <div class="custom-select" data-custom-select>

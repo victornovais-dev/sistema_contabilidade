@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.service.AuthService;
+import com.sistema_contabilidade.relatorio.service.RelatorioFinanceiroService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
@@ -36,6 +37,7 @@ class SecurityConfigCsrfTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private AuthService authService;
+  @MockitoBean private RelatorioFinanceiroService relatorioFinanceiroService;
   @MockitoBean private JwtService jwtService;
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
   @MockitoBean private UsuarioService usuarioService;
@@ -112,6 +114,22 @@ class SecurityConfigCsrfTest {
   }
 
   @Test
+  @DisplayName("Deve redirecionar para 404 ao acessar gerenciar roles sem role admin")
+  void deveRedirecionarPara404AoAcessarGerenciarRolesSemRoleAdmin() throws Exception {
+    var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
+    when(jwtService.extractUsername("token_manager")).thenReturn("manager@email.com");
+    when(jwtService.isTokenValid("token_manager", userDetails)).thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(
+            get("/gerenciar_roles")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_manager")))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/404"));
+  }
+
+  @Test
   @DisplayName("Deve bloquear listagem de usuarios para perfil nao admin")
   void deveBloquearListagemDeUsuariosParaNaoAdmin() throws Exception {
     var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
@@ -169,6 +187,24 @@ class SecurityConfigCsrfTest {
                       "senha":"123456"
                     }
                     """))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("Deve permitir roles de relatorio para usuario autenticado com multiplas roles")
+  void devePermitirRolesDeRelatorioParaUsuarioAutenticadoComMultiplasRoles() throws Exception {
+    var userDetails =
+        User.withUsername("multi@email.com").password("x").roles("MANAGER", "OPERADOR").build();
+    when(jwtService.extractUsername("token_multi")).thenReturn("multi@email.com");
+    when(jwtService.isTokenValid("token_multi", userDetails)).thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("multi@email.com")).thenReturn(userDetails);
+    when(relatorioFinanceiroService.listarRolesDisponiveis(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(java.util.List.of("MANAGER", "OPERADOR"));
+
+    mockMvc
+        .perform(
+            get("/api/v1/relatorios/roles")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_multi")))
         .andExpect(status().isOk());
   }
 }

@@ -6,6 +6,8 @@ const fileStatus = document.querySelector(".file-status");
 const dropOverlay = document.querySelector(".drop-overlay");
 const moneyInput = document.querySelector(".money-input");
 const dateInput = document.querySelector(".date-input");
+const roleField = document.getElementById("role-field");
+const roleSelect = document.querySelector("select[name=\"role\"]");
 const typeSelect = document.querySelector("select[name=\"entry_type\"]");
 const descricaoSelect = document.querySelector("select[name=\"descricao\"]");
 const customSelects = document.querySelectorAll("[data-custom-select]");
@@ -289,6 +291,7 @@ const bindCustomSelect = (selectElement) => {
   return { trigger, open, close, syncFromSelect };
 };
 
+const customRole = roleSelect ? bindCustomSelect(roleSelect) : null;
 const customType = typeSelect ? bindCustomSelect(typeSelect) : null;
 const customDescricao = descricaoSelect ? bindCustomSelect(descricaoSelect) : null;
 
@@ -335,6 +338,89 @@ const resetNativeSelect = (selectElement) => {
   if (!(selectElement instanceof HTMLSelectElement)) return;
   selectElement.value = "";
   selectElement.setCustomValidity("");
+};
+
+const renderRoleOptions = (roles) => {
+  if (!roleSelect) return;
+  const wrapper = roleSelect.closest("[data-custom-select]");
+  if (!wrapper) return;
+  const menu = wrapper.querySelector(".custom-select-menu");
+  const trigger = wrapper.querySelector(".custom-select-trigger");
+  if (!(menu instanceof HTMLElement) || !(trigger instanceof HTMLButtonElement)) return;
+
+  const orderedRoles = Array.isArray(roles)
+    ? [...new Set(roles.map((role) => String(role || "").trim()).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "pt-BR"),
+      )
+    : [];
+
+  roleSelect.querySelectorAll("option:not([value=\"\"])").forEach((option) => option.remove());
+  menu.innerHTML = "";
+
+  orderedRoles.forEach((role) => {
+    const option = document.createElement("option");
+    option.value = role;
+    option.textContent = role;
+    roleSelect.appendChild(option);
+
+    const button = document.createElement("button");
+    button.className = "custom-select-option";
+    button.type = "button";
+    button.setAttribute("role", "option");
+    button.dataset.value = role;
+    button.textContent = role;
+    menu.appendChild(button);
+  });
+
+  if (orderedRoles.length <= 1) {
+    const singleRole = orderedRoles[0] || "";
+    roleSelect.value = singleRole;
+    roleSelect.disabled = true;
+    roleSelect.required = false;
+    trigger.disabled = true;
+    trigger.textContent = singleRole || "Role única";
+    if (roleField) {
+      roleField.hidden = true;
+    }
+  } else {
+    roleSelect.value = "";
+    roleSelect.disabled = false;
+    roleSelect.required = true;
+    trigger.disabled = false;
+    trigger.textContent = "Selecione";
+    if (roleField) {
+      roleField.hidden = false;
+    }
+  }
+
+  customRole?.syncFromSelect();
+};
+
+const loadRoleOptions = async () => {
+  const accessToken = localStorage.getItem("sc_access_token");
+  if (!accessToken || !roleSelect) {
+    return;
+  }
+
+  const response = await fetch("/api/v1/itens/roles", {
+    method: "GET",
+    credentials: "same-origin",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (response.status === 401) {
+    window.location.href = "/login";
+    return;
+  }
+  if (!response.ok) {
+    renderRoleOptions([]);
+    return;
+  }
+
+  const roles = await response.json();
+  renderRoleOptions(roles);
 };
 
 const renderDescricaoOptions = (descriptions) => {
@@ -1025,6 +1111,18 @@ if (form) {
       }
       return;
     }
+    const roleSelecionada = String(roleSelect?.value || "").trim().toUpperCase();
+    if (!roleSelect?.disabled && !roleSelecionada) {
+      if (roleSelect) {
+        roleSelect.setCustomValidity("Selecione o político.");
+        roleSelect.reportValidity();
+      }
+      if (customRole) {
+        customRole.open();
+        customRole.trigger.focus();
+      }
+      return;
+    }
     const tipo = tipoSelecionado;
     const accessToken = localStorage.getItem("sc_access_token");
 
@@ -1044,6 +1142,7 @@ if (form) {
         arquivosPdf,
         nomesArquivos,
         tipo,
+        role: roleSelecionada || null,
         descricao: descricaoSelect?.value || null,
         razaoSocialNome: razaoSocialNomeInput?.value || null,
         cnpjCpf: cnpjCpfInput?.value || null,
@@ -1164,6 +1263,13 @@ if (confirmOverlay && confirmClose) {
     }
     if (lastSubmitOk) {
       csrfToken = null;
+      loadRoleOptions().catch(() => {
+        renderRoleOptions([]);
+      });
     }
   });
 }
+
+loadRoleOptions().catch(() => {
+  renderRoleOptions([]);
+});

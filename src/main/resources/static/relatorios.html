@@ -41,8 +41,21 @@
         <div class="report-header-row">
           <h1>Relatorios</h1>
           <div class="role-filter-box" id="role-filter-box" hidden>
-            <label for="role-filter-select">Role</label>
-            <select id="role-filter-select" aria-label="Filtrar por role"></select>
+            <label for="role-filter-select">Político</label>
+            <div class="custom-select" data-custom-select>
+              <button
+                class="custom-select-trigger"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                Selecione
+              </button>
+              <div class="custom-select-menu" role="listbox" hidden></div>
+              <select id="role-filter-select" class="native-select" aria-label="Filtrar por político" aria-hidden="true">
+                <option value="" disabled selected>Selecione</option>
+              </select>
+            </div>
           </div>
         </div>
       </header>
@@ -98,6 +111,7 @@
     </main>
 
     <script src="assets/js/navbar.js" defer></script>
+    <script src="assets/js/role-dropdown.js" defer></script>
     <script src="assets/js/relatorios.js" defer></script>
   </body>
 </html>

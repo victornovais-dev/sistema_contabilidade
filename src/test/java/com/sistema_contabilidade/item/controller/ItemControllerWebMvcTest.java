@@ -3,6 +3,8 @@ package com.sistema_contabilidade.item.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -20,7 +22,9 @@ import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ItemArquivoStorageService;
+import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.rbac.model.Role;
+import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.usuario.model.Usuario;
@@ -40,12 +44,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.web.server.ResponseStatusException;
 
 @WebMvcTest(ItemController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -57,6 +63,8 @@ class ItemControllerWebMvcTest {
   @MockitoBean private ItemRepository itemRepository;
   @MockitoBean private ItemArquivoRepository itemArquivoRepository;
   @MockitoBean private ItemArquivoStorageService itemArquivoStorageService;
+  @MockitoBean private ItemListService itemListService;
+  @MockitoBean private RoleRepository roleRepository;
   @MockitoBean private UsuarioRepository usuarioRepository;
   @MockitoBean private JwtService jwtService;
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
@@ -75,11 +83,22 @@ class ItemControllerWebMvcTest {
     item.setRazaoSocialNome("EMPRESA TESTE");
     item.setCnpjCpf("12.345.678/0001-99");
     item.setObservacao("Observacao de teste");
-    ItemArquivo arquivoLista = new ItemArquivo();
-    arquivoLista.setCaminhoArquivoPdf("uploads/itens/item-lista.pdf");
-    arquivoLista.setItem(item);
-    item.getArquivos().add(arquivoLista);
-    when(itemRepository.findAll()).thenReturn(List.of(item));
+    when(itemListService.listarItens(any(), eq(null)))
+        .thenReturn(
+            List.of(
+                new com.sistema_contabilidade.item.dto.ItemListResponse(
+                    item.getId(),
+                    item.getValor(),
+                    item.getData(),
+                    item.getHorarioCriacao(),
+                    item.getCaminhoArquivoPdf(),
+                    item.getTipo(),
+                    "ADMIN",
+                    item.getDescricao(),
+                    item.getRazaoSocialNome(),
+                    item.getCnpjCpf(),
+                    item.getObservacao(),
+                    true)));
 
     mockMvc
         .perform(get("/api/v1/itens").with(authComRoles("admin@email.com", "ADMIN")))
@@ -89,10 +108,142 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve filtrar itens por role selecionada do proprio usuario")
+  void listarTodosDeveFiltrarPorRoleSelecionada() throws Exception {
+    Item item = new Item();
+    item.setId(UUID.fromString("12121212-1111-1111-1111-111111111111"));
+    item.setTipo(TipoItem.DESPESA);
+    item.setDescricao("SERVICOS");
+    when(itemListService.listarItens(any(), eq("financeiro")))
+        .thenReturn(
+            List.of(
+                new com.sistema_contabilidade.item.dto.ItemListResponse(
+                    item.getId(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    item.getTipo(),
+                    "FINANCEIRO",
+                    item.getDescricao(),
+                    null,
+                    null,
+                    null,
+                    false)));
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens")
+                .param("role", "financeiro")
+                .with(authComRoles("multirole@email.com", "FINANCEIRO", "OPERADOR")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].descricao").value("SERVICOS"));
+  }
+
+  @Test
+  @DisplayName("Deve permitir admin filtrar itens por qualquer role")
+  void listarTodosDevePermitirAdminFiltrarPorQualquerRole() throws Exception {
+    Item item = new Item();
+    item.setId(UUID.fromString("34343434-1111-1111-1111-111111111111"));
+    item.setTipo(TipoItem.RECEITA);
+    item.setDescricao("ALUGUEL");
+    when(itemListService.listarItens(any(), eq("tarcisio")))
+        .thenReturn(
+            List.of(
+                new com.sistema_contabilidade.item.dto.ItemListResponse(
+                    item.getId(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    item.getTipo(),
+                    "TARCISIO",
+                    item.getDescricao(),
+                    null,
+                    null,
+                    null,
+                    false)));
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens")
+                .param("role", "tarcisio")
+                .with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].descricao").value("ALUGUEL"));
+  }
+
+  @Test
+  @DisplayName("Deve exigir role ao criar item para usuario com multiplas roles")
+  void criarDeveExigirRoleParaUsuarioComMultiplasRoles() throws Exception {
+    when(usuarioRepository.findByEmail("multirole@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("multirole", "FINANCEIRO", "OPERADOR")));
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens")
+                .with(authComRoles("multirole@email.com", "FINANCEIRO", "OPERADOR"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":120.50,
+                      "data":"2026-03-15",
+                      "horarioCriacao":"2026-03-15T18:00:00",
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["documento-1.pdf"],
+                      "tipo":"DESPESA",
+                      "descricao":"SERVICOS"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("Deve retornar 403 quando usuario filtrar por role que nao possui")
+  void listarTodosDeveRetornarForbiddenQuandoRoleNaoPertenceAoUsuario() throws Exception {
+    when(itemListService.listarItens(any(), eq("financeiro")))
+        .thenThrow(
+            new ResponseStatusException(
+                HttpStatus.FORBIDDEN, "A role selecionada nao pertence ao usuario autenticado."));
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens")
+                .param("role", "financeiro")
+                .with(authComRoles("operador@email.com", "OPERADOR")))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("Deve retornar roles disponiveis do usuario autenticado")
+  void listarRolesDisponiveisDeveRetornarRolesDoUsuario() throws Exception {
+    when(itemListService.listarRolesDisponiveis(any()))
+        .thenReturn(List.of("FINANCEIRO", "OPERADOR"));
+
+    mockMvc
+        .perform(get("/api/v1/itens/roles").with(authComRoles("multirole@email.com", "FINANCEIRO")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0]").value("FINANCEIRO"))
+        .andExpect(jsonPath("$[1]").value("OPERADOR"));
+  }
+
+  @Test
+  @DisplayName("Deve retornar todas as roles para admin no filtro de itens")
+  void listarRolesDisponiveisDeveRetornarTodasAsRolesParaAdmin() throws Exception {
+    when(itemListService.listarRolesDisponiveis(any())).thenReturn(List.of("ADMIN", "FINANCEIRO"));
+
+    mockMvc
+        .perform(get("/api/v1/itens/roles").with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0]").value("ADMIN"))
+        .andExpect(jsonPath("$[1]").value("FINANCEIRO"));
+  }
+
+  @Test
   @DisplayName("Deve retornar lista vazia quando usuario nao possui roles")
   void listarTodosDeveRetornarVazioQuandoUsuarioNaoPossuiRoles() throws Exception {
-    when(usuarioRepository.findByEmail("semroles@email.com"))
-        .thenReturn(Optional.of(usuarioComRoles("semroles")));
+    when(itemListService.listarItens(any(), eq(null))).thenReturn(List.of());
 
     mockMvc
         .perform(get("/api/v1/itens").with(authComRoles("semroles@email.com")))
@@ -369,6 +520,8 @@ class ItemControllerWebMvcTest {
             org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList()))
         .thenReturn(List.of("uploads/itens/novo.pdf"));
     when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class))).thenReturn(item);
+    when(usuarioRepository.findByEmail("admin@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("admin", "ADMIN")));
 
     mockMvc
         .perform(

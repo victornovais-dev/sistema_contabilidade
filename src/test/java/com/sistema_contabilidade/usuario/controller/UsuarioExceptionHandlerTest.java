@@ -9,8 +9,8 @@ import java.lang.reflect.Method;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.springframework.core.io.Resource;
 import org.springframework.core.MethodParameter;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -149,10 +149,7 @@ class UsuarioExceptionHandlerTest {
     Mockito.when(exception.getResourcePath()).thenReturn("/relatorios");
 
     ResponseEntity<Object> response =
-        handler.handleNoResourceFoundException(
-            exception,
-            new ServletWebRequest(request),
-            request);
+        handler.handleNoResourceFoundException(exception, new ServletWebRequest(request), request);
 
     assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     assertEquals(MediaType.TEXT_HTML, response.getHeaders().getContentType());
@@ -170,10 +167,7 @@ class UsuarioExceptionHandlerTest {
     Mockito.when(exception.getResourcePath()).thenReturn("/api/v1/inexistente");
 
     ResponseEntity<Object> response =
-        handler.handleNoResourceFoundException(
-            exception,
-            new ServletWebRequest(request),
-            request);
+        handler.handleNoResourceFoundException(exception, new ServletWebRequest(request), request);
 
     assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     ErrorResponse body = assertInstanceOf(ErrorResponse.class, response.getBody());

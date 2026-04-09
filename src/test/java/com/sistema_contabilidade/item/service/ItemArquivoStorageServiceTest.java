@@ -171,7 +171,8 @@ class ItemArquivoStorageServiceTest {
   void deveRetornar404ParaArquivoInexistenteDentroDoDiretorioBase() {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
     ItemArquivoStorageService service = new ItemArquivoStorageService(pastaArquivos);
-    String caminhoInexistente = tempDir.resolve("uploads").resolve("itens").resolve("nao-existe.pdf").toString();
+    String caminhoInexistente =
+        tempDir.resolve("uploads").resolve("itens").resolve("nao-existe.pdf").toString();
 
     ResponseStatusException ex =
         assertThrows(ResponseStatusException.class, () -> service.carregarPdf(caminhoInexistente));
