@@ -10,8 +10,8 @@ import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
 import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
+import com.sistema_contabilidade.item.service.ArquivoStorageService;
 import com.sistema_contabilidade.item.service.ItemAccessUtils;
-import com.sistema_contabilidade.item.service.ItemArquivoStorageService;
 import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
@@ -19,7 +19,6 @@ import jakarta.validation.Valid;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -27,6 +26,7 @@ import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -52,6 +52,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/v1/itens")
 @Validated
 @RequiredArgsConstructor
+@Slf4j
 public class ItemController {
 
   private static final int SINGLE_ROLE_COUNT = 1;
@@ -64,7 +65,7 @@ public class ItemController {
 
   private final ItemRepository itemRepository;
   private final ItemArquivoRepository itemArquivoRepository;
-  private final ItemArquivoStorageService itemArquivoStorageService;
+  private final ArquivoStorageService arquivoStorageService;
   private final ItemListService itemListService;
   private final UsuarioRepository usuarioRepository;
 
@@ -74,17 +75,24 @@ public class ItemController {
     Usuario usuarioAutenticado =
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
     Item item = new Item();
-    applyRequest(item, request);
+    List<String> arquivosSalvos = List.of();
+    aplicarCamposBase(item, request);
     item.setCriadoPor(usuarioAutenticado);
     item.setRoleNome(resolverRoleNomeItem(usuarioAutenticado, request.role(), null));
 
-    Item salvo = itemRepository.save(item);
-    URI location =
-        ServletUriComponentsBuilder.fromCurrentRequest()
-            .path(ID_PATH)
-            .buildAndExpand(salvo.getId())
-            .toUri();
-    return ResponseEntity.created(location).body(ItemResponse.from(salvo));
+    try {
+      arquivosSalvos = atualizarArquivos(item, request.arquivosPdf(), request.nomesArquivos());
+      Item salvo = itemRepository.save(item);
+      URI location =
+          ServletUriComponentsBuilder.fromCurrentRequest()
+              .path(ID_PATH)
+              .buildAndExpand(salvo.getId())
+              .toUri();
+      return ResponseEntity.created(location).body(ItemResponse.from(salvo));
+    } catch (RuntimeException ex) {
+      removerArquivosSemFalhar(arquivosSalvos);
+      throw ex;
+    }
   }
 
   @GetMapping
@@ -114,12 +122,8 @@ public class ItemController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ARQUIVO_ITEM_NAO_ENCONTRADO);
     }
 
-    byte[] arquivoPdf = itemArquivoStorageService.carregarPdf(caminhoArquivoPdf);
-    Path nomeArquivoPath = Path.of(caminhoArquivoPdf).getFileName();
-    if (nomeArquivoPath == null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, NOME_ARQUIVO_INVALIDO);
-    }
-    String nomeArquivo = nomeArquivoPath.toString();
+    byte[] arquivoPdf = arquivoStorageService.carregarPdf(caminhoArquivoPdf);
+    String nomeArquivo = resolverNomeArquivo(caminhoArquivoPdf);
 
     return ResponseEntity.ok()
         .contentType(MediaType.APPLICATION_PDF)
@@ -150,12 +154,8 @@ public class ItemController {
             .orElseThrow(
                 () ->
                     new ResponseStatusException(HttpStatus.NOT_FOUND, ARQUIVO_ITEM_NAO_ENCONTRADO));
-    byte[] arquivoPdf = itemArquivoStorageService.carregarPdf(arquivo.getCaminhoArquivoPdf());
-    Path nomeArquivoPath = Path.of(arquivo.getCaminhoArquivoPdf()).getFileName();
-    if (nomeArquivoPath == null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, NOME_ARQUIVO_INVALIDO);
-    }
-    String nomeArquivo = nomeArquivoPath.toString();
+    byte[] arquivoPdf = arquivoStorageService.carregarPdf(arquivo.getCaminhoArquivoPdf());
+    String nomeArquivo = resolverNomeArquivo(arquivo.getCaminhoArquivoPdf());
 
     return ResponseEntity.ok()
         .contentType(MediaType.APPLICATION_PDF)
@@ -178,9 +178,8 @@ public class ItemController {
         if (caminho == null || caminho.isBlank()) {
           continue;
         }
-        byte[] conteudo = itemArquivoStorageService.carregarPdf(caminho);
-        Path nomeArquivoPath = Path.of(caminho).getFileName();
-        String nomeArquivo = nomeArquivoPath == null ? "arquivo.pdf" : nomeArquivoPath.toString();
+        byte[] conteudo = arquivoStorageService.carregarPdf(caminho);
+        String nomeArquivo = arquivoStorageService.resolverNomeArquivo(caminho);
         zip.putNextEntry(new ZipEntry(nomeArquivo));
         zip.write(conteudo);
         zip.closeEntry();
@@ -214,18 +213,21 @@ public class ItemController {
     if (arquivosPdf == null || arquivosPdf.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Envie ao menos um PDF.");
     }
-    List<String> caminhos =
-        itemArquivoStorageService.salvarPdfs(arquivosPdf, request.nomesArquivos());
-    for (String caminho : caminhos) {
-      ItemArquivo arquivo = new ItemArquivo();
-      arquivo.setCaminhoArquivoPdf(caminho);
-      arquivo.setItem(item);
-      item.getArquivos().add(arquivo);
+    List<String> arquivosSalvos = List.of();
+    try {
+      arquivosSalvos = arquivoStorageService.salvarPdfs(arquivosPdf, request.nomesArquivos());
+      adicionarArquivosAoItem(item, arquivosSalvos);
+      if (item.getCaminhoArquivoPdf() == null || item.getCaminhoArquivoPdf().isBlank()) {
+        item.setCaminhoArquivoPdf(arquivosSalvos.getFirst());
+      }
+      Item salvo = itemRepository.save(item);
+      List<ItemArquivoResponse> response =
+          salvo.getArquivos().stream().map(ItemArquivoResponse::from).toList();
+      return ResponseEntity.ok(response);
+    } catch (RuntimeException ex) {
+      removerArquivosSemFalhar(arquivosSalvos);
+      throw ex;
     }
-    Item salvo = itemRepository.save(item);
-    List<ItemArquivoResponse> response =
-        salvo.getArquivos().stream().map(ItemArquivoResponse::from).toList();
-    return ResponseEntity.ok(response);
   }
 
   @DeleteMapping(ID_PATH + "/arquivos/{arquivoId}")
@@ -243,7 +245,7 @@ public class ItemController {
                 () ->
                     new ResponseStatusException(HttpStatus.NOT_FOUND, ARQUIVO_ITEM_NAO_ENCONTRADO));
 
-    itemArquivoStorageService.deletarPdf(arquivo.getCaminhoArquivoPdf());
+    arquivoStorageService.deletarPdf(arquivo.getCaminhoArquivoPdf());
     item.getArquivos().removeIf(entry -> arquivoId.equals(entry.getId()));
 
     if (item.getCaminhoArquivoPdf() != null
@@ -265,13 +267,22 @@ public class ItemController {
       @PathVariable("id") UUID id,
       @Valid @RequestBody ItemUpsertRequest request) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
+    List<String> arquivosAntigos = listarArquivosPersistidos(item);
+    List<String> arquivosNovos = List.of();
     Usuario usuarioAutenticado =
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
-    applyRequest(item, request);
+    aplicarCamposBase(item, request);
     item.setRoleNome(resolverRoleNomeItem(usuarioAutenticado, request.role(), item.getRoleNome()));
 
-    Item salvo = itemRepository.save(item);
-    return ResponseEntity.ok(ItemResponse.from(salvo));
+    try {
+      arquivosNovos = atualizarArquivos(item, request.arquivosPdf(), request.nomesArquivos());
+      Item salvo = itemRepository.save(item);
+      removerArquivosSubstituidos(arquivosAntigos, arquivosNovos);
+      return ResponseEntity.ok(ItemResponse.from(salvo));
+    } catch (RuntimeException ex) {
+      removerArquivosSemFalhar(arquivosNovos);
+      throw ex;
+    }
   }
 
   @PatchMapping(ID_PATH + "/observacao")
@@ -289,7 +300,9 @@ public class ItemController {
   @DeleteMapping(ID_PATH)
   public ResponseEntity<Void> deletar(Authentication authentication, @PathVariable("id") UUID id) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
+    List<String> arquivos = listarArquivosPersistidos(item);
     itemRepository.delete(item);
+    removerArquivosSemFalhar(arquivos);
     return ResponseEntity.noContent().build();
   }
 
@@ -352,7 +365,7 @@ public class ItemController {
         HttpStatus.BAD_REQUEST, "Selecione a role responsavel por este comprovante.");
   }
 
-  private void applyRequest(Item item, ItemUpsertRequest request) {
+  private void aplicarCamposBase(Item item, ItemUpsertRequest request) {
     item.setValor(request.valor());
     item.setData(request.data());
     item.setHorarioCriacao(request.horarioCriacao());
@@ -361,16 +374,65 @@ public class ItemController {
     item.setRazaoSocialNome(request.razaoSocialNome());
     item.setCnpjCpf(request.cnpjCpf());
     item.setObservacao(request.observacao());
+  }
 
+  private List<String> atualizarArquivos(
+      Item item, List<byte[]> arquivosPdf, List<String> nomesArquivos) {
     item.getArquivos().clear();
-    var caminhos =
-        itemArquivoStorageService.salvarPdfs(request.arquivosPdf(), request.nomesArquivos());
+    List<String> caminhos = arquivoStorageService.salvarPdfs(arquivosPdf, nomesArquivos);
+    adicionarArquivosAoItem(item, caminhos);
+    item.setCaminhoArquivoPdf(caminhos.isEmpty() ? null : caminhos.getFirst());
+    return caminhos;
+  }
+
+  private void adicionarArquivosAoItem(Item item, List<String> caminhos) {
     for (String caminho : caminhos) {
       ItemArquivo arquivo = new ItemArquivo();
       arquivo.setCaminhoArquivoPdf(caminho);
       arquivo.setItem(item);
       item.getArquivos().add(arquivo);
     }
-    item.setCaminhoArquivoPdf(caminhos.isEmpty() ? null : caminhos.getFirst());
+  }
+
+  private String resolverNomeArquivo(String chaveArquivo) {
+    String nomeArquivo = arquivoStorageService.resolverNomeArquivo(chaveArquivo);
+    if (nomeArquivo == null || nomeArquivo.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, NOME_ARQUIVO_INVALIDO);
+    }
+    return nomeArquivo;
+  }
+
+  private List<String> listarArquivosPersistidos(Item item) {
+    List<String> caminhos = new ArrayList<>();
+    if (item.getCaminhoArquivoPdf() != null && !item.getCaminhoArquivoPdf().isBlank()) {
+      caminhos.add(item.getCaminhoArquivoPdf());
+    }
+    for (ItemArquivo arquivo : item.getArquivos()) {
+      String caminho = arquivo.getCaminhoArquivoPdf();
+      if (caminho != null && !caminho.isBlank() && !caminhos.contains(caminho)) {
+        caminhos.add(caminho);
+      }
+    }
+    return caminhos;
+  }
+
+  private void removerArquivosSubstituidos(List<String> arquivosAntigos, List<String> arquivosNovos) {
+    for (String caminhoAntigo : arquivosAntigos) {
+      if (!arquivosNovos.contains(caminhoAntigo)) {
+        arquivoStorageService.deletarPdf(caminhoAntigo);
+      }
+    }
+  }
+
+  private void removerArquivosSemFalhar(List<String> arquivos) {
+    for (String caminho : arquivos) {
+      try {
+        arquivoStorageService.deletarPdf(caminho);
+      } catch (RuntimeException ex) {
+        if (log.isWarnEnabled()) {
+          log.warn("Falha ao limpar arquivo apos erro de persistencia: {}", caminho, ex);
+        }
+      }
+    }
   }
 }

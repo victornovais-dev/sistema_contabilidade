@@ -21,7 +21,7 @@ import com.sistema_contabilidade.item.model.ItemArquivo;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
-import com.sistema_contabilidade.item.service.ItemArquivoStorageService;
+import com.sistema_contabilidade.item.service.ArquivoStorageService;
 import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
@@ -62,7 +62,7 @@ class ItemControllerWebMvcTest {
 
   @MockitoBean private ItemRepository itemRepository;
   @MockitoBean private ItemArquivoRepository itemArquivoRepository;
-  @MockitoBean private ItemArquivoStorageService itemArquivoStorageService;
+  @MockitoBean private ArquivoStorageService itemArquivoStorageService;
   @MockitoBean private ItemListService itemListService;
   @MockitoBean private RoleRepository roleRepository;
   @MockitoBean private UsuarioRepository usuarioRepository;
@@ -387,6 +387,8 @@ class ItemControllerWebMvcTest {
     when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
     when(itemArquivoStorageService.carregarPdf("uploads/itens/comprovante-1.pdf"))
         .thenReturn(conteudoPdf);
+    when(itemArquivoStorageService.resolverNomeArquivo("uploads/itens/comprovante-1.pdf"))
+        .thenReturn("comprovante-1.pdf");
 
     mockMvc
         .perform(
@@ -474,6 +476,8 @@ class ItemControllerWebMvcTest {
     when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
     when(itemArquivoStorageService.carregarPdf("uploads/itens/arquivo-teste.pdf"))
         .thenReturn("conteudo".getBytes());
+    when(itemArquivoStorageService.resolverNomeArquivo("uploads/itens/arquivo-teste.pdf"))
+        .thenReturn("arquivo-teste.pdf");
 
     byte[] payload =
         mockMvc
