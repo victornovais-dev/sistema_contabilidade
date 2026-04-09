@@ -15,6 +15,7 @@ public record ItemUpsertRequest(
     List<byte[]> arquivosPdf,
     List<String> nomesArquivos,
     @NotNull(message = "Tipo e obrigatorio") TipoItem tipo,
+    String role,
     String descricao,
     String razaoSocialNome,
     String cnpjCpf,
@@ -58,6 +59,7 @@ public record ItemUpsertRequest(
         && ItemRequestArraySupport.listsEqual(arquivosPdf, other.arquivosPdf)
         && Objects.equals(nomesArquivos, other.nomesArquivos)
         && tipo == other.tipo
+        && Objects.equals(role, other.role)
         && Objects.equals(descricao, other.descricao)
         && Objects.equals(razaoSocialNome, other.razaoSocialNome)
         && Objects.equals(cnpjCpf, other.cnpjCpf)

@@ -132,6 +132,11 @@ html[data-theme="dark"] .grid {
   font-size: clamp(2rem, 3vw, 2.8rem);
 }
 
+.page-header {
+  position: relative;
+  z-index: 40;
+}
+
 .report-header-row {
   display: flex;
   align-items: center;
@@ -146,6 +151,7 @@ html[data-theme="dark"] .grid {
 
 .role-filter-box {
   position: relative;
+  z-index: 41;
   display: inline-grid;
   gap: 8px;
   min-width: 230px;
@@ -175,11 +181,9 @@ html[data-theme="dark"] .grid {
 
 .role-filter-box label {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.95rem;
   color: var(--accent);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -258,6 +262,143 @@ html[data-theme="dark"] .role-filter-box select:hover {
 html[data-theme="dark"] .role-filter-box select option {
   background: rgba(20, 20, 24, 0.95);
   color: #ffffff;
+}
+
+.custom-select {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  height: 50px;
+  padding: 14px 44px 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(27, 27, 31, 0.16);
+  font-size: 1rem;
+  font-family: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 244, 239, 0.88));
+  color: var(--ink);
+  box-shadow: 0 10px 18px rgba(27, 27, 31, 0.08);
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.custom-select-trigger::after {
+  content: "";
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid rgba(79, 79, 90, 0.9);
+  transform: translateY(-35%);
+}
+
+.custom-select-trigger:focus {
+  outline: none;
+  border-color: rgba(216, 75, 52, 0.7);
+  box-shadow: 0 0 0 3px rgba(216, 75, 52, 0.16), 0 10px 18px rgba(27, 27, 31, 0.08);
+  transform: translateY(-1px);
+}
+
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(20, 20, 24, 0.98);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+  padding: 8px;
+  z-index: 42;
+}
+
+.custom-select-menu.is-scroll {
+  max-height: calc(7 * 44px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 122, 89, 0.45) transparent;
+}
+
+.custom-select-menu.is-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-select-menu.is-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-select-menu.is-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 122, 89, 0.45);
+}
+
+.custom-select-option {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.custom-select-option:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.custom-select-option.is-active {
+  background: rgba(255, 122, 89, 0.22);
+  color: #fff;
+}
+
+.native-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+html[data-theme="dark"] .custom-select-trigger {
+  background: linear-gradient(180deg, rgba(24, 24, 28, 0.96), rgba(18, 18, 22, 0.9));
+  color: var(--ink);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.32);
+}
+
+html[data-theme="dark"] .custom-select-trigger::after {
+  border-top-color: rgba(181, 181, 194, 0.95);
+}
+
+html[data-theme="light"] .custom-select-menu {
+  border-color: rgba(27, 27, 31, 0.14);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 36px rgba(20, 20, 24, 0.18);
+}
+
+html[data-theme="light"] .custom-select-option {
+  color: #1b1b1f;
+}
+
+html[data-theme="light"] .custom-select-option:hover {
+  background: rgba(27, 27, 31, 0.06);
+}
+
+html[data-theme="light"] .custom-select-option.is-active {
+  background: rgba(255, 122, 89, 0.18);
+  color: #1b1b1f;
 }
 
 .btn {

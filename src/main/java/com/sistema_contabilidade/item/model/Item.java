@@ -60,6 +60,9 @@ public class Item {
   @Column(length = 500)
   private String observacao;
 
+  @Column(name = "role_nome", length = 100)
+  private String roleNome;
+
   @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<ItemArquivo> arquivos = new ArrayList<>();
 

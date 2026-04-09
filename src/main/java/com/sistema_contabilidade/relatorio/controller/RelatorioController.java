@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,7 +41,6 @@ public class RelatorioController {
   }
 
   @GetMapping("/roles")
-  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<List<String>> listarRolesDisponiveis(Authentication authentication) {
     return ResponseEntity.ok(relatorioFinanceiroService.listarRolesDisponiveis(authentication));
   }

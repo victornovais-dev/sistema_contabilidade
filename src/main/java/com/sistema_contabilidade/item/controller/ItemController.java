@@ -2,6 +2,7 @@ package com.sistema_contabilidade.item.controller;
 
 import com.sistema_contabilidade.item.dto.ItemArquivoResponse;
 import com.sistema_contabilidade.item.dto.ItemArquivosUploadRequest;
+import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.dto.ItemObservacaoUpdateRequest;
 import com.sistema_contabilidade.item.dto.ItemResponse;
 import com.sistema_contabilidade.item.dto.ItemUpsertRequest;
@@ -9,7 +10,9 @@ import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
 import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
+import com.sistema_contabilidade.item.service.ItemAccessUtils;
 import com.sistema_contabilidade.item.service.ItemArquivoStorageService;
+import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.validation.Valid;
@@ -21,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +43,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -51,6 +54,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequiredArgsConstructor
 public class ItemController {
 
+  private static final int SINGLE_ROLE_COUNT = 1;
   private static final String ID_PATH = "/{id}";
   private static final String ARQUIVO_PATH = ID_PATH + "/arquivo";
   private static final String ITEM_NAO_ENCONTRADO = "Item nao encontrado";
@@ -61,15 +65,18 @@ public class ItemController {
   private final ItemRepository itemRepository;
   private final ItemArquivoRepository itemArquivoRepository;
   private final ItemArquivoStorageService itemArquivoStorageService;
+  private final ItemListService itemListService;
   private final UsuarioRepository usuarioRepository;
 
   @PostMapping
   public ResponseEntity<ItemResponse> criar(
       Authentication authentication, @Valid @RequestBody ItemUpsertRequest request) {
-    Usuario usuarioAutenticado = buscarUsuarioAutenticado(authentication);
+    Usuario usuarioAutenticado =
+        ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
     Item item = new Item();
     applyRequest(item, request);
     item.setCriadoPor(usuarioAutenticado);
+    item.setRoleNome(resolverRoleNomeItem(usuarioAutenticado, request.role(), null));
 
     Item salvo = itemRepository.save(item);
     URI location =
@@ -81,10 +88,14 @@ public class ItemController {
   }
 
   @GetMapping
-  public ResponseEntity<List<ItemResponse>> listarTodos(Authentication authentication) {
-    List<Item> itensVisiveis = buscarItensVisiveis(authentication);
-    List<ItemResponse> response = itensVisiveis.stream().map(ItemResponse::from).toList();
-    return ResponseEntity.ok(response);
+  public ResponseEntity<List<ItemListResponse>> listarTodos(
+      Authentication authentication, @RequestParam(name = "role", required = false) String role) {
+    return ResponseEntity.ok(itemListService.listarItens(authentication, role));
+  }
+
+  @GetMapping("/roles")
+  public ResponseEntity<List<String>> listarRolesDisponiveis(Authentication authentication) {
+    return ResponseEntity.ok(itemListService.listarRolesDisponiveis(authentication));
   }
 
   @GetMapping(ID_PATH)
@@ -254,7 +265,10 @@ public class ItemController {
       @PathVariable("id") UUID id,
       @Valid @RequestBody ItemUpsertRequest request) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
+    Usuario usuarioAutenticado =
+        ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
     applyRequest(item, request);
+    item.setRoleNome(resolverRoleNomeItem(usuarioAutenticado, request.role(), item.getRoleNome()));
 
     Item salvo = itemRepository.save(item);
     return ResponseEntity.ok(ItemResponse.from(salvo));
@@ -291,48 +305,51 @@ public class ItemController {
     return item;
   }
 
-  private List<Item> buscarItensVisiveis(Authentication authentication) {
-    if (isAdmin(authentication)) {
-      return itemRepository.findAll();
-    }
-    Usuario usuarioAutenticado = buscarUsuarioAutenticado(authentication);
-    Set<String> roleNomesUsuario = extrairRoleNomes(usuarioAutenticado);
-    if (roleNomesUsuario.isEmpty()) {
-      return List.of();
-    }
-    return itemRepository.findAllVisiveisPorRoleNomes(roleNomesUsuario);
-  }
-
   private boolean temAcessoPorRole(Authentication authentication, Item item) {
-    Usuario usuarioAutenticado = buscarUsuarioAutenticado(authentication);
-    Set<String> roleNomesUsuario = extrairRoleNomes(usuarioAutenticado);
-    if (roleNomesUsuario.isEmpty() || item.getCriadoPor() == null) {
+    Set<String> roleNomesUsuario =
+        ItemAccessUtils.extrairRoleNomes(
+            ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository));
+    if (roleNomesUsuario.isEmpty()) {
       return false;
     }
-    Set<String> roleNomesCriador = extrairRoleNomes(item.getCriadoPor());
-    return roleNomesCriador.stream().anyMatch(roleNomesUsuario::contains);
+    String roleNomeItem = ItemAccessUtils.normalizarRole(item.getRoleNome());
+    return roleNomeItem != null && roleNomesUsuario.contains(roleNomeItem);
   }
 
   private boolean isAdmin(Authentication authentication) {
-    if (authentication == null) {
-      return false;
-    }
-    return authentication.getAuthorities().stream()
-        .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+    return ItemAccessUtils.isAdmin(authentication);
   }
 
-  private Usuario buscarUsuarioAutenticado(Authentication authentication) {
-    if (authentication == null || authentication.getName() == null) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario nao autenticado");
-    }
-    return usuarioRepository
-        .findByEmail(authentication.getName())
-        .orElseThrow(
-            () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario nao encontrado"));
+  private void validarRoleFiltro(String roleFiltro, Set<String> roleNomesUsuario) {
+    ItemAccessUtils.validarRoleFiltro(roleFiltro, roleNomesUsuario);
   }
 
-  private Set<String> extrairRoleNomes(Usuario usuario) {
-    return usuario.getRoles().stream().map(role -> role.getNome()).collect(Collectors.toSet());
+  private String resolverRoleNomeItem(
+      Usuario usuarioAutenticado, String roleRequest, String roleAtualItem) {
+    Set<String> roleNomesUsuario = ItemAccessUtils.extrairRoleNomes(usuarioAutenticado);
+    if (roleNomesUsuario.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN,
+          "Usuario autenticado nao possui role para vincular ao comprovante.");
+    }
+
+    String roleRequestNormalizada = ItemAccessUtils.normalizarRole(roleRequest);
+    if (roleRequestNormalizada != null) {
+      validarRoleFiltro(roleRequestNormalizada, roleNomesUsuario);
+      return roleRequestNormalizada;
+    }
+
+    String roleAtualNormalizada = ItemAccessUtils.normalizarRole(roleAtualItem);
+    if (roleAtualNormalizada != null) {
+      return roleAtualNormalizada;
+    }
+
+    if (roleNomesUsuario.size() == SINGLE_ROLE_COUNT) {
+      return roleNomesUsuario.iterator().next();
+    }
+
+    throw new ResponseStatusException(
+        HttpStatus.BAD_REQUEST, "Selecione a role responsavel por este comprovante.");
   }
 
   private void applyRequest(Item item, ItemUpsertRequest request) {

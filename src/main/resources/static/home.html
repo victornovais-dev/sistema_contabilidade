@@ -33,7 +33,31 @@
           </p>
         </div>
 
-        <a class="dashboard-primary-action" href="/adicionar_comprovante">+ Novo Lan&ccedil;amento</a>
+        <div class="dashboard-actions">
+          <a class="dashboard-primary-action" href="/adicionar_comprovante">+ Novo Lan&ccedil;amento</a>
+          <div class="role-filter-box" id="home-role-filter-box" hidden>
+            <label for="home-role-filter-select">Pol&iacute;tico</label>
+            <div class="custom-select" data-custom-select>
+              <button
+                class="custom-select-trigger"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                Selecione
+              </button>
+              <div class="custom-select-menu" role="listbox" hidden></div>
+              <select
+                id="home-role-filter-select"
+                class="native-select"
+                aria-label="Selecionar politico para visualizar a home"
+                aria-hidden="true"
+              >
+                <option value="" disabled selected>Selecione</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="metrics-grid" aria-label="Resumo financeiro">
@@ -114,7 +138,10 @@
     </main>
 
     <script src="assets/js/navbar.js" defer></script>
+    <script src="assets/js/role-dropdown.js" defer></script>
     <script src="assets/js/home-welcome.js" defer></script>
+    <script src="assets/js/home-role-filter.js" defer></script>
+    <script src="assets/js/home-dashboard-data.js" defer></script>
     <script src="assets/js/home-metrics.js" defer></script>
     <script src="assets/js/home-income-expense-chart.js" defer></script>
     <script src="assets/js/home-latest-launches.js" defer></script>

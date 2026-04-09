@@ -22,7 +22,26 @@
     <main class="page page-wide">
       <header class="page-header">
         <span class="chip">Histórico</span>
-        <h1>Comprovantes</h1>
+        <div class="page-header-row">
+          <h1>Comprovantes</h1>
+          <div class="role-filter-box" id="role-filter-box" hidden>
+            <label for="role-filter-select">Político</label>
+            <div class="custom-select" data-custom-select>
+              <button
+                class="custom-select-trigger"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                Selecione
+              </button>
+              <div class="custom-select-menu" role="listbox" hidden></div>
+              <select id="role-filter-select" class="native-select" aria-label="Filtrar comprovantes por político" aria-hidden="true">
+                <option value="" disabled selected>Selecione</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </header>
 
       <section class="filters filters-card">
@@ -355,6 +374,7 @@
 
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/js/navbar.js" defer></script>
+    <script src="assets/js/role-dropdown.js" defer></script>
     <script src="assets/js/lista_comprovantes.js" defer></script>
   </body>
 </html>

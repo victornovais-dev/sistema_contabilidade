@@ -1,6 +1,5 @@
 package com.sistema_contabilidade.relatorio.service;
 
-import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
@@ -16,7 +15,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -108,20 +106,29 @@ public class RelatorioFinanceiroService {
   private final UsuarioRepository usuarioRepository;
   private final PlaywrightPdfService playwrightPdfService;
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public RelatorioFinanceiroResponse gerar(Authentication authentication) {
-    return gerar(authentication, null);
+    return gerarRelatorio(authentication, null);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public RelatorioFinanceiroResponse gerar(Authentication authentication, String roleFiltro) {
+    return gerarRelatorio(authentication, roleFiltro);
+  }
+
+  private RelatorioFinanceiroResponse gerarRelatorio(
+      Authentication authentication, String roleFiltro) {
     String roleFiltroNormalizada = normalizarRole(roleFiltro);
     Set<String> roleNomesAutenticado = extrairRoleNomes(authentication);
     boolean isAdmin = roleNomesAutenticado.contains(ADMIN_ROLE);
-    if (roleFiltroNormalizada != null && !isAdmin) {
+    if (roleFiltroNormalizada != null
+        && !isAdmin
+        && !roleNomesAutenticado.contains(roleFiltroNormalizada)) {
       throw new ResponseStatusException(
-          HttpStatus.FORBIDDEN, "Somente admin pode filtrar relatorio por role.");
+          HttpStatus.FORBIDDEN, "A role selecionada nao pertence ao usuario autenticado.");
     }
 
-    List<Item> itensVisiveis =
+    List<RelatorioItemDto> itensVisiveis =
         roleFiltroNormalizada == null
             ? buscarItensVisiveis(roleNomesAutenticado)
             : buscarItensPorRoleFiltro(roleFiltroNormalizada);
@@ -138,18 +145,10 @@ public class RelatorioFinanceiroService {
 
   public List<String> listarRolesDisponiveis(Authentication authentication) {
     Set<String> roleNomesAutenticado = extrairRoleNomes(authentication);
-    if (!roleNomesAutenticado.contains(ADMIN_ROLE)) {
-      throw new ResponseStatusException(
-          HttpStatus.FORBIDDEN, "Somente admin pode listar roles para filtro.");
+    if (roleNomesAutenticado.contains(ADMIN_ROLE)) {
+      return roleRepository.findAllRoleNamesOrdered();
     }
-    return roleRepository.findAll().stream()
-        .map(role -> role.getNome())
-        .filter(java.util.Objects::nonNull)
-        .map(nome -> nome.trim().toUpperCase(Locale.ROOT))
-        .filter(nome -> !nome.isBlank())
-        .distinct()
-        .sorted()
-        .toList();
+    return roleNomesAutenticado.stream().sorted().toList();
   }
 
   public byte[] gerarPdf(Authentication authentication, RelatorioFinanceiroResponse relatorio) {
@@ -316,31 +315,22 @@ public class RelatorioFinanceiroService {
         .orElse(authentication.getName());
   }
 
-  private List<Item> buscarItensVisiveis(Set<String> roleNomes) {
+  private List<RelatorioItemDto> buscarItensVisiveis(Set<String> roleNomes) {
     if (roleNomes.contains(ADMIN_ROLE)) {
-      return itemRepository.findAll();
+      return itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc();
     }
     if (roleNomes.isEmpty()) {
       return List.of();
     }
-    return itemRepository.findAllVisiveisPorRoleNomes(roleNomes);
+    return itemRepository.findRelatorioItensByRoleNomesOrderByDataDescHorarioCriacaoDesc(roleNomes);
   }
 
-  private List<Item> buscarItensPorRoleFiltro(String roleFiltro) {
-    return itemRepository.findAllVisiveisPorRoleNomes(Set.of(roleFiltro));
+  private List<RelatorioItemDto> buscarItensPorRoleFiltro(String roleFiltro) {
+    return itemRepository.findRelatorioItensByRoleNomeOrderByDataDescHorarioCriacaoDesc(roleFiltro);
   }
 
-  private List<RelatorioItemDto> filtrarItensPorTipo(List<Item> itens, TipoItem tipo) {
-    return itens.stream()
-        .filter(item -> item.getTipo() == tipo)
-        .map(RelatorioItemDto::from)
-        .sorted(
-            Comparator.comparing(
-                    RelatorioItemDto::data, Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(
-                    RelatorioItemDto::horarioCriacao,
-                    Comparator.nullsLast(Comparator.reverseOrder())))
-        .toList();
+  private List<RelatorioItemDto> filtrarItensPorTipo(List<RelatorioItemDto> itens, TipoItem tipo) {
+    return itens.stream().filter(item -> item.tipo() == tipo).toList();
   }
 
   private BigDecimal somarValores(List<RelatorioItemDto> itens) {
@@ -410,7 +400,9 @@ public class RelatorioFinanceiroService {
     if (item.descricao() != null && !item.descricao().isBlank()) {
       String categoriaPadrao = receita ? "receita" : "despesa";
       String categoriaSegura = categoria == null ? categoriaPadrao : categoria;
-      return receita ? "Lancamento de " + categoriaSegura.toLowerCase(Locale.ROOT) : categoriaSegura;
+      return receita
+          ? "Lancamento de " + categoriaSegura.toLowerCase(Locale.ROOT)
+          : categoriaSegura;
     }
     return receita ? "Receita registrada no periodo" : "Despesa registrada no periodo";
   }
