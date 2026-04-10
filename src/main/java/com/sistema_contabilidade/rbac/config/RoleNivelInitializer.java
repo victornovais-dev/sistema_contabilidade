@@ -9,9 +9,11 @@ import jakarta.transaction.Transactional;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Component
+@Order(10)
 @RequiredArgsConstructor
 public class RoleNivelInitializer implements CommandLineRunner {
 
