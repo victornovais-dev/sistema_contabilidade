@@ -254,10 +254,9 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
 
   @Query(
       """
-      select i
+      select distinct i
       from Item i
-      left join fetch i.criadoPor u
-      left join fetch u.roles
+      left join fetch i.criadoPor
       left join fetch i.arquivos
       where i.id = :id
       """)

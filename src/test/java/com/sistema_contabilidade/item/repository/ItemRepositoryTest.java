@@ -130,6 +130,22 @@ class ItemRepositoryTest {
   }
 
   @Test
+  @DisplayName("Deve buscar item por id sem duplicar arquivo quando criador possui multiplas roles")
+  void deveBuscarItemPorIdSemDuplicarArquivoQuandoCriadorPossuiMultiplasRoles() {
+    Usuario criador = criarUsuarioComRoles("arquivos@email.com", "FINANCEIRO", "OPERADOR", "ADMIN");
+
+    Item item = novoItem(TipoItem.RECEITA, "uploads/itens/principal.pdf", criador, "FINANCEIRO");
+    item.getArquivos().add(novoArquivo(item, "uploads/itens/unico.pdf"));
+    Item salvo = itemRepository.save(item);
+
+    Item encontrado = itemRepository.findByIdComCriadorERoles(salvo.getId()).orElseThrow();
+
+    assertEquals(1, encontrado.getArquivos().size());
+    assertEquals(
+        "uploads/itens/unico.pdf", encontrado.getArquivos().getFirst().getCaminhoArquivoPdf());
+  }
+
+  @Test
   @DisplayName("Deve agregar totais por tipo para dashboard da home")
   void deveAgregarTotaisPorTipoParaDashboardDaHome() {
     Usuario criador = criarUsuarioComRole("dashboard@email.com", "FINANCEIRO");
