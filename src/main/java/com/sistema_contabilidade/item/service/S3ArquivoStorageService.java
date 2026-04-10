@@ -68,9 +68,7 @@ public class S3ArquivoStorageService implements ArquivoStorageService {
       for (int index = 0; index < arquivosPdf.size(); index += 1) {
         byte[] arquivoPdf = arquivosPdf.get(index);
         String nomeOriginal =
-            nomesArquivos != null && index < nomesArquivos.size()
-                ? nomesArquivos.get(index)
-                : null;
+            nomesArquivos != null && index < nomesArquivos.size() ? nomesArquivos.get(index) : null;
         chaves.add(salvarPdf(arquivoPdf, nomeOriginal));
       }
       return chaves;

@@ -36,7 +36,8 @@ final class LegacyCompatiblePasswordEncoder implements PasswordEncoder {
       return delegate.matches(rawPassword, encodedPassword);
     }
 
-    return legacyMatchers.stream().anyMatch(encoder -> encoder.matches(rawPassword, encodedPassword));
+    return legacyMatchers.stream()
+        .anyMatch(encoder -> encoder.matches(rawPassword, encodedPassword));
   }
 
   @Override

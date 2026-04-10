@@ -9,8 +9,8 @@ import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.S3Configuration;
 
 @Configuration
 @Slf4j
@@ -38,10 +38,7 @@ public class S3StorageConfig {
     }
 
     if (log.isInfoEnabled()) {
-      log.info(
-          "S3 client configurado para bucket {} na regiao {}",
-          s3.getBucket(),
-          s3.getRegion());
+      log.info("S3 client configurado para bucket {} na regiao {}", s3.getBucket(), s3.getRegion());
     }
     return builder.build();
   }

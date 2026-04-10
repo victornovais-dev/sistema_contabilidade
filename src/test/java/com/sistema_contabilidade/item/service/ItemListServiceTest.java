@@ -90,8 +90,7 @@ class ItemListServiceTest {
 
     ResponseStatusException ex =
         assertThrows(
-            ResponseStatusException.class,
-            () -> service.listarItens(authentication, "financeiro"));
+            ResponseStatusException.class, () -> service.listarItens(authentication, "financeiro"));
 
     assertEquals(403, ex.getStatusCode().value());
   }
