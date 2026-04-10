@@ -340,6 +340,8 @@ public class ItemController {
   private String resolverRoleNomeItem(
       Usuario usuarioAutenticado, String roleRequest, String roleAtualItem) {
     Set<String> roleNomesUsuario = ItemAccessUtils.extrairRoleNomes(usuarioAutenticado);
+    boolean usuarioAdmin =
+        roleNomesUsuario.contains("ADMIN") || roleNomesUsuario.contains("ROLE_ADMIN");
     if (roleNomesUsuario.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN,
@@ -348,7 +350,9 @@ public class ItemController {
 
     String roleRequestNormalizada = ItemAccessUtils.normalizarRole(roleRequest);
     if (roleRequestNormalizada != null) {
-      validarRoleFiltro(roleRequestNormalizada, roleNomesUsuario);
+      if (!usuarioAdmin) {
+        validarRoleFiltro(roleRequestNormalizada, roleNomesUsuario);
+      }
       return roleRequestNormalizada;
     }
 
@@ -416,7 +420,8 @@ public class ItemController {
     return caminhos;
   }
 
-  private void removerArquivosSubstituidos(List<String> arquivosAntigos, List<String> arquivosNovos) {
+  private void removerArquivosSubstituidos(
+      List<String> arquivosAntigos, List<String> arquivosNovos) {
     for (String caminhoAntigo : arquivosAntigos) {
       if (!arquivosNovos.contains(caminhoAntigo)) {
         arquivoStorageService.deletarPdf(caminhoAntigo);

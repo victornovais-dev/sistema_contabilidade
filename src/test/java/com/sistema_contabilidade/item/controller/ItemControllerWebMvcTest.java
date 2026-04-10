@@ -308,6 +308,48 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve permitir admin criar item em qualquer role")
+  void criarDevePermitirAdminCriarItemEmQualquerRole() throws Exception {
+    Item item = new Item();
+    item.setId(UUID.fromString("12121212-3434-5656-7878-909090909090"));
+    item.setCaminhoArquivoPdf("uploads/itens/item-manager.pdf");
+    item.setTipo(TipoItem.DESPESA);
+    item.setDescricao("SERVICOS");
+    item.setRoleNome("MANAGER");
+    ItemArquivo arquivoCriado = new ItemArquivo();
+    arquivoCriado.setCaminhoArquivoPdf("uploads/itens/item-manager.pdf");
+    arquivoCriado.setItem(item);
+    item.getArquivos().add(arquivoCriado);
+    when(itemArquivoStorageService.salvarPdfs(
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList()))
+        .thenReturn(List.of("uploads/itens/item-manager.pdf"));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class))).thenReturn(item);
+    when(usuarioRepository.findByEmail("admin@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("admin", "ADMIN")));
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens")
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":120.50,
+                      "data":"2026-03-15",
+                      "horarioCriacao":"2026-03-15T18:00:00",
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["documento-1.pdf"],
+                      "tipo":"DESPESA",
+                      "role":"MANAGER",
+                      "descricao":"SERVICOS"
+                    }
+                    """))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.role").value("MANAGER"));
+  }
+
+  @Test
   @DisplayName("Deve buscar item por id")
   void buscarPorIdDeveRetornarOk() throws Exception {
     UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -549,6 +591,55 @@ class ItemControllerWebMvcTest {
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.caminhoArquivoPdf").value("uploads/itens/novo.pdf"));
+  }
+
+  @Test
+  @DisplayName("Deve permitir admin atualizar item para qualquer role")
+  void atualizarDevePermitirAdminAtualizarItemParaQualquerRole() throws Exception {
+    UUID id = UUID.fromString("78787878-5656-3434-1212-000000000000");
+    Item item = new Item();
+    item.setId(id);
+    item.setCaminhoArquivoPdf("uploads/itens/antigo.pdf");
+    item.setTipo(TipoItem.RECEITA);
+    item.setRoleNome("ADMIN");
+    ItemArquivo arquivoAntigo = new ItemArquivo();
+    arquivoAntigo.setCaminhoArquivoPdf("uploads/itens/antigo.pdf");
+    arquivoAntigo.setItem(item);
+    item.getArquivos().add(arquivoAntigo);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemArquivoStorageService.salvarPdfs(
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList()))
+        .thenReturn(List.of("uploads/itens/novo.pdf"));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(
+            invocation -> {
+              Item atualizado = invocation.getArgument(0);
+              atualizado.setRoleNome("MANAGER");
+              return atualizado;
+            });
+    when(usuarioRepository.findByEmail("admin@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("admin", "ADMIN")));
+
+    mockMvc
+        .perform(
+            put("/api/v1/itens/{id}", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":250.10,
+                      "data":"2026-03-16",
+                      "horarioCriacao":"2026-03-16T11:10:00",
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["novo.pdf"],
+                      "tipo":"DESPESA",
+                      "role":"MANAGER",
+                      "descricao":"OUTROS"
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.role").value("MANAGER"));
   }
 
   @Test
