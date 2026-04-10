@@ -34,6 +34,8 @@ Before every commit:
 ## Notes
 - Prefer `./mvnw` instead of global Maven
 - Keep commits focused by feature/package
+- When the user asks to use a skill, always look for it first in the subfolders inside the local project skills directory:
+  - `A:\Projetos IA\Sistema\projeto\sistema_contabilidade\skills`
 - For code debugging tasks, use the local skills `codex-debug` and `pragmatic-programmer` and `refactoring-patterns`
 - Before running Maven in PowerShell, load Java 25 with:
   - `.\scripts\use-java25.ps1`
