@@ -311,6 +311,23 @@ class UsuarioServiceTest {
   }
 
   @Test
+  @DisplayName("Deve retornar bad request ao criar usuario com SUPPORT e MANAGER ao mesmo tempo")
+  void criarComSupportEManagerDeveRetornarBadRequest() {
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest(
+            "Ana", "ana@email.com", "123456", null, Set.of("SUPPORT", "MANAGER"));
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> usuarioService.save(request));
+
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    assertEquals("Usuario nao pode ter as roles SUPPORT e MANAGER ao mesmo tempo.", ex.getReason());
+    verify(usuarioRepository, never()).save(any(Usuario.class));
+    verify(roleRepository, never()).findByNomeIgnoreCase(any());
+  }
+
+  @Test
   @DisplayName("Deve permitir update quando email ja pertence ao mesmo usuario")
   void updateComMesmoEmailDoUsuarioAtualDevePermitir() {
     UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -560,6 +577,26 @@ class UsuarioServiceTest {
 
     assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     assertEquals("Ao menos uma role deve ser informada", ex.getReason());
+  }
+
+  @Test
+  @DisplayName(
+      "Deve retornar bad request ao atualizar usuario com SUPPORT e MANAGER ao mesmo tempo")
+  void updateByEmailComSupportEManagerDeveRetornarBadRequest() {
+    UsuarioUpdateByEmailRequest request =
+        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("SUPPORT", "MANAGER"));
+    Usuario usuario =
+        novoUsuario(
+            UUID.fromString("11111111-2222-3333-4444-555555555555"), "Suporte", "sup@email.com");
+    when(usuarioRepository.findByEmail("sup@email.com")).thenReturn(Optional.of(usuario));
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> usuarioService.updateByEmail(request));
+
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    assertEquals("Usuario nao pode ter as roles SUPPORT e MANAGER ao mesmo tempo.", ex.getReason());
+    verify(usuarioRepository, never()).save(any(Usuario.class));
+    verify(roleRepository, never()).findByNomeIgnoreCase(any());
   }
 
   private Usuario novoUsuario(UUID id, String nome, String email) {

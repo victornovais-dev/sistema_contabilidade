@@ -210,6 +210,31 @@ class UsuarioControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve retornar 400 ao criar usuario com SUPPORT e MANAGER ao mesmo tempo")
+  void criarDeveRetornarBadRequestQuandoSupportEManagerForemInformadosJuntos() throws Exception {
+    when(usuarioService.save(org.mockito.ArgumentMatchers.any(UsuarioCreateRequest.class)))
+        .thenThrow(
+            new ResponseStatusException(
+                org.springframework.http.HttpStatus.BAD_REQUEST,
+                "Usuario nao pode ter as roles SUPPORT e MANAGER ao mesmo tempo."));
+
+    mockMvc
+        .perform(
+            post("/api/v1/usuarios")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "nome":"Bia",
+                      "email":"bia@email.com",
+                      "senha":"123456",
+                      "roles":["SUPPORT","MANAGER"]
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   @DisplayName("Deve atualizar o proprio perfil")
   void atualizarPerfilDeveRetornarOk() throws Exception {
     UUID id = UUID.fromString("33333333-3333-3333-3333-333333333333");

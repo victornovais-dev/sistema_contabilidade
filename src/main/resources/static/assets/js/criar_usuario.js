@@ -17,6 +17,9 @@ const rolesConfirm = document.getElementById("roles-confirm");
 const selectedRolesContainer = document.getElementById("selected-roles");
 const rolesHidden = document.getElementById("roles-hidden");
 const selectedRoles = new Set();
+const ROLE_SUPPORT = "SUPPORT";
+const ROLE_MANAGER = "MANAGER";
+let availableRoles = [];
 
 const readCookie = (name) => {
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -83,6 +86,80 @@ const syncRolesHidden = () => {
   const roles = Array.from(selectedRoles);
   rolesHidden.value = roles.join(",");
   rolesHidden.setCustomValidity(roles.length > 0 ? "" : "Selecione ao menos uma role.");
+};
+
+const hasSupportManagerConflict = (roles) => {
+  const normalized = new Set((roles || []).map((role) => String(role || "").trim().toUpperCase()));
+  return normalized.has(ROLE_SUPPORT) && normalized.has(ROLE_MANAGER);
+};
+
+const renderRoleOptions = (roles) => {
+  if (!rolesOptions) return;
+
+  availableRoles = Array.isArray(roles)
+    ? [...new Set(roles.map((role) => String(role || "").trim()).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "pt-BR"),
+      )
+    : [];
+
+  rolesOptions.innerHTML = "";
+
+  if (availableRoles.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "roles-empty";
+    empty.textContent = "Nenhuma role cadastrada.";
+    rolesOptions.appendChild(empty);
+    return;
+  }
+
+  availableRoles.forEach((role) => {
+    const label = document.createElement("label");
+    label.className = "roles-option";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = role;
+    input.checked = selectedRoles.has(role);
+
+    const span = document.createElement("span");
+    span.textContent = role;
+
+    label.appendChild(input);
+    label.appendChild(span);
+    rolesOptions.appendChild(label);
+  });
+};
+
+const renderRoleLoadError = (message) => {
+  if (!rolesOptions) return;
+  rolesOptions.innerHTML = "";
+  const empty = document.createElement("p");
+  empty.className = "roles-empty";
+  empty.textContent = message || "Nao foi possivel carregar as roles cadastradas.";
+  rolesOptions.appendChild(empty);
+};
+
+const loadAvailableRoles = async () => {
+  const response = await fetch("/api/v1/admin/roles", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    credentials: "same-origin",
+  });
+
+  if (response.status === 401) {
+    window.location.href = "/login";
+    return;
+  }
+
+  if (!response.ok) {
+    throw new Error("Falha ao carregar roles cadastradas.");
+  }
+
+  const data = await response.json().catch(() => []);
+  const roles = Array.isArray(data) ? data.map((item) => item?.nome).filter(Boolean) : [];
+  renderRoleOptions(roles);
 };
 
 const renderSelectedRoles = () => {
@@ -183,8 +260,12 @@ const showFeedback = (type, message) => {
   confirmCard.classList.add(type === "success" ? "is-success" : "is-error");
   confirmIcon.textContent = type === "success" ? "\u2713" : "\u2715";
   confirmTitle.textContent = type === "success" ? "Usuario criado" : "Erro ao criar usuario";
-  confirmMessage.textContent = message || "";
-  confirmMessage.hidden = !message;
+  confirmMessage.textContent =
+    message ||
+    (type === "success"
+      ? "O usuario foi criado com sucesso."
+      : "Nao foi possivel concluir a criacao do usuario.");
+  confirmMessage.hidden = false;
   confirmOverlay.classList.add("is-visible");
   confirmOverlay.setAttribute("aria-hidden", "false");
 };
@@ -203,6 +284,10 @@ form.addEventListener("submit", async (event) => {
   const selectedRolesList = Array.from(selectedRoles);
   if (selectedRolesList.length === 0) {
     showFeedback("error", "Selecione ao menos uma role.");
+    return;
+  }
+  if (hasSupportManagerConflict(selectedRolesList)) {
+    showFeedback("error", "Usuario nao pode ter as roles SUPPORT e MANAGER ao mesmo tempo.");
     return;
   }
 
@@ -242,10 +327,18 @@ form.addEventListener("submit", async (event) => {
     });
     rolesSearch.value = "";
     renderSelectedRoles();
-    showFeedback("success", "");
+    showFeedback("success", "O usuario foi criado com sucesso.");
   } catch (error) {
     showFeedback("error", "Erro de conexao com o servidor.");
   }
 });
 
 renderSelectedRoles();
+
+void (async () => {
+  try {
+    await loadAvailableRoles();
+  } catch (error) {
+    renderRoleLoadError("Nao foi possivel carregar as roles cadastradas.");
+  }
+})();

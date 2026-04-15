@@ -15,8 +15,10 @@ import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +30,10 @@ import org.springframework.web.server.ResponseStatusException;
 public class UsuarioService {
 
   private static final String USUARIO_NAO_ENCONTRADO = "Usuario nao encontrado";
+  private static final String ROLE_SUPPORT = "SUPPORT";
+  private static final String ROLE_MANAGER = "MANAGER";
+  private static final String SUPPORT_MANAGER_CONFLITO =
+      "Usuario nao pode ter as roles SUPPORT e MANAGER ao mesmo tempo.";
   private final UsuarioRepository usuarioRepository;
   private final RoleRepository roleRepository;
   private final PasswordEncoder passwordEncoder;
@@ -192,6 +198,15 @@ public class UsuarioService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Ao menos uma role deve ser informada");
     }
+    validarCombinacaoDeRoles(roles);
     return roles;
+  }
+
+  private void validarCombinacaoDeRoles(Set<String> roles) {
+    Set<String> rolesNormalizadas =
+        roles.stream().map(role -> role.toUpperCase(Locale.ROOT)).collect(Collectors.toSet());
+    if (rolesNormalizadas.contains(ROLE_SUPPORT) && rolesNormalizadas.contains(ROLE_MANAGER)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, SUPPORT_MANAGER_CONFLITO);
+    }
   }
 }
