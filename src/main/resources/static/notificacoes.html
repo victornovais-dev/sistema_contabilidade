@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notificacoes</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <script src="assets/js/theme-init.js?v=20260414-notificacoes-1"></script>
+    <link rel="stylesheet" href="assets/css/notificacoes.css?v=20260414-notificacoes-1" />
+    <link rel="stylesheet" href="assets/css/navbar.css?v=20260414-notificacoes-1" />
+  </head>
+  <body>
+    <div id="navbar-root" data-navbar-root></div>
+
+    <div class="bg" aria-hidden="true">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="page page-wide">
+      <header class="page-header">
+        <span class="chip">Atualizacoes</span>
+        <div class="page-header-row">
+          <div>
+            <h1>Notificacoes</h1>
+            <p>Cada receita lancada gera uma notificacao nesta pagina.</p>
+          </div>
+          <div class="role-filter-box" id="role-filter-box" hidden>
+            <label for="role-filter-select">Politico</label>
+            <div class="custom-select" data-custom-select>
+              <button
+                class="custom-select-trigger"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                Selecione
+              </button>
+              <div class="custom-select-menu" role="listbox" hidden></div>
+              <select
+                id="role-filter-select"
+                class="native-select"
+                aria-label="Filtrar notificacoes por politico"
+                aria-hidden="true"
+              >
+                <option value="" disabled selected>Selecione</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section id="notifications-state" class="card notifications-state">
+        Carregando notificacoes...
+      </section>
+
+      <section class="summary-grid" id="summary-grid" hidden>
+        <article class="card summary-card">
+          <p class="summary-label">Notificacoes</p>
+          <h2 class="summary-value" data-summary="count">0</h2>
+          <p class="summary-hint">Receitas registradas</p>
+        </article>
+        <article class="card summary-card">
+          <p class="summary-label">Valor notificado</p>
+          <h2 class="summary-value summary-value-positive" data-summary="total">R$ 0,00</h2>
+          <p class="summary-hint">Soma das receitas listadas</p>
+        </article>
+        <article class="card summary-card">
+          <p class="summary-label">Ultima notificacao</p>
+          <h2 class="summary-value summary-value-small" data-summary="latest">-</h2>
+          <p class="summary-hint">Horario do ultimo lancamento</p>
+        </article>
+      </section>
+
+      <section class="notifications-list" id="notifications-list" hidden></section>
+    </main>
+
+    <template id="notification-card-template">
+      <article class="card notification-card">
+        <div class="notification-header">
+          <div>
+            <span class="notification-pill">Receita lancada</span>
+            <h2 class="notification-title">Nova receita registrada</h2>
+          </div>
+          <div class="notification-meta">
+            <span class="notification-role" data-field="role"></span>
+            <span class="notification-time" data-field="criadoEm"></span>
+          </div>
+        </div>
+        <div class="notification-grid">
+          <div class="notification-info">
+            <span class="notification-label">Valor</span>
+            <strong class="notification-value notification-value-positive" data-field="valor"></strong>
+          </div>
+          <div class="notification-info">
+            <span class="notification-label">Descricao</span>
+            <strong class="notification-value" data-field="descricao"></strong>
+          </div>
+          <div class="notification-info">
+            <span class="notification-label">Razao social / Nome</span>
+            <strong class="notification-value" data-field="razaoSocialNome"></strong>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="assets/js/navbar.js?v=20260414-notificacoes-1" defer></script>
+    <script src="assets/js/role-dropdown.js?v=20260414-notificacoes-1" defer></script>
+    <script src="assets/js/notificacoes.js?v=20260414-notificacoes-1" defer></script>
+  </body>
+</html>

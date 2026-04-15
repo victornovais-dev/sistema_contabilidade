@@ -71,6 +71,13 @@ public class PaginaUsuarioController {
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
   }
 
+  @GetMapping(value = "/notificacoes", produces = MediaType.TEXT_HTML_VALUE)
+  @PreAuthorize(IS_AUTHENTICATED_EXPRESSION)
+  public ResponseEntity<Resource> notificacoesPage() {
+    Resource resource = new ClassPathResource("static/notificacoes.html");
+    return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
+  }
+
   @GetMapping(value = "/admin", produces = MediaType.TEXT_HTML_VALUE)
   @PreAuthorize(ADMIN_ROLE_EXPRESSION)
   public ResponseEntity<Resource> adminPage() {
