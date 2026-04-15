@@ -3,8 +3,13 @@ const state = {
   selectedRole: "",
 };
 
-const summaryCard = document.getElementById("summary-card");
-const reportsGrid = document.getElementById("reports-grid");
+const REFRESH_ANIMATION_MS = 180;
+
+const summaryLayout = document.getElementById("summary-layout");
+const summaryDespesasCard = document.getElementById("summary-despesas-card");
+const summaryOverviewCard = document.getElementById("summary-overview-card");
+const summaryDespesasTitle = summaryDespesasCard?.querySelector(".summary-card-title") || null;
+const summaryOverviewTitle = summaryOverviewCard?.querySelector(".summary-card-title") || null;
 const reportState = document.getElementById("report-state");
 const downloadReportButton = document.getElementById("download-report-btn");
 const roleFilterBox = document.getElementById("role-filter-box");
@@ -16,8 +21,9 @@ const roleDropdown =
         onChange: async (value) => {
           state.selectedRole = value || "";
           try {
-            await loadRelatorio();
+            await loadRelatorio({ preserveVisibleContent: Boolean(state.relatorio) });
           } catch (error) {
+            setRefreshing(false);
             showState("Erro ao carregar relatorios. Tente novamente.", true);
           }
         },
@@ -25,30 +31,8 @@ const roleDropdown =
     : null;
 
 const summaryItemTemplate = document.getElementById("summary-item-template");
-const reportCardTemplate = document.getElementById("report-card-template");
-const reportRowTemplate = document.getElementById("report-row-template");
-const reportEmptyTemplate = document.getElementById("report-empty-template");
-
-const CARD_STYLE_CONFIG = {
-  receitas: {
-    cardClass: "report-card-receitas",
-    headerClass: "report-header-receitas",
-    countClass: "report-count-receitas",
-    listClass: "report-list-receitas",
-    rowClass: "report-row-receitas",
-    emptyClass: "report-row-empty-receitas",
-  },
-  despesas: {
-    cardClass: "report-card-despesas",
-    headerClass: "report-header-despesas",
-    countClass: "report-count-despesas",
-    listClass: "report-list-despesas",
-    rowClass: "report-row-despesas",
-    emptyClass: "report-row-empty-despesas",
-  },
-};
-
 const getAccessToken = () => localStorage.getItem("sc_access_token");
+const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 const buildRoleQuery = () => {
   if (!state.selectedRole) return "";
@@ -152,6 +136,48 @@ const formatPercent = (ratio) => {
   });
 };
 
+const normalizeDescription = (value) =>
+  String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+const isFinancialRevenue = (descricao) => {
+  const normalized = normalizeDescription(descricao);
+  return (
+    normalized === "CONTA FEFC" ||
+    normalized === "CONTA FEFEC" ||
+    normalized === "CONTA FP" ||
+    normalized === "CONTA DC"
+  );
+};
+
+const isEstimatedRevenue = (descricao) => normalizeDescription(descricao) === "ESTIMAVEL";
+const isAdvocaciaContabilidadeExpense = (descricao) => {
+  const normalized = normalizeDescription(descricao);
+  return normalized === "SERVICOS ADVOCATICIOS" || normalized === "SERVICOS CONTABEIS";
+};
+
+const sumReceitasBy = (items, matcher) =>
+  (Array.isArray(items) ? items : []).reduce((total, item) => {
+    if (!matcher(item?.descricao)) return total;
+    return total + Number(item?.valor || 0);
+  }, 0);
+
+const sumDespesasBy = (items, matcher) =>
+  (Array.isArray(items) ? items : []).reduce((total, item) => {
+    if (!matcher(item?.descricao)) return total;
+    return total + Number(item?.valor || 0);
+  }, 0);
+
+const clamp01 = (value) => Math.min(1, Math.max(0, Number(value)));
+
+const utilizedHue = (ratio) => {
+  const t = clamp01(ratio);
+  return (1 - t) * 120;
+};
+
 const formatDate = (isoDate) => {
   if (!isoDate) return "-";
   const [year, month, day] = String(isoDate).split("-");
@@ -184,8 +210,9 @@ const showState = (message, isError = false) => {
   reportState.hidden = false;
   reportState.textContent = message;
   reportState.classList.toggle("is-error", isError);
-  if (summaryCard) summaryCard.hidden = true;
-  if (reportsGrid) reportsGrid.hidden = true;
+  if (summaryLayout) summaryLayout.hidden = true;
+  if (summaryDespesasCard) summaryDespesasCard.hidden = true;
+  if (summaryOverviewCard) summaryOverviewCard.hidden = true;
 };
 
 const hideState = () => {
@@ -193,12 +220,34 @@ const hideState = () => {
   reportState.hidden = true;
   reportState.textContent = "";
   reportState.classList.remove("is-error");
-  if (summaryCard) summaryCard.hidden = false;
-  if (reportsGrid) reportsGrid.hidden = false;
+  if (summaryLayout) summaryLayout.hidden = false;
+  if (summaryDespesasCard) summaryDespesasCard.hidden = false;
+  if (summaryOverviewCard) summaryOverviewCard.hidden = false;
 };
 
-const addSummaryMetric = (label, value, options = {}) => {
-  if (!summaryCard || !summaryItemTemplate) return;
+const setRefreshing = (refreshing) => {
+  [summaryLayout].forEach((element) => {
+    if (!element) return;
+    element.classList.toggle("is-refreshing", refreshing);
+  });
+};
+
+const clearSummaryCards = () => {
+  [summaryDespesasCard, summaryOverviewCard].forEach((card) => {
+    if (card) {
+      card.innerHTML = "";
+    }
+  });
+  if (summaryDespesasCard && summaryDespesasTitle) {
+    summaryDespesasCard.appendChild(summaryDespesasTitle);
+  }
+  if (summaryOverviewCard && summaryOverviewTitle) {
+    summaryOverviewCard.appendChild(summaryOverviewTitle);
+  }
+};
+
+const addSummaryMetric = (container, label, value, options = {}) => {
+  if (!container || !summaryItemTemplate) return;
   const { variant = "", color = "", styleVars = null } = options || {};
   const node = summaryItemTemplate.content.cloneNode(true);
   const labelElement = node.querySelector('[data-field="label"]');
@@ -214,118 +263,84 @@ const addSummaryMetric = (label, value, options = {}) => {
       valueElement.style.setProperty(String(key), String(value));
     });
   }
-  summaryCard.appendChild(node);
-};
-
-const clamp01 = (value) => Math.min(1, Math.max(0, Number(value)));
-
-const utilizedHue = (ratio) => {
-  // 0% => green (120deg), 100% => red (0deg)
-  const t = clamp01(ratio);
-  return (1 - t) * 120;
-};
-
-const createReportCard = (title, items, styleConfig) => {
-  if (!reportCardTemplate || !reportRowTemplate || !reportEmptyTemplate) return null;
-  const node = reportCardTemplate.content.cloneNode(true);
-  const cardElement = node.querySelector(".report-card");
-  const headerElement = node.querySelector('[data-field="header"]');
-  const titleElement = node.querySelector('[data-field="title"]');
-  const countElement = node.querySelector('[data-field="count"]');
-  const listElement = node.querySelector('[data-field="list"]');
-  if (!cardElement || !headerElement || !titleElement || !countElement || !listElement) return null;
-
-  titleElement.textContent = title;
-  countElement.textContent = `${items.length} itens`;
-  if (styleConfig.cardClass) {
-    cardElement.classList.add(styleConfig.cardClass);
-  }
-  if (styleConfig.headerClass) {
-    headerElement.classList.add(styleConfig.headerClass);
-  }
-  if (styleConfig.countClass) {
-    countElement.classList.add(styleConfig.countClass);
-  }
-  if (styleConfig.listClass) {
-    listElement.classList.add(styleConfig.listClass);
-  }
-
-  if (!items.length) {
-    const emptyNode = reportEmptyTemplate.content.cloneNode(true);
-    const emptyElement = emptyNode.querySelector('[data-field="empty"]');
-    if (emptyElement && styleConfig.emptyClass) {
-      emptyElement.classList.add(styleConfig.emptyClass);
-    }
-    listElement.appendChild(emptyNode);
-  }
-
-  items.forEach((item) => {
-    const row = reportRowTemplate.content.cloneNode(true);
-    const rowElement = row.querySelector('[data-field="row"]');
-    const labelElement = row.querySelector('[data-field="label"]');
-    const valueElement = row.querySelector('[data-field="value"]');
-    if (!rowElement || !labelElement || !valueElement) return;
-    if (styleConfig.rowClass) {
-      rowElement.classList.add(styleConfig.rowClass);
-    }
-    labelElement.textContent = formatDate(item.data);
-    labelElement.classList.add("report-row-date");
-    const descNode = document.createElement("span");
-    descNode.className = "report-row-desc";
-    descNode.textContent = formatDescricao(item.descricao);
-    rowElement.insertBefore(descNode, valueElement);
-    valueElement.textContent = formatCurrency(item.valor);
-    listElement.appendChild(row);
-  });
-
-  return node;
+  container.appendChild(node);
 };
 
 const renderRelatorio = () => {
-  if (!summaryCard || !reportsGrid || !state.relatorio) return;
-  summaryCard.innerHTML = "";
-  reportsGrid.innerHTML = "";
+  if (!summaryLayout || !state.relatorio) return;
+  clearSummaryCards();
 
   const relatorio = state.relatorio;
-  const receitasTotal = Number(relatorio.totalReceitas || 0);
-  const despesasTotal = Number(relatorio.totalDespesas || 0);
-  const utilizadoRatio = receitasTotal > 0 ? despesasTotal / receitasTotal : 0;
+  const receitas = Array.isArray(relatorio.receitas) ? relatorio.receitas : [];
+  const receitasFinanceiras =
+    relatorio.receitasFinanceiras != null
+      ? Number(relatorio.receitasFinanceiras)
+      : sumReceitasBy(receitas, isFinancialRevenue);
+  const receitasEstimaveis =
+    relatorio.receitasEstimaveis != null
+      ? Number(relatorio.receitasEstimaveis)
+      : sumReceitasBy(receitas, isEstimatedRevenue);
+  const receitasTotais = Number(relatorio.totalReceitas || 0);
+  const despesas = Array.isArray(relatorio.despesas) ? relatorio.despesas : [];
+  const despesasTotais = Number(relatorio.totalDespesas || 0);
+  const despesasAdvocaciaContabilidade =
+    relatorio.despesasAdvocaciaContabilidade != null
+      ? Number(relatorio.despesasAdvocaciaContabilidade)
+      : sumDespesasBy(despesas, isAdvocaciaContabilidadeExpense);
+  const despesasConsideradas =
+    relatorio.despesasConsideradas != null
+      ? Number(relatorio.despesasConsideradas)
+      : despesasTotais - despesasAdvocaciaContabilidade;
+  const utilizadoRatio = receitasTotais > 0 ? despesasTotais / receitasTotais : 0;
 
-  // Order: receitas | despesas | utilizado | saldo final
-  addSummaryMetric("Total de receitas", formatCurrency(relatorio.totalReceitas), {
+  addSummaryMetric(summaryOverviewCard, "Financeiras", formatCurrency(receitasFinanceiras), {
     variant: "positive",
   });
-  addSummaryMetric("Total de despesas", formatCurrency(relatorio.totalDespesas), {
-    variant: "negative",
+  addSummaryMetric(summaryOverviewCard, "Estimáveis", formatCurrency(receitasEstimaveis), {
+    variant: "positive",
   });
-  addSummaryMetric("Utilizado", formatPercent(utilizadoRatio), {
+  addSummaryMetric(summaryOverviewCard, "Totais", formatCurrency(receitasTotais), {
+    variant: "positive",
+  });
+  addSummaryMetric(summaryOverviewCard, "Utilizado", formatPercent(utilizadoRatio), {
     variant: "utilizado",
     styleVars: {
       "--util-hue": utilizedHue(utilizadoRatio).toFixed(1),
       "--util-hue2": Math.max(0, utilizedHue(utilizadoRatio) - 18).toFixed(1),
     },
   });
-  addSummaryMetric("Saldo final", formatCurrency(relatorio.saldoFinal), {
+  addSummaryMetric(summaryOverviewCard, "Saldo final", formatCurrency(relatorio.saldoFinal), {
     variant: Number(relatorio.saldoFinal || 0) < 0 ? "negative" : "positive",
   });
-
-  const receitas = Array.isArray(relatorio.receitas) ? relatorio.receitas : [];
-  const despesas = Array.isArray(relatorio.despesas) ? relatorio.despesas : [];
-
-  const receitasCard = createReportCard("Receitas", receitas, CARD_STYLE_CONFIG.receitas);
-  const despesasCard = createReportCard("Despesas", despesas, CARD_STYLE_CONFIG.despesas);
-  if (receitasCard) reportsGrid.appendChild(receitasCard);
-  if (despesasCard) reportsGrid.appendChild(despesasCard);
+  addSummaryMetric(summaryDespesasCard, "Considerada", formatCurrency(despesasConsideradas), {
+    variant: "negative",
+  });
+  addSummaryMetric(
+    summaryDespesasCard,
+    "Advocacia e contabilidade",
+    formatCurrency(despesasAdvocaciaContabilidade),
+    {
+      variant: "negative",
+    },
+  );
+  addSummaryMetric(summaryDespesasCard, "Total", formatCurrency(relatorio.totalDespesas), {
+    variant: "negative",
+  });
   hideState();
 };
 
-const loadRelatorio = async () => {
+const loadRelatorio = async ({ preserveVisibleContent = false } = {}) => {
   const accessToken = getAccessToken();
   if (!accessToken) {
     window.location.href = "/login";
     return;
   }
-  showState("Carregando relatorios...");
+  if (preserveVisibleContent) {
+    setRefreshing(true);
+    await wait(REFRESH_ANIMATION_MS);
+  } else {
+    showState("Carregando relatorios...");
+  }
   const response = await fetch(`/api/v1/relatorios/financeiro${buildRoleQuery()}`, {
     method: "GET",
     credentials: "same-origin",
@@ -345,6 +360,9 @@ const loadRelatorio = async () => {
   }
   state.relatorio = await response.json();
   renderRelatorio();
+  requestAnimationFrame(() => {
+    setRefreshing(false);
+  });
 };
 
 const downloadPdf = async () => {

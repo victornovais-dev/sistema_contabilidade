@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.relatorio.service;
 
+import com.sistema_contabilidade.common.util.RevenueClassificationUtils;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
@@ -39,6 +40,8 @@ public class RelatorioFinanceiroService {
   private static final DateTimeFormatter TIME_FORMATTER =
       DateTimeFormatter.ofPattern("HH:mm", LOCALE_PT_BR);
   private static final String ADMIN_ROLE = "ADMIN";
+  private static final Set<String> DESPESAS_ADVOCACIA_CONTABILIDADE =
+      Set.of("SERVICOS ADVOCATICIOS", "SERVICOS CONTABEIS");
   private static final String COLOR_PRIMARY_BLUE = "#2563eb";
   private static final String COLOR_DANGER_RED = "#ef4444";
   private static final String COLOR_WARNING_AMBER = "#f59e0b";
@@ -135,12 +138,25 @@ public class RelatorioFinanceiroService {
     List<RelatorioItemDto> receitas = filtrarItensPorTipo(itensVisiveis, TipoItem.RECEITA);
     List<RelatorioItemDto> despesas = filtrarItensPorTipo(itensVisiveis, TipoItem.DESPESA);
 
+    BigDecimal receitasFinanceiras = somarReceitasPorCategoria(receitas, this::isFinancialRevenue);
+    BigDecimal receitasEstimaveis = somarReceitasPorCategoria(receitas, this::isEstimatedRevenue);
     BigDecimal totalReceitas = somarValores(receitas);
+    BigDecimal despesasAdvocaciaContabilidade =
+        somarDespesasPorCategoria(despesas, this::isAdvocaciaOrContabilidadeExpense);
     BigDecimal totalDespesas = somarValores(despesas);
+    BigDecimal despesasConsideradas = totalDespesas.subtract(despesasAdvocaciaContabilidade);
     BigDecimal saldoFinal = totalReceitas.subtract(totalDespesas);
 
     return new RelatorioFinanceiroResponse(
-        totalReceitas, totalDespesas, saldoFinal, receitas, despesas);
+        receitasFinanceiras,
+        receitasEstimaveis,
+        totalReceitas,
+        despesasConsideradas,
+        despesasAdvocaciaContabilidade,
+        totalDespesas,
+        saldoFinal,
+        receitas,
+        despesas);
   }
 
   public List<String> listarRolesDisponiveis(Authentication authentication) {
@@ -338,6 +354,36 @@ public class RelatorioFinanceiroService {
         .map(RelatorioItemDto::valor)
         .filter(java.util.Objects::nonNull)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private BigDecimal somarReceitasPorCategoria(
+      List<RelatorioItemDto> receitas, java.util.function.Predicate<String> matcher) {
+    return receitas.stream()
+        .filter(item -> matcher.test(item.descricao()))
+        .map(RelatorioItemDto::valor)
+        .filter(java.util.Objects::nonNull)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private BigDecimal somarDespesasPorCategoria(
+      List<RelatorioItemDto> despesas, java.util.function.Predicate<String> matcher) {
+    return despesas.stream()
+        .filter(item -> matcher.test(item.descricao()))
+        .map(RelatorioItemDto::valor)
+        .filter(java.util.Objects::nonNull)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private boolean isFinancialRevenue(String descricao) {
+    return RevenueClassificationUtils.isFinancialRevenue(descricao);
+  }
+
+  private boolean isEstimatedRevenue(String descricao) {
+    return RevenueClassificationUtils.isEstimatedRevenue(descricao);
+  }
+
+  private boolean isAdvocaciaOrContabilidadeExpense(String descricao) {
+    return DESPESAS_ADVOCACIA_CONTABILIDADE.contains(normalizeCategoryName(descricao));
   }
 
   private Set<String> extrairRoleNomes(Authentication authentication) {

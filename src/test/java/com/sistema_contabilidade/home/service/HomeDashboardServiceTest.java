@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.sistema_contabilidade.home.dto.HomeDashboardResponse;
 import com.sistema_contabilidade.home.dto.HomeLatestLaunchResponse;
 import com.sistema_contabilidade.home.dto.HomeMonthlyBalanceRow;
+import com.sistema_contabilidade.home.dto.HomeRevenueCategoryTotalRow;
 import com.sistema_contabilidade.home.dto.HomeTypeTotalRow;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemRepository;
@@ -40,10 +41,13 @@ class HomeDashboardServiceTest {
   void deveMontarDashboardOtimizadoParaAdmin() {
     HomeDashboardService service = new HomeDashboardService(itemRepository, usuarioRepository);
     when(itemRepository.findTypeTotals())
+        .thenReturn(List.of(new HomeTypeTotalRow(TipoItem.DESPESA, new BigDecimal("40.00"))));
+    when(itemRepository.findRevenueCategoryTotals())
         .thenReturn(
             List.of(
-                new HomeTypeTotalRow(TipoItem.RECEITA, new BigDecimal("100.00")),
-                new HomeTypeTotalRow(TipoItem.DESPESA, new BigDecimal("40.00"))));
+                new HomeRevenueCategoryTotalRow("CONTA FEFC", new BigDecimal("70.00")),
+                new HomeRevenueCategoryTotalRow("ESTIMAVEL", new BigDecimal("30.00")),
+                new HomeRevenueCategoryTotalRow("OUTRAS RECEITAS", new BigDecimal("25.00"))));
     when(itemRepository.findMonthlyBalanceRowsSince(any(LocalDate.class)))
         .thenReturn(
             List.of(
@@ -63,12 +67,15 @@ class HomeDashboardServiceTest {
     HomeDashboardResponse dashboard =
         service.getDashboard(autenticacao("admin@email.com", "ADMIN"), null);
 
+    assertEquals(new BigDecimal("70.00"), dashboard.receitasFinanceiras());
+    assertEquals(new BigDecimal("30.00"), dashboard.receitasEstimaveis());
     assertEquals(new BigDecimal("100.00"), dashboard.totalReceitas());
     assertEquals(new BigDecimal("40.00"), dashboard.totalDespesas());
     assertEquals(new BigDecimal("60.00"), dashboard.saldoFinal());
     assertEquals(6, dashboard.graficoMensal().size());
     assertEquals(1, dashboard.ultimosLancamentos().size());
     verify(itemRepository).findTypeTotals();
+    verify(itemRepository).findRevenueCategoryTotals();
   }
 
   @Test
@@ -77,8 +84,13 @@ class HomeDashboardServiceTest {
     HomeDashboardService service = new HomeDashboardService(itemRepository, usuarioRepository);
     when(usuarioRepository.findByEmail("operador@email.com"))
         .thenReturn(Optional.of(usuarioComRole("operador@email.com", "OPERADOR")));
-    when(itemRepository.findTypeTotalsByRoleNome("OPERADOR"))
-        .thenReturn(List.of(new HomeTypeTotalRow(TipoItem.RECEITA, new BigDecimal("80.00"))));
+    when(itemRepository.findTypeTotalsByRoleNome("OPERADOR")).thenReturn(List.of());
+    when(itemRepository.findRevenueCategoryTotalsByRoleNome("OPERADOR"))
+        .thenReturn(
+            List.of(
+                new HomeRevenueCategoryTotalRow("CONTA DC", new BigDecimal("50.00")),
+                new HomeRevenueCategoryTotalRow("ESTIMAVEL", new BigDecimal("30.00")),
+                new HomeRevenueCategoryTotalRow("DOACAO", new BigDecimal("20.00"))));
     when(itemRepository.findMonthlyBalanceRowsSinceByRoleNome(eq("OPERADOR"), any(LocalDate.class)))
         .thenReturn(
             List.of(new HomeMonthlyBalanceRow(2026, 4, TipoItem.RECEITA, new BigDecimal("80.00"))));
@@ -88,9 +100,12 @@ class HomeDashboardServiceTest {
     HomeDashboardResponse dashboard =
         service.getDashboard(autenticacao("operador@email.com", "OPERADOR"), "operador");
 
+    assertEquals(new BigDecimal("50.00"), dashboard.receitasFinanceiras());
+    assertEquals(new BigDecimal("30.00"), dashboard.receitasEstimaveis());
     assertEquals(new BigDecimal("80.00"), dashboard.totalReceitas());
     assertEquals(BigDecimal.ZERO, dashboard.totalDespesas());
     verify(itemRepository).findTypeTotalsByRoleNome("OPERADOR");
+    verify(itemRepository).findRevenueCategoryTotalsByRoleNome("OPERADOR");
   }
 
   private UsernamePasswordAuthenticationToken autenticacao(String email, String... roles) {

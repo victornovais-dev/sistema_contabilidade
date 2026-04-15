@@ -55,6 +55,10 @@ class RelatorioFinanceiroServiceTest {
 
     assertEquals(1, response.receitas().size());
     assertEquals("ENERGIA", response.receitas().getFirst().descricao());
+    assertEquals(BigDecimal.ZERO, response.receitasFinanceiras());
+    assertEquals(BigDecimal.ZERO, response.receitasEstimaveis());
+    assertEquals(BigDecimal.ZERO, response.despesasConsideradas());
+    assertEquals(BigDecimal.ZERO, response.despesasAdvocaciaContabilidade());
     assertEquals(BigDecimal.ZERO, response.totalDespesas());
   }
 
@@ -80,6 +84,10 @@ class RelatorioFinanceiroServiceTest {
 
     verify(itemRepository)
         .findRelatorioItensByRoleNomeOrderByDataDescHorarioCriacaoDesc("FINANCEIRO");
+    assertEquals(BigDecimal.ZERO, response.receitasFinanceiras());
+    assertEquals(BigDecimal.ZERO, response.receitasEstimaveis());
+    assertEquals(BigDecimal.ZERO, response.despesasConsideradas());
+    assertEquals(BigDecimal.ZERO, response.despesasAdvocaciaContabilidade());
     assertEquals(new BigDecimal("50.00"), response.totalReceitas());
   }
 
@@ -150,7 +158,78 @@ class RelatorioFinanceiroServiceTest {
 
     verify(itemRepository)
         .findRelatorioItensByRoleNomeOrderByDataDescHorarioCriacaoDesc("FINANCEIRO");
+    assertEquals(BigDecimal.ZERO, response.receitasFinanceiras());
+    assertEquals(BigDecimal.ZERO, response.receitasEstimaveis());
+    assertEquals(BigDecimal.ZERO, response.despesasConsideradas());
+    assertEquals(BigDecimal.ZERO, response.despesasAdvocaciaContabilidade());
     assertEquals(new BigDecimal("50.00"), response.totalReceitas());
+  }
+
+  @Test
+  @DisplayName("Deve classificar receitas financeiras e estimaveis no resumo")
+  void deveClassificarReceitasFinanceirasEEstimaveisNoResumo() {
+    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    RelatorioFinanceiroService service =
+        new RelatorioFinanceiroService(
+            itemRepository,
+            Mockito.mock(RoleRepository.class),
+            Mockito.mock(UsuarioRepository.class),
+            Mockito.mock(PlaywrightPdfService.class));
+
+    when(itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc())
+        .thenReturn(
+            List.of(
+                dto("CONTA FEFC", TipoItem.RECEITA, "100.00", LocalDate.of(2026, 4, 1), 8, 0),
+                dto("CONTA FP", TipoItem.RECEITA, "50.00", LocalDate.of(2026, 4, 2), 8, 0),
+                dto("ESTIMÁVEL", TipoItem.RECEITA, "25.00", LocalDate.of(2026, 4, 3), 8, 0),
+                dto("OUTRAS RECEITAS", TipoItem.RECEITA, "10.00", LocalDate.of(2026, 4, 4), 8, 0),
+                dto("SERVICOS", TipoItem.DESPESA, "40.00", LocalDate.of(2026, 4, 5), 8, 0)));
+
+    RelatorioFinanceiroResponse response = service.gerar(adminAuth(), null);
+
+    assertEquals(new BigDecimal("150.00"), response.receitasFinanceiras());
+    assertEquals(new BigDecimal("25.00"), response.receitasEstimaveis());
+    assertEquals(new BigDecimal("185.00"), response.totalReceitas());
+    assertEquals(new BigDecimal("40.00"), response.totalDespesas());
+    assertEquals(new BigDecimal("145.00"), response.saldoFinal());
+  }
+
+  @Test
+  @DisplayName("Deve separar despesas consideradas de advocacia e contabilidade")
+  void deveSepararDespesasConsideradasDeAdvocaciaEContabilidade() {
+    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    RelatorioFinanceiroService service =
+        new RelatorioFinanceiroService(
+            itemRepository,
+            Mockito.mock(RoleRepository.class),
+            Mockito.mock(UsuarioRepository.class),
+            Mockito.mock(PlaywrightPdfService.class));
+
+    when(itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc())
+        .thenReturn(
+            List.of(
+                dto(
+                    "SERVIÇOS ADVOCATÍCIOS",
+                    TipoItem.DESPESA,
+                    "30.00",
+                    LocalDate.of(2026, 4, 1),
+                    8,
+                    0),
+                dto(
+                    "SERVIÇOS CONTÁBEIS",
+                    TipoItem.DESPESA,
+                    "20.00",
+                    LocalDate.of(2026, 4, 2),
+                    8,
+                    0),
+                dto("Internet", TipoItem.DESPESA, "50.00", LocalDate.of(2026, 4, 3), 8, 0),
+                dto("CONTA DC", TipoItem.RECEITA, "200.00", LocalDate.of(2026, 4, 4), 8, 0)));
+
+    RelatorioFinanceiroResponse response = service.gerar(adminAuth(), null);
+
+    assertEquals(new BigDecimal("50.00"), response.despesasAdvocaciaContabilidade());
+    assertEquals(new BigDecimal("50.00"), response.despesasConsideradas());
+    assertEquals(new BigDecimal("100.00"), response.totalDespesas());
   }
 
   @Test
@@ -166,6 +245,10 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroResponse relatorio =
         new RelatorioFinanceiroResponse(
             new BigDecimal("1000.00"),
+            BigDecimal.ZERO,
+            new BigDecimal("1000.00"),
+            new BigDecimal("250.00"),
+            new BigDecimal("50.00"),
             new BigDecimal("300.00"),
             new BigDecimal("700.00"),
             List.of(dto("SERVICOS", TipoItem.RECEITA, "1000.00", LocalDate.of(2026, 4, 1), 8, 0)),
@@ -219,7 +302,15 @@ class RelatorioFinanceiroServiceTest {
             playwrightPdfService);
     RelatorioFinanceiroResponse relatorio =
         new RelatorioFinanceiroResponse(
-            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, List.of(), List.of());
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            List.of(),
+            List.of());
     byte[] pdf = "pdf".getBytes(StandardCharsets.UTF_8);
     ArgumentCaptor<RelatorioFinanceiroPdfData> captor =
         ArgumentCaptor.forClass(RelatorioFinanceiroPdfData.class);
@@ -254,6 +345,10 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroResponse relatorio =
         new RelatorioFinanceiroResponse(
             BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            new BigDecimal("25.00"),
             new BigDecimal("25.00"),
             new BigDecimal("-25.00"),
             List.of(),

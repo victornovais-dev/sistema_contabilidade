@@ -23,8 +23,8 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/css/relatorios.css" />
-    <link rel="stylesheet" href="assets/css/navbar.css" />
+    <link rel="stylesheet" href="assets/css/relatorios.css?v=20260413-relatorios-summary-only-1" />
+    <link rel="stylesheet" href="assets/css/navbar.css?v=20260413-relatorios-summary-only-1" />
   </head>
   <body>
     <div id="navbar-root" data-navbar-root></div>
@@ -62,44 +62,19 @@
 
       <section id="report-state" class="card report-state">Carregando relatorios...</section>
 
-      <section class="card summary-card" id="summary-card" hidden></section>
-
-      <section class="grid-two" id="reports-grid" hidden></section>
+      <section class="summary-layout" id="summary-layout" hidden>
+        <section class="card summary-card summary-card-overview" id="summary-overview-card" hidden>
+          <div class="summary-card-title">Receitas</div>
+        </section>
+        <section class="card summary-card summary-card-solo" id="summary-despesas-card" hidden>
+          <div class="summary-card-title">Despesas</div>
+        </section>
+      </section>
 
       <template id="summary-item-template">
         <div class="summary-item">
           <p class="summary-label" data-field="label"></p>
           <h2 class="summary-value" data-field="value"></h2>
-        </div>
-      </template>
-
-      <template id="report-card-template">
-        <article class="card report-card">
-          <header data-field="header">
-            <h3 data-field="title"></h3>
-            <span data-field="count"></span>
-          </header>
-          <div data-field="list"></div>
-        </article>
-      </template>
-
-      <template id="report-row-template">
-        <div data-field="row">
-          <span data-field="label"></span>
-          <strong data-field="value"></strong>
-        </div>
-      </template>
-
-      <template id="report-empty-template">
-        <div data-field="empty">
-          <span>Sem dados no periodo</span>
-        </div>
-      </template>
-
-      <template id="report-overview-row-template">
-        <div class="report-row-overview">
-          <span>Total</span>
-          <strong data-field="value"></strong>
         </div>
       </template>
 
@@ -110,8 +85,8 @@
       </section>
     </main>
 
-    <script src="assets/js/navbar.js" defer></script>
-    <script src="assets/js/role-dropdown.js" defer></script>
-    <script src="assets/js/relatorios.js" defer></script>
+    <script src="assets/js/navbar.js?v=20260413-relatorios-summary-only-1" defer></script>
+    <script src="assets/js/role-dropdown.js?v=20260413-relatorios-summary-only-1" defer></script>
+    <script src="assets/js/relatorios.js?v=20260413-relatorios-summary-only-1" defer></script>
   </body>
 </html>

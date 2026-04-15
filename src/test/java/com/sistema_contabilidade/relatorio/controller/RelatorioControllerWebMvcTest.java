@@ -40,7 +40,11 @@ class RelatorioControllerWebMvcTest {
   void obterRelatorioFinanceiroDeveRetornarOk() throws Exception {
     RelatorioFinanceiroResponse response =
         new RelatorioFinanceiroResponse(
+            new BigDecimal("1000.00"),
+            new BigDecimal("500.00"),
             new BigDecimal("1500.00"),
+            new BigDecimal("300.00"),
+            new BigDecimal("200.00"),
             new BigDecimal("500.00"),
             new BigDecimal("1000.00"),
             List.of(),
@@ -50,7 +54,11 @@ class RelatorioControllerWebMvcTest {
     mockMvc
         .perform(get("/api/v1/relatorios/financeiro"))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.receitasFinanceiras").value(1000.00))
+        .andExpect(jsonPath("$.receitasEstimaveis").value(500.00))
         .andExpect(jsonPath("$.totalReceitas").value(1500.00))
+        .andExpect(jsonPath("$.despesasConsideradas").value(300.00))
+        .andExpect(jsonPath("$.despesasAdvocaciaContabilidade").value(200.00))
         .andExpect(jsonPath("$.totalDespesas").value(500.00))
         .andExpect(jsonPath("$.saldoFinal").value(1000.00));
   }
@@ -60,7 +68,15 @@ class RelatorioControllerWebMvcTest {
   void baixarRelatorioFinanceiroPdfDeveRetornarPdf() throws Exception {
     RelatorioFinanceiroResponse relatorio =
         new RelatorioFinanceiroResponse(
-            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, List.of(), List.of());
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            List.of(),
+            List.of());
     byte[] pdf = "%PDF-1.4 teste".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
 
     when(relatorioFinanceiroService.gerar(any(), eq(null))).thenReturn(relatorio);

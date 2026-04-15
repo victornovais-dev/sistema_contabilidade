@@ -1,9 +1,11 @@
 package com.sistema_contabilidade.home.service;
 
+import com.sistema_contabilidade.common.util.RevenueClassificationUtils;
 import com.sistema_contabilidade.home.dto.HomeDashboardMonthResponse;
 import com.sistema_contabilidade.home.dto.HomeDashboardResponse;
 import com.sistema_contabilidade.home.dto.HomeLatestLaunchResponse;
 import com.sistema_contabilidade.home.dto.HomeMonthlyBalanceRow;
+import com.sistema_contabilidade.home.dto.HomeRevenueCategoryTotalRow;
 import com.sistema_contabilidade.home.dto.HomeTypeTotalRow;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemRepository;
@@ -18,7 +20,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -32,7 +36,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class HomeDashboardService {
 
-  private static final String ADMIN_ROLE = "ADMIN";
+  private static final String ADMIN_AUTHORITY = "ROLE_ADMIN";
   private static final Locale PT_BR = Locale.forLanguageTag("pt-BR");
   private static final int CHART_MONTHS = 6;
   private static final int LATEST_LIMIT = 4;
@@ -44,7 +48,10 @@ public class HomeDashboardService {
   public HomeDashboardResponse getDashboard(Authentication authentication, String roleFiltro) {
     DashboardScope scope = resolveScope(authentication, roleFiltro);
     List<HomeTypeTotalRow> totals = loadTypeTotals(scope);
-    BigDecimal totalReceitas = sumByType(totals, TipoItem.RECEITA);
+    List<HomeRevenueCategoryTotalRow> revenueTotals = loadRevenueTotals(scope);
+    BigDecimal receitasFinanceiras = sumFinancialRevenue(revenueTotals);
+    BigDecimal receitasEstimaveis = sumEstimatedRevenue(revenueTotals);
+    BigDecimal totalReceitas = receitasFinanceiras.add(receitasEstimaveis);
     BigDecimal totalDespesas = sumByType(totals, TipoItem.DESPESA);
     BigDecimal saldoFinal = totalReceitas.subtract(totalDespesas);
 
@@ -53,7 +60,20 @@ public class HomeDashboardService {
     List<HomeLatestLaunchResponse> latestLaunches = loadLatestLaunches(scope);
 
     return new HomeDashboardResponse(
-        totalReceitas, totalDespesas, saldoFinal, buildMonthlyChart(monthlyRows), latestLaunches);
+        receitasFinanceiras,
+        receitasEstimaveis,
+        totalReceitas,
+        totalDespesas,
+        saldoFinal,
+        buildMonthlyChart(monthlyRows),
+        latestLaunches);
+  }
+
+  private List<HomeRevenueCategoryTotalRow> loadRevenueTotals(DashboardScope scope) {
+    if (scope.admin() && scope.roleFiltro() == null) {
+      return itemRepository.findRevenueCategoryTotals();
+    }
+    return itemRepository.findRevenueCategoryTotalsByRoleNome(scope.roleFiltro());
   }
 
   private List<HomeTypeTotalRow> loadTypeTotals(DashboardScope scope) {
@@ -84,8 +104,36 @@ public class HomeDashboardService {
         : totals.stream()
             .filter(row -> row != null && tipo == row.tipo())
             .map(HomeTypeTotalRow::total)
-            .filter(java.util.Objects::nonNull)
+            .filter(Objects::nonNull)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private BigDecimal sumFinancialRevenue(List<HomeRevenueCategoryTotalRow> revenueTotals) {
+    return sumRevenue(revenueTotals, this::isFinancialRevenue);
+  }
+
+  private BigDecimal sumEstimatedRevenue(List<HomeRevenueCategoryTotalRow> revenueTotals) {
+    return sumRevenue(revenueTotals, this::isEstimatedRevenue);
+  }
+
+  private BigDecimal sumRevenue(
+      List<HomeRevenueCategoryTotalRow> revenueTotals, Predicate<String> matcher) {
+    return revenueTotals == null
+        ? BigDecimal.ZERO
+        : revenueTotals.stream()
+            .filter(Objects::nonNull)
+            .filter(row -> matcher.test(row.descricao()))
+            .map(HomeRevenueCategoryTotalRow::total)
+            .filter(Objects::nonNull)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private boolean isFinancialRevenue(String descricao) {
+    return RevenueClassificationUtils.isFinancialRevenue(descricao);
+  }
+
+  private boolean isEstimatedRevenue(String descricao) {
+    return RevenueClassificationUtils.isEstimatedRevenue(descricao);
   }
 
   private List<HomeDashboardMonthResponse> buildMonthlyChart(List<HomeMonthlyBalanceRow> rows) {
@@ -177,7 +225,7 @@ public class HomeDashboardService {
       return false;
     }
     return authentication.getAuthorities().stream()
-        .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+        .anyMatch(authority -> ADMIN_AUTHORITY.equals(authority.getAuthority()));
   }
 
   private String normalizeRole(String role) {

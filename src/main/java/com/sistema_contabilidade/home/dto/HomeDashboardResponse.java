@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record HomeDashboardResponse(
+    BigDecimal receitasFinanceiras,
+    BigDecimal receitasEstimaveis,
     BigDecimal totalReceitas,
     BigDecimal totalDespesas,
     BigDecimal saldoFinal,
@@ -11,6 +13,8 @@ public record HomeDashboardResponse(
     List<HomeLatestLaunchResponse> ultimosLancamentos) {
 
   public HomeDashboardResponse {
+    receitasFinanceiras = receitasFinanceiras == null ? BigDecimal.ZERO : receitasFinanceiras;
+    receitasEstimaveis = receitasEstimaveis == null ? BigDecimal.ZERO : receitasEstimaveis;
     totalReceitas = totalReceitas == null ? BigDecimal.ZERO : totalReceitas;
     totalDespesas = totalDespesas == null ? BigDecimal.ZERO : totalDespesas;
     saldoFinal = saldoFinal == null ? BigDecimal.ZERO : saldoFinal;

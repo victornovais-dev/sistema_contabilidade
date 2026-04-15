@@ -446,15 +446,52 @@ html[data-theme="light"] .custom-select-option.is-active {
   font-weight: 600;
 }
 
+.summary-layout {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1fr;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    filter 180ms ease;
+}
+
 .summary-card {
   display: grid;
-  gap: 6px;
+  gap: 14px 18px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
 }
 
+.summary-card.summary-card-solo {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  row-gap: 0;
+  column-gap: 22px;
+}
+
+.summary-card.summary-card-overview {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  row-gap: 0;
+  column-gap: 22px;
+}
+
+.summary-card-title {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: left;
+}
+
 .summary-item {
   text-align: center;
+  padding: 6px 10px;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  font-size: 1.7rem;
 }
 
 .report-state {
@@ -467,16 +504,21 @@ html[data-theme="light"] .custom-select-option.is-active {
 }
 
 .summary-label {
-  margin: 0 0 4px;
+  margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  min-height: calc(2 * 1.25em);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 
 .summary-value {
   margin: 0;
   font-size: clamp(1.1rem, 1.6vw, 1.6rem);
+  white-space: nowrap;
 }
 
 .summary-value.positive {
@@ -514,12 +556,28 @@ html[data-theme="light"] .summary-value.utilizado {
 .grid-two {
   display: grid;
   gap: 18px;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    filter 180ms ease;
+}
+
+.summary-layout.is-refreshing,
+.grid-two.is-refreshing {
+  opacity: 0.42;
+  transform: translateY(6px);
+  filter: saturate(0.9) blur(0.4px);
 }
 
 @media (max-width: 720px) {
   .summary-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    gap: 16px 14px;
+  }
+
+  .summary-card.summary-card-overview {
+    grid-template-columns: 1fr;
+    row-gap: 16px;
   }
 }
 
@@ -769,11 +827,6 @@ html[data-theme="dark"] .navbar {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-}
-
-.report-row-overview {
-  border: 1px dashed rgba(27, 27, 31, 0.2);
-  font-weight: 600;
 }
 
 .nav-actions {

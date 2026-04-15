@@ -43,6 +43,8 @@ class HomeDashboardControllerWebMvcTest {
     when(homeDashboardService.getDashboard(any(), eq("OPERADOR")))
         .thenReturn(
             new HomeDashboardResponse(
+                new BigDecimal("70.00"),
+                new BigDecimal("30.00"),
                 new BigDecimal("100.00"),
                 new BigDecimal("40.00"),
                 new BigDecimal("60.00"),
@@ -59,6 +61,8 @@ class HomeDashboardControllerWebMvcTest {
     mockMvc
         .perform(get("/api/v1/home/dashboard").param("role", "OPERADOR"))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.receitasFinanceiras").value(70.00))
+        .andExpect(jsonPath("$.receitasEstimaveis").value(30.00))
         .andExpect(jsonPath("$.totalReceitas").value(100.00))
         .andExpect(jsonPath("$.totalDespesas").value(40.00))
         .andExpect(jsonPath("$.graficoMensal[0].label").value("Abr"))

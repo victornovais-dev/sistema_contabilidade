@@ -30,8 +30,20 @@ class RelatorioFinanceiroResponseTest {
 
     RelatorioFinanceiroResponse response =
         new RelatorioFinanceiroResponse(
-            BigDecimal.TEN, BigDecimal.ZERO, BigDecimal.TEN, receitas, despesas);
+            BigDecimal.TEN,
+            BigDecimal.ZERO,
+            BigDecimal.TEN,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.TEN,
+            receitas,
+            despesas);
 
+    assertEquals(BigDecimal.TEN, response.receitasFinanceiras());
+    assertEquals(BigDecimal.ZERO, response.receitasEstimaveis());
+    assertEquals(BigDecimal.ZERO, response.despesasConsideradas());
+    assertEquals(BigDecimal.ZERO, response.despesasAdvocaciaContabilidade());
     assertEquals(1, response.receitas().size());
     assertEquals(0, response.despesas().size());
   }
