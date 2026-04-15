@@ -7,8 +7,8 @@
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
     <script src="assets/js/theme-init.js"></script>
     <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css" />
-    <link rel="stylesheet" href="assets/css/adicionar_comprovante.css" />
-    <link rel="stylesheet" href="assets/css/navbar.css" />
+    <link rel="stylesheet" href="assets/css/adicionar_comprovante.css?v=20260413-validacoes-1" />
+    <link rel="stylesheet" href="assets/css/navbar.css?v=20260413-validacoes-1" />
   </head>
   <body>
     <div class="drop-overlay" aria-hidden="true">
@@ -87,6 +87,7 @@
                   type="text"
                   inputmode="decimal"
                   name="expense"
+                  maxlength="18"
                   placeholder="R$ 0,00"
                   autocomplete="off"
                   required
@@ -133,11 +134,47 @@
                   </select>
                 </div>
               </label>
+              <label class="field field-document-type">
+                <span>Tipo de Documento</span>
+                <div class="custom-select" data-custom-select>
+                  <button
+                    class="custom-select-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    disabled
+                  >
+                    Selecione
+                  </button>
+                  <div class="custom-select-menu" role="listbox" hidden></div>
+                  <select
+                    class="native-select"
+                    name="tipo_documento"
+                    required
+                    aria-hidden="true"
+                    disabled
+                  >
+                    <option value="" disabled selected>Selecione</option>
+                  </select>
+                </div>
+              </label>
+              <label class="field field-document-number">
+                <span>Número do Documento</span>
+                <input
+                  type="text"
+                  name="numero_documento"
+                  inputmode="numeric"
+                  maxlength="50"
+                  placeholder="Digite o número do documento"
+                  autocomplete="off"
+                />
+              </label>
               <label class="field field-razao-social">
                 <span>Razão social / Nome</span>
                 <input
                   type="text"
                   name="razao_social_nome"
+                  maxlength="150"
                   placeholder="Digite a razão social ou nome"
                   autocomplete="off"
                 />
@@ -187,7 +224,7 @@
     </div>
 
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
-    <script src="assets/js/navbar.js" defer></script>
-    <script src="assets/js/adicionar_comprovante.js" defer></script>
+    <script src="assets/js/navbar.js?v=20260413-validacoes-1" defer></script>
+    <script src="assets/js/adicionar_comprovante.js?v=20260413-validacoes-1" defer></script>
   </body>
 </html>

@@ -1,6 +1,7 @@
 ﻿const state = {
   items: [],
   filteredItems: [],
+  itemChecks: new Map(),
   pendingDeleteId: null,
   csrfToken: null,
   availableRoles: [],
@@ -777,6 +778,22 @@ const hideListState = () => {
   listState.textContent = "";
 };
 
+const isItemChecked = (itemId) => state.itemChecks.get(String(itemId)) === true;
+
+const setItemChecked = (itemId, checked) => {
+  const itemKey = String(itemId || "");
+  if (!itemKey) return;
+  state.itemChecks.set(itemKey, checked === true);
+};
+
+const syncItemCheckedState = (itemId, checked) => {
+  setItemChecked(itemId, checked);
+  const index = state.items.findIndex((entry) => String(entry.id) === String(itemId));
+  if (index >= 0) {
+    state.items[index].verificado = checked === true;
+  }
+};
+
 const createItemCard = (item) => {
   const node = itemCardTemplate.content.cloneNode(true);
   const article = node.querySelector(".item-card");
@@ -817,6 +834,17 @@ const createItemCard = (item) => {
     downloadLink.removeAttribute("href");
     downloadLink.classList.add("is-disabled");
     downloadLink.setAttribute("aria-disabled", "true");
+  }
+
+  const checkButton = node.querySelector(".item-check-toggle");
+  if (checkButton instanceof HTMLButtonElement) {
+    const checked = isItemChecked(item.id);
+    checkButton.classList.toggle("is-checked", checked);
+    checkButton.setAttribute("aria-pressed", String(checked));
+    checkButton.setAttribute(
+      "aria-label",
+      checked ? "Desmarcar comprovante" : "Marcar comprovante como verificado",
+    );
   }
 
   return node;
@@ -1147,6 +1175,44 @@ const patchObservacao = async (id, observacao) => {
 
   if (!response.ok) {
     const message = await extractErrorMessage(response, "Falha ao salvar observação.");
+    throw new Error(message);
+  }
+
+  return response.json();
+};
+
+const patchVerificacao = async (id, verificado) => {
+  const accessToken = getAccessToken();
+  if (!accessToken) {
+    window.location.href = "/login";
+    return null;
+  }
+
+  const csrfToken = await ensureCsrfToken(true);
+  const response = await fetch(`/api/v1/itens/${id}/verificacao`, {
+    method: "PATCH",
+    credentials: "same-origin",
+    redirect: "manual",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Accept: "application/json",
+      "X-CSRF-TOKEN": csrfToken,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ verificado }),
+  });
+
+  const isRedirect =
+    response.type === "opaqueredirect" ||
+    (typeof response.status === "number" && response.status >= 300 && response.status < 400) ||
+    response.redirected;
+  if (isRedirect) {
+    window.location.href = "/login";
+    throw new Error("Sessão expirada. Faça login novamente.");
+  }
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response, "Falha ao atualizar verificação.");
     throw new Error(message);
   }
 
@@ -1628,6 +1694,9 @@ const loadItems = async () => {
 
   const items = await response.json();
   state.items = Array.isArray(items) ? items : [];
+  state.itemChecks = new Map(
+    state.items.map((item) => [String(item.id), Boolean(item.verificado)]),
+  );
   state.items.sort((a, b) => {
     const dateA = new Date(a.horarioCriacao).getTime();
     const dateB = new Date(b.horarioCriacao).getTime();
@@ -1884,7 +1953,7 @@ const bindEvents = () => {
   renderFilterDescricaoOptions(filterTypeValue);
 
   if (itemsList) {
-    itemsList.addEventListener("click", (event) => {
+    itemsList.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const uploadButton = target.closest(".item-upload");
@@ -1900,6 +1969,31 @@ const bindEvents = () => {
         const card = observacaoButton.closest(".item-card");
         if (card?.dataset.id) {
           openObservacaoModal(card.dataset.id);
+        }
+        return;
+      }
+      const checkButton = target.closest(".item-check-toggle");
+      if (checkButton instanceof HTMLButtonElement) {
+        const card = checkButton.closest(".item-card");
+        if (!card?.dataset.id) return;
+        const nextChecked = !isItemChecked(card.dataset.id);
+        checkButton.disabled = true;
+        try {
+          const updated = await patchVerificacao(card.dataset.id, nextChecked);
+          const persistedChecked = Boolean(updated?.verificado);
+          syncItemCheckedState(card.dataset.id, persistedChecked);
+          checkButton.classList.toggle("is-checked", persistedChecked);
+          checkButton.setAttribute("aria-pressed", String(persistedChecked));
+          checkButton.setAttribute(
+            "aria-label",
+            persistedChecked ? "Desmarcar comprovante" : "Marcar comprovante como verificado",
+          );
+        } catch (error) {
+          showListState(
+            error instanceof Error ? error.message : "Falha ao atualizar verificação.",
+          );
+        } finally {
+          checkButton.disabled = false;
         }
         return;
       }

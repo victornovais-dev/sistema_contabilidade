@@ -51,7 +51,13 @@ public class Item {
   @Column(length = 120)
   private String descricao;
 
-  @Column(name = "razao_social", length = 200)
+  @Column(name = "tipo_documento", length = 80)
+  private String tipoDocumento;
+
+  @Column(name = "numero_documento", length = 50)
+  private String numeroDocumento;
+
+  @Column(name = "razao_social", length = 150)
   private String razaoSocialNome;
 
   @Column(name = "cnpj_cpf", length = 20)
@@ -59,6 +65,9 @@ public class Item {
 
   @Column(length = 500)
   private String observacao;
+
+  @Column(nullable = false)
+  private boolean verificado;
 
   @Column(name = "role_nome", length = 100)
   private String roleNome;

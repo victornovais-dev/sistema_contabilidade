@@ -1,18 +1,24 @@
 package com.sistema_contabilidade.item.controller;
 
+import com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog;
 import com.sistema_contabilidade.item.dto.ItemArquivoResponse;
 import com.sistema_contabilidade.item.dto.ItemArquivosUploadRequest;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.dto.ItemObservacaoUpdateRequest;
 import com.sistema_contabilidade.item.dto.ItemResponse;
 import com.sistema_contabilidade.item.dto.ItemUpsertRequest;
+import com.sistema_contabilidade.item.dto.ItemVerificacaoUpdateRequest;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
+import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ArquivoStorageService;
 import com.sistema_contabilidade.item.service.ItemAccessUtils;
+import com.sistema_contabilidade.item.service.ItemDescricaoService;
 import com.sistema_contabilidade.item.service.ItemListService;
+import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
+import com.sistema_contabilidade.notificacao.service.NotificacaoService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.validation.Valid;
@@ -21,6 +27,7 @@ import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
@@ -62,11 +69,18 @@ public class ItemController {
   private static final String ACESSO_NEGADO_ITEM = "Acesso negado ao item";
   private static final String ARQUIVO_ITEM_NAO_ENCONTRADO = "Arquivo do item nao encontrado";
   private static final String NOME_ARQUIVO_INVALIDO = "Nome do arquivo invalido";
+  private static final String ANEXO_OBRIGATORIO_DESCRICAO_FINANCEIRA =
+      "Conta DC, Conta FEFC, Conta FP e Conta FEFEC exigem ao menos um anexo.";
+  private static final Set<String> DESCRICOES_COM_ANEXO_OBRIGATORIO =
+      Set.of("CONTA DC", "CONTA FEFC", "CONTA FP", "CONTA FEFEC");
 
   private final ItemRepository itemRepository;
   private final ItemArquivoRepository itemArquivoRepository;
   private final ArquivoStorageService arquivoStorageService;
   private final ItemListService itemListService;
+  private final ItemDescricaoService itemDescricaoService;
+  private final ItemTipoDocumentoService itemTipoDocumentoService;
+  private final NotificacaoService notificacaoService;
   private final UsuarioRepository usuarioRepository;
 
   @PostMapping
@@ -76,6 +90,7 @@ public class ItemController {
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
     Item item = new Item();
     List<String> arquivosSalvos = List.of();
+    validarAnexoObrigatorio(request);
     aplicarCamposBase(item, request);
     item.setCriadoPor(usuarioAutenticado);
     item.setRoleNome(resolverRoleNomeItem(usuarioAutenticado, request.role(), null));
@@ -83,6 +98,9 @@ public class ItemController {
     try {
       arquivosSalvos = atualizarArquivos(item, request.arquivosPdf(), request.nomesArquivos());
       Item salvo = itemRepository.save(item);
+      if (salvo.getTipo() == TipoItem.RECEITA) {
+        notificacaoService.registrarReceitaLancada(salvo);
+      }
       URI location =
           ServletUriComponentsBuilder.fromCurrentRequest()
               .path(ID_PATH)
@@ -104,6 +122,27 @@ public class ItemController {
   @GetMapping("/roles")
   public ResponseEntity<List<String>> listarRolesDisponiveis(Authentication authentication) {
     return ResponseEntity.ok(itemListService.listarRolesDisponiveis(authentication));
+  }
+
+  @GetMapping("/descricoes")
+  public ResponseEntity<List<String>> listarDescricoesPorTipo(@RequestParam("tipo") TipoItem tipo) {
+    return ResponseEntity.ok(itemDescricaoService.listarDescricoesPorTipo(tipo));
+  }
+
+  @GetMapping("/tipos-documento")
+  public ResponseEntity<List<String>> listarTiposDocumento() {
+    try {
+      return ResponseEntity.ok(itemTipoDocumentoService.listarTiposDocumento());
+    } catch (RuntimeException exception) {
+      if (log.isWarnEnabled()) {
+        log.warn(
+            "Falha ao listar tipos de documento pelo service. Usando catalogo padrao.", exception);
+      }
+      return ResponseEntity.ok(
+          ItemTipoDocumentoCatalog.defaultDocumentTypes().stream()
+              .map(seed -> seed.nome())
+              .toList());
+    }
   }
 
   @GetMapping(ID_PATH)
@@ -271,6 +310,7 @@ public class ItemController {
     List<String> arquivosNovos = List.of();
     Usuario usuarioAutenticado =
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
+    validarAnexoObrigatorio(request);
     aplicarCamposBase(item, request);
     item.setRoleNome(resolverRoleNomeItem(usuarioAutenticado, request.role(), item.getRoleNome()));
 
@@ -293,6 +333,17 @@ public class ItemController {
     Item item = buscarItemAutorizadoPorId(id, authentication);
     String observacao = request.observacao();
     item.setObservacao(observacao == null ? null : observacao.trim());
+    Item salvo = itemRepository.save(item);
+    return ResponseEntity.ok(ItemResponse.from(salvo));
+  }
+
+  @PatchMapping(ID_PATH + "/verificacao")
+  public ResponseEntity<ItemResponse> atualizarVerificacao(
+      Authentication authentication,
+      @PathVariable("id") UUID id,
+      @Valid @RequestBody ItemVerificacaoUpdateRequest request) {
+    Item item = buscarItemAutorizadoPorId(id, authentication);
+    item.setVerificado(Boolean.TRUE.equals(request.verificado()));
     Item salvo = itemRepository.save(item);
     return ResponseEntity.ok(ItemResponse.from(salvo));
   }
@@ -375,9 +426,33 @@ public class ItemController {
     item.setHorarioCriacao(request.horarioCriacao());
     item.setTipo(request.tipo());
     item.setDescricao(request.descricao());
+    item.setTipoDocumento(request.tipoDocumento());
+    item.setNumeroDocumento(request.numeroDocumento());
     item.setRazaoSocialNome(request.razaoSocialNome());
     item.setCnpjCpf(request.cnpjCpf());
     item.setObservacao(request.observacao());
+  }
+
+  private void validarAnexoObrigatorio(ItemUpsertRequest request) {
+    if (request.tipo() != TipoItem.RECEITA) {
+      return;
+    }
+    String descricaoNormalizada = normalizarDescricao(request.descricao());
+    if (!DESCRICOES_COM_ANEXO_OBRIGATORIO.contains(descricaoNormalizada)) {
+      return;
+    }
+    List<byte[]> arquivosPdf = request.arquivosPdf();
+    if (arquivosPdf == null || arquivosPdf.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, ANEXO_OBRIGATORIO_DESCRICAO_FINANCEIRA);
+    }
+  }
+
+  private String normalizarDescricao(String descricao) {
+    if (descricao == null) {
+      return "";
+    }
+    return descricao.trim().toUpperCase(Locale.ROOT);
   }
 
   private List<String> atualizarArquivos(

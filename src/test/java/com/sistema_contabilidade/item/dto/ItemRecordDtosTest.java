@@ -38,6 +38,8 @@ class ItemRecordDtosTest {
             TipoItem.RECEITA,
             "FINANCEIRO",
             "ALUGUEL",
+            "Nota fiscal",
+            "NF-12345",
             "EMPRESA TESTE",
             "123.456.789-00",
             "Observacao");
@@ -52,6 +54,8 @@ class ItemRecordDtosTest {
     assertEquals(TipoItem.RECEITA, request.tipo());
     assertEquals("FINANCEIRO", request.role());
     assertEquals("ALUGUEL", request.descricao());
+    assertEquals("Nota fiscal", request.tipoDocumento());
+    assertEquals("NF-12345", request.numeroDocumento());
     assertEquals("EMPRESA TESTE", request.razaoSocialNome());
     assertEquals("123.456.789-00", request.cnpjCpf());
     assertEquals("Observacao", request.observacao());
@@ -73,9 +77,12 @@ class ItemRecordDtosTest {
     item.setTipo(TipoItem.RECEITA);
     item.setRoleNome("FINANCEIRO");
     item.setDescricao("ALUGUEL");
+    item.setTipoDocumento("Fatura");
+    item.setNumeroDocumento("FAT-2026-9");
     item.setRazaoSocialNome("EMPRESA TESTE");
     item.setCnpjCpf("12.345.678/0001-99");
     item.setObservacao("Observacao de teste");
+    item.setVerificado(true);
 
     ItemResponse response = ItemResponse.from(item);
 
@@ -87,9 +94,12 @@ class ItemRecordDtosTest {
     assertEquals(TipoItem.RECEITA, response.tipo());
     assertEquals("FINANCEIRO", response.role());
     assertEquals("ALUGUEL", response.descricao());
+    assertEquals("Fatura", response.tipoDocumento());
+    assertEquals("FAT-2026-9", response.numeroDocumento());
     assertEquals("EMPRESA TESTE", response.razaoSocialNome());
     assertEquals("12.345.678/0001-99", response.cnpjCpf());
     assertEquals("Observacao de teste", response.observacao());
+    assertTrue(response.verificado());
   }
 
   @Test
@@ -107,6 +117,8 @@ class ItemRecordDtosTest {
             TipoItem.RECEITA,
             "FINANCEIRO",
             "ALUGUEL",
+            "Nota fiscal",
+            "NF-1",
             "EMPRESA A",
             "123.456.789-00",
             "Obs");
@@ -120,6 +132,8 @@ class ItemRecordDtosTest {
             TipoItem.RECEITA,
             "FINANCEIRO",
             "ALUGUEL",
+            "Nota fiscal",
+            "NF-1",
             "EMPRESA A",
             "123.456.789-00",
             "Obs");
@@ -133,6 +147,8 @@ class ItemRecordDtosTest {
             TipoItem.RECEITA,
             "OPERADOR",
             "ALUGUEL",
+            "Outros",
+            "DOC-99",
             "EMPRESA B",
             "123.456.789-00",
             "Obs");
@@ -165,6 +181,8 @@ class ItemRecordDtosTest {
             TipoItem.RECEITA,
             "FINANCEIRO",
             "ALUGUEL",
+            "Boleto",
+            "BOL-10",
             "EMPRESA TESTE",
             "123.456.789-00",
             "Obs");

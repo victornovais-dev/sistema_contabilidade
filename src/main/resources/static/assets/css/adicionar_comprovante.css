@@ -313,6 +313,12 @@ html[data-theme="dark"] .theme-icon {
   gap: 18px;
 }
 
+.field-document-number {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
 .field {
   display: grid;
   gap: 10px;
@@ -1452,7 +1458,7 @@ html[data-theme="light"] .flatpickr-day.flatpickr-disabled:hover {
   }
 
   .row-fields {
-    align-items: flex-start;
+    align-items: stretch;
     flex-wrap: nowrap;
   }
 
@@ -1468,6 +1474,7 @@ html[data-theme="light"] .flatpickr-day.flatpickr-disabled:hover {
   max-width: 50%;
   min-width: 0;
   align-content: start;
+  grid-template-rows: auto auto auto auto 1fr;
 }
 
 .field-stack .field {
@@ -1484,6 +1491,7 @@ html[data-theme="light"] .flatpickr-day.flatpickr-disabled:hover {
   max-width: 50%;
   min-width: 0;
   align-content: start;
+  grid-template-rows: auto auto auto auto 1fr;
 }
 
 .field-side .field {
@@ -1491,6 +1499,24 @@ html[data-theme="light"] .flatpickr-day.flatpickr-disabled:hover {
   max-width: 100%;
   margin-left: 0;
   margin-right: 0;
+}
+
+.field-observacao,
+.field-file {
+  height: 100%;
+}
+
+.field-observacao {
+  align-content: start;
+  grid-template-rows: auto minmax(110px, 1fr);
+}
+
+.field-observacao textarea {
+  height: 100%;
+}
+
+.field-file {
+  grid-template-rows: auto auto 1fr;
 }
 }
 

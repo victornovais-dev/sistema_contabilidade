@@ -68,6 +68,8 @@ final class ItemRequestArraySupport {
             request.tipo(),
             request.role(),
             request.descricao(),
+            request.tipoDocumento(),
+            request.numeroDocumento(),
             request.razaoSocialNome(),
             request.cnpjCpf(),
             request.observacao(),
@@ -94,6 +96,10 @@ final class ItemRequestArraySupport {
         + request.role()
         + ", descricao="
         + request.descricao()
+        + ", tipoDocumento="
+        + request.tipoDocumento()
+        + ", numeroDocumento="
+        + request.numeroDocumento()
         + ", razaoSocialNome="
         + request.razaoSocialNome()
         + ", cnpjCpf="

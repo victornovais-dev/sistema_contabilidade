@@ -53,6 +53,7 @@ class ItemListServiceTest {
             "EMPRESA TESTE",
             "123.456.789-00",
             "Observacao",
+            false,
             true);
     when(itemRepository.findAllResumoOrderByHorarioCriacaoDesc()).thenReturn(List.of(response));
 

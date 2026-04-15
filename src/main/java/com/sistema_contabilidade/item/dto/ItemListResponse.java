@@ -18,4 +18,5 @@ public record ItemListResponse(
     String razaoSocialNome,
     String cnpjCpf,
     String observacao,
+    boolean verificado,
     boolean temArquivos) {}

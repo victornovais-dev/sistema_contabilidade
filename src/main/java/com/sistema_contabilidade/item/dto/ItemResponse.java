@@ -17,9 +17,12 @@ public record ItemResponse(
     TipoItem tipo,
     String role,
     String descricao,
+    String tipoDocumento,
+    String numeroDocumento,
     String razaoSocialNome,
     String cnpjCpf,
     String observacao,
+    boolean verificado,
     List<String> arquivosPdf) {
 
   public ItemResponse {
@@ -41,9 +44,12 @@ public record ItemResponse(
         item.getTipo(),
         item.getRoleNome(),
         item.getDescricao(),
+        item.getTipoDocumento(),
+        item.getNumeroDocumento(),
         item.getRazaoSocialNome(),
         item.getCnpjCpf(),
         item.getObservacao(),
+        item.isVerificado(),
         item.getArquivos().stream().map(arquivo -> arquivo.getCaminhoArquivoPdf()).toList());
   }
 }

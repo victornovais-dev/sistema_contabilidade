@@ -10,6 +10,8 @@ const roleField = document.getElementById("role-field");
 const roleSelect = document.querySelector("select[name=\"role\"]");
 const typeSelect = document.querySelector("select[name=\"entry_type\"]");
 const descricaoSelect = document.querySelector("select[name=\"descricao\"]");
+const tipoDocumentoSelect = document.querySelector("select[name=\"tipo_documento\"]");
+const numeroDocumentoInput = document.querySelector("input[name=\"numero_documento\"]");
 const customSelects = document.querySelectorAll("[data-custom-select]");
 const razaoSocialNomeInput = document.querySelector("input[name=\"razao_social_nome\"]");
 const cnpjCpfInput = document.querySelector("input[name=\"cnpj_cpf\"]");
@@ -27,6 +29,19 @@ let monthMenuCloseHandlerBound = false;
 let yearMenuCloseHandlerBound = false;
 let retainedReceiptFiles = [];
 let settingReceiptFilesProgrammatically = false;
+const descricaoOptionsCache = new Map();
+const DEFAULT_TIPO_DOCUMENTO_OPTIONS = ["Nota fiscal", "Fatura", "Boleto", "Outros"];
+const MAX_VALOR_CENTS = 1000000000;
+const MAX_RAZAO_SOCIAL_LENGTH = 150;
+const MAX_NUMERO_DOCUMENTO_LENGTH = 50;
+const REQUIRED_ATTACHMENT_DESCRIPTIONS = new Set([
+  "CONTA DC",
+  "CONTA FEFC",
+  "CONTA FP",
+  "CONTA FEFEC",
+]);
+let tipoDocumentoOptionsCache = null;
+let descricaoRequestSequence = 0;
 
 const parseDate = (value) => {
   const digits = (value || "").replace(/\D/g, "");
@@ -78,8 +93,21 @@ const moneyToDecimal = (value) => {
 const sanitizeRazaoSocial = (value) => {
   if (!value) return "";
   const cleaned = value.replace(/[^\p{L}\p{N} .&'/-]/gu, "");
-  return cleaned.replace(/\s{2,}/g, " ").toUpperCase();
+  return cleaned.replace(/\s{2,}/g, " ").toUpperCase().slice(0, MAX_RAZAO_SOCIAL_LENGTH);
 };
+
+const sanitizeNumeroDocumento = (value) =>
+  String(value || "")
+    .replace(/\D/g, "")
+    .slice(0, MAX_NUMERO_DOCUMENTO_LENGTH);
+
+const normalizeDescricao = (value) => String(value || "").trim().toUpperCase();
+
+const normalizeTipoLancamento = (value) => String(value || "").trim().toUpperCase();
+
+const requiresAttachmentBySelection = (tipo, descricao) =>
+  normalizeTipoLancamento(tipo) === "RECEITA" &&
+  REQUIRED_ATTACHMENT_DESCRIPTIONS.has(normalizeDescricao(descricao));
 
 const formatCpfCnpj = (value) => {
   const digits = (value || "").replace(/\D/g, "").slice(0, 14);
@@ -294,45 +322,7 @@ const bindCustomSelect = (selectElement) => {
 const customRole = roleSelect ? bindCustomSelect(roleSelect) : null;
 const customType = typeSelect ? bindCustomSelect(typeSelect) : null;
 const customDescricao = descricaoSelect ? bindCustomSelect(descricaoSelect) : null;
-
-const RECEITA_DESCRICOES = ["CONTA FEFEC", "CONTA FP", "CONTA DC"];
-
-const DESPESA_DESCRICOES = [
-  "Publicidade por materiais impressos",
-  "Publicidade na internet",
-  "Publicidade por carro de som",
-  "Produção de programas de rádio, TV ou vídeo",
-  "Impulsionamento de conteúdo",
-  "Serviços prestados por terceiros",
-  "Serviços advocatícios",
-  "Serviços contábeis",
-  "Atividades de militância e mobilização de rua",
-  "Remuneração de pessoal",
-  "Aluguel de imóveis",
-  "Aluguel de veículos",
-  "Combustíveis e lubrificantes",
-  "Energia elétrica",
-  "Água",
-  "Internet",
-  "Telefone",
-  "Material de expediente",
-  "Material de campanha (não publicitário)",
-  "Alimentação",
-  "Transporte ou deslocamento",
-  "Hospedagem",
-  "Organização de eventos",
-  "Produção de jingles, vinhetas e slogans",
-  "Produção de material gráfico",
-  "Criação e inclusão de páginas na internet",
-  "Manutenção de sites",
-  "Softwares e ferramentas digitais",
-  "Taxas bancárias",
-  "Encargos financeiros",
-  "Multas eleitorais",
-  "Doações a outros candidatos/partidos",
-  "Baixa de estimáveis em dinheiro",
-  "Outras despesas",
-];
+const customTipoDocumento = tipoDocumentoSelect ? bindCustomSelect(tipoDocumentoSelect) : null;
 
 const resetNativeSelect = (selectElement) => {
   if (!(selectElement instanceof HTMLSelectElement)) return;
@@ -432,8 +422,7 @@ const renderDescricaoOptions = (descriptions) => {
 
   const ordered = (descriptions || [])
     .filter((value) => value != null && String(value).trim().length > 0)
-    .map((value) => String(value))
-    .sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+    .map((value) => String(value));
 
   descricaoSelect.querySelectorAll("option:not([value=\"\"])").forEach((opt) => opt.remove());
   ordered.forEach((label) => {
@@ -460,6 +449,40 @@ const renderDescricaoOptions = (descriptions) => {
   customDescricao?.close?.();
 };
 
+const renderTipoDocumentoOptions = (documentTypes) => {
+  if (!tipoDocumentoSelect) return;
+  const wrapper = tipoDocumentoSelect.closest("[data-custom-select]");
+  if (!wrapper) return;
+  const menu = wrapper.querySelector(".custom-select-menu");
+  if (!(menu instanceof HTMLElement)) return;
+
+  const ordered = (documentTypes || [])
+    .filter((value) => value != null && String(value).trim().length > 0)
+    .map((value) => String(value));
+
+  tipoDocumentoSelect.querySelectorAll("option:not([value=\"\"])").forEach((opt) => opt.remove());
+  ordered.forEach((label) => {
+    const option = document.createElement("option");
+    option.value = label;
+    option.textContent = label;
+    tipoDocumentoSelect.appendChild(option);
+  });
+
+  menu.innerHTML = "";
+  ordered.forEach((label) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "custom-select-option";
+    button.setAttribute("role", "option");
+    button.dataset.value = label;
+    button.textContent = label;
+    menu.appendChild(button);
+  });
+
+  customTipoDocumento?.syncFromSelect?.();
+  customTipoDocumento?.close?.();
+};
+
 const setDescricaoEnabled = (enabled) => {
   if (!descricaoSelect) return;
   const wrapper = descricaoSelect.closest("[data-custom-select]");
@@ -482,33 +505,208 @@ const setDescricaoEnabled = (enabled) => {
   }
 };
 
-const updateDescricaoByTipo = (tipoValue) => {
-  const tipo = String(tipoValue || "").trim().toUpperCase();
-
-  if (tipo === "RECEITA") {
-    renderDescricaoOptions(RECEITA_DESCRICOES);
-    setDescricaoEnabled(true);
-    resetNativeSelect(descricaoSelect);
-    customDescricao?.syncFromSelect?.();
+const setDescricaoLoadingState = (loading) => {
+  if (!descricaoSelect) return;
+  const wrapper = descricaoSelect.closest("[data-custom-select]");
+  if (!wrapper) return;
+  const trigger = wrapper.querySelector(".custom-select-trigger");
+  if (!(trigger instanceof HTMLButtonElement)) return;
+  if (loading) {
+    trigger.disabled = true;
+    trigger.textContent = "Carregando...";
     return;
   }
+  trigger.textContent = "Selecione";
+};
 
-  if (tipo === "DESPESA") {
-    renderDescricaoOptions(DESPESA_DESCRICOES);
-    setDescricaoEnabled(true);
-    resetNativeSelect(descricaoSelect);
-    customDescricao?.syncFromSelect?.();
+const setTipoDocumentoEnabled = (enabled) => {
+  if (!tipoDocumentoSelect) return;
+  const wrapper = tipoDocumentoSelect.closest("[data-custom-select]");
+  if (!wrapper) return;
+  const trigger = wrapper.querySelector(".custom-select-trigger");
+
+  if (trigger instanceof HTMLButtonElement) {
+    trigger.disabled = !enabled;
+    trigger.classList.remove("is-invalid");
+    if (!enabled) {
+      trigger.textContent = "Selecione";
+    }
+  }
+
+  tipoDocumentoSelect.disabled = !enabled;
+  if (!enabled) {
+    resetNativeSelect(tipoDocumentoSelect);
+    customTipoDocumento?.syncFromSelect?.();
+    customTipoDocumento?.close?.();
+  }
+};
+
+const setTipoDocumentoLoadingState = (loading) => {
+  if (!tipoDocumentoSelect) return;
+  const wrapper = tipoDocumentoSelect.closest("[data-custom-select]");
+  if (!wrapper) return;
+  const trigger = wrapper.querySelector(".custom-select-trigger");
+  if (!(trigger instanceof HTMLButtonElement)) return;
+  if (loading) {
+    trigger.disabled = true;
+    trigger.textContent = "Carregando...";
+    return;
+  }
+  trigger.textContent = "Selecione";
+};
+
+const preloadDescricaoOptions = async () => {
+  try {
+    await Promise.all([loadDescricaoOptions("RECEITA"), loadDescricaoOptions("DESPESA")]);
+  } catch (error) {
+    // Keep lazy loading on demand when preload fails.
+  }
+};
+
+const loadDescricaoOptions = async (tipo) => {
+  if (descricaoOptionsCache.has(tipo)) {
+    return descricaoOptionsCache.get(tipo);
+  }
+
+  const accessToken = localStorage.getItem("sc_access_token");
+  if (!accessToken) {
+    window.location.href = "/login";
+    return [];
+  }
+
+  const response = await fetch(`/api/v1/itens/descricoes?tipo=${encodeURIComponent(tipo)}`, {
+    method: "GET",
+    credentials: "same-origin",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (response.status === 401) {
+    window.location.href = "/login";
+    return [];
+  }
+  if (!response.ok) {
+    throw new Error(`Falha ao carregar descricoes para ${tipo}`);
+  }
+
+  const descriptions = await response.json();
+  const normalized = Array.isArray(descriptions) ? descriptions : [];
+  descricaoOptionsCache.set(tipo, normalized);
+  return normalized;
+};
+
+const loadTipoDocumentoOptions = async () => {
+  if (tipoDocumentoOptionsCache) {
+    return tipoDocumentoOptionsCache;
+  }
+
+  const accessToken = localStorage.getItem("sc_access_token");
+  if (!accessToken) {
+    window.location.href = "/login";
+    return [];
+  }
+
+  const response = await fetch("/api/v1/itens/tipos-documento", {
+    method: "GET",
+    credentials: "same-origin",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (response.status === 401) {
+    window.location.href = "/login";
+    return [];
+  }
+  if (!response.ok) {
+    throw new Error("Falha ao carregar tipos de documento");
+  }
+
+  const documentTypes = await response.json();
+  tipoDocumentoOptionsCache = Array.isArray(documentTypes) ? documentTypes : [];
+  return tipoDocumentoOptionsCache;
+};
+
+const initTipoDocumentoOptions = async () => {
+  renderTipoDocumentoOptions([]);
+  setTipoDocumentoEnabled(false);
+  setTipoDocumentoLoadingState(true);
+
+  try {
+    const documentTypes = await loadTipoDocumentoOptions();
+    renderTipoDocumentoOptions(documentTypes);
+    setTipoDocumentoEnabled(documentTypes.length > 0);
+    resetNativeSelect(tipoDocumentoSelect);
+    customTipoDocumento?.syncFromSelect?.();
+  } catch (error) {
+    tipoDocumentoOptionsCache = DEFAULT_TIPO_DOCUMENTO_OPTIONS;
+    renderTipoDocumentoOptions(DEFAULT_TIPO_DOCUMENTO_OPTIONS);
+    setTipoDocumentoEnabled(true);
+    resetNativeSelect(tipoDocumentoSelect);
+    customTipoDocumento?.syncFromSelect?.();
+  } finally {
+    setTipoDocumentoLoadingState(false);
+  }
+};
+
+const updateDescricaoByTipo = async (tipoValue) => {
+  const requestId = ++descricaoRequestSequence;
+  const tipo = String(tipoValue || "").trim().toUpperCase();
+
+  if (tipo !== "RECEITA" && tipo !== "DESPESA") {
+    renderDescricaoOptions([]);
+    setDescricaoEnabled(false);
     return;
   }
 
   renderDescricaoOptions([]);
   setDescricaoEnabled(false);
+  setDescricaoLoadingState(true);
+
+  try {
+    const descriptions = await loadDescricaoOptions(tipo);
+    if (requestId !== descricaoRequestSequence) {
+      return;
+    }
+    renderDescricaoOptions(descriptions);
+    setDescricaoEnabled(descriptions.length > 0);
+    resetNativeSelect(descricaoSelect);
+    customDescricao?.syncFromSelect?.();
+  } catch (error) {
+    if (requestId !== descricaoRequestSequence) {
+      return;
+    }
+    renderDescricaoOptions([]);
+    setDescricaoEnabled(false);
+    showConfirm(false, "Nao foi possivel carregar as descricoes. Recarregue a pagina.");
+  } finally {
+    if (requestId === descricaoRequestSequence) {
+      setDescricaoLoadingState(false);
+    }
+  }
 };
 
 if (typeSelect) {
-  typeSelect.addEventListener("change", () => updateDescricaoByTipo(typeSelect.value));
-  updateDescricaoByTipo(typeSelect.value);
+  typeSelect.addEventListener("change", () => {
+    if (fileInput) {
+      fileInput.setCustomValidity("");
+    }
+    void updateDescricaoByTipo(typeSelect.value);
+  });
+  void preloadDescricaoOptions();
+  void updateDescricaoByTipo(typeSelect.value);
 }
+
+if (descricaoSelect) {
+  descricaoSelect.addEventListener("change", () => {
+    if (fileInput) {
+      fileInput.setCustomValidity("");
+    }
+  });
+}
+
+void initTipoDocumentoOptions();
 
 const updateReceiptGrid = (files) => {
   if (!receiptSelected) return;
@@ -606,6 +804,7 @@ if (fileInput) {
   updateReceiptHint(retainedReceiptFiles);
 
   fileInput.addEventListener("change", () => {
+    fileInput.setCustomValidity("");
     const picked = fileInput.files ? Array.from(fileInput.files) : [];
 
     // When we set `fileInput.files` ourselves (DataTransfer), just sync the UI/state.
@@ -666,7 +865,8 @@ if (fileInput) {
 if (moneyInput) {
   const formatMoney = (value) => {
     const digits = value.replace(/\D/g, "");
-    const number = Number(digits || 0) / 100;
+    const cents = Math.min(Number(digits || 0), MAX_VALOR_CENTS);
+    const number = cents / 100;
     return number.toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
@@ -1008,9 +1208,19 @@ if (dateInput) {
 if (razaoSocialNomeInput) {
   const applyRazaoMask = () => {
     razaoSocialNomeInput.value = sanitizeRazaoSocial(razaoSocialNomeInput.value);
+    razaoSocialNomeInput.setCustomValidity("");
   };
   razaoSocialNomeInput.addEventListener("input", applyRazaoMask);
   razaoSocialNomeInput.addEventListener("blur", applyRazaoMask);
+}
+
+if (numeroDocumentoInput) {
+  const applyNumeroDocumentoMask = () => {
+    numeroDocumentoInput.value = sanitizeNumeroDocumento(numeroDocumentoInput.value);
+    numeroDocumentoInput.setCustomValidity("");
+  };
+  numeroDocumentoInput.addEventListener("input", applyNumeroDocumentoMask);
+  numeroDocumentoInput.addEventListener("blur", applyNumeroDocumentoMask);
 }
 
 if (cnpjCpfInput) {
@@ -1038,6 +1248,9 @@ if (form) {
       if (number <= 0) {
         moneyInput.setCustomValidity("O valor deve ser maior que zero.");
         hasError = true;
+      } else if (number > 10000000) {
+        moneyInput.setCustomValidity("O valor nao pode ultrapassar R$ 10.000.000,00.");
+        hasError = true;
       }
     }
 
@@ -1063,6 +1276,12 @@ if (form) {
           fileInput.setCustomValidity("Envie somente arquivos PDF.");
           hasError = true;
         }
+      }
+      if (requiresAttachmentBySelection(typeSelect?.value, descricaoSelect?.value) && files.length === 0) {
+        fileInput.setCustomValidity(
+          "Conta DC, Conta FEFC, Conta FP e Conta FEFEC exigem ao menos um anexo.",
+        );
+        hasError = true;
       }
     }
 
@@ -1092,12 +1311,54 @@ if (form) {
       }
     }
 
+    if (razaoSocialNomeInput) {
+      razaoSocialNomeInput.setCustomValidity("");
+      if (razaoSocialNomeInput.value.length > MAX_RAZAO_SOCIAL_LENGTH) {
+        razaoSocialNomeInput.setCustomValidity(
+          "Razao social ou nome deve ter no maximo 150 caracteres.",
+        );
+        hasError = true;
+      }
+    }
+
+    if (numeroDocumentoInput) {
+      numeroDocumentoInput.setCustomValidity("");
+      const numeroDocumento = String(numeroDocumentoInput.value || "");
+      if (numeroDocumento.length > MAX_NUMERO_DOCUMENTO_LENGTH) {
+        numeroDocumentoInput.setCustomValidity(
+          "Numero do documento deve ter no maximo 50 caracteres.",
+        );
+        hasError = true;
+      } else if (numeroDocumento && !/^\d+$/.test(numeroDocumento)) {
+        numeroDocumentoInput.setCustomValidity(
+          "Numero do documento deve conter apenas numeros.",
+        );
+        hasError = true;
+      }
+    }
+
+    if (tipoDocumentoSelect && !tipoDocumentoSelect.disabled) {
+      tipoDocumentoSelect.setCustomValidity("");
+      if (!tipoDocumentoSelect.value) {
+        tipoDocumentoSelect.setCustomValidity("Selecione o tipo de documento.");
+        if (customTipoDocumento?.trigger) {
+          customTipoDocumento.trigger.classList.add("is-invalid");
+          customTipoDocumento.open();
+          customTipoDocumento.trigger.focus();
+        }
+        hasError = true;
+      }
+    }
+
     if (hasError) {
       if (moneyInput) moneyInput.reportValidity();
       if (dateInput) dateInput.reportValidity();
       if (fileInput) fileInput.reportValidity();
+      if (razaoSocialNomeInput) razaoSocialNomeInput.reportValidity();
+      if (numeroDocumentoInput) numeroDocumentoInput.reportValidity();
       if (typeSelect) typeSelect.reportValidity();
       if (descricaoSelect && !descricaoSelect.disabled) descricaoSelect.reportValidity();
+      if (tipoDocumentoSelect && !tipoDocumentoSelect.disabled) tipoDocumentoSelect.reportValidity();
       return;
     }
 
@@ -1144,6 +1405,8 @@ if (form) {
         tipo,
         role: roleSelecionada || null,
         descricao: descricaoSelect?.value || null,
+        tipoDocumento: tipoDocumentoSelect?.value || null,
+        numeroDocumento: numeroDocumentoInput?.value || null,
         razaoSocialNome: razaoSocialNomeInput?.value || null,
         cnpjCpf: cnpjCpfInput?.value || null,
         observacao: observacaoInput?.value || null,
@@ -1249,9 +1512,22 @@ if (confirmOverlay && confirmClose) {
       customDescricao?.close?.();
       customDescricao?.syncFromSelect?.();
     }
+    if (tipoDocumentoSelect && lastSubmitOk) {
+      tipoDocumentoSelect.setCustomValidity("");
+      tipoDocumentoSelect.selectedIndex = 0;
+      if (customTipoDocumento?.trigger) {
+        customTipoDocumento.trigger.classList.remove("is-invalid");
+      }
+      customTipoDocumento?.close?.();
+      customTipoDocumento?.syncFromSelect?.();
+    }
     if (razaoSocialNomeInput && lastSubmitOk) {
       razaoSocialNomeInput.setCustomValidity("");
       razaoSocialNomeInput.value = "";
+    }
+    if (numeroDocumentoInput && lastSubmitOk) {
+      numeroDocumentoInput.setCustomValidity("");
+      numeroDocumentoInput.value = "";
     }
     if (cnpjCpfInput && lastSubmitOk) {
       cnpjCpfInput.setCustomValidity("");
@@ -1273,3 +1549,4 @@ if (confirmOverlay && confirmClose) {
 loadRoleOptions().catch(() => {
   renderRoleOptions([]);
 });
+

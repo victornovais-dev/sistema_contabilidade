@@ -2,6 +2,7 @@ package com.sistema_contabilidade.item.repository;
 
 import com.sistema_contabilidade.home.dto.HomeLatestLaunchResponse;
 import com.sistema_contabilidade.home.dto.HomeMonthlyBalanceRow;
+import com.sistema_contabilidade.home.dto.HomeRevenueCategoryTotalRow;
 import com.sistema_contabilidade.home.dto.HomeTypeTotalRow;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.model.Item;
@@ -35,6 +36,7 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
         i.razaoSocialNome,
         i.cnpjCpf,
         i.observacao,
+        i.verificado,
         case
           when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> '' then true
           else false
@@ -59,6 +61,7 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
         i.razaoSocialNome,
         i.cnpjCpf,
         i.observacao,
+        i.verificado,
         case
           when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> '' then true
           else false
@@ -85,6 +88,7 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
         i.razaoSocialNome,
         i.cnpjCpf,
         i.observacao,
+        i.verificado,
         case
           when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> '' then true
           else false
@@ -119,6 +123,32 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
       group by i.tipo
       """)
   List<HomeTypeTotalRow> findTypeTotalsByRoleNome(@Param(ROLE_NAME_PARAM) String roleNome);
+
+  @Query(
+      """
+      select new com.sistema_contabilidade.home.dto.HomeRevenueCategoryTotalRow(
+        coalesce(i.descricao, ''),
+        coalesce(sum(i.valor), 0)
+      )
+      from Item i
+      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.RECEITA
+      group by i.descricao
+      """)
+  List<HomeRevenueCategoryTotalRow> findRevenueCategoryTotals();
+
+  @Query(
+      """
+      select new com.sistema_contabilidade.home.dto.HomeRevenueCategoryTotalRow(
+        coalesce(i.descricao, ''),
+        coalesce(sum(i.valor), 0)
+      )
+      from Item i
+      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.RECEITA
+        and i.roleNome = :roleNome
+      group by i.descricao
+      """)
+  List<HomeRevenueCategoryTotalRow> findRevenueCategoryTotalsByRoleNome(
+      @Param(ROLE_NAME_PARAM) String roleNome);
 
   @Query(
       """

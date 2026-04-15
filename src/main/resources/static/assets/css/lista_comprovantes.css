@@ -1495,6 +1495,24 @@ html[data-theme="light"] .flatpickr-current-month .year-dropdown option {
   justify-content: center;
 }
 
+.item-check-toggle {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff6b6b, #e54444);
+  box-shadow: 0 10px 22px rgba(229, 68, 68, 0.28);
+  color: #fff;
+}
+
+.item-check-toggle.is-checked {
+  background: linear-gradient(135deg, #39d98a, #1ea85d);
+  box-shadow: 0 10px 22px rgba(30, 168, 93, 0.28);
+}
+
 .btn-info {
   width: 44px;
   height: 44px;
@@ -1530,6 +1548,31 @@ html[data-theme="light"] .flatpickr-current-month .year-dropdown option {
 }
 
 .icon-upload svg {
+  width: 100%;
+  height: 100%;
+}
+
+.icon-check {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-check-on {
+  display: none;
+}
+
+.item-check-toggle.is-checked .icon-check-on {
+  display: inline-flex;
+}
+
+.item-check-toggle.is-checked .icon-check-off {
+  display: none;
+}
+
+.icon-check svg {
   width: 100%;
   height: 100%;
 }

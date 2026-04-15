@@ -15,7 +15,8 @@ public class SistemaContabilidadeApplication {
 
   @Bean
   CacheManager cacheManager() {
-    CaffeineCacheManager cacheManager = new CaffeineCacheManager("userDetails");
+    CaffeineCacheManager cacheManager =
+        new CaffeineCacheManager("userDetails", "itemDescricoes", "itemTiposDocumento");
     cacheManager.setCaffeine(
         Caffeine.newBuilder().maximumSize(500).expireAfterWrite(Duration.ofMinutes(5)));
     return cacheManager;
