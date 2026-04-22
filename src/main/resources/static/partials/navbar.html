@@ -1,15 +1,28 @@
 <nav class="navbar">
   <div class="navbar-content">
-        <a class="brand" href="/home" aria-label="Ir para a home">
-      <span class="brand-mark">SC</span>
-      <span class="brand-name">Sistema</span>
+    <a class="brand" href="/home" aria-label="Ir para a home">
+      <img
+        class="brand-logo brand-logo-light"
+        src="/assets/img/sacs-contabil-navbar-azul.png"
+        alt=""
+        aria-hidden="true"
+      />
+      <img
+        class="brand-logo brand-logo-dark"
+        src="/assets/img/sacs-contabil-navbar-branco.png"
+        alt=""
+        aria-hidden="true"
+      />
     </a>
     <div class="nav-links" aria-label="Navegacao principal">
       <a class="nav-link" href="/home">Home</a>
-      <a class="nav-link" href="/adicionar_comprovante">Adicionar</a>
+      <a class="nav-link" href="/adicionar_comprovante" data-hide-for-role="CONTABIL">Adicionar</a>
       <a class="nav-link" href="/lista_comprovantes">Comprovantes</a>
       <a class="nav-link" href="/relatorios">Relatorios</a>
-      <a class="nav-link" href="/notificacoes">Notificacoes</a>
+      <a class="nav-link nav-link-notifications" href="/notificacoes" data-show-for-roles="ADMIN,CONTABIL">
+        <span>Notificações</span>
+        <span class="nav-badge" data-notification-count hidden aria-live="polite"></span>
+      </a>
     </div>
     <div class="nav-actions">
       <button class="logout-btn" type="button" aria-label="Sair da conta">Logout</button>

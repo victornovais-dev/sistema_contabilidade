@@ -1,3 +1,68 @@
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(247, 244, 239, 0.85);
+  border-bottom: 1px solid var(--line, var(--stroke, rgba(27, 27, 31, 0.12)));
+  backdrop-filter: blur(12px);
+  z-index: 80;
+}
+
+html[data-theme="dark"] .navbar {
+  background: rgba(15, 17, 21, 0.85);
+  border-bottom-color: var(--line, var(--stroke, rgba(255, 255, 255, 0.08)));
+}
+
+.navbar-content {
+  height: 100%;
+  width: min(1100px, 92vw);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex: 0 0 auto;
+  text-decoration: none;
+  color: inherit;
+  white-space: nowrap;
+  line-height: 0;
+}
+
+.brand-logo {
+  display: block;
+  width: 128px;
+  height: 48px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.brand-logo-dark {
+  display: none;
+}
+
+html[data-theme="dark"] .brand-logo-light {
+  display: none;
+}
+
+html[data-theme="dark"] .brand-logo-dark {
+  display: block;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
 .navbar .logout-btn {
   height: 44px;
   padding: 0 14px;
@@ -29,9 +94,9 @@ html[data-theme="dark"] .navbar .logout-btn {
   width: 44px;
   height: 44px;
   border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--surface-elev);
-  color: var(--ink);
+  border: 1px solid var(--line, var(--stroke, rgba(27, 27, 31, 0.12)));
+  background: var(--surface-elev, var(--card, rgba(255, 255, 255, 0.78)));
+  color: var(--ink, #1b1b1f);
   cursor: pointer;
   transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
   display: inline-flex;
@@ -45,7 +110,11 @@ html[data-theme="dark"] .navbar .theme-toggle {
 
 .navbar .theme-toggle:hover {
   transform: translateY(-1px);
-  border-color: color-mix(in oklab, var(--line), var(--brand) 40%);
+  border-color: color-mix(
+    in oklab,
+    var(--line, var(--stroke, rgba(27, 27, 31, 0.12))),
+    var(--brand, var(--accent, #d84b34)) 40%
+  );
 }
 
 .navbar .theme-icon {
@@ -82,23 +151,48 @@ html[data-theme="dark"] .navbar .theme-icon {
   padding: 0 12px;
   border-radius: 999px;
   border: 1px solid transparent;
-  color: color-mix(in oklab, var(--ink), #fff 10%);
+  color: color-mix(in oklab, var(--ink, #1b1b1f), #fff 10%);
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 600;
   transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+  white-space: nowrap;
+}
+
+.navbar .nav-link-notifications {
+  gap: 8px;
+}
+
+.navbar .nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f0684a, #d84b34);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 8px 18px rgba(216, 75, 52, 0.26);
+}
+
+.navbar .nav-badge[hidden] {
+  display: none;
 }
 
 .navbar .nav-link:hover {
-  border-color: color-mix(in oklab, var(--brand), #ffffff 20%);
-  background: color-mix(in oklab, var(--brand) 14%, transparent);
-  color: var(--ink);
+  border-color: color-mix(in oklab, var(--brand, var(--accent, #d84b34)), #ffffff 20%);
+  background: color-mix(in oklab, var(--brand, var(--accent, #d84b34)) 14%, transparent);
+  color: var(--ink, #1b1b1f);
 }
 
 .navbar .nav-link.is-active {
-  border-color: color-mix(in oklab, var(--brand), #ffffff 20%);
-  background: color-mix(in oklab, var(--brand) 18%, transparent);
-  color: var(--ink);
+  border-color: color-mix(in oklab, var(--brand, var(--accent, #d84b34)), #ffffff 20%);
+  background: transparent;
+  color: var(--ink, #1b1b1f);
 }
 
 html[data-theme="dark"] .navbar .nav-link {
@@ -110,8 +204,23 @@ html[data-theme="dark"] .navbar .nav-link:hover {
   background: rgba(255, 255, 255, 0.08);
 }
 
+html[data-theme="dark"] .navbar .nav-link.is-active {
+  background: transparent;
+}
+
 @media (max-width: 980px) {
   .navbar .nav-links {
     display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .navbar-content {
+    width: min(92vw, 1100px);
+  }
+
+  .brand-logo {
+    width: 112px;
+    height: 42px;
   }
 }
