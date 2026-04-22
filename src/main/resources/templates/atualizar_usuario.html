@@ -1,0 +1,118 @@
+﻿<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Atualizar Usuario</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <script>
+      (function () {
+        try {
+          var match = document.cookie.match(/(?:^|;\s*)theme=([^;]+)/);
+          var cookieTheme = match ? decodeURIComponent(match[1]) : null;
+          var theme = cookieTheme || localStorage.getItem("theme");
+          document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/atualizar_usuario.css?v=20260420-role-search-order-1" />
+    <link rel="stylesheet" href="assets/css/navbar.css?v=20260420-navbar-notification-count-fix-3" />
+  </head>
+  <body>
+    <th:block th:replace="~{fragments/navbar :: navbar}"></th:block>
+
+    <div class="bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="page page-wide">
+      <header class="page-header">
+        <span class="chip">Admin</span>
+        <h1>Atualizar usuario</h1>
+        <p>Busque por email e atualize senha e roles do usuario.</p>
+      </header>
+
+      <section class="card">
+        <form id="update-user-form" class="form" action="#" method="post" accept-charset="UTF-8">
+          <label class="field search-field">
+            <span>Email do usuario</span>
+            <div class="field-inline">
+              <input
+                id="email"
+                type="email"
+                name="email"
+                placeholder="usuario@email.com"
+                required
+              />
+              <button id="load-user-btn" class="btn btn-inline" type="button">Carregar</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Senha (opcional)</span>
+            <input
+              id="senha"
+              type="password"
+              name="senha"
+              placeholder="Deixe em branco para manter"
+              minlength="6"
+            />
+          </label>
+
+          <div class="field role-picker-field">
+            <span>Roles</span>
+            <button id="roles-trigger" class="roles-trigger" type="button" aria-haspopup="dialog" aria-expanded="false">
+              <span class="roles-plus" aria-hidden="true">+</span>
+              <span>Selecionar roles</span>
+            </button>
+
+            <div id="roles-backdrop" class="roles-backdrop" hidden></div>
+            <section id="roles-card" class="roles-card" role="dialog" aria-label="Selecionar roles" hidden>
+              <header class="roles-card-header">
+                <strong>Selecionar roles</strong>
+              </header>
+              <label class="roles-search-wrap" for="roles-search">
+                <span class="roles-search-icon" aria-hidden="true">&#128269;</span>
+                <input id="roles-search" class="roles-search" type="text" placeholder="Buscar role" autocomplete="off" />
+              </label>
+              <div id="roles-options" class="roles-options">
+                <p class="roles-empty">Carregando roles...</p>
+              </div>
+              <div class="roles-actions">
+                <button id="roles-confirm" class="roles-confirm" type="button">OK</button>
+              </div>
+            </section>
+
+            <div id="selected-roles" class="selected-roles" aria-live="polite"></div>
+            <input id="roles-hidden" name="roles_hidden" type="text" required hidden />
+          </div>
+
+          <button class="btn" type="submit">Atualizar usuario</button>
+        </form>
+      </section>
+    </main>
+
+    <div id="update-user-feedback" class="confirm-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="confirm-card" role="status" aria-live="polite">
+        <div class="confirm-icon" aria-hidden="true"></div>
+        <h2 class="feedback-title"></h2>
+        <p class="feedback-message"></p>
+        <button id="feedback-ok-btn" class="btn confirm-close" type="button">Ok</button>
+      </div>
+    </div>
+
+    <script src="assets/js/navbar.js?v=20260421-notifications-admin-contabil-1" defer></script>
+    <script src="assets/js/atualizar_usuario.js?v=20260420-role-search-order-1" defer></script>
+  </body>
+</html>
+

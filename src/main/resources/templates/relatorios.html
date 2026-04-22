@@ -1,0 +1,101 @@
+﻿<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Relatórios</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <script>
+      (function () {
+        try {
+          var match = document.cookie.match(/(?:^|;\s*)theme=([^;]+)/);
+          var cookieTheme = match ? decodeURIComponent(match[1]) : null;
+          var theme = cookieTheme || localStorage.getItem("theme");
+          document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/relatorios.css?v=20260420-limites-barras-retas-1" />
+    <link rel="stylesheet" href="assets/css/navbar.css?v=20260420-navbar-notification-count-fix-3" />
+  </head>
+  <body>
+    <th:block th:replace="~{fragments/navbar :: navbar}"></th:block>
+
+    <div class="bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="page page-wide">
+      <header class="page-header">
+        <span class="chip">Relatório</span>
+        <div class="report-header-row">
+          <h1>Relatórios</h1>
+          <div class="role-filter-box" id="role-filter-box" hidden>
+            <label for="role-filter-select">Candidato</label>
+            <div class="custom-select" data-custom-select>
+              <button
+                class="custom-select-trigger"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                Selecione
+              </button>
+              <div class="custom-select-menu" role="listbox" hidden></div>
+              <select
+                id="role-filter-select"
+                class="native-select"
+                aria-label="Filtrar por candidato"
+                aria-hidden="true"
+              >
+                <option value="" disabled selected>Selecione</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section id="report-state" class="card report-state">Carregando relatórios...</section>
+
+      <section class="summary-layout" id="summary-layout" hidden>
+        <section class="card summary-card summary-card-overview" id="summary-overview-card" hidden>
+          <div class="summary-card-title">Receitas</div>
+        </section>
+        <section class="card summary-card summary-card-solo" id="summary-despesas-card" hidden>
+          <div class="summary-card-title">Despesas</div>
+        </section>
+        <section class="card summary-card summary-card-solo" id="summary-limites-card" hidden>
+          <div class="summary-card-title">Limites de gastos</div>
+        </section>
+      </section>
+
+      <template id="summary-item-template">
+        <div class="summary-item">
+          <p class="summary-label" data-field="label"></p>
+          <h2 class="summary-value" data-field="value"></h2>
+        </div>
+      </template>
+
+      <section class="report-actions">
+        <button class="btn btn-primary" id="download-report-btn" type="button">
+          Baixar relatório (PDF)
+        </button>
+      </section>
+    </main>
+
+    <script src="assets/js/navbar.js?v=20260421-notifications-admin-contabil-1" defer></script>
+    <script src="assets/js/role-dropdown.js?v=20260420-home-role-filter-1" defer></script>
+    <script src="assets/js/relatorios.js?v=20260421-candidato-role-1" defer></script>
+  </body>
+</html>
+

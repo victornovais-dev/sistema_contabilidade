@@ -1,0 +1,149 @@
+﻿<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Home | Sistema</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <script src="assets/js/theme-init.js?v=20260413-home-summary-1"></script>
+    <link rel="stylesheet" href="assets/css/home.css?v=20260420-utilizado-centralizado-1" />
+    <link rel="stylesheet" href="assets/css/navbar.css?v=20260420-navbar-notification-count-fix-3" />
+  </head>
+  <body>
+    <th:block th:replace="~{fragments/navbar :: navbar}"></th:block>
+
+    <div class="bg" aria-hidden="true">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="dashboard-shell">
+      <section class="dashboard-hero" aria-label="Boas-vindas">
+        <div class="dashboard-hero-copy">
+          <h1 class="dashboard-title">
+            <span class="welcome-prefix" data-welcome-prefix>Bem-vindo de volta,</span>
+            <span class="welcome-name" data-first-name>...</span>
+            <span class="welcome-wave" aria-hidden="true">&#128075;</span>
+          </h1>
+          <p class="dashboard-subtitle">
+            <span data-current-month>Abril de 2026</span>
+            <span class="subtitle-separator">&middot;</span>
+            <span>Saldo atualizado agora</span>
+          </p>
+        </div>
+
+        <div class="dashboard-actions">
+          <div class="role-filter-box" id="home-role-filter-box" hidden>
+            <label for="home-role-filter-select">Candidato</label>
+            <div class="custom-select" data-custom-select>
+              <button
+                class="custom-select-trigger"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                Selecione
+              </button>
+              <div class="custom-select-menu" role="listbox" hidden></div>
+              <select
+                id="home-role-filter-select"
+                class="native-select"
+                aria-label="Selecionar candidato para visualizar a home"
+                aria-hidden="true"
+              >
+                <option value="" disabled selected>Selecione</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="metrics-grid" aria-label="Resumo financeiro">
+        <article class="metric-card metric-card-income">
+          <p class="metric-label">Receitas Totais</p>
+          <p class="metric-amount metric-amount-positive" data-metric="receitasTotais">R$ 0,00</p>
+          <p class="metric-chip metric-chip-positive">Entradas no período</p>
+        </article>
+
+        <article class="metric-card metric-card-expense">
+          <p class="metric-label">Despesas Totais</p>
+          <p class="metric-amount metric-amount-negative" data-metric="despesasTotais">R$ 0,00</p>
+          <p class="metric-chip metric-chip-negative">Saídas no período</p>
+        </article>
+
+        <article class="metric-card metric-card-balance">
+          <p class="metric-label">Utilizado</p>
+          <p class="metric-amount metric-amount-utilizado" data-metric="utilizado">0%</p>
+          <p class="metric-chip metric-chip-positive">Receita Gasta</p>
+        </article>
+
+        <article class="metric-card metric-card-cash">
+          <p class="metric-label">Saldo final</p>
+          <p class="metric-amount metric-amount-neutral" data-metric="saldoEmCaixa">R$ 0,00</p>
+          <p class="metric-chip metric-chip-neutral">Saldo final</p>
+        </article>
+      </section>
+
+      <section class="dashboard-content" aria-label="Painel financeiro">
+        <article class="panel-card chart-panel">
+          <header class="panel-header">
+            <h2>Receitas vs Despesas</h2>
+            <a href="/relatorios" class="panel-link">Ver relat&oacute;rio &rarr;</a>
+          </header>
+
+          <div class="chart-stage" role="img" aria-label="Comparativo visual entre receitas e despesas por m&ecirc;s">
+            <div class="chart-columns" data-income-expense-chart>
+              <div class="chart-month">
+                <div class="chart-bars">
+                  <span class="chart-bar chart-bar-income" style="--bar-height: 16%"></span>
+                  <span class="chart-bar chart-bar-expense" style="--bar-height: 14%"></span>
+                </div>
+                <span class="chart-month-label">...</span>
+              </div>
+            </div>
+
+            <div class="chart-legend" aria-hidden="true">
+              <span class="chart-legend-item">
+                <span class="chart-legend-dot chart-legend-dot-income"></span>
+                Receitas
+              </span>
+              <span class="chart-legend-item">
+                <span class="chart-legend-dot chart-legend-dot-expense"></span>
+                Despesas
+              </span>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel-card ledger-panel">
+          <header class="panel-header">
+            <h2>&Uacute;ltimos lan&ccedil;amentos</h2>
+            <a href="/lista_comprovantes" class="panel-link">Ver todos &rarr;</a>
+          </header>
+
+          <div class="ledger-list" data-latest-launches>
+            <article class="ledger-item">
+              <div class="ledger-icon ledger-icon-positive">&uarr;</div>
+              <div class="ledger-copy">
+                <h3>Lancamento recente</h3>
+                <p>Carregando itens...</p>
+              </div>
+              <strong class="ledger-value ledger-value-positive">R$ 0,00</strong>
+            </article>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="assets/js/navbar.js?v=20260421-notifications-admin-contabil-1" defer></script>
+    <script src="assets/js/role-dropdown.js?v=20260413-home-summary-1" defer></script>
+    <script src="assets/js/home-welcome.js?v=20260413-home-summary-1" defer></script>
+    <script src="assets/js/home-role-filter.js?v=20260421-candidato-role-1" defer></script>
+    <script src="assets/js/home-dashboard-data.js?v=20260413-home-summary-1" defer></script>
+    <script src="assets/js/home-metrics.js?v=20260413-home-summary-1" defer></script>
+    <script src="assets/js/home-income-expense-chart.js?v=20260413-home-summary-1" defer></script>
+    <script src="assets/js/home-latest-launches.js?v=20260413-home-summary-1" defer></script>
+  </body>
+</html>
+

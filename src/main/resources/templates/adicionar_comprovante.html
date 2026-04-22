@@ -1,0 +1,231 @@
+﻿<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Registrar Gasto</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <script src="assets/js/theme-init.js"></script>
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css" />
+    <link rel="stylesheet" href="assets/css/adicionar_comprovante.css?v=20260413-validacoes-1" />
+    <link rel="stylesheet" href="assets/css/navbar.css?v=20260420-navbar-notification-count-fix-3" />
+  </head>
+  <body>
+    <div class="drop-overlay" aria-hidden="true">
+      <div class="drop-card">
+        <div class="drop-icon" aria-hidden="true">?</div>
+        <p>Solte o arquivo para anexar</p>
+      </div>
+    </div>
+
+    <th:block th:replace="~{fragments/navbar :: navbar}"></th:block>
+
+    <div class="bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="page page-wide">
+      <header class="page-header">
+        <span class="chip">Novo lançamento</span>
+        <h1>Adicionar Comprovante</h1>
+      </header>
+
+      <section class="card card-horizontal">
+        <form class="form" action="#" method="post" accept-charset="UTF-8">
+          <div class="row row-fields">
+            <div class="field-stack">
+              <label class="field field-role" id="role-field" hidden>
+                <span>Candidato</span>
+                <div class="custom-select" data-custom-select>
+                  <button
+                    class="custom-select-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    disabled
+                  >
+                    Selecione
+                  </button>
+                  <div class="custom-select-menu" role="listbox" hidden></div>
+                  <select class="native-select" name="role" aria-hidden="true" disabled>
+                    <option value="" disabled selected>Selecione</option>
+                  </select>
+                </div>
+              </label>
+              <label class="field field-type">
+                <span>Tipo de lançamento</span>
+                <div class="custom-select" data-custom-select>
+                  <button
+                    class="custom-select-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                  >
+                    Selecione
+                  </button>
+                  <div class="custom-select-menu" role="listbox" hidden>
+                    <button class="custom-select-option" type="button" role="option" data-value="RECEITA">
+                      Receita
+                    </button>
+                    <button class="custom-select-option" type="button" role="option" data-value="DESPESA">
+                      Despesa
+                    </button>
+                  </div>
+                  <select class="native-select" name="entry_type" required aria-hidden="true">
+                    <option value="" disabled selected>Selecione</option>
+                    <option value="RECEITA">Receita</option>
+                    <option value="DESPESA">Despesa</option>
+                  </select>
+                </div>
+              </label>
+              <label class="field field-amount">
+                <span>Valor</span>
+                <input
+                  class="money-input"
+                  type="text"
+                  inputmode="decimal"
+                  name="expense"
+                  maxlength="18"
+                  placeholder="R$ 0,00"
+                  autocomplete="off"
+                  required
+                />
+              </label>
+              <label class="field field-date">
+                <span>Data</span>
+                <input
+                  class="date-input"
+                  type="text"
+                  inputmode="numeric"
+                  name="expense_date"
+                  placeholder="dd/mm/aaaa"
+                  autocomplete="off"
+                  required
+                />
+              </label>
+              <label class="field field-observacao">
+                <span>Observação</span>
+                <textarea
+                  name="observacao"
+                  rows="3"
+                  placeholder="Digite observações adicionais"
+                ></textarea>
+              </label>
+            </div>
+
+            <div class="field-side">
+              <label class="field field-description">
+                <span>Descrição</span>
+                <div class="custom-select" data-custom-select>
+                  <button
+                    class="custom-select-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    disabled
+                  >
+                    Selecione
+                  </button>
+                  <div class="custom-select-menu" role="listbox" hidden></div>
+                  <select class="native-select" name="descricao" required aria-hidden="true" disabled>
+                    <option value="" disabled selected>Selecione</option>
+                  </select>
+                </div>
+              </label>
+              <label class="field field-document-type">
+                <span>Tipo de Documento</span>
+                <div class="custom-select" data-custom-select>
+                  <button
+                    class="custom-select-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    disabled
+                  >
+                    Selecione
+                  </button>
+                  <div class="custom-select-menu" role="listbox" hidden></div>
+                  <select
+                    class="native-select"
+                    name="tipo_documento"
+                    required
+                    aria-hidden="true"
+                    disabled
+                  >
+                    <option value="" disabled selected>Selecione</option>
+                  </select>
+                </div>
+              </label>
+              <label class="field field-document-number">
+                <span>Número do Documento</span>
+                <input
+                  type="text"
+                  name="numero_documento"
+                  inputmode="numeric"
+                  maxlength="50"
+                  placeholder="Digite o número do documento"
+                  autocomplete="off"
+                />
+              </label>
+              <label class="field field-razao-social">
+                <span>Razão social / Nome</span>
+                <input
+                  type="text"
+                  name="razao_social_nome"
+                  maxlength="150"
+                  placeholder="Digite a razão social ou nome"
+                  autocomplete="off"
+                />
+              </label>
+              <label class="field field-cnpj-cpf">
+                <span>CNPJ / CPF</span>
+                <input
+                  type="text"
+                  name="cnpj_cpf"
+                  inputmode="numeric"
+                  placeholder="00.000.000/0000-00"
+                  autocomplete="off"
+                />
+              </label>
+              <div class="field field-file">
+                <span>Anexar comprovante</span>
+              <input
+                class="file-input"
+                id="receipt"
+                type="file"
+                name="receipt"
+                accept=".pdf,application/pdf"
+                multiple
+              />
+                <label class="btn btn-secondary file-button" for="receipt">Escolher arquivo</label>
+                <div class="file-info">
+                  <small class="file-hint">Nenhum arquivo selecionado</small>
+                </div>
+                <div class="receipt-selected" id="receipt-selected" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn" type="submit">Salvar</button>
+
+        </form>
+      </section>
+    </main>
+
+    <div class="confirm-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="confirm-card" role="status" aria-live="polite">
+        <div class="confirm-icon" aria-hidden="true">?</div>
+        <h2>Comprovante enviado</h2>
+        <p>Seu comprovante foi salvo com sucesso.</p>
+        <button class="btn confirm-close" type="button">Ok</button>
+      </div>
+    </div>
+
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="assets/js/navbar.js?v=20260421-notifications-admin-contabil-1" defer></script>
+    <script src="assets/js/adicionar_comprovante.js?v=20260421-candidato-role-1" defer></script>
+  </body>
+</html>
+
