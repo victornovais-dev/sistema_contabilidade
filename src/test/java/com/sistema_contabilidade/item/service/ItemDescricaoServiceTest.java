@@ -43,6 +43,7 @@ class ItemDescricaoServiceTest {
                 descricao(TipoItem.RECEITA, "ESTIMÁVEL", 40),
                 descricao(TipoItem.RECEITA, "CONTA FP", 20),
                 descricao(TipoItem.RECEITA, "CONTA DC", 30),
+                descricao(TipoItem.RECEITA, "CONTA FEFEC", 15),
                 descricao(TipoItem.RECEITA, "CONTA FEFC", 10)));
 
     ItemDescricaoService service = new ItemDescricaoService(repository);

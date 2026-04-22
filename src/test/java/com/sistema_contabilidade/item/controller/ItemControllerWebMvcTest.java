@@ -1,10 +1,12 @@
 package com.sistema_contabilidade.item.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,6 +28,7 @@ import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ArquivoStorageService;
 import com.sistema_contabilidade.item.service.ItemDescricaoService;
+import com.sistema_contabilidade.item.service.ItemExpenseLimitService;
 import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
@@ -71,6 +74,7 @@ class ItemControllerWebMvcTest {
   @MockitoBean private ArquivoStorageService itemArquivoStorageService;
   @MockitoBean private ItemDescricaoService itemDescricaoService;
   @MockitoBean private ItemTipoDocumentoService itemTipoDocumentoService;
+  @MockitoBean private ItemExpenseLimitService itemExpenseLimitService;
   @MockitoBean private ItemListService itemListService;
   @MockitoBean private NotificacaoService notificacaoService;
   @MockitoBean private RoleRepository roleRepository;
@@ -243,20 +247,19 @@ class ItemControllerWebMvcTest {
   @Test
   @DisplayName("Deve retornar todas as roles para admin no filtro de itens")
   void listarRolesDisponiveisDeveRetornarTodasAsRolesParaAdmin() throws Exception {
-    when(itemListService.listarRolesDisponiveis(any())).thenReturn(List.of("ADMIN", "FINANCEIRO"));
+    when(itemListService.listarRolesDisponiveis(any())).thenReturn(List.of("FINANCEIRO"));
 
     mockMvc
         .perform(get("/api/v1/itens/roles").with(authComRoles("admin@email.com", "ADMIN")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0]").value("ADMIN"))
-        .andExpect(jsonPath("$[1]").value("FINANCEIRO"));
+        .andExpect(jsonPath("$[0]").value("FINANCEIRO"));
   }
 
   @Test
   @DisplayName("Deve retornar descricoes por tipo vindas do backend")
   void listarDescricoesPorTipoDeveRetornarOk() throws Exception {
     when(itemDescricaoService.listarDescricoesPorTipo(TipoItem.RECEITA))
-        .thenReturn(List.of("CONTA FEFEC", "CONTA FP", "CONTA DC", "ESTIMÁVEL"));
+        .thenReturn(List.of("CONTA DC", "CONTA FEFC", "CONTA FP", "ESTIMÁVEL"));
 
     mockMvc
         .perform(
@@ -264,7 +267,7 @@ class ItemControllerWebMvcTest {
                 .param("tipo", "RECEITA")
                 .with(authComRoles("admin@email.com", "ADMIN")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0]").value("CONTA FEFEC"))
+        .andExpect(jsonPath("$[0]").value("CONTA DC"))
         .andExpect(jsonPath("$[3]").value("ESTIMÁVEL"));
   }
 
@@ -291,6 +294,23 @@ class ItemControllerWebMvcTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0]").value("Nota fiscal"))
         .andExpect(jsonPath("$[3]").value("Outros"));
+  }
+
+  @Test
+  @DisplayName("Deve retornar tipos de documento por tipo de lancamento")
+  void listarTiposDocumentoDeveRetornarPorTipo() throws Exception {
+    when(itemTipoDocumentoService.listarTiposDocumentoPorTipo(TipoItem.RECEITA))
+        .thenReturn(List.of("Pix", "Transferência", "Cheque", "Dinheiro"));
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens/tipos-documento")
+                .param("tipo", "RECEITA")
+                .with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0]").value("Pix"))
+        .andExpect(jsonPath("$[1]").value("Transferência"))
+        .andExpect(jsonPath("$[3]").value("Dinheiro"));
   }
 
   @Test
@@ -371,6 +391,7 @@ class ItemControllerWebMvcTest {
         .andExpect(jsonPath("$.arquivosPdf[0]").value("uploads/itens/item-criado.pdf"));
 
     verify(notificacaoService, never()).registrarReceitaLancada(any(Item.class));
+    verify(notificacaoService, never()).sincronizarComItem(any(Item.class));
   }
 
   @Test
@@ -418,6 +439,123 @@ class ItemControllerWebMvcTest {
         .andExpect(jsonPath("$.descricao").value("CONTA DC"));
 
     verify(notificacaoService).registrarReceitaLancada(any(Item.class));
+  }
+
+  @Test
+  @DisplayName("Deve retornar 400 ao criar despesa que excede limite de categoria")
+  void criarDeveRetornarBadRequestQuandoDespesaExcederLimiteDeCategoria() throws Exception {
+    when(usuarioRepository.findByEmail("operador@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("OPERADOR", "OPERATOR")));
+    doThrow(
+            new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Nao e permitido adicionar esta despesa. Alimentacao pode representar no maximo 10% do total de despesas."))
+        .when(itemExpenseLimitService)
+        .validarLimiteDespesa(any(), eq("OPERATOR"), eq(null));
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens")
+                .with(authComRoles("operador@email.com", "OPERATOR"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":120.50,
+                      "data":"2026-03-15",
+                      "horarioCriacao":"2026-03-15T18:00:00",
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["documento.pdf"],
+                      "tipo":"DESPESA",
+                      "descricao":"ALIMENTAÇÃO"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
+  }
+
+  @Test
+  @DisplayName("Deve retornar 400 quando CPF ja existir em outro item")
+  void criarDeveRetornarBadRequestQuandoCpfJaExistir() throws Exception {
+    when(itemRepository.countByDocumentoNormalizado("12345678900")).thenReturn(1L);
+    when(usuarioRepository.findByEmail("operador@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("OPERADOR", "OPERATOR")));
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens")
+                .with(authComRoles("operador@email.com", "OPERATOR"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":120.50,
+                      "data":"2026-03-15",
+                      "horarioCriacao":"2026-03-15T18:00:00",
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["documento.pdf"],
+                      "tipo":"DESPESA",
+                      "tipoDocumento":"Nota fiscal",
+                      "numeroDocumento":"2026001",
+                      "descricao":"SERVICOS",
+                      "razaoSocialNome":"FORNECEDOR TESTE",
+                      "cnpjCpf":"123.456.789-00"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
+  }
+
+  @Test
+  @DisplayName("Deve permitir criar item com CNPJ repetido")
+  void criarDevePermitirCnpjRepetido() throws Exception {
+    Item item = new Item();
+    item.setId(UUID.fromString("31111111-1111-1111-1111-111111111111"));
+    item.setValor(new BigDecimal("120.50"));
+    item.setData(LocalDate.of(2026, 3, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 18, 0, 0));
+    item.setCaminhoArquivoPdf("uploads/itens/item-cnpj.pdf");
+    item.setTipo(TipoItem.DESPESA);
+    item.setDescricao("SERVICOS");
+    item.setTipoDocumento("Nota fiscal");
+    item.setNumeroDocumento("2026001");
+    item.setRazaoSocialNome("FORNECEDOR TESTE");
+    item.setCnpjCpf("12.345.678/0001-99");
+    ItemArquivo arquivoCriado = new ItemArquivo();
+    arquivoCriado.setCaminhoArquivoPdf("uploads/itens/item-cnpj.pdf");
+    arquivoCriado.setItem(item);
+    item.getArquivos().add(arquivoCriado);
+    when(itemArquivoStorageService.salvarPdfs(any(), any()))
+        .thenReturn(List.of("uploads/itens/item-cnpj.pdf"));
+    when(itemRepository.save(any(Item.class))).thenReturn(item);
+    when(usuarioRepository.findByEmail("operador@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("OPERADOR", "OPERATOR")));
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens")
+                .with(authComRoles("operador@email.com", "OPERATOR"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":120.50,
+                      "data":"2026-03-15",
+                      "horarioCriacao":"2026-03-15T18:00:00",
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["documento.pdf"],
+                      "tipo":"DESPESA",
+                      "tipoDocumento":"Nota fiscal",
+                      "numeroDocumento":"2026001",
+                      "descricao":"SERVICOS",
+                      "razaoSocialNome":"FORNECEDOR TESTE",
+                      "cnpjCpf":"12.345.678/0001-99"
+                    }
+                    """))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.cnpjCpf").value("12.345.678/0001-99"));
   }
 
   @Test
@@ -555,6 +693,36 @@ class ItemControllerWebMvcTest {
                     }
                     """))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("Deve retornar 400 ao criar receita com CONTA FEFEC")
+  void criarDeveRetornarBadRequestQuandoReceitaUsarContaFefec() throws Exception {
+    when(usuarioRepository.findByEmail("operador@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("OPERADOR", "OPERATOR")));
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens")
+                .with(authComRoles("operador@email.com", "OPERATOR"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":120.50,
+                      "data":"2026-03-15",
+                      "horarioCriacao":"2026-03-15T18:00:00",
+                      "arquivosPdf":["ZHVtbXk="],
+                      "nomesArquivos":["comprovante.pdf"],
+                      "tipo":"RECEITA",
+                      "tipoDocumento":"Nota fiscal",
+                      "numeroDocumento":"12345",
+                      "descricao":"CONTA FEFEC"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
   }
 
   @Test
@@ -931,6 +1099,45 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve retornar 400 ao atualizar despesa que excede limite de categoria")
+  void atualizarDeveRetornarBadRequestQuandoDespesaExcederLimiteDeCategoria() throws Exception {
+    UUID id = UUID.fromString("98989898-5656-3434-1212-000000000000");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("ADMIN");
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(usuarioRepository.findByEmail("admin@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("admin", "ADMIN")));
+    doThrow(
+            new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Nao e permitido adicionar esta despesa. Locacao pode representar no maximo 20% do total de despesas."))
+        .when(itemExpenseLimitService)
+        .validarLimiteDespesa(any(), eq("ADMIN"), eq(id));
+
+    mockMvc
+        .perform(
+            put("/api/v1/itens/{id}", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":250.10,
+                      "data":"2026-03-16",
+                      "horarioCriacao":"2026-03-16T11:10:00",
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["novo.pdf"],
+                      "tipo":"DESPESA",
+                      "descricao":"ALUGUEL DE VEÍCULOS"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
+  }
+
+  @Test
   @DisplayName("Deve retornar 404 ao atualizar item inexistente")
   void atualizarDeveRetornarNotFound() throws Exception {
     UUID id = UUID.fromString("66666666-6666-6666-6666-666666666666");
@@ -957,6 +1164,40 @@ class ItemControllerWebMvcTest {
                     }
                     """))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("Deve retornar 400 ao atualizar item para CPF que ja existe em outro item")
+  void atualizarDeveRetornarBadRequestQuandoCpfJaExistirEmOutroItem() throws Exception {
+    UUID id = UUID.fromString("12121212-1212-1212-1212-121212121212");
+    Item item = new Item();
+    item.setId(id);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(usuarioRepository.findByEmail("admin@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("admin", "ADMIN")));
+    when(itemRepository.countByDocumentoNormalizadoAndIdNot("12345678900", id)).thenReturn(1L);
+
+    mockMvc
+        .perform(
+            put("/api/v1/itens/{id}", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":250.10,
+                      "data":"2026-03-16",
+                      "horarioCriacao":"2026-03-16T11:10:00",
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["novo.pdf"],
+                      "tipo":"DESPESA",
+                      "descricao":"OUTROS",
+                      "cnpjCpf":"123.456.789-00"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
   }
 
   @Test
@@ -1024,6 +1265,8 @@ class ItemControllerWebMvcTest {
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.descricao").value("OUTRAS DESPESAS"));
+
+    verify(notificacaoService).sincronizarComItem(any(Item.class));
   }
 
   @Test
@@ -1037,6 +1280,39 @@ class ItemControllerWebMvcTest {
     mockMvc
         .perform(delete("/api/v1/itens/{id}", id).with(authComRoles("admin@email.com", "ADMIN")))
         .andExpect(status().isNoContent());
+
+    verify(notificacaoService).removerPorItemId(id);
+  }
+
+  @Test
+  @DisplayName("Deve proibir usuario CONTABIL de deletar item")
+  void deletarDeveRetornarForbiddenQuandoUsuarioForContabil() throws Exception {
+    UUID id = UUID.fromString("67676767-7777-7777-7777-777777777777");
+
+    mockMvc
+        .perform(
+            delete("/api/v1/itens/{id}", id).with(authComRoles("contabil@email.com", "CONTABIL")))
+        .andExpect(status().isForbidden());
+
+    verify(itemRepository, never()).delete(any(Item.class));
+    verify(notificacaoService, never()).removerPorItemId(any(UUID.class));
+  }
+
+  @Test
+  @DisplayName("Deve proibir deletar item verificado")
+  void deletarDeveRetornarConflictQuandoItemEstiverVerificado() throws Exception {
+    UUID id = UUID.fromString("68686868-7777-7777-7777-777777777777");
+    Item item = new Item();
+    item.setId(id);
+    item.setVerificado(true);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(delete("/api/v1/itens/{id}", id).with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isConflict());
+
+    verify(itemRepository, never()).delete(any(Item.class));
+    verify(notificacaoService, never()).removerPorItemId(any(UUID.class));
   }
 
   @Test
@@ -1181,6 +1457,120 @@ class ItemControllerWebMvcTest {
         .andExpect(jsonPath("$.verificado").value(true));
 
     assertTrue(item.isVerificado());
+  }
+
+  @Test
+  @DisplayName("Deve permitir SUPPORT marcar comprovante como verificado")
+  void atualizarVerificacaoDevePermitirSupportMarcarComoVerificado() throws Exception {
+    UUID id = UUID.fromString("abababab-bbbb-cccc-dddd-eeeeeeeeeeef");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    item.setRoleNome("SUPPORT");
+    item.setVerificado(false);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(usuarioRepository.findByEmail("support@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("support", "SUPPORT")));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/verificacao", id)
+                .with(authComRoles("support@email.com", "SUPPORT"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"verificado":true}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.verificado").value(true));
+
+    assertTrue(item.isVerificado());
+  }
+
+  @Test
+  @DisplayName("Deve proibir SUPPORT desmarcar comprovante verificado")
+  void atualizarVerificacaoDeveProibirSupportDesmarcarVerificado() throws Exception {
+    UUID id = UUID.fromString("abababab-bbbb-cccc-dddd-eeeeeeeeeef0");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    item.setRoleNome("SUPPORT");
+    item.setVerificado(true);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(usuarioRepository.findByEmail("support@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("support", "SUPPORT")));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/verificacao", id)
+                .with(authComRoles("support@email.com", "SUPPORT"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"verificado":false}
+                    """))
+        .andExpect(status().isForbidden());
+
+    assertTrue(item.isVerificado());
+    verify(itemRepository, never()).save(any(Item.class));
+  }
+
+  @Test
+  @DisplayName("Deve proibir CANDIDATO marcar comprovante como verificado")
+  void atualizarVerificacaoDeveProibirCandidatoMarcarComoVerificado() throws Exception {
+    UUID id = UUID.fromString("abababab-bbbb-cccc-dddd-eeeeeeeeeef1");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    item.setRoleNome("CANDIDATO");
+    item.setVerificado(false);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(usuarioRepository.findByEmail("candidato@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("candidato", "CANDIDATO")));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/verificacao", id)
+                .with(authComRoles("candidato@email.com", "CANDIDATO"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"verificado":true}
+                    """))
+        .andExpect(status().isForbidden());
+
+    assertFalse(item.isVerificado());
+    verify(itemRepository, never()).save(any(Item.class));
+  }
+
+  @Test
+  @DisplayName("Deve proibir CANDIDATO desmarcar comprovante verificado")
+  void atualizarVerificacaoDeveProibirCandidatoDesmarcarVerificado() throws Exception {
+    UUID id = UUID.fromString("abababab-bbbb-cccc-dddd-eeeeeeeeeef2");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    item.setRoleNome("CANDIDATO");
+    item.setVerificado(true);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(usuarioRepository.findByEmail("candidato@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("candidato", "CANDIDATO")));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/verificacao", id)
+                .with(authComRoles("candidato@email.com", "CANDIDATO"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"verificado":false}
+                    """))
+        .andExpect(status().isForbidden());
+
+    assertTrue(item.isVerificado());
+    verify(itemRepository, never()).save(any(Item.class));
   }
 
   @Test

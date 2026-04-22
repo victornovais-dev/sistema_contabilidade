@@ -11,4 +11,19 @@ public record NotificacaoListResponse(
     String descricao,
     String razaoSocialNome,
     BigDecimal valor,
-    LocalDateTime criadoEm) {}
+    LocalDateTime criadoEm,
+    boolean limpa,
+    boolean verificado) {
+
+  public NotificacaoListResponse(
+      UUID id,
+      UUID itemId,
+      String role,
+      String descricao,
+      String razaoSocialNome,
+      BigDecimal valor,
+      LocalDateTime criadoEm,
+      boolean limpa) {
+    this(id, itemId, role, descricao, razaoSocialNome, valor, criadoEm, limpa, limpa);
+  }
+}

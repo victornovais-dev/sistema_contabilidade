@@ -43,4 +43,7 @@ public class Notificacao {
 
   @Column(name = "criado_em", nullable = false)
   private LocalDateTime criadoEm;
+
+  @Column(nullable = false)
+  private boolean limpa;
 }

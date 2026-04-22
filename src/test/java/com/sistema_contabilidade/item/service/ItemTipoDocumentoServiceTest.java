@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.item.model.ItemTipoDocumento;
+import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemTipoDocumentoRepository;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -54,6 +55,28 @@ class ItemTipoDocumentoServiceTest {
 
     assertEquals(
         List.of("Nota fiscal", "Fatura", "Boleto", "Outros"), service.listarTiposDocumento());
+  }
+
+  @Test
+  @DisplayName("Deve listar tipos de documento de receita")
+  void deveListarTiposDocumentoDeReceita() {
+    ItemTipoDocumentoRepository repository = mock(ItemTipoDocumentoRepository.class);
+    ItemTipoDocumentoService service = new ItemTipoDocumentoService(repository);
+
+    assertEquals(
+        List.of("Pix", "Transferência", "Cheque", "Dinheiro"),
+        service.listarTiposDocumentoPorTipo(TipoItem.RECEITA));
+  }
+
+  @Test
+  @DisplayName("Deve listar tipos de documento de despesa")
+  void deveListarTiposDocumentoDeDespesa() {
+    ItemTipoDocumentoRepository repository = mock(ItemTipoDocumentoRepository.class);
+    ItemTipoDocumentoService service = new ItemTipoDocumentoService(repository);
+
+    assertEquals(
+        List.of("Nota fiscal", "Fatura", "Boleto", "Outros"),
+        service.listarTiposDocumentoPorTipo(TipoItem.DESPESA));
   }
 
   private ItemTipoDocumento tipoDocumento(String nome, int ordem) {

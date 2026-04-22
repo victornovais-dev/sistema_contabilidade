@@ -3,6 +3,7 @@ package com.sistema_contabilidade.item.service;
 import static com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog.ITEM_TIPOS_DOCUMENTO_CACHE;
 
 import com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog;
+import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemTipoDocumentoRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,14 @@ public class ItemTipoDocumentoService {
     }
 
     return ItemTipoDocumentoCatalog.defaultDocumentTypes().stream()
+        .map(seed -> seed.nome())
+        .toList();
+  }
+
+  @Cacheable(value = ITEM_TIPOS_DOCUMENTO_CACHE, key = "#root.args[0].name()")
+  @Transactional(readOnly = true)
+  public List<String> listarTiposDocumentoPorTipo(TipoItem tipo) {
+    return ItemTipoDocumentoCatalog.defaultDocumentTypesByTipo(tipo).stream()
         .map(seed -> seed.nome())
         .toList();
   }

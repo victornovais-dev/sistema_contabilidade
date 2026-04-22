@@ -6,6 +6,7 @@ import com.sistema_contabilidade.home.dto.HomeRevenueCategoryTotalRow;
 import com.sistema_contabilidade.home.dto.HomeTypeTotalRow;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.model.Item;
+import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
 import java.util.List;
 import java.util.Optional;
@@ -49,6 +50,15 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
 
   @Query(
       """
+      select i
+      from Item i
+      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.RECEITA
+      order by i.horarioCriacao desc
+      """)
+  List<Item> findReceitasOrderByHorarioCriacaoDesc();
+
+  @Query(
+      """
       select new com.sistema_contabilidade.item.dto.ItemListResponse(
         i.id,
         i.valor,
@@ -68,11 +78,21 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
         end
       )
       from Item i
-      where i.roleNome in :roleNomes
+      where i.roleNome in ?1
       order by i.horarioCriacao desc
       """)
   List<ItemListResponse> findResumoVisiveisPorRoleNomesOrderByHorarioCriacaoDesc(
-      @Param("roleNomes") Set<String> roleNomes);
+      Set<String> roleNomes);
+
+  @Query(
+      """
+      select i
+      from Item i
+      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.RECEITA
+        and i.roleNome in ?1
+      order by i.horarioCriacao desc
+      """)
+  List<Item> findReceitasPorRoleNomesOrderByHorarioCriacaoDesc(Set<String> roleNomes);
 
   @Query(
       """
@@ -99,6 +119,17 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
       order by i.horarioCriacao desc
       """)
   List<ItemListResponse> findResumoVisiveisPorRoleNomeOrderByHorarioCriacaoDesc(
+      @Param(ROLE_NAME_PARAM) String roleNome);
+
+  @Query(
+      """
+      select i
+      from Item i
+      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.RECEITA
+        and i.roleNome = :roleNome
+      order by i.horarioCriacao desc
+      """)
+  List<Item> findReceitasPorRoleNomeOrderByHorarioCriacaoDesc(
       @Param(ROLE_NAME_PARAM) String roleNome);
 
   @Query(
@@ -241,11 +272,11 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
         i.descricao
       )
       from Item i
-      where i.roleNome in :roleNomes
+      where i.roleNome in ?1
       order by i.data desc, i.horarioCriacao desc
       """)
   List<RelatorioItemDto> findRelatorioItensByRoleNomesOrderByDataDescHorarioCriacaoDesc(
-      @Param("roleNomes") Set<String> roleNomes);
+      Set<String> roleNomes);
 
   @Query(
       """
@@ -269,9 +300,9 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
       select distinct i
       from Item i
       left join fetch i.arquivos
-      where i.roleNome in :roleNomes
+      where i.roleNome in ?1
       """)
-  List<Item> findAllVisiveisPorRoleNomes(@Param("roleNomes") Set<String> roleNomes);
+  List<Item> findAllVisiveisPorRoleNomes(Set<String> roleNomes);
 
   @Query(
       """
@@ -291,4 +322,44 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
       where i.id = :id
       """)
   Optional<Item> findByIdComCriadorERoles(@Param("id") UUID id);
+
+  List<Item> findByTipoAndRoleNome(TipoItem tipo, String roleNome);
+
+  List<Item> findByTipoAndRoleNomeAndIdNot(TipoItem tipo, String roleNome, UUID id);
+
+  @Query(
+      """
+      select count(i)
+      from Item i
+      where function(
+              'replace',
+              function(
+                  'replace',
+                  function('replace', function('replace', coalesce(i.cnpjCpf, ''), '.', ''), '-', ''),
+                  '/',
+                  ''),
+              ' ',
+              '')
+          = :documento
+      """)
+  long countByDocumentoNormalizado(@Param("documento") String documento);
+
+  @Query(
+      """
+      select count(i)
+      from Item i
+      where i.id <> :id
+        and function(
+                'replace',
+                function(
+                    'replace',
+                    function('replace', function('replace', coalesce(i.cnpjCpf, ''), '.', ''), '-', ''),
+                    '/',
+                    ''),
+                ' ',
+                '')
+            = :documento
+      """)
+  long countByDocumentoNormalizadoAndIdNot(
+      @Param("documento") String documento, @Param("id") UUID id);
 }

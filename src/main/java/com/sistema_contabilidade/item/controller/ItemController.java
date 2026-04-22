@@ -16,6 +16,7 @@ import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ArquivoStorageService;
 import com.sistema_contabilidade.item.service.ItemAccessUtils;
 import com.sistema_contabilidade.item.service.ItemDescricaoService;
+import com.sistema_contabilidade.item.service.ItemExpenseLimitService;
 import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
@@ -69,10 +70,25 @@ public class ItemController {
   private static final String ACESSO_NEGADO_ITEM = "Acesso negado ao item";
   private static final String ARQUIVO_ITEM_NAO_ENCONTRADO = "Arquivo do item nao encontrado";
   private static final String NOME_ARQUIVO_INVALIDO = "Nome do arquivo invalido";
+  private static final String CONTABIL_AUTHORITY = "ROLE_CONTABIL";
+  private static final String SUPPORT_AUTHORITY = "ROLE_SUPPORT";
+  private static final String CANDIDATO_AUTHORITY = "ROLE_CANDIDATO";
+  private static final String CONTABIL_NAO_PODE_EXCLUIR_ITEM =
+      "Usuario com role CONTABIL nao tem permissao para excluir comprovantes.";
+  private static final String ITEM_VERIFICADO_NAO_PODE_SER_EXCLUIDO =
+      "Comprovantes verificados nao podem ser excluidos.";
+  private static final String ROLE_RESTRITA_NAO_PODE_DESMARCAR_ITEM =
+      "Usuarios SUPPORT nao podem desmarcar comprovantes verificados.";
+  private static final String CANDIDATO_NAO_PODE_ALTERAR_VERIFICACAO =
+      "Usuarios CANDIDATO nao podem alterar verificacao de comprovantes.";
   private static final String ANEXO_OBRIGATORIO_DESCRICAO_FINANCEIRA =
-      "Conta DC, Conta FEFC, Conta FP e Conta FEFEC exigem ao menos um anexo.";
+      "Conta DC, Conta FEFC e Conta FP exigem ao menos um anexo.";
+  private static final String DESCRICAO_RECEITA_INDISPONIVEL =
+      "CONTA FEFEC nao esta disponivel para receitas.";
+  private static final String CPF_DUPLICADO = "Ja existe um item cadastrado com este CPF.";
   private static final Set<String> DESCRICOES_COM_ANEXO_OBRIGATORIO =
-      Set.of("CONTA DC", "CONTA FEFC", "CONTA FP", "CONTA FEFEC");
+      Set.of("CONTA DC", "CONTA FEFC", "CONTA FP");
+  private static final Set<String> DESCRICOES_RECEITA_REMOVIDAS = Set.of("CONTA FEFEC");
 
   private final ItemRepository itemRepository;
   private final ItemArquivoRepository itemArquivoRepository;
@@ -80,6 +96,7 @@ public class ItemController {
   private final ItemListService itemListService;
   private final ItemDescricaoService itemDescricaoService;
   private final ItemTipoDocumentoService itemTipoDocumentoService;
+  private final ItemExpenseLimitService itemExpenseLimitService;
   private final NotificacaoService notificacaoService;
   private final UsuarioRepository usuarioRepository;
 
@@ -90,10 +107,14 @@ public class ItemController {
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
     Item item = new Item();
     List<String> arquivosSalvos = List.of();
+    String roleNomeItem = resolverRoleNomeItem(usuarioAutenticado, request.role(), null);
+    validarDescricaoDisponivel(request);
     validarAnexoObrigatorio(request);
+    validarCpfUnico(request.cnpjCpf(), null);
+    itemExpenseLimitService.validarLimiteDespesa(request, roleNomeItem, null);
     aplicarCamposBase(item, request);
     item.setCriadoPor(usuarioAutenticado);
-    item.setRoleNome(resolverRoleNomeItem(usuarioAutenticado, request.role(), null));
+    item.setRoleNome(roleNomeItem);
 
     try {
       arquivosSalvos = atualizarArquivos(item, request.arquivosPdf(), request.nomesArquivos());
@@ -130,18 +151,23 @@ public class ItemController {
   }
 
   @GetMapping("/tipos-documento")
-  public ResponseEntity<List<String>> listarTiposDocumento() {
+  public ResponseEntity<List<String>> listarTiposDocumento(
+      @RequestParam(name = "tipo", required = false) TipoItem tipo) {
     try {
+      if (tipo != null) {
+        return ResponseEntity.ok(itemTipoDocumentoService.listarTiposDocumentoPorTipo(tipo));
+      }
       return ResponseEntity.ok(itemTipoDocumentoService.listarTiposDocumento());
     } catch (RuntimeException exception) {
       if (log.isWarnEnabled()) {
         log.warn(
             "Falha ao listar tipos de documento pelo service. Usando catalogo padrao.", exception);
       }
-      return ResponseEntity.ok(
-          ItemTipoDocumentoCatalog.defaultDocumentTypes().stream()
-              .map(seed -> seed.nome())
-              .toList());
+      List<ItemTipoDocumentoCatalog.ItemTipoDocumentoSeed> catalogo =
+          tipo == null
+              ? ItemTipoDocumentoCatalog.defaultDocumentTypes()
+              : ItemTipoDocumentoCatalog.defaultDocumentTypesByTipo(tipo);
+      return ResponseEntity.ok(catalogo.stream().map(seed -> seed.nome()).toList());
     }
   }
 
@@ -310,13 +336,19 @@ public class ItemController {
     List<String> arquivosNovos = List.of();
     Usuario usuarioAutenticado =
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
+    String roleNomeItem =
+        resolverRoleNomeItem(usuarioAutenticado, request.role(), item.getRoleNome());
+    validarDescricaoDisponivel(request);
     validarAnexoObrigatorio(request);
+    validarCpfUnico(request.cnpjCpf(), item.getId());
+    itemExpenseLimitService.validarLimiteDespesa(request, roleNomeItem, item.getId());
     aplicarCamposBase(item, request);
-    item.setRoleNome(resolverRoleNomeItem(usuarioAutenticado, request.role(), item.getRoleNome()));
+    item.setRoleNome(roleNomeItem);
 
     try {
       arquivosNovos = atualizarArquivos(item, request.arquivosPdf(), request.nomesArquivos());
       Item salvo = itemRepository.save(item);
+      notificacaoService.sincronizarComItem(salvo);
       removerArquivosSubstituidos(arquivosAntigos, arquivosNovos);
       return ResponseEntity.ok(ItemResponse.from(salvo));
     } catch (RuntimeException ex) {
@@ -343,18 +375,60 @@ public class ItemController {
       @PathVariable("id") UUID id,
       @Valid @RequestBody ItemVerificacaoUpdateRequest request) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
+    validarPermissaoAtualizarVerificacao(authentication, item, request);
     item.setVerificado(Boolean.TRUE.equals(request.verificado()));
     Item salvo = itemRepository.save(item);
     return ResponseEntity.ok(ItemResponse.from(salvo));
   }
 
   @DeleteMapping(ID_PATH)
+  @Transactional
   public ResponseEntity<Void> deletar(Authentication authentication, @PathVariable("id") UUID id) {
+    validarPermissaoExcluirItem(authentication);
     Item item = buscarItemAutorizadoPorId(id, authentication);
+    validarItemNaoVerificadoParaExclusao(item);
     List<String> arquivos = listarArquivosPersistidos(item);
+    notificacaoService.removerPorItemId(item.getId());
     itemRepository.delete(item);
     removerArquivosSemFalhar(arquivos);
     return ResponseEntity.noContent().build();
+  }
+
+  private void validarPermissaoExcluirItem(Authentication authentication) {
+    if (authentication == null) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario nao autenticado");
+    }
+    if (temAuthority(authentication, CONTABIL_AUTHORITY)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, CONTABIL_NAO_PODE_EXCLUIR_ITEM);
+    }
+  }
+
+  private void validarPermissaoAtualizarVerificacao(
+      Authentication authentication, Item item, ItemVerificacaoUpdateRequest request) {
+    if (temAuthority(authentication, CANDIDATO_AUTHORITY)) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, CANDIDATO_NAO_PODE_ALTERAR_VERIFICACAO);
+    }
+    boolean desmarcandoItemVerificado =
+        item.isVerificado() && !Boolean.TRUE.equals(request.verificado());
+    if (desmarcandoItemVerificado && temAuthority(authentication, SUPPORT_AUTHORITY)) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, ROLE_RESTRITA_NAO_PODE_DESMARCAR_ITEM);
+    }
+  }
+
+  private boolean temAuthority(Authentication authentication, String authorityName) {
+    if (authentication == null) {
+      return false;
+    }
+    return authentication.getAuthorities().stream()
+        .anyMatch(authority -> authorityName.equals(authority.getAuthority()));
+  }
+
+  private void validarItemNaoVerificadoParaExclusao(Item item) {
+    if (item.isVerificado()) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, ITEM_VERIFICADO_NAO_PODE_SER_EXCLUIDO);
+    }
   }
 
   private Item buscarItemAutorizadoPorId(UUID id, Authentication authentication) {
@@ -448,11 +522,49 @@ public class ItemController {
     }
   }
 
+  private void validarDescricaoDisponivel(ItemUpsertRequest request) {
+    if (request.tipo() != TipoItem.RECEITA) {
+      return;
+    }
+    String descricaoNormalizada = normalizarDescricao(request.descricao());
+    if (!DESCRICOES_RECEITA_REMOVIDAS.contains(descricaoNormalizada)) {
+      return;
+    }
+    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, DESCRICAO_RECEITA_INDISPONIVEL);
+  }
+
+  private void validarCpfUnico(String cnpjCpf, UUID itemIdIgnorado) {
+    String documentoNormalizado = normalizarDocumento(cnpjCpf);
+    if (!isCpf(documentoNormalizado)) {
+      return;
+    }
+
+    long quantidade =
+        itemIdIgnorado == null
+            ? itemRepository.countByDocumentoNormalizado(documentoNormalizado)
+            : itemRepository.countByDocumentoNormalizadoAndIdNot(
+                documentoNormalizado, itemIdIgnorado);
+    if (quantidade > 0) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, CPF_DUPLICADO);
+    }
+  }
+
   private String normalizarDescricao(String descricao) {
     if (descricao == null) {
       return "";
     }
     return descricao.trim().toUpperCase(Locale.ROOT);
+  }
+
+  private String normalizarDocumento(String documento) {
+    if (documento == null) {
+      return "";
+    }
+    return documento.replaceAll("\\D", "");
+  }
+
+  private boolean isCpf(String documentoNormalizado) {
+    return documentoNormalizado.length() == 11;
   }
 
   private List<String> atualizarArquivos(

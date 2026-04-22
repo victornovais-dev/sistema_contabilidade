@@ -1,13 +1,12 @@
 package com.sistema_contabilidade.item.service;
 
+import com.sistema_contabilidade.common.util.CandidateRoleUtils;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -51,16 +50,11 @@ public class ItemListService {
   @Transactional(readOnly = true)
   public List<String> listarRolesDisponiveis(Authentication authentication) {
     if (ItemAccessUtils.isAdmin(authentication)) {
-      return roleRepository.findAllRoleNamesOrdered();
+      return CandidateRoleUtils.filterCandidateRoles(roleRepository.findAllRoleNamesOrdered());
     }
 
-    return ItemAccessUtils.extrairRoleNomes(
-            ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository))
-        .stream()
-        .filter(java.util.Objects::nonNull)
-        .collect(Collectors.toCollection(LinkedHashSet::new))
-        .stream()
-        .sorted()
-        .toList();
+    return CandidateRoleUtils.filterCandidateRoles(
+        ItemAccessUtils.extrairRoleNomes(
+            ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository)));
   }
 }

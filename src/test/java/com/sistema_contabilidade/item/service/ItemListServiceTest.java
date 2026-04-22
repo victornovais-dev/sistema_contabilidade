@@ -101,11 +101,12 @@ class ItemListServiceTest {
   void listarRolesDisponiveisParaAdminDeveVirDoBanco() {
     ItemListService service =
         new ItemListService(itemRepository, usuarioRepository, roleRepository);
-    when(roleRepository.findAllRoleNamesOrdered()).thenReturn(List.of("ADMIN", "FINANCEIRO"));
+    when(roleRepository.findAllRoleNamesOrdered())
+        .thenReturn(List.of("ADMIN", "CANDIDATO", "CONTABIL", "FINANCEIRO", "MANAGER", "SUPPORT"));
 
     List<String> roles = service.listarRolesDisponiveis(autenticacao("admin@email.com", "ADMIN"));
 
-    assertEquals(List.of("ADMIN", "FINANCEIRO"), roles);
+    assertEquals(List.of("FINANCEIRO"), roles);
     verify(roleRepository).findAllRoleNamesOrdered();
   }
 
