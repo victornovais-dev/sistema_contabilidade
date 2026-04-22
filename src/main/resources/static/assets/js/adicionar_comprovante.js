@@ -30,18 +30,22 @@ let yearMenuCloseHandlerBound = false;
 let retainedReceiptFiles = [];
 let settingReceiptFilesProgrammatically = false;
 const descricaoOptionsCache = new Map();
-const DEFAULT_TIPO_DOCUMENTO_OPTIONS = ["Nota fiscal", "Fatura", "Boleto", "Outros"];
+const DEFAULT_TIPO_DOCUMENTO_OPTIONS_BY_TIPO = {
+  RECEITA: ["Pix", "Transfer\u00eancia", "Cheque", "Dinheiro"],
+  DESPESA: ["Nota fiscal", "Fatura", "Boleto", "Outros"],
+};
 const MAX_VALOR_CENTS = 1000000000;
 const MAX_RAZAO_SOCIAL_LENGTH = 150;
 const MAX_NUMERO_DOCUMENTO_LENGTH = 50;
+const TECHNICAL_ROLES = new Set(["ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO"]);
 const REQUIRED_ATTACHMENT_DESCRIPTIONS = new Set([
   "CONTA DC",
   "CONTA FEFC",
   "CONTA FP",
-  "CONTA FEFEC",
 ]);
-let tipoDocumentoOptionsCache = null;
+const tipoDocumentoOptionsCache = new Map();
 let descricaoRequestSequence = 0;
+let tipoDocumentoRequestSequence = 0;
 
 const parseDate = (value) => {
   const digits = (value || "").replace(/\D/g, "");
@@ -183,7 +187,7 @@ const extractErrorMessage = async (response, fallbackMessage) => {
   try {
     const payload = await response.json();
     if (payload && typeof payload === "object") {
-      return payload.message || payload.error || fallbackMessage;
+      return payload.message || payload.detail || payload.error || payload.title || fallbackMessage;
     }
   } catch (error) {
     // Keep fallback message when payload is not JSON.
@@ -339,9 +343,13 @@ const renderRoleOptions = (roles) => {
   if (!(menu instanceof HTMLElement) || !(trigger instanceof HTMLButtonElement)) return;
 
   const orderedRoles = Array.isArray(roles)
-    ? [...new Set(roles.map((role) => String(role || "").trim()).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b, "pt-BR"),
-      )
+    ? [
+        ...new Set(
+          roles
+            .map((role) => String(role || "").trim())
+            .filter((role) => role && !TECHNICAL_ROLES.has(role.toUpperCase())),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "pt-BR"))
     : [];
 
   roleSelect.querySelectorAll("option:not([value=\"\"])").forEach((option) => option.remove());
@@ -596,9 +604,9 @@ const loadDescricaoOptions = async (tipo) => {
   return normalized;
 };
 
-const loadTipoDocumentoOptions = async () => {
-  if (tipoDocumentoOptionsCache) {
-    return tipoDocumentoOptionsCache;
+const loadTipoDocumentoOptions = async (tipo) => {
+  if (tipoDocumentoOptionsCache.has(tipo)) {
+    return tipoDocumentoOptionsCache.get(tipo);
   }
 
   const accessToken = localStorage.getItem("sc_access_token");
@@ -607,7 +615,7 @@ const loadTipoDocumentoOptions = async () => {
     return [];
   }
 
-  const response = await fetch("/api/v1/itens/tipos-documento", {
+  const response = await fetch(`/api/v1/itens/tipos-documento?tipo=${encodeURIComponent(tipo)}`, {
     method: "GET",
     credentials: "same-origin",
     headers: {
@@ -624,29 +632,52 @@ const loadTipoDocumentoOptions = async () => {
   }
 
   const documentTypes = await response.json();
-  tipoDocumentoOptionsCache = Array.isArray(documentTypes) ? documentTypes : [];
-  return tipoDocumentoOptionsCache;
+  const normalized = Array.isArray(documentTypes) ? documentTypes : [];
+  tipoDocumentoOptionsCache.set(tipo, normalized);
+  return normalized;
 };
 
 const initTipoDocumentoOptions = async () => {
   renderTipoDocumentoOptions([]);
   setTipoDocumentoEnabled(false);
+};
+
+const updateTipoDocumentoByTipo = async (tipoValue) => {
+  const requestId = ++tipoDocumentoRequestSequence;
+  const tipo = String(tipoValue || "").trim().toUpperCase();
+
+  if (tipo !== "RECEITA" && tipo !== "DESPESA") {
+    renderTipoDocumentoOptions([]);
+    setTipoDocumentoEnabled(false);
+    return;
+  }
+
+  renderTipoDocumentoOptions([]);
+  setTipoDocumentoEnabled(false);
   setTipoDocumentoLoadingState(true);
 
   try {
-    const documentTypes = await loadTipoDocumentoOptions();
+    const documentTypes = await loadTipoDocumentoOptions(tipo);
+    if (requestId !== tipoDocumentoRequestSequence) {
+      return;
+    }
     renderTipoDocumentoOptions(documentTypes);
     setTipoDocumentoEnabled(documentTypes.length > 0);
     resetNativeSelect(tipoDocumentoSelect);
     customTipoDocumento?.syncFromSelect?.();
   } catch (error) {
-    tipoDocumentoOptionsCache = DEFAULT_TIPO_DOCUMENTO_OPTIONS;
-    renderTipoDocumentoOptions(DEFAULT_TIPO_DOCUMENTO_OPTIONS);
-    setTipoDocumentoEnabled(true);
+    if (requestId !== tipoDocumentoRequestSequence) {
+      return;
+    }
+    const fallback = DEFAULT_TIPO_DOCUMENTO_OPTIONS_BY_TIPO[tipo] || [];
+    renderTipoDocumentoOptions(fallback);
+    setTipoDocumentoEnabled(fallback.length > 0);
     resetNativeSelect(tipoDocumentoSelect);
     customTipoDocumento?.syncFromSelect?.();
   } finally {
-    setTipoDocumentoLoadingState(false);
+    if (requestId === tipoDocumentoRequestSequence) {
+      setTipoDocumentoLoadingState(false);
+    }
   }
 };
 
@@ -687,15 +718,19 @@ const updateDescricaoByTipo = async (tipoValue) => {
   }
 };
 
+void initTipoDocumentoOptions();
+
 if (typeSelect) {
   typeSelect.addEventListener("change", () => {
     if (fileInput) {
       fileInput.setCustomValidity("");
     }
     void updateDescricaoByTipo(typeSelect.value);
+    void updateTipoDocumentoByTipo(typeSelect.value);
   });
   void preloadDescricaoOptions();
   void updateDescricaoByTipo(typeSelect.value);
+  void updateTipoDocumentoByTipo(typeSelect.value);
 }
 
 if (descricaoSelect) {
@@ -705,8 +740,6 @@ if (descricaoSelect) {
     }
   });
 }
-
-void initTipoDocumentoOptions();
 
 const updateReceiptGrid = (files) => {
   if (!receiptSelected) return;
@@ -1279,7 +1312,7 @@ if (form) {
       }
       if (requiresAttachmentBySelection(typeSelect?.value, descricaoSelect?.value) && files.length === 0) {
         fileInput.setCustomValidity(
-          "Conta DC, Conta FEFC, Conta FP e Conta FEFEC exigem ao menos um anexo.",
+          "Conta DC, Conta FEFC e Conta FP exigem ao menos um anexo.",
         );
         hasError = true;
       }
@@ -1375,7 +1408,7 @@ if (form) {
     const roleSelecionada = String(roleSelect?.value || "").trim().toUpperCase();
     if (!roleSelect?.disabled && !roleSelecionada) {
       if (roleSelect) {
-        roleSelect.setCustomValidity("Selecione o político.");
+        roleSelect.setCustomValidity("Selecione o candidato.");
         roleSelect.reportValidity();
       }
       if (customRole) {
