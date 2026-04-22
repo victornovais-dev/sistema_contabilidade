@@ -333,6 +333,10 @@ html[data-theme="dark"] .roles-options {
   border: 1px solid transparent;
 }
 
+.roles-option[hidden] {
+  display: none;
+}
+
 .roles-option:hover {
   background: rgba(216, 75, 52, 0.1);
   border-color: rgba(216, 75, 52, 0.2);

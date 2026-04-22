@@ -19,6 +19,7 @@ const rolesHidden = document.getElementById("roles-hidden");
 const selectedRoles = new Set();
 const ROLE_SUPPORT = "SUPPORT";
 const ROLE_MANAGER = "MANAGER";
+const PRIORITY_ROLES = ["ADMIN", "MANAGER", "CONTABIL", "SUPPORT"];
 let availableRoles = [];
 
 const readCookie = (name) => {
@@ -93,14 +94,48 @@ const hasSupportManagerConflict = (roles) => {
   return normalized.has(ROLE_SUPPORT) && normalized.has(ROLE_MANAGER);
 };
 
+const normalizeRoleText = (value) =>
+  String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+const sortRoles = (roles) =>
+  [...new Set((Array.isArray(roles) ? roles : []).map((role) => String(role || "").trim()).filter(Boolean))].sort(
+    (a, b) => {
+      const roleA = normalizeRoleText(a);
+      const roleB = normalizeRoleText(b);
+      const priorityA = PRIORITY_ROLES.indexOf(roleA);
+      const priorityB = PRIORITY_ROLES.indexOf(roleB);
+
+      if (priorityA >= 0 || priorityB >= 0) {
+        if (priorityA < 0) return 1;
+        if (priorityB < 0) return -1;
+        return priorityA - priorityB;
+      }
+
+      return a.localeCompare(b, "pt-BR", { sensitivity: "base" });
+    },
+  );
+
+const removeRoleSearchEmpty = () => {
+  const empty = rolesOptions?.querySelector("[data-role-search-empty='true']");
+  if (empty) empty.remove();
+};
+
+const renderRoleSearchEmpty = () => {
+  const empty = document.createElement("p");
+  empty.className = "roles-empty";
+  empty.dataset.roleSearchEmpty = "true";
+  empty.textContent = "Nenhuma role encontrada.";
+  rolesOptions.appendChild(empty);
+};
+
 const renderRoleOptions = (roles) => {
   if (!rolesOptions) return;
 
-  availableRoles = Array.isArray(roles)
-    ? [...new Set(roles.map((role) => String(role || "").trim()).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b, "pt-BR"),
-      )
-    : [];
+  availableRoles = sortRoles(roles);
 
   rolesOptions.innerHTML = "";
 
@@ -115,6 +150,7 @@ const renderRoleOptions = (roles) => {
   availableRoles.forEach((role) => {
     const label = document.createElement("label");
     label.className = "roles-option";
+    label.dataset.role = role;
 
     const input = document.createElement("input");
     input.type = "checkbox";
@@ -128,6 +164,8 @@ const renderRoleOptions = (roles) => {
     label.appendChild(span);
     rolesOptions.appendChild(label);
   });
+
+  filterRoleOptions();
 };
 
 const renderRoleLoadError = (message) => {
@@ -223,11 +261,22 @@ const applySelectedRolesFromChecks = () => {
 };
 
 const filterRoleOptions = () => {
-  const query = rolesSearch.value.trim().toLowerCase();
+  if (!rolesSearch || !rolesOptions) return;
+
+  const query = normalizeRoleText(rolesSearch.value);
+  let visibleCount = 0;
+  removeRoleSearchEmpty();
+
   rolesOptions.querySelectorAll(".roles-option").forEach((option) => {
-    const text = option.textContent.toLowerCase();
-    option.hidden = !text.includes(query);
+    const text = normalizeRoleText(option.dataset.role || option.textContent);
+    const isVisible = !query || text.includes(query);
+    option.hidden = !isVisible;
+    if (isVisible) visibleCount += 1;
   });
+
+  if (query && visibleCount === 0) {
+    renderRoleSearchEmpty();
+  }
 };
 
 rolesTrigger.addEventListener("click", () => {
@@ -244,6 +293,7 @@ rolesConfirm.addEventListener("click", () => {
 });
 
 rolesSearch.addEventListener("input", filterRoleOptions);
+rolesSearch.addEventListener("search", filterRoleOptions);
 rolesBackdrop.addEventListener("click", closeRolesCard);
 
 document.addEventListener("click", (event) => {
