@@ -6,6 +6,7 @@
   csrfToken: null,
   availableRoles: [],
   selectedRole: "",
+  userRoles: [],
   pagination: {
     page: 1,
     pageSize: 10,
@@ -24,6 +25,25 @@ let filterTypeValue = "";
 const filterClear = document.querySelector(".filter-clear");
 const filterRazaoToggle = document.querySelector(".filter-toggle");
 const filterExtraField = document.querySelector("[data-filter-extra]");
+const technicalRoles = new Set(["ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO"]);
+const roleFilterStorageKey = "sc_home_selected_role";
+const getStoredSelectedRole = () => String(localStorage.getItem(roleFilterStorageKey) || "").trim();
+const setSelectedRole = (role) => {
+  const normalizedRole = String(role || "").trim();
+  state.selectedRole = normalizedRole;
+
+  if (normalizedRole) {
+    localStorage.setItem(roleFilterStorageKey, normalizedRole);
+  } else {
+    localStorage.removeItem(roleFilterStorageKey);
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("sc:home-role-change", {
+      detail: { role: normalizedRole },
+    }),
+  );
+};
 const roleFilterBox = document.getElementById("role-filter-box");
 const roleFilterSelect = document.getElementById("role-filter-select");
 const roleDropdown =
@@ -31,14 +51,14 @@ const roleDropdown =
     ? window.createRoleDropdown({
         select: roleFilterSelect,
         onChange: async (value) => {
-          state.selectedRole = value || "";
+          setSelectedRole(value || "");
           try {
             await loadItems();
           } catch (error) {
             showListState(
               error instanceof Error
                 ? error.message
-                : "Erro ao carregar comprovantes do político selecionado."
+                : "Erro ao carregar comprovantes do candidato selecionado."
             );
           }
         },
@@ -117,6 +137,34 @@ const DESPESA_DESCRICOES = [
 
 const getAccessToken = () => localStorage.getItem("sc_access_token");
 
+const loadCurrentUserRoles = async () => {
+  const accessToken = getAccessToken();
+  if (!accessToken) return [];
+
+  try {
+    const response = await fetch("/api/v1/auth/me/roles", {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    if (response.status === 401) {
+      window.location.href = "/login";
+      return [];
+    }
+    if (!response.ok) return [];
+    const roles = await response.json();
+    return Array.isArray(roles)
+      ? roles.map((role) => String(role || "").trim().toUpperCase()).filter(Boolean)
+      : [];
+  } catch (error) {
+    return [];
+  }
+};
+
+const isContabilUser = () => state.userRoles.includes("CONTABIL");
+
 const buildRoleQuery = () => {
   if (!state.selectedRole) return "";
   const params = new URLSearchParams({ role: state.selectedRole });
@@ -125,24 +173,20 @@ const buildRoleQuery = () => {
 
 const orderRoles = (roles) => {
   const normalizedRoles = Array.isArray(roles)
-    ? [...new Set(roles.map((role) => String(role || "").trim()).filter(Boolean))]
+    ? [
+        ...new Set(
+          roles
+            .map((role) => String(role || "").trim())
+            .filter((role) => role && !technicalRoles.has(role.toUpperCase())),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "pt-BR"))
     : [];
-  if (!normalizedRoles.length) return [];
-
-  const firstRole = normalizedRoles.includes("ADMIN") ? "ADMIN" : normalizedRoles[0];
-  const remaining = normalizedRoles.filter((role) => role !== firstRole && role !== "MANAGER");
-  remaining.sort((a, b) => a.localeCompare(b, "pt-BR"));
-
-  if (!normalizedRoles.includes("MANAGER") || firstRole === "MANAGER") {
-    return [firstRole, ...remaining];
-  }
-
-  return [firstRole, "MANAGER", ...remaining];
+  return normalizedRoles;
 };
 
 const removeRoleFilterBox = () => {
   state.availableRoles = [];
-  state.selectedRole = "";
+  setSelectedRole("");
   if (roleFilterBox) {
     roleFilterBox.hidden = true;
   }
@@ -167,13 +211,13 @@ const applyRoleOptions = (roles) => {
 
   renderRoleOptions(orderedRoles);
 
-  if (!state.selectedRole || !orderedRoles.includes(state.selectedRole)) {
-    state.selectedRole = orderedRoles.includes("ADMIN") ? "ADMIN" : orderedRoles[0];
-  }
+  const currentRole = getStoredSelectedRole();
+  const nextRole = orderedRoles.includes(currentRole) ? currentRole : orderedRoles[0];
 
-  roleFilterSelect.value = state.selectedRole;
+  roleFilterSelect.value = nextRole;
   roleFilterBox.hidden = false;
-  roleDropdown?.setValue(state.selectedRole);
+  roleDropdown?.setValue(nextRole);
+  setSelectedRole(nextRole);
 };
 
 const setUploadSaveVisible = (visible) => {
@@ -189,6 +233,7 @@ const updateUploadSaveVisibility = () => {
 
 const smoothHideTimers = new WeakMap();
 const SMOOTH_HIDE_MS = 100;
+const ITEM_REMOVE_ANIMATION_MS = 320;
 
 const setButtonVisibleSmooth = (button, visible) => {
   if (!(button instanceof HTMLButtonElement)) return;
@@ -779,6 +824,10 @@ const hideListState = () => {
 };
 
 const isItemChecked = (itemId) => state.itemChecks.get(String(itemId)) === true;
+const CHECKED_ITEM_DELETE_BLOCKED_MESSAGE =
+  "Comprovantes verificados nao podem ser excluidos. Desmarque o check antes de excluir.";
+const SUPPORT_UNCHECK_BLOCKED_MESSAGE =
+  "Usuarios SUPPORT nao podem desmarcar comprovantes verificados.";
 
 const setItemChecked = (itemId, checked) => {
   const itemKey = String(itemId || "");
@@ -786,11 +835,60 @@ const setItemChecked = (itemId, checked) => {
   state.itemChecks.set(itemKey, checked === true);
 };
 
+const isCandidatoUser = () => state.userRoles.includes("CANDIDATO");
+const isSupportUser = () => state.userRoles.includes("SUPPORT");
+
+const setCheckButtonState = (button, checked) => {
+  if (!(button instanceof HTMLButtonElement)) return;
+  const supportLocked = isSupportUser() && checked === true;
+  button.classList.toggle("is-checked", checked === true);
+  button.classList.toggle("is-locked", supportLocked);
+  button.disabled = supportLocked;
+  button.setAttribute("aria-disabled", String(supportLocked));
+  button.setAttribute("aria-pressed", String(checked === true));
+  button.setAttribute(
+    "aria-label",
+    supportLocked
+      ? SUPPORT_UNCHECK_BLOCKED_MESSAGE
+      : checked
+        ? "Desmarcar comprovante"
+        : "Marcar comprovante como verificado",
+  );
+  if (supportLocked) {
+    button.title = SUPPORT_UNCHECK_BLOCKED_MESSAGE;
+  } else {
+    button.removeAttribute("title");
+  }
+};
+
+const setDeleteButtonLocked = (button, locked) => {
+  if (!(button instanceof HTMLButtonElement)) return;
+  button.disabled = locked === true;
+  button.classList.toggle("is-disabled", locked === true);
+  button.setAttribute(
+    "aria-label",
+    locked ? CHECKED_ITEM_DELETE_BLOCKED_MESSAGE : "Excluir comprovante",
+  );
+  if (locked) {
+    button.title = CHECKED_ITEM_DELETE_BLOCKED_MESSAGE;
+  } else {
+    button.removeAttribute("title");
+  }
+};
+
 const syncItemCheckedState = (itemId, checked) => {
   setItemChecked(itemId, checked);
   const index = state.items.findIndex((entry) => String(entry.id) === String(itemId));
   if (index >= 0) {
     state.items[index].verificado = checked === true;
+  }
+  if (itemsList) {
+    const card = itemsList.querySelector(`.item-card[data-id="${itemId}"]`);
+    if (card instanceof HTMLElement) {
+      card.classList.toggle("is-checked", checked === true);
+      setCheckButtonState(card.querySelector(".item-check-toggle"), checked === true);
+      setDeleteButtonLocked(card.querySelector(".delete-item"), checked === true);
+    }
   }
 };
 
@@ -801,6 +899,7 @@ const createItemCard = (item) => {
   article.dataset.tipo = String(item.tipo || "").toLowerCase();
   article.dataset.data = item.data;
   article.dataset.observacao = item.observacao ? String(item.observacao) : "";
+  article.classList.toggle("is-checked", isItemChecked(item.id));
 
   node.querySelector('[data-field="valor"]').textContent = formatCurrency(item.valor);
   node.querySelector('[data-field="tipo"]').textContent =
@@ -838,13 +937,19 @@ const createItemCard = (item) => {
 
   const checkButton = node.querySelector(".item-check-toggle");
   if (checkButton instanceof HTMLButtonElement) {
-    const checked = isItemChecked(item.id);
-    checkButton.classList.toggle("is-checked", checked);
-    checkButton.setAttribute("aria-pressed", String(checked));
-    checkButton.setAttribute(
-      "aria-label",
-      checked ? "Desmarcar comprovante" : "Marcar comprovante como verificado",
-    );
+    if (isCandidatoUser()) {
+      checkButton.remove();
+    } else {
+      const checked = isItemChecked(item.id);
+      setCheckButtonState(checkButton, checked);
+    }
+  }
+
+  const deleteButton = node.querySelector(".delete-item");
+  if (isContabilUser() && deleteButton instanceof HTMLElement) {
+    deleteButton.remove();
+  } else {
+    setDeleteButtonLocked(deleteButton, isItemChecked(item.id));
   }
 
   return node;
@@ -1745,8 +1850,49 @@ const closeDeleteModal = () => {
   confirmOverlay.setAttribute("aria-hidden", "true");
 };
 
+const animateItemRemoval = (itemId) =>
+  new Promise((resolve) => {
+    if (!itemsList || !itemId) {
+      resolve();
+      return;
+    }
+
+    const card = itemsList.querySelector(`.item-card[data-id="${itemId}"]`);
+    if (!(card instanceof HTMLElement)) {
+      resolve();
+      return;
+    }
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      card.removeEventListener("animationend", handleAnimationEnd);
+      resolve();
+    };
+
+    const handleAnimationEnd = (event) => {
+      if (event.target !== card) return;
+      if (event.animationName !== "item-remove") return;
+      finish();
+    };
+
+    card.addEventListener("animationend", handleAnimationEnd);
+    window.setTimeout(finish, ITEM_REMOVE_ANIMATION_MS + 60);
+    window.requestAnimationFrame(() => {
+      card.classList.add("is-removing");
+    });
+  });
+
 const deletePendingItem = async () => {
   if (!state.pendingDeleteId) return;
+  if (isContabilUser()) {
+    throw new Error("Você não tem permissão para excluir comprovantes.");
+  }
+  if (isItemChecked(state.pendingDeleteId)) {
+    throw new Error(CHECKED_ITEM_DELETE_BLOCKED_MESSAGE);
+  }
+  const pendingDeleteId = state.pendingDeleteId;
   const accessToken = getAccessToken();
   if (!accessToken) {
     window.location.href = "/login";
@@ -1781,8 +1927,9 @@ const deletePendingItem = async () => {
     throw new Error(await extractErrorMessage(response, "Falha ao excluir comprovante."));
   }
 
-  state.items = state.items.filter((item) => item.id !== state.pendingDeleteId);
   closeDeleteModal();
+  await animateItemRemoval(pendingDeleteId);
+  state.items = state.items.filter((item) => item.id !== pendingDeleteId);
   applyFilters(false);
 };
 
@@ -1976,31 +2123,37 @@ const bindEvents = () => {
       if (checkButton instanceof HTMLButtonElement) {
         const card = checkButton.closest(".item-card");
         if (!card?.dataset.id) return;
+        if (isSupportUser() && isItemChecked(card.dataset.id)) {
+          showListState(SUPPORT_UNCHECK_BLOCKED_MESSAGE);
+          return;
+        }
         const nextChecked = !isItemChecked(card.dataset.id);
         checkButton.disabled = true;
         try {
           const updated = await patchVerificacao(card.dataset.id, nextChecked);
           const persistedChecked = Boolean(updated?.verificado);
           syncItemCheckedState(card.dataset.id, persistedChecked);
-          checkButton.classList.toggle("is-checked", persistedChecked);
-          checkButton.setAttribute("aria-pressed", String(persistedChecked));
-          checkButton.setAttribute(
-            "aria-label",
-            persistedChecked ? "Desmarcar comprovante" : "Marcar comprovante como verificado",
-          );
         } catch (error) {
           showListState(
             error instanceof Error ? error.message : "Falha ao atualizar verificação.",
           );
         } finally {
-          checkButton.disabled = false;
+          setCheckButtonState(checkButton, isItemChecked(card.dataset.id));
         }
         return;
       }
       const deleteButton = target.closest(".delete-item");
       if (!deleteButton) return;
+      if (isContabilUser()) {
+        showListState("Você não tem permissão para excluir comprovantes.");
+        return;
+      }
       const card = deleteButton.closest(".item-card");
       if (!card || !card.dataset.id) return;
+      if (isItemChecked(card.dataset.id)) {
+        showListState(CHECKED_ITEM_DELETE_BLOCKED_MESSAGE);
+        return;
+      }
       openDeleteModal(card.dataset.id);
     });
   }
@@ -2080,6 +2233,11 @@ const init = async () => {
       retainedUploadFiles = merged;
       setUploadInputFiles(merged);
     });
+  }
+  try {
+    state.userRoles = await loadCurrentUserRoles();
+  } catch (error) {
+    state.userRoles = [];
   }
   try {
     await loadRoleFilterOptions();

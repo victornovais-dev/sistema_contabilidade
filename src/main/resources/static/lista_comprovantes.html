@@ -7,8 +7,8 @@
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
     <script src="assets/js/theme-init.js"></script>
     <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css" />
-    <link rel="stylesheet" href="assets/css/lista_comprovantes.css" />
-    <link rel="stylesheet" href="assets/css/navbar.css" />
+    <link rel="stylesheet" href="assets/css/lista_comprovantes.css?v=20260420-support-check-lock-1" />
+    <link rel="stylesheet" href="assets/css/navbar.css?v=20260420-navbar-notification-count-fix-3" />
   </head>
   <body>
     <div id="navbar-root" data-navbar-root></div>
@@ -25,7 +25,7 @@
         <div class="page-header-row">
           <h1>Comprovantes</h1>
           <div class="role-filter-box" id="role-filter-box" hidden>
-            <label for="role-filter-select">Político</label>
+            <label for="role-filter-select">Candidato</label>
             <div class="custom-select" data-custom-select>
               <button
                 class="custom-select-trigger"
@@ -36,7 +36,12 @@
                 Selecione
               </button>
               <div class="custom-select-menu" role="listbox" hidden></div>
-              <select id="role-filter-select" class="native-select" aria-label="Filtrar comprovantes por político" aria-hidden="true">
+              <select
+                id="role-filter-select"
+                class="native-select"
+                aria-label="Filtrar comprovantes por candidato"
+                aria-hidden="true"
+              >
                 <option value="" disabled selected>Selecione</option>
               </select>
             </div>
@@ -366,7 +371,7 @@
                   multiple
                 />
                 <div class="upload-drop-content">
-                  <span class="upload-drop-icon" aria-hidden="true">⬆</span>
+                  <span class="upload-drop-icon" aria-hidden="true">&#8679;</span>
                   <strong>Pesquisar arquivos</strong>
                   <span>Arraste e solte PDFs aqui</span>
                 </div>
@@ -404,8 +409,8 @@
     </div>
 
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
-    <script src="assets/js/navbar.js" defer></script>
+    <script src="assets/js/navbar.js?v=20260421-notifications-admin-contabil-1" defer></script>
     <script src="assets/js/role-dropdown.js" defer></script>
-    <script src="assets/js/lista_comprovantes.js?v=20260414-2" defer></script>
+    <script src="assets/js/lista_comprovantes.js?v=20260422-candidato-check-oculto-1" defer></script>
   </body>
 </html>

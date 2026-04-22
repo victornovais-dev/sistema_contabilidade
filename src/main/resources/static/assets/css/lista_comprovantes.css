@@ -121,6 +121,7 @@ html[data-theme="dark"] .grid {
 .page-header {
   position: relative;
   z-index: 40;
+  animation: float-in 700ms ease-out both;
 }
 
 .page-header-row {
@@ -151,118 +152,22 @@ html[data-theme="dark"] .grid {
 }
 
 .role-filter-box {
-  position: relative;
-  z-index: 41;
   display: inline-grid;
   gap: 8px;
   min-width: 230px;
-  padding: 12px 14px;
-  border: 1px solid var(--stroke);
-  border-radius: 18px;
-  background: var(--card);
-  box-shadow:
-    0 12px 26px rgba(20, 20, 24, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  padding: 0;
 }
 
 .role-filter-box[hidden] {
   display: none !important;
 }
 
-.role-filter-box::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  border-radius: 18px 0 0 18px;
-  background: linear-gradient(180deg, #f0684a, #d84b34);
-}
-
 .role-filter-box label {
   margin: 0;
   font-size: 0.95rem;
-  color: var(--accent);
+  color: var(--ink);
   font-weight: 600;
   line-height: 1;
-}
-
-.role-filter-box select {
-  border: 1px solid var(--stroke);
-  border-radius: 12px;
-  padding: 10px 36px 10px 12px;
-  font: inherit;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--ink);
-  min-height: 40px;
-  background: rgba(255, 255, 255, 0.86);
-  appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, rgba(27, 27, 31, 0.55) 50%),
-    linear-gradient(135deg, rgba(27, 27, 31, 0.55) 50%, transparent 50%);
-  background-position:
-    calc(100% - 15px) 49%,
-    calc(100% - 10px) 49%;
-  background-size:
-    5px 5px,
-    5px 5px;
-  background-repeat: no-repeat;
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease,
-    background-color 160ms ease;
-}
-
-.role-filter-box select:hover {
-  border-color: rgba(216, 75, 52, 0.45);
-  background: rgba(255, 255, 255, 0.95);
-}
-
-.role-filter-box select:focus {
-  outline: none;
-  border-color: rgba(216, 75, 52, 0.68);
-  box-shadow: 0 0 0 3px rgba(216, 75, 52, 0.18);
-  transform: translateY(-1px);
-}
-
-html[data-theme="dark"] .role-filter-box {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: var(--card);
-  box-shadow:
-    0 12px 26px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-html[data-theme="dark"] .role-filter-box label {
-  color: #ffffff;
-}
-
-html[data-theme="dark"] .role-filter-box select {
-  border-color: rgba(255, 255, 255, 0.38);
-  background: var(--card);
-  background-image:
-    linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.7) 50%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.7) 50%, transparent 50%);
-  background-position:
-    calc(100% - 15px) 49%,
-    calc(100% - 10px) 49%;
-  background-size:
-    5px 5px,
-    5px 5px;
-  background-repeat: no-repeat;
-  color: #ffffff;
-}
-
-html[data-theme="dark"] .role-filter-box select:hover {
-  background: rgba(20, 20, 24, 0.95);
-}
-
-html[data-theme="dark"] .role-filter-box select option {
-  background: rgba(20, 20, 24, 0.95);
-  color: #ffffff;
 }
 
 .custom-select {
@@ -303,7 +208,8 @@ html[data-theme="dark"] .role-filter-box select option {
 .custom-select-trigger:focus {
   outline: none;
   border-color: rgba(216, 75, 52, 0.7);
-  box-shadow: 0 0 0 3px rgba(216, 75, 52, 0.16), 0 10px 18px rgba(27, 27, 31, 0.08);
+  box-shadow: 0 0 0 3px rgba(216, 75, 52, 0.16),
+    0 10px 18px rgba(27, 27, 31, 0.08);
   transform: translateY(-1px);
 }
 
@@ -317,7 +223,7 @@ html[data-theme="dark"] .role-filter-box select option {
   background: rgba(20, 20, 24, 0.98);
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
   padding: 8px;
-  z-index: 42;
+  z-index: 99999;
 }
 
 .custom-select-menu.is-scroll {
@@ -372,6 +278,10 @@ html[data-theme="dark"] .role-filter-box select option {
   pointer-events: none;
 }
 
+html[data-theme="dark"] .role-filter-box label {
+  color: #ffffff;
+}
+
 html[data-theme="dark"] .custom-select-trigger {
   background: linear-gradient(180deg, rgba(24, 24, 28, 0.96), rgba(18, 18, 22, 0.9));
   color: var(--ink);
@@ -405,6 +315,8 @@ html[data-theme="light"] .custom-select-option.is-active {
 .list {
   display: grid;
   gap: 12px;
+  animation: float-in 700ms ease-out both;
+  animation-delay: 140ms;
 }
 
 .pagination {
@@ -413,6 +325,8 @@ html[data-theme="light"] .custom-select-option.is-active {
   justify-content: center;
   gap: 10px;
   padding: 10px 0 4px;
+  animation: float-in 700ms ease-out both;
+  animation-delay: 220ms;
 }
 
 .pagination-btn {
@@ -476,6 +390,8 @@ html[data-theme="dark"] .pagination-btn:hover:not(:disabled) {
   color: var(--muted);
   font-weight: 600;
   text-align: center;
+  animation: float-in 700ms ease-out both;
+  animation-delay: 140ms;
 }
 
 .filters-card {
@@ -500,6 +416,8 @@ html[data-theme="dark"] .pagination-btn:hover:not(:disabled) {
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  animation: float-in 700ms ease-out both;
+  animation-delay: 80ms;
 }
 
 html[data-theme="dark"] .filters-card {
@@ -1364,6 +1282,28 @@ html[data-theme="light"] .flatpickr-current-month .year-dropdown option {
   color: #000;
 }
 
+@keyframes float-in {
+  from {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes item-remove {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+
 
 .item-card {
   position: relative;
@@ -1379,7 +1319,25 @@ html[data-theme="light"] .flatpickr-current-month .year-dropdown option {
   overflow: hidden;
   transform: translateZ(0);
   will-change: transform;
-  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+  transition:
+    transform 320ms ease,
+    box-shadow 150ms ease,
+    border-color 150ms ease,
+    opacity 320ms ease,
+    filter 220ms ease;
+  animation: float-in 700ms ease-out both;
+}
+
+.list > .item-card:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.list > .item-card:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.list > .item-card:nth-child(4) {
+  animation-delay: 180ms;
 }
 
 .item-card::before {
@@ -1401,6 +1359,11 @@ html[data-theme="light"] .flatpickr-current-month .year-dropdown option {
   transform: translate3d(0, -1px, 0);
   border-color: rgba(216, 75, 52, 0.28);
   box-shadow: 0 18px 40px rgba(20, 20, 24, 0.22);
+}
+
+.item-card.is-removing {
+  animation: item-remove 320ms ease forwards;
+  pointer-events: none;
 }
 
 .item-grid {
@@ -1511,6 +1474,35 @@ html[data-theme="light"] .flatpickr-current-month .year-dropdown option {
 .item-check-toggle.is-checked {
   background: linear-gradient(135deg, #39d98a, #1ea85d);
   box-shadow: 0 10px 22px rgba(30, 168, 93, 0.28);
+}
+
+.item-check-toggle.is-locked,
+.item-check-toggle:disabled.is-checked {
+  cursor: not-allowed;
+  opacity: 0.72;
+  filter: saturate(0.9);
+  transform: none;
+}
+
+.item-check-toggle.is-locked:hover,
+.item-check-toggle:disabled.is-checked:hover {
+  transform: none;
+  box-shadow: 0 10px 22px rgba(30, 168, 93, 0.22);
+}
+
+.delete-item:disabled,
+.delete-item.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+  filter: grayscale(0.35);
+  transform: none;
+  box-shadow: none;
+}
+
+.delete-item:disabled:hover,
+.delete-item.is-disabled:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-info {
