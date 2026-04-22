@@ -150,39 +150,22 @@ html[data-theme="dark"] .grid {
 }
 
 .role-filter-box {
-  position: relative;
-  z-index: 41;
   display: inline-grid;
   gap: 8px;
   min-width: 230px;
-  padding: 12px 14px;
-  border: 1px solid var(--stroke);
-  border-radius: 18px;
-  background: var(--card);
-  box-shadow:
-    0 12px 26px rgba(20, 20, 24, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(16px);
+  padding: 0;
 }
 
 .role-filter-box[hidden] {
   display: none !important;
 }
 
-.role-filter-box::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  border-radius: 18px 0 0 18px;
-  background: linear-gradient(180deg, #f0684a, #d84b34);
-}
-
 .role-filter-box label {
   margin: 0;
   font-size: 0.95rem;
-  color: var(--accent);
+  color: var(--ink);
   font-weight: 600;
+  line-height: 1;
 }
 
 .custom-select {
@@ -196,8 +179,8 @@ html[data-theme="dark"] .grid {
   padding: 14px 44px 14px 16px;
   border-radius: 14px;
   border: 1px solid rgba(27, 27, 31, 0.16);
-  font: inherit;
   font-size: 1rem;
+  font-family: inherit;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
@@ -223,7 +206,8 @@ html[data-theme="dark"] .grid {
 .custom-select-trigger:focus {
   outline: none;
   border-color: rgba(216, 75, 52, 0.7);
-  box-shadow: 0 0 0 3px rgba(216, 75, 52, 0.16), 0 10px 18px rgba(27, 27, 31, 0.08);
+  box-shadow: 0 0 0 3px rgba(216, 75, 52, 0.16),
+    0 10px 18px rgba(27, 27, 31, 0.08);
   transform: translateY(-1px);
 }
 
@@ -237,7 +221,27 @@ html[data-theme="dark"] .grid {
   background: rgba(20, 20, 24, 0.98);
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
   padding: 8px;
-  z-index: 42;
+  z-index: 99999;
+}
+
+.custom-select-menu.is-scroll {
+  max-height: calc(7 * 44px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 122, 89, 0.45) transparent;
+}
+
+.custom-select-menu.is-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-select-menu.is-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-select-menu.is-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 122, 89, 0.45);
 }
 
 .custom-select-option {
@@ -245,7 +249,7 @@ html[data-theme="dark"] .grid {
   border: 0;
   background: transparent;
   color: #fff;
-  font: inherit;
+  font-family: inherit;
   font-size: 0.95rem;
   font-weight: 700;
   text-align: left;
@@ -260,6 +264,7 @@ html[data-theme="dark"] .grid {
 
 .custom-select-option.is-active {
   background: rgba(255, 122, 89, 0.22);
+  color: #fff;
 }
 
 .native-select {
@@ -282,6 +287,10 @@ html[data-theme="dark"] .custom-select-trigger::after {
   border-top-color: rgba(181, 181, 194, 0.95);
 }
 
+html[data-theme="dark"] .role-filter-box label {
+  color: #ffffff;
+}
+
 html[data-theme="light"] .custom-select-menu {
   border-color: rgba(27, 27, 31, 0.14);
   background: rgba(255, 255, 255, 0.98);
@@ -298,6 +307,7 @@ html[data-theme="light"] .custom-select-option:hover {
 
 html[data-theme="light"] .custom-select-option.is-active {
   background: rgba(255, 122, 89, 0.18);
+  color: #1b1b1f;
 }
 
 .notifications-state {
@@ -365,7 +375,11 @@ html[data-theme="light"] .custom-select-option.is-active {
 
 .notification-card {
   display: grid;
-  gap: 18px;
+  gap: 5px;
+}
+
+.notification-card.is-cleaned {
+  border-color: rgba(46, 176, 94, 0.34);
 }
 
 .notification-header {
@@ -373,6 +387,13 @@ html[data-theme="light"] .custom-select-option.is-active {
   justify-content: space-between;
   gap: 18px;
   align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.notification-headline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -394,9 +415,10 @@ html[data-theme="light"] .custom-select-option.is-active {
 }
 
 .notification-meta {
-  display: grid;
-  justify-items: end;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .notification-role {
@@ -418,6 +440,76 @@ html[data-theme="light"] .custom-select-option.is-active {
   color: var(--muted);
   font-size: 0.92rem;
   font-weight: 600;
+}
+
+.btn.notification-check-toggle {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff6b6b, #e54444);
+  box-shadow: 0 10px 22px rgba(229, 68, 68, 0.28);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+.btn.notification-check-toggle:hover {
+  transform: translateY(-1px);
+}
+
+.btn.notification-check-toggle:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
+}
+
+.btn.notification-check-toggle.is-locked,
+.btn.notification-check-toggle:disabled.is-checked {
+  cursor: not-allowed;
+  opacity: 0.72;
+  filter: saturate(0.9);
+  transform: none;
+}
+
+.btn.notification-check-toggle.is-locked:hover,
+.btn.notification-check-toggle:disabled.is-checked:hover {
+  transform: none;
+  box-shadow: 0 10px 22px rgba(30, 168, 93, 0.22);
+}
+
+.btn.notification-check-toggle.is-checked {
+  background: linear-gradient(135deg, #39d98a, #1ea85d);
+  box-shadow: 0 10px 22px rgba(30, 168, 93, 0.28);
+}
+
+.icon-check {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-check svg {
+  width: 100%;
+  height: 100%;
+}
+
+.icon-check-on {
+  display: none;
+}
+
+.btn.notification-check-toggle.is-checked .icon-check-on {
+  display: inline-flex;
+}
+
+.btn.notification-check-toggle.is-checked .icon-check-off {
+  display: none;
 }
 
 .notification-grid {
@@ -481,12 +573,16 @@ html[data-theme="dark"] .notification-info {
 }
 
 @media (max-width: 860px) {
+  .role-filter-box {
+    width: 100%;
+  }
+
   .summary-grid,
   .notification-grid {
     grid-template-columns: 1fr;
   }
 
   .notification-meta {
-    justify-items: start;
+    justify-content: flex-start;
   }
 }

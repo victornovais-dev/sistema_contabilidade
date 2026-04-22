@@ -1,13 +1,13 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Notificacoes</title>
+    <title>Notificações</title>
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
     <script src="assets/js/theme-init.js?v=20260414-notificacoes-1"></script>
-    <link rel="stylesheet" href="assets/css/notificacoes.css?v=20260414-notificacoes-1" />
-    <link rel="stylesheet" href="assets/css/navbar.css?v=20260414-notificacoes-1" />
+    <link rel="stylesheet" href="assets/css/notificacoes.css?v=20260420-check-item-sincronizado-1" />
+    <link rel="stylesheet" href="assets/css/navbar.css?v=20260420-navbar-notification-count-fix-3" />
   </head>
   <body>
     <div id="navbar-root" data-navbar-root></div>
@@ -23,11 +23,11 @@
         <span class="chip">Atualizacoes</span>
         <div class="page-header-row">
           <div>
-            <h1>Notificacoes</h1>
+            <h1>Notificações</h1>
             <p>Cada receita lancada gera uma notificacao nesta pagina.</p>
           </div>
           <div class="role-filter-box" id="role-filter-box" hidden>
-            <label for="role-filter-select">Politico</label>
+            <label for="role-filter-select">Candidato</label>
             <div class="custom-select" data-custom-select>
               <button
                 class="custom-select-trigger"
@@ -41,7 +41,7 @@
               <select
                 id="role-filter-select"
                 class="native-select"
-                aria-label="Filtrar notificacoes por politico"
+                aria-label="Filtrar por candidato"
                 aria-hidden="true"
               >
                 <option value="" disabled selected>Selecione</option>
@@ -57,19 +57,19 @@
 
       <section class="summary-grid" id="summary-grid" hidden>
         <article class="card summary-card">
-          <p class="summary-label">Notificacoes</p>
+          <p class="summary-label">Notificações</p>
           <h2 class="summary-value" data-summary="count">0</h2>
           <p class="summary-hint">Receitas registradas</p>
         </article>
         <article class="card summary-card">
           <p class="summary-label">Valor notificado</p>
           <h2 class="summary-value summary-value-positive" data-summary="total">R$ 0,00</h2>
-          <p class="summary-hint">Soma das receitas listadas</p>
+          <p class="summary-hint">Soma das receitas notificadas</p>
         </article>
         <article class="card summary-card">
-          <p class="summary-label">Ultima notificacao</p>
-          <h2 class="summary-value summary-value-small" data-summary="latest">-</h2>
-          <p class="summary-hint">Horario do ultimo lancamento</p>
+          <p class="summary-label">Valor lançado</p>
+          <h2 class="summary-value summary-value-positive" data-summary="launched">R$ 0,00</h2>
+          <p class="summary-hint">Soma dos itens lançados</p>
         </article>
       </section>
 
@@ -79,13 +79,43 @@
     <template id="notification-card-template">
       <article class="card notification-card">
         <div class="notification-header">
-          <div>
-            <span class="notification-pill">Receita lancada</span>
-            <h2 class="notification-title">Nova receita registrada</h2>
+          <div class="notification-headline">
+            <span class="notification-pill">Receita</span>
+            <span class="notification-time" data-field="criadoEm"></span>
           </div>
           <div class="notification-meta">
             <span class="notification-role" data-field="role"></span>
-            <span class="notification-time" data-field="criadoEm"></span>
+            <button
+              class="btn notification-check-toggle"
+              type="button"
+              aria-label="Marcar notificacao como limpa"
+              aria-pressed="false"
+            >
+              <span class="icon-check icon-check-off" aria-hidden="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M8 8l8 8M16 8l-8 8"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              <span class="icon-check icon-check-on" aria-hidden="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M6 12.5l4 4L18 8.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+            </button>
           </div>
         </div>
         <div class="notification-grid">
@@ -105,8 +135,8 @@
       </article>
     </template>
 
-    <script src="assets/js/navbar.js?v=20260414-notificacoes-1" defer></script>
-    <script src="assets/js/role-dropdown.js?v=20260414-notificacoes-1" defer></script>
-    <script src="assets/js/notificacoes.js?v=20260414-notificacoes-1" defer></script>
+    <script src="assets/js/navbar.js?v=20260421-notifications-admin-contabil-1" defer></script>
+    <script src="assets/js/role-dropdown.js?v=20260420-home-role-filter-1" defer></script>
+    <script src="assets/js/notificacoes.js?v=20260421-candidato-role-1" defer></script>
   </body>
 </html>

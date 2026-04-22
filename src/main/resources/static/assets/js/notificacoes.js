@@ -1,6 +1,8 @@
 const state = {
   notifications: [],
   selectedRole: "",
+  csrfToken: null,
+  userRoles: [],
 };
 
 const REFRESH_ANIMATION_MS = 180;
@@ -11,7 +13,26 @@ const notificationCardTemplate = document.getElementById("notification-card-temp
 const summaryGrid = document.getElementById("summary-grid");
 const summaryCount = document.querySelector('[data-summary="count"]');
 const summaryTotal = document.querySelector('[data-summary="total"]');
-const summaryLatest = document.querySelector('[data-summary="latest"]');
+const summaryLaunched = document.querySelector('[data-summary="launched"]');
+const technicalRoles = new Set(["ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO"]);
+const roleFilterStorageKey = "sc_home_selected_role";
+const getStoredSelectedRole = () => String(localStorage.getItem(roleFilterStorageKey) || "").trim();
+const setSelectedRole = (role) => {
+  const normalizedRole = String(role || "").trim();
+  state.selectedRole = normalizedRole;
+
+  if (normalizedRole) {
+    localStorage.setItem(roleFilterStorageKey, normalizedRole);
+  } else {
+    localStorage.removeItem(roleFilterStorageKey);
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("sc:home-role-change", {
+      detail: { role: normalizedRole },
+    }),
+  );
+};
 const roleFilterBox = document.getElementById("role-filter-box");
 const roleFilterSelect = document.getElementById("role-filter-select");
 const roleDropdown =
@@ -19,7 +40,7 @@ const roleDropdown =
     ? window.createRoleDropdown({
         select: roleFilterSelect,
         onChange: async (value) => {
-          state.selectedRole = value || "";
+          setSelectedRole(value || "");
           try {
             await loadNotifications({ preserveVisibleContent: state.notifications.length > 0 });
           } catch (error) {
@@ -27,7 +48,7 @@ const roleDropdown =
             showState(
               error instanceof Error
                 ? error.message
-                : "Erro ao carregar notificacoes do politico selecionado.",
+                : "Erro ao carregar notificacoes do candidato selecionado.",
               true,
             );
           }
@@ -37,6 +58,48 @@ const roleDropdown =
 
 const getAccessToken = () => localStorage.getItem("sc_access_token");
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+const SUPPORT_UNCHECK_BLOCKED_MESSAGE =
+  "Usuarios SUPPORT nao podem desmarcar comprovantes verificados.";
+
+const loadCurrentUserRoles = async () => {
+  const accessToken = getAccessToken();
+  if (!accessToken) return [];
+
+  try {
+    const response = await fetch("/api/v1/auth/me/roles", {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    if (response.status === 401) {
+      window.location.href = "/login";
+      return [];
+    }
+    if (!response.ok) return [];
+    const roles = await response.json();
+    return Array.isArray(roles)
+      ? roles.map((role) => String(role || "").trim().toUpperCase()).filter(Boolean)
+      : [];
+  } catch (error) {
+    return [];
+  }
+};
+
+const isSupportUser = () => state.userRoles.includes("SUPPORT");
+
+const extractErrorMessage = async (response, fallbackMessage) => {
+  try {
+    const payload = await response.json();
+    if (payload && typeof payload === "object") {
+      return payload.message || payload.error || fallbackMessage;
+    }
+  } catch (error) {
+    // Keep fallback when backend returns no JSON body.
+  }
+  return fallbackMessage;
+};
 
 const buildRoleQuery = () => {
   if (!state.selectedRole) return "";
@@ -46,22 +109,19 @@ const buildRoleQuery = () => {
 
 const orderRoles = (roles) => {
   const normalizedRoles = Array.isArray(roles)
-    ? [...new Set(roles.map((role) => String(role || "").trim()).filter(Boolean))]
+    ? [
+        ...new Set(
+          roles
+            .map((role) => String(role || "").trim())
+            .filter((role) => role && !technicalRoles.has(role.toUpperCase())),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "pt-BR"))
     : [];
-  if (!normalizedRoles.length) return [];
-
-  const firstRole = normalizedRoles.includes("ADMIN") ? "ADMIN" : normalizedRoles[0];
-  const remaining = normalizedRoles.filter((role) => role !== firstRole && role !== "MANAGER");
-  remaining.sort((a, b) => a.localeCompare(b, "pt-BR"));
-
-  if (!normalizedRoles.includes("MANAGER") || firstRole === "MANAGER") {
-    return [firstRole, ...remaining];
-  }
-  return [firstRole, "MANAGER", ...remaining];
+  return normalizedRoles;
 };
 
 const removeRoleFilterBox = () => {
-  state.selectedRole = "";
+  setSelectedRole("");
   if (roleFilterBox) {
     roleFilterBox.hidden = true;
   }
@@ -71,27 +131,27 @@ const removeRoleFilterBox = () => {
   roleDropdown?.clear();
 };
 
+const renderRoleOptions = (roles) => {
+  roleDropdown?.setOptions(roles);
+};
+
 const applyRoleOptions = (roles) => {
   if (!roleFilterBox || !roleFilterSelect) return;
   const orderedRoles = orderRoles(roles);
-  if (orderedRoles.length <= 1) {
+  if (orderedRoles.length === 0) {
     removeRoleFilterBox();
     return;
   }
 
-  roleDropdown?.setOptions(orderedRoles);
-  if (
-    (!state.selectedRole || !orderedRoles.includes(state.selectedRole)) &&
-    orderedRoles.includes("ADMIN")
-  ) {
-    state.selectedRole = "ADMIN";
-  } else if (!state.selectedRole || !orderedRoles.includes(state.selectedRole)) {
-    state.selectedRole = orderedRoles[0];
-  }
+  renderRoleOptions(orderedRoles);
 
-  roleFilterSelect.value = state.selectedRole;
+  const currentRole = getStoredSelectedRole();
+  const nextRole = orderedRoles.includes(currentRole) ? currentRole : orderedRoles[0];
+
+  roleFilterSelect.value = nextRole;
   roleFilterBox.hidden = false;
-  roleDropdown?.setValue(state.selectedRole);
+  roleDropdown?.setValue(nextRole);
+  setSelectedRole(nextRole);
 };
 
 const formatCurrency = (value) =>
@@ -120,6 +180,24 @@ const formatDateTime = (value) => {
   });
 };
 
+const isNotificationChecked = (notification) =>
+  notification && Object.prototype.hasOwnProperty.call(notification, "verificado")
+    ? Boolean(notification.verificado)
+    : Boolean(notification?.limpa);
+
+const getPendingNotificationCount = () =>
+  (Array.isArray(state.notifications) ? state.notifications : []).filter(
+    (notification) => !isNotificationChecked(notification),
+  ).length;
+
+const notifyNavbarCountChanged = () => {
+  window.dispatchEvent(
+    new CustomEvent("notifications:changed", {
+      detail: { pendingCount: getPendingNotificationCount() },
+    }),
+  );
+};
+
 const showState = (message, isError = false) => {
   if (!notificationsState) return;
   notificationsState.hidden = false;
@@ -145,17 +223,52 @@ const setRefreshing = (refreshing) => {
   });
 };
 
+const ensureCsrfToken = async (forceRefresh = false) => {
+  if (!forceRefresh && state.csrfToken) return state.csrfToken;
+  const response = await fetch("/api/v1/auth/csrf", {
+    method: "GET",
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+  if (!response.ok) {
+    throw new Error("Nao foi possivel carregar o token CSRF.");
+  }
+  const data = await response.json();
+  state.csrfToken = data.token || null;
+  if (!state.csrfToken) {
+    throw new Error("Token CSRF invalido.");
+  }
+  return state.csrfToken;
+};
+
+const syncNotificationCheckedState = (notificationId, verificado) => {
+  const index = state.notifications.findIndex(
+    (notification) => String(notification?.id) === String(notificationId),
+  );
+  if (index < 0) return;
+  state.notifications[index] = {
+    ...state.notifications[index],
+    limpa: verificado === true,
+    verificado: verificado === true,
+  };
+};
+
 const renderSummary = () => {
   if (!summaryGrid) return;
   const notifications = Array.isArray(state.notifications) ? state.notifications : [];
   const totalValue = notifications.reduce((total, notification) => {
     return total + Number(notification?.valor || 0);
   }, 0);
-  const latest = notifications[0]?.criadoEm || null;
+  const launchedValue = notifications.reduce((total, notification) => {
+    if (!isNotificationChecked(notification)) return total;
+    return total + Number(notification?.valor || 0);
+  }, 0);
 
   if (summaryCount) summaryCount.textContent = String(notifications.length);
   if (summaryTotal) summaryTotal.textContent = formatCurrency(totalValue);
-  if (summaryLatest) summaryLatest.textContent = formatDateTime(latest);
+  if (summaryLaunched) summaryLaunched.textContent = formatCurrency(launchedValue);
 };
 
 const renderNotifications = () => {
@@ -176,6 +289,11 @@ const renderNotifications = () => {
     const node = notificationCardTemplate.content.cloneNode(true);
     const card = node.querySelector(".notification-card");
     if (!card) return;
+    card.dataset.id = String(notification.id || "");
+    card.dataset.itemId = String(notification.itemId || "");
+    const checked = isNotificationChecked(notification);
+    const supportLocked = isSupportUser() && checked;
+    card.classList.toggle("is-cleaned", checked);
     card.querySelector('[data-field="role"]').textContent = formatText(notification.role);
     card.querySelector('[data-field="criadoEm"]').textContent = formatDateTime(notification.criadoEm);
     card.querySelector('[data-field="valor"]').textContent = formatCurrency(notification.valor);
@@ -183,6 +301,26 @@ const renderNotifications = () => {
     card.querySelector('[data-field="razaoSocialNome"]').textContent = formatText(
       notification.razaoSocialNome,
     );
+    const checkButton = card.querySelector(".notification-check-toggle");
+    if (checkButton instanceof HTMLButtonElement) {
+      checkButton.classList.toggle("is-checked", checked);
+      checkButton.classList.toggle("is-locked", supportLocked);
+      checkButton.disabled = supportLocked;
+      checkButton.setAttribute("aria-pressed", String(checked));
+      checkButton.setAttribute(
+        "aria-label",
+        supportLocked
+          ? SUPPORT_UNCHECK_BLOCKED_MESSAGE
+          : checked
+            ? "Desmarcar comprovante"
+            : "Marcar comprovante como verificado",
+      );
+      if (supportLocked) {
+        checkButton.title = SUPPORT_UNCHECK_BLOCKED_MESSAGE;
+      } else {
+        checkButton.removeAttribute("title");
+      }
+    }
     notificationsList.appendChild(node);
   });
 };
@@ -191,6 +329,45 @@ const renderPage = () => {
   renderSummary();
   renderNotifications();
   hideState();
+  notifyNavbarCountChanged();
+};
+
+const patchVerificacao = async (itemId, verificado) => {
+  const accessToken = getAccessToken();
+  if (!accessToken) {
+    window.location.href = "/login";
+    return null;
+  }
+
+  const csrfToken = await ensureCsrfToken(true);
+  const response = await fetch(`/api/v1/itens/${itemId}/verificacao`, {
+    method: "PATCH",
+    credentials: "same-origin",
+    redirect: "manual",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Accept: "application/json",
+      "X-CSRF-TOKEN": csrfToken,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ verificado }),
+  });
+
+  const isRedirect =
+    response.type === "opaqueredirect" ||
+    (typeof response.status === "number" && response.status >= 300 && response.status < 400) ||
+    response.redirected;
+  if (isRedirect || response.status === 401) {
+    window.location.href = "/login";
+    throw new Error("Sessao expirada. Faca login novamente.");
+  }
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response, "Falha ao atualizar verificacao.");
+    throw new Error(message);
+  }
+
+  return response.json();
 };
 
 const loadNotifications = async ({ preserveVisibleContent = false } = {}) => {
@@ -220,7 +397,7 @@ const loadNotifications = async ({ preserveVisibleContent = false } = {}) => {
     return;
   }
   if (response.status === 403) {
-    throw new Error("Acesso negado as notificacoes do politico selecionado.");
+    throw new Error("Acesso negado as notificacoes do candidato selecionado.");
   }
   if (!response.ok) {
     throw new Error("Nao foi possivel carregar as notificacoes.");
@@ -251,6 +428,10 @@ const loadRoleFilterOptions = async () => {
     window.location.href = "/login";
     return;
   }
+  if (response.status === 403) {
+    removeRoleFilterBox();
+    return;
+  }
   if (!response.ok) {
     removeRoleFilterBox();
     return;
@@ -260,7 +441,48 @@ const loadRoleFilterOptions = async () => {
   applyRoleOptions(roles);
 };
 
+const bindEvents = () => {
+  if (!notificationsList) return;
+  notificationsList.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const checkButton = target.closest(".notification-check-toggle");
+    if (!(checkButton instanceof HTMLButtonElement)) return;
+
+    const card = checkButton.closest(".notification-card");
+    const notificationId = card?.dataset.id;
+    const itemId = card?.dataset.itemId;
+    if (!notificationId || !itemId) return;
+    if (isSupportUser() && checkButton.classList.contains("is-checked")) {
+      showState(SUPPORT_UNCHECK_BLOCKED_MESSAGE, true);
+      return;
+    }
+
+    const nextChecked = !checkButton.classList.contains("is-checked");
+    checkButton.disabled = true;
+    try {
+      const updated = await patchVerificacao(itemId, nextChecked);
+      const persistedChecked = Boolean(updated?.verificado);
+      syncNotificationCheckedState(notificationId, persistedChecked);
+      renderPage();
+    } catch (error) {
+      showState(
+        error instanceof Error ? error.message : "Erro ao atualizar verificacao.",
+        true,
+      );
+    } finally {
+      checkButton.disabled = false;
+    }
+  });
+};
+
 const init = async () => {
+  bindEvents();
+  try {
+    state.userRoles = await loadCurrentUserRoles();
+  } catch (error) {
+    state.userRoles = [];
+  }
   try {
     await loadRoleFilterOptions();
   } catch (error) {
