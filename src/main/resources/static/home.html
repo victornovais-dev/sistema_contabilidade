@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
@@ -6,8 +6,8 @@
     <title>Home | Sistema</title>
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
     <script src="assets/js/theme-init.js?v=20260413-home-summary-1"></script>
-    <link rel="stylesheet" href="assets/css/home.css?v=20260413-home-summary-1" />
-    <link rel="stylesheet" href="assets/css/navbar.css?v=20260413-home-summary-1" />
+    <link rel="stylesheet" href="assets/css/home.css?v=20260420-utilizado-centralizado-1" />
+    <link rel="stylesheet" href="assets/css/navbar.css?v=20260420-navbar-notification-count-fix-3" />
   </head>
   <body>
     <div id="navbar-root" data-navbar-root></div>
@@ -34,9 +34,8 @@
         </div>
 
         <div class="dashboard-actions">
-          <a class="dashboard-primary-action" href="/adicionar_comprovante">+ Novo Lan&ccedil;amento</a>
           <div class="role-filter-box" id="home-role-filter-box" hidden>
-            <label for="home-role-filter-select">Pol&iacute;tico</label>
+            <label for="home-role-filter-select">Candidato</label>
             <div class="custom-select" data-custom-select>
               <button
                 class="custom-select-trigger"
@@ -50,7 +49,7 @@
               <select
                 id="home-role-filter-select"
                 class="native-select"
-                aria-label="Selecionar politico para visualizar a home"
+                aria-label="Selecionar candidato para visualizar a home"
                 aria-hidden="true"
               >
                 <option value="" disabled selected>Selecione</option>
@@ -76,13 +75,13 @@
         <article class="metric-card metric-card-balance">
           <p class="metric-label">Utilizado</p>
           <p class="metric-amount metric-amount-utilizado" data-metric="utilizado">0%</p>
-          <p class="metric-chip metric-chip-positive">Receitas x despesas</p>
+          <p class="metric-chip metric-chip-positive">Receita Gasta</p>
         </article>
 
         <article class="metric-card metric-card-cash">
           <p class="metric-label">Saldo final</p>
           <p class="metric-amount metric-amount-neutral" data-metric="saldoEmCaixa">R$ 0,00</p>
-          <p class="metric-chip metric-chip-neutral" hidden></p>
+          <p class="metric-chip metric-chip-neutral">Saldo final</p>
         </article>
       </section>
 
@@ -137,10 +136,10 @@
       </section>
     </main>
 
-    <script src="assets/js/navbar.js?v=20260413-home-summary-1" defer></script>
+    <script src="assets/js/navbar.js?v=20260421-notifications-admin-contabil-1" defer></script>
     <script src="assets/js/role-dropdown.js?v=20260413-home-summary-1" defer></script>
     <script src="assets/js/home-welcome.js?v=20260413-home-summary-1" defer></script>
-    <script src="assets/js/home-role-filter.js?v=20260413-home-summary-1" defer></script>
+    <script src="assets/js/home-role-filter.js?v=20260421-candidato-role-1" defer></script>
     <script src="assets/js/home-dashboard-data.js?v=20260413-home-summary-1" defer></script>
     <script src="assets/js/home-metrics.js?v=20260413-home-summary-1" defer></script>
     <script src="assets/js/home-income-expense-chart.js?v=20260413-home-summary-1" defer></script>

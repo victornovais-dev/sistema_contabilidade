@@ -1,5 +1,6 @@
 (() => {
   const storageKey = "sc_home_selected_role";
+  const technicalRoles = new Set(["ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO"]);
   const roleFilterBox = document.getElementById("home-role-filter-box");
   const roleFilterSelect = document.getElementById("home-role-filter-select");
   const roleDropdown =
@@ -33,19 +34,15 @@
 
   const orderRoles = (roles) => {
     const normalizedRoles = Array.isArray(roles)
-      ? [...new Set(roles.map((role) => String(role || "").trim()).filter(Boolean))]
+      ? [
+          ...new Set(
+            roles
+              .map((role) => String(role || "").trim())
+              .filter((role) => role && !technicalRoles.has(role.toUpperCase())),
+          ),
+        ].sort((a, b) => a.localeCompare(b, "pt-BR"))
       : [];
-    if (!normalizedRoles.length) return [];
-
-    const firstRole = normalizedRoles.includes("ADMIN") ? "ADMIN" : normalizedRoles[0];
-    const remaining = normalizedRoles.filter((role) => role !== firstRole && role !== "MANAGER");
-    remaining.sort((a, b) => a.localeCompare(b, "pt-BR"));
-
-    if (!normalizedRoles.includes("MANAGER") || firstRole === "MANAGER") {
-      return [firstRole, ...remaining];
-    }
-
-    return [firstRole, "MANAGER", ...remaining];
+    return normalizedRoles;
   };
 
   const hideRoleFilter = () => {
@@ -75,11 +72,7 @@
     renderCustomOptions(orderedRoles);
 
     const currentRole = getSelectedRole();
-    const nextRole = orderedRoles.includes(currentRole)
-      ? currentRole
-      : orderedRoles.includes("ADMIN")
-        ? "ADMIN"
-        : orderedRoles[0];
+    const nextRole = orderedRoles.includes(currentRole) ? currentRole : orderedRoles[0];
 
     roleFilterSelect.value = nextRole;
     roleFilterBox.hidden = false;
