@@ -10,6 +10,9 @@ public record RelatorioFinanceiroResponse(
     BigDecimal despesasConsideradas,
     BigDecimal despesasAdvocaciaContabilidade,
     BigDecimal totalDespesas,
+    BigDecimal limiteGastosCombustivelPercentual,
+    BigDecimal limiteGastosAlimentacaoPercentual,
+    BigDecimal limiteGastosLocacaoPercentual,
     BigDecimal saldoFinal,
     List<RelatorioItemDto> receitas,
     List<RelatorioItemDto> despesas) {
@@ -22,6 +25,16 @@ public record RelatorioFinanceiroResponse(
     despesasAdvocaciaContabilidade =
         despesasAdvocaciaContabilidade == null ? BigDecimal.ZERO : despesasAdvocaciaContabilidade;
     totalDespesas = totalDespesas == null ? BigDecimal.ZERO : totalDespesas;
+    limiteGastosCombustivelPercentual =
+        limiteGastosCombustivelPercentual == null
+            ? BigDecimal.ZERO
+            : limiteGastosCombustivelPercentual;
+    limiteGastosAlimentacaoPercentual =
+        limiteGastosAlimentacaoPercentual == null
+            ? BigDecimal.ZERO
+            : limiteGastosAlimentacaoPercentual;
+    limiteGastosLocacaoPercentual =
+        limiteGastosLocacaoPercentual == null ? BigDecimal.ZERO : limiteGastosLocacaoPercentual;
     saldoFinal = saldoFinal == null ? BigDecimal.ZERO : saldoFinal;
     receitas = receitas == null ? List.of() : List.copyOf(receitas);
     despesas = despesas == null ? List.of() : List.copyOf(despesas);

@@ -36,6 +36,9 @@ class RelatorioFinanceiroResponseTest {
             BigDecimal.ZERO,
             BigDecimal.ZERO,
             BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
             BigDecimal.TEN,
             receitas,
             despesas);
@@ -44,6 +47,9 @@ class RelatorioFinanceiroResponseTest {
     assertEquals(BigDecimal.ZERO, response.receitasEstimaveis());
     assertEquals(BigDecimal.ZERO, response.despesasConsideradas());
     assertEquals(BigDecimal.ZERO, response.despesasAdvocaciaContabilidade());
+    assertEquals(BigDecimal.ZERO, response.limiteGastosCombustivelPercentual());
+    assertEquals(BigDecimal.ZERO, response.limiteGastosAlimentacaoPercentual());
+    assertEquals(BigDecimal.ZERO, response.limiteGastosLocacaoPercentual());
     assertEquals(1, response.receitas().size());
     assertEquals(0, response.despesas().size());
   }

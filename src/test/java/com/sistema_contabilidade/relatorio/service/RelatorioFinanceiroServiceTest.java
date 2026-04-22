@@ -60,6 +60,9 @@ class RelatorioFinanceiroServiceTest {
     assertEquals(BigDecimal.ZERO, response.despesasConsideradas());
     assertEquals(BigDecimal.ZERO, response.despesasAdvocaciaContabilidade());
     assertEquals(BigDecimal.ZERO, response.totalDespesas());
+    assertEquals(BigDecimal.ZERO, response.limiteGastosCombustivelPercentual());
+    assertEquals(BigDecimal.ZERO, response.limiteGastosAlimentacaoPercentual());
+    assertEquals(BigDecimal.ZERO, response.limiteGastosLocacaoPercentual());
   }
 
   @Test
@@ -119,11 +122,12 @@ class RelatorioFinanceiroServiceTest {
     Role financeiro = new Role();
     financeiro.setNome(" financeiro ");
 
-    when(roleRepository.findAllRoleNamesOrdered()).thenReturn(List.of("ADMIN", "FINANCEIRO"));
+    when(roleRepository.findAllRoleNamesOrdered())
+        .thenReturn(List.of("ADMIN", "CANDIDATO", "CONTABIL", "FINANCEIRO", "MANAGER", "SUPPORT"));
 
     List<String> roles = service.listarRolesDisponiveis(adminAuth());
 
-    assertEquals(List.of("ADMIN", "FINANCEIRO"), roles);
+    assertEquals(List.of("FINANCEIRO"), roles);
   }
 
   @Test
@@ -131,7 +135,7 @@ class RelatorioFinanceiroServiceTest {
   void deveListarRolesDoProprioUsuarioQuandoNaoForAdmin() {
     RelatorioFinanceiroService service = service();
     UsernamePasswordAuthenticationToken authentication =
-        authentication("user@email.com", "ROLE_OPERADOR", "ROLE_FINANCEIRO");
+        authentication("user@email.com", "ROLE_OPERADOR", "ROLE_FINANCEIRO", "ROLE_SUPPORT");
 
     List<String> roles = service.listarRolesDisponiveis(authentication);
 
@@ -233,6 +237,52 @@ class RelatorioFinanceiroServiceTest {
   }
 
   @Test
+  @DisplayName("Deve calcular limites de gastos como percentual do total de despesas")
+  void deveCalcularLimitesDeGastosComoPercentualDoTotalDeDespesas() {
+    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    RelatorioFinanceiroService service =
+        new RelatorioFinanceiroService(
+            itemRepository,
+            Mockito.mock(RoleRepository.class),
+            Mockito.mock(UsuarioRepository.class),
+            Mockito.mock(PlaywrightPdfService.class));
+
+    when(itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc())
+        .thenReturn(
+            List.of(
+                dto(
+                    "COMBUSTÍVEIS E LUBRIFICANTES",
+                    TipoItem.DESPESA,
+                    "100000.00",
+                    LocalDate.of(2026, 4, 1),
+                    8,
+                    0),
+                dto("ALIMENTAÇÃO", TipoItem.DESPESA, "75000.00", LocalDate.of(2026, 4, 2), 8, 0),
+                dto(
+                    "ALUGUEL DE IMÓVEIS",
+                    TipoItem.DESPESA,
+                    "125000.00",
+                    LocalDate.of(2026, 4, 3),
+                    8,
+                    0),
+                dto(
+                    "ALUGUEL DE VEÍCULOS",
+                    TipoItem.DESPESA,
+                    "50000.00",
+                    LocalDate.of(2026, 4, 4),
+                    8,
+                    0),
+                dto("INTERNET", TipoItem.DESPESA, "150000.00", LocalDate.of(2026, 4, 5), 8, 0)));
+
+    RelatorioFinanceiroResponse response = service.gerar(adminAuth(), null);
+
+    assertEquals(new BigDecimal("500000.00"), response.totalDespesas());
+    assertEquals(new BigDecimal("0.2000"), response.limiteGastosCombustivelPercentual());
+    assertEquals(new BigDecimal("0.1500"), response.limiteGastosAlimentacaoPercentual());
+    assertEquals(new BigDecimal("0.1000"), response.limiteGastosLocacaoPercentual());
+  }
+
+  @Test
   @DisplayName("Deve montar dados do PDF com categorias ordenadas e cores estaveis")
   void deveMontarDadosDoPdfComCategoriasOrdenadasECoresEstaveis() {
     ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
@@ -250,6 +300,9 @@ class RelatorioFinanceiroServiceTest {
             new BigDecimal("250.00"),
             new BigDecimal("50.00"),
             new BigDecimal("300.00"),
+            new BigDecimal("0.0000"),
+            new BigDecimal("0.6667"),
+            new BigDecimal("0.0000"),
             new BigDecimal("700.00"),
             List.of(dto("SERVICOS", TipoItem.RECEITA, "1000.00", LocalDate.of(2026, 4, 1), 8, 0)),
             List.of(
@@ -309,6 +362,9 @@ class RelatorioFinanceiroServiceTest {
             BigDecimal.ZERO,
             BigDecimal.ZERO,
             BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
             List.of(),
             List.of());
     byte[] pdf = "pdf".getBytes(StandardCharsets.UTF_8);
@@ -350,6 +406,9 @@ class RelatorioFinanceiroServiceTest {
             BigDecimal.ZERO,
             new BigDecimal("25.00"),
             new BigDecimal("25.00"),
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
             new BigDecimal("-25.00"),
             List.of(),
             List.of(dto(null, TipoItem.DESPESA, "25.00", null, null, null)));

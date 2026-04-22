@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.relatorio.service;
 
+import com.sistema_contabilidade.common.util.CandidateRoleUtils;
 import com.sistema_contabilidade.common.util.RevenueClassificationUtils;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemRepository;
@@ -42,6 +43,9 @@ public class RelatorioFinanceiroService {
   private static final String ADMIN_ROLE = "ADMIN";
   private static final Set<String> DESPESAS_ADVOCACIA_CONTABILIDADE =
       Set.of("SERVICOS ADVOCATICIOS", "SERVICOS CONTABEIS");
+  private static final Set<String> DESPESAS_COMBUSTIVEL = Set.of("COMBUSTIVEIS E LUBRIFICANTES");
+  private static final Set<String> DESPESAS_ALIMENTACAO = Set.of("ALIMENTACAO");
+  private static final Set<String> DESPESAS_LOCACAO = Set.of("ALUGUEL DE VEICULOS");
   private static final String COLOR_PRIMARY_BLUE = "#2563eb";
   private static final String COLOR_DANGER_RED = "#ef4444";
   private static final String COLOR_WARNING_AMBER = "#f59e0b";
@@ -145,6 +149,17 @@ public class RelatorioFinanceiroService {
         somarDespesasPorCategoria(despesas, this::isAdvocaciaOrContabilidadeExpense);
     BigDecimal totalDespesas = somarValores(despesas);
     BigDecimal despesasConsideradas = totalDespesas.subtract(despesasAdvocaciaContabilidade);
+    BigDecimal despesasCombustivel =
+        somarDespesasPorCategoria(despesas, this::isCombustivelExpense);
+    BigDecimal despesasAlimentacao =
+        somarDespesasPorCategoria(despesas, this::isAlimentacaoExpense);
+    BigDecimal despesasLocacao = somarDespesasPorCategoria(despesas, this::isLocacaoExpense);
+    BigDecimal limiteGastosCombustivelPercentual =
+        calcularPercentualSobreDespesas(despesasCombustivel, totalDespesas);
+    BigDecimal limiteGastosAlimentacaoPercentual =
+        calcularPercentualSobreDespesas(despesasAlimentacao, totalDespesas);
+    BigDecimal limiteGastosLocacaoPercentual =
+        calcularPercentualSobreDespesas(despesasLocacao, totalDespesas);
     BigDecimal saldoFinal = totalReceitas.subtract(totalDespesas);
 
     return new RelatorioFinanceiroResponse(
@@ -154,6 +169,9 @@ public class RelatorioFinanceiroService {
         despesasConsideradas,
         despesasAdvocaciaContabilidade,
         totalDespesas,
+        limiteGastosCombustivelPercentual,
+        limiteGastosAlimentacaoPercentual,
+        limiteGastosLocacaoPercentual,
         saldoFinal,
         receitas,
         despesas);
@@ -162,9 +180,9 @@ public class RelatorioFinanceiroService {
   public List<String> listarRolesDisponiveis(Authentication authentication) {
     Set<String> roleNomesAutenticado = extrairRoleNomes(authentication);
     if (roleNomesAutenticado.contains(ADMIN_ROLE)) {
-      return roleRepository.findAllRoleNamesOrdered();
+      return CandidateRoleUtils.filterCandidateRoles(roleRepository.findAllRoleNamesOrdered());
     }
-    return roleNomesAutenticado.stream().sorted().toList();
+    return CandidateRoleUtils.filterCandidateRoles(roleNomesAutenticado);
   }
 
   public byte[] gerarPdf(Authentication authentication, RelatorioFinanceiroResponse relatorio) {
@@ -384,6 +402,28 @@ public class RelatorioFinanceiroService {
 
   private boolean isAdvocaciaOrContabilidadeExpense(String descricao) {
     return DESPESAS_ADVOCACIA_CONTABILIDADE.contains(normalizeCategoryName(descricao));
+  }
+
+  private boolean isCombustivelExpense(String descricao) {
+    return DESPESAS_COMBUSTIVEL.contains(normalizeCategoryName(descricao));
+  }
+
+  private boolean isAlimentacaoExpense(String descricao) {
+    return DESPESAS_ALIMENTACAO.contains(normalizeCategoryName(descricao));
+  }
+
+  private boolean isLocacaoExpense(String descricao) {
+    return DESPESAS_LOCACAO.contains(normalizeCategoryName(descricao));
+  }
+
+  private BigDecimal calcularPercentualSobreDespesas(
+      BigDecimal valorCategoria, BigDecimal totalDespesas) {
+    BigDecimal total = totalDespesas == null ? BigDecimal.ZERO : totalDespesas;
+    BigDecimal parcial = valorCategoria == null ? BigDecimal.ZERO : valorCategoria;
+    if (total.signum() == 0) {
+      return BigDecimal.ZERO;
+    }
+    return parcial.divide(total, 4, RoundingMode.HALF_UP);
   }
 
   private Set<String> extrairRoleNomes(Authentication authentication) {

@@ -46,6 +46,9 @@ class RelatorioControllerWebMvcTest {
             new BigDecimal("300.00"),
             new BigDecimal("200.00"),
             new BigDecimal("500.00"),
+            new BigDecimal("0.1200"),
+            new BigDecimal("0.0800"),
+            new BigDecimal("0.3000"),
             new BigDecimal("1000.00"),
             List.of(),
             List.of());
@@ -60,6 +63,9 @@ class RelatorioControllerWebMvcTest {
         .andExpect(jsonPath("$.despesasConsideradas").value(300.00))
         .andExpect(jsonPath("$.despesasAdvocaciaContabilidade").value(200.00))
         .andExpect(jsonPath("$.totalDespesas").value(500.00))
+        .andExpect(jsonPath("$.limiteGastosCombustivelPercentual").value(0.1200))
+        .andExpect(jsonPath("$.limiteGastosAlimentacaoPercentual").value(0.0800))
+        .andExpect(jsonPath("$.limiteGastosLocacaoPercentual").value(0.3000))
         .andExpect(jsonPath("$.saldoFinal").value(1000.00));
   }
 
@@ -68,6 +74,9 @@ class RelatorioControllerWebMvcTest {
   void baixarRelatorioFinanceiroPdfDeveRetornarPdf() throws Exception {
     RelatorioFinanceiroResponse relatorio =
         new RelatorioFinanceiroResponse(
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
             BigDecimal.ZERO,
             BigDecimal.ZERO,
             BigDecimal.ZERO,
@@ -95,14 +104,11 @@ class RelatorioControllerWebMvcTest {
   @Test
   @DisplayName("Deve retornar roles disponiveis para filtro")
   void listarRolesDisponiveisDeveRetornarOk() throws Exception {
-    when(relatorioFinanceiroService.listarRolesDisponiveis(any()))
-        .thenReturn(List.of("ADMIN", "MANAGER", "OPERATOR"));
+    when(relatorioFinanceiroService.listarRolesDisponiveis(any())).thenReturn(List.of("OPERATOR"));
 
     mockMvc
         .perform(get("/api/v1/relatorios/roles"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0]").value("ADMIN"))
-        .andExpect(jsonPath("$[1]").value("MANAGER"))
-        .andExpect(jsonPath("$[2]").value("OPERATOR"));
+        .andExpect(jsonPath("$[0]").value("OPERATOR"));
   }
 }
