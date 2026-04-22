@@ -4,14 +4,38 @@ const state = {
 };
 
 const REFRESH_ANIMATION_MS = 180;
+const LIMITE_COMBUSTIVEL_RATIO = 0.1;
+const LIMITE_ALIMENTACAO_RATIO = 0.1;
+const LIMITE_LOCACAO_VEICULOS_RATIO = 0.2;
 
 const summaryLayout = document.getElementById("summary-layout");
 const summaryDespesasCard = document.getElementById("summary-despesas-card");
+const summaryLimitesCard = document.getElementById("summary-limites-card");
 const summaryOverviewCard = document.getElementById("summary-overview-card");
 const summaryDespesasTitle = summaryDespesasCard?.querySelector(".summary-card-title") || null;
+const summaryLimitesTitle = summaryLimitesCard?.querySelector(".summary-card-title") || null;
 const summaryOverviewTitle = summaryOverviewCard?.querySelector(".summary-card-title") || null;
 const reportState = document.getElementById("report-state");
 const downloadReportButton = document.getElementById("download-report-btn");
+const technicalRoles = new Set(["ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO"]);
+const roleFilterStorageKey = "sc_home_selected_role";
+const getStoredSelectedRole = () => String(localStorage.getItem(roleFilterStorageKey) || "").trim();
+const setSelectedRole = (role) => {
+  const normalizedRole = String(role || "").trim();
+  state.selectedRole = normalizedRole;
+
+  if (normalizedRole) {
+    localStorage.setItem(roleFilterStorageKey, normalizedRole);
+  } else {
+    localStorage.removeItem(roleFilterStorageKey);
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("sc:home-role-change", {
+      detail: { role: normalizedRole },
+    }),
+  );
+};
 const roleFilterBox = document.getElementById("role-filter-box");
 const roleFilterSelect = document.getElementById("role-filter-select");
 const roleDropdown =
@@ -19,12 +43,12 @@ const roleDropdown =
     ? window.createRoleDropdown({
         select: roleFilterSelect,
         onChange: async (value) => {
-          state.selectedRole = value || "";
+          setSelectedRole(value || "");
           try {
             await loadRelatorio({ preserveVisibleContent: Boolean(state.relatorio) });
           } catch (error) {
             setRefreshing(false);
-            showState("Erro ao carregar relatorios. Tente novamente.", true);
+            showState("Erro ao carregar relatórios. Tente novamente.", true);
           }
         },
       })
@@ -41,7 +65,7 @@ const buildRoleQuery = () => {
 };
 
 const removeRoleFilterBox = () => {
-  state.selectedRole = "";
+  setSelectedRole("");
   if (roleFilterBox) {
     roleFilterBox.hidden = true;
   }
@@ -57,43 +81,34 @@ const renderRoleOptions = (roles) => {
 
 const orderRoles = (roles) => {
   const normalizedRoles = Array.isArray(roles)
-    ? [...new Set(roles.map((role) => String(role || "").trim()).filter(Boolean))]
+    ? [
+        ...new Set(
+          roles
+            .map((role) => String(role || "").trim())
+            .filter((role) => role && !technicalRoles.has(role.toUpperCase())),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "pt-BR"))
     : [];
-  if (!normalizedRoles.length) return [];
-
-  const firstRole = normalizedRoles.includes("ADMIN") ? "ADMIN" : normalizedRoles[0];
-  const remaining = normalizedRoles.filter((role) => role !== firstRole && role !== "MANAGER");
-  remaining.sort((a, b) => a.localeCompare(b, "pt-BR"));
-
-  if (!normalizedRoles.includes("MANAGER") || firstRole === "MANAGER") {
-    return [firstRole, ...remaining];
-  }
-
-  return [firstRole, "MANAGER", ...remaining];
+  return normalizedRoles;
 };
 
 const applyRoleOptions = (roles) => {
   if (!roleFilterBox || !roleFilterSelect) return;
   const orderedRoles = orderRoles(roles);
-  if (orderedRoles.length <= 1) {
+  if (orderedRoles.length === 0) {
     removeRoleFilterBox();
     return;
   }
 
   renderRoleOptions(orderedRoles);
 
-  if (
-    (!state.selectedRole || !orderedRoles.includes(state.selectedRole)) &&
-    orderedRoles.includes("ADMIN")
-  ) {
-    state.selectedRole = "ADMIN";
-  } else if (!state.selectedRole || !orderedRoles.includes(state.selectedRole)) {
-    state.selectedRole = orderedRoles[0];
-  }
+  const currentRole = getStoredSelectedRole();
+  const nextRole = orderedRoles.includes(currentRole) ? currentRole : orderedRoles[0];
 
-  roleFilterSelect.value = state.selectedRole;
+  roleFilterSelect.value = nextRole;
   roleFilterBox.hidden = false;
-  roleDropdown?.setValue(state.selectedRole);
+  roleDropdown?.setValue(nextRole);
+  setSelectedRole(nextRole);
 };
 
 const formatCompactNumber = (value) => {
@@ -124,15 +139,23 @@ const formatCurrency = (value) => {
   })}`;
 };
 
-const formatPercent = (ratio) => {
+const formatFullCurrency = (value) =>
+  Number(value || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+const formatPercent = (ratio, fractionDigits = 0) => {
   const numeric = Number(ratio);
   if (!Number.isFinite(numeric)) {
     return "0%";
   }
   return numeric.toLocaleString("pt-BR", {
     style: "percent",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   });
 };
 
@@ -154,9 +177,20 @@ const isFinancialRevenue = (descricao) => {
 };
 
 const isEstimatedRevenue = (descricao) => normalizeDescription(descricao) === "ESTIMAVEL";
+
 const isAdvocaciaContabilidadeExpense = (descricao) => {
   const normalized = normalizeDescription(descricao);
   return normalized === "SERVICOS ADVOCATICIOS" || normalized === "SERVICOS CONTABEIS";
+};
+
+const isCombustivelExpense = (descricao) =>
+  normalizeDescription(descricao) === "COMBUSTIVEIS E LUBRIFICANTES";
+
+const isAlimentacaoExpense = (descricao) => normalizeDescription(descricao) === "ALIMENTACAO";
+
+const isLocacaoExpense = (descricao) => {
+  const normalized = normalizeDescription(descricao);
+  return normalized === "ALUGUEL DE VEICULOS";
 };
 
 const sumReceitasBy = (items, matcher) =>
@@ -212,6 +246,7 @@ const showState = (message, isError = false) => {
   reportState.classList.toggle("is-error", isError);
   if (summaryLayout) summaryLayout.hidden = true;
   if (summaryDespesasCard) summaryDespesasCard.hidden = true;
+  if (summaryLimitesCard) summaryLimitesCard.hidden = true;
   if (summaryOverviewCard) summaryOverviewCard.hidden = true;
 };
 
@@ -222,6 +257,7 @@ const hideState = () => {
   reportState.classList.remove("is-error");
   if (summaryLayout) summaryLayout.hidden = false;
   if (summaryDespesasCard) summaryDespesasCard.hidden = false;
+  if (summaryLimitesCard) summaryLimitesCard.hidden = false;
   if (summaryOverviewCard) summaryOverviewCard.hidden = false;
 };
 
@@ -233,13 +269,16 @@ const setRefreshing = (refreshing) => {
 };
 
 const clearSummaryCards = () => {
-  [summaryDespesasCard, summaryOverviewCard].forEach((card) => {
+  [summaryDespesasCard, summaryLimitesCard, summaryOverviewCard].forEach((card) => {
     if (card) {
       card.innerHTML = "";
     }
   });
   if (summaryDespesasCard && summaryDespesasTitle) {
     summaryDespesasCard.appendChild(summaryDespesasTitle);
+  }
+  if (summaryLimitesCard && summaryLimitesTitle) {
+    summaryLimitesCard.appendChild(summaryLimitesTitle);
   }
   if (summaryOverviewCard && summaryOverviewTitle) {
     summaryOverviewCard.appendChild(summaryOverviewTitle);
@@ -264,6 +303,70 @@ const addSummaryMetric = (container, label, value, options = {}) => {
     });
   }
   container.appendChild(node);
+};
+
+const getLimitBarSize = (value, maxValue) => {
+  const numericValue = Number(value || 0);
+  const numericMax = Number(maxValue || 0);
+  if (numericValue <= 0 || numericMax <= 0) return "0%";
+  return `${Math.max(4, Math.min(100, (numericValue / numericMax) * 100)).toFixed(2)}%`;
+};
+
+const addLimitBar = (bars, label, value, maxValue, variant) => {
+  const bar = document.createElement("div");
+  bar.className = `limit-bar ${variant}`;
+
+  const header = document.createElement("div");
+  header.className = "limit-bar-header";
+
+  const labelElement = document.createElement("span");
+  labelElement.textContent = label;
+
+  const valueElement = document.createElement("strong");
+  valueElement.textContent = formatFullCurrency(value);
+
+  const track = document.createElement("div");
+  track.className = "limit-bar-track";
+
+  const fill = document.createElement("span");
+  fill.className = `limit-bar-fill ${variant}`;
+  fill.style.height = getLimitBarSize(value, maxValue);
+
+  header.append(labelElement, valueElement);
+  track.appendChild(fill);
+  bar.append(header, track);
+  bars.appendChild(bar);
+};
+
+const addExpenseLimitChart = (container, category) => {
+  if (!container || !category) return;
+  const spent = Number(category.spent || 0);
+  const ceiling = Number(category.ceiling || 0);
+  const maxValue = Math.max(spent, ceiling);
+  const isOverLimit = ceiling > 0 && spent > ceiling;
+
+  const row = document.createElement("article");
+  row.className = "expense-limit-row";
+  row.classList.toggle("is-over-limit", isOverLimit);
+
+  const header = document.createElement("div");
+  header.className = "expense-limit-header";
+
+  const title = document.createElement("h3");
+  title.textContent = category.label;
+
+  const ratio = document.createElement("span");
+  ratio.textContent = category.limitText;
+
+  const bars = document.createElement("div");
+  bars.className = "expense-limit-bars";
+
+  addLimitBar(bars, "Gasto", spent, maxValue, isOverLimit ? "is-danger" : "is-spent");
+  addLimitBar(bars, "Teto", ceiling, maxValue, "is-ceiling");
+
+  header.append(title, ratio);
+  row.append(header, bars);
+  container.appendChild(row);
 };
 
 const renderRelatorio = () => {
@@ -291,6 +394,12 @@ const renderRelatorio = () => {
     relatorio.despesasConsideradas != null
       ? Number(relatorio.despesasConsideradas)
       : despesasTotais - despesasAdvocaciaContabilidade;
+  const despesasCombustivel = sumDespesasBy(despesas, isCombustivelExpense);
+  const despesasAlimentacao = sumDespesasBy(despesas, isAlimentacaoExpense);
+  const despesasLocacaoVeiculos = sumDespesasBy(despesas, isLocacaoExpense);
+  const tetoCombustivel = despesasTotais * LIMITE_COMBUSTIVEL_RATIO;
+  const tetoAlimentacao = despesasTotais * LIMITE_ALIMENTACAO_RATIO;
+  const tetoLocacaoVeiculos = despesasTotais * LIMITE_LOCACAO_VEICULOS_RATIO;
   const utilizadoRatio = receitasTotais > 0 ? despesasTotais / receitasTotais : 0;
 
   addSummaryMetric(summaryOverviewCard, "Financeiras", formatCurrency(receitasFinanceiras), {
@@ -312,6 +421,7 @@ const renderRelatorio = () => {
   addSummaryMetric(summaryOverviewCard, "Saldo final", formatCurrency(relatorio.saldoFinal), {
     variant: Number(relatorio.saldoFinal || 0) < 0 ? "negative" : "positive",
   });
+
   addSummaryMetric(summaryDespesasCard, "Considerada", formatCurrency(despesasConsideradas), {
     variant: "negative",
   });
@@ -326,6 +436,26 @@ const renderRelatorio = () => {
   addSummaryMetric(summaryDespesasCard, "Total", formatCurrency(relatorio.totalDespesas), {
     variant: "negative",
   });
+
+  addExpenseLimitChart(summaryLimitesCard, {
+    label: "Combustível",
+    spent: despesasCombustivel,
+    ceiling: tetoCombustivel,
+    limitText: "Limite 10%",
+  });
+  addExpenseLimitChart(summaryLimitesCard, {
+    label: "Alimentação",
+    spent: despesasAlimentacao,
+    ceiling: tetoAlimentacao,
+    limitText: "Limite 10%",
+  });
+  addExpenseLimitChart(summaryLimitesCard, {
+    label: "Locação de Veículos",
+    spent: despesasLocacaoVeiculos,
+    ceiling: tetoLocacaoVeiculos,
+    limitText: "Limite 20%",
+  });
+
   hideState();
 };
 
@@ -339,7 +469,7 @@ const loadRelatorio = async ({ preserveVisibleContent = false } = {}) => {
     setRefreshing(true);
     await wait(REFRESH_ANIMATION_MS);
   } else {
-    showState("Carregando relatorios...");
+    showState("Carregando relatórios...");
   }
   const response = await fetch(`/api/v1/relatorios/financeiro${buildRoleQuery()}`, {
     method: "GET",
@@ -353,10 +483,10 @@ const loadRelatorio = async ({ preserveVisibleContent = false } = {}) => {
     return;
   }
   if (response.status === 403) {
-    throw new Error("Acesso negado ao relatorio para o político selecionado.");
+    throw new Error("Acesso negado ao relatório para o candidato selecionado.");
   }
   if (!response.ok) {
-    throw new Error("Nao foi possivel carregar o relatorio financeiro.");
+    throw new Error("Não foi possível carregar o relatório financeiro.");
   }
   state.relatorio = await response.json();
   renderRelatorio();
@@ -385,10 +515,10 @@ const downloadPdf = async () => {
     return;
   }
   if (response.status === 403) {
-    throw new Error("Acesso negado para gerar PDF do político selecionado.");
+    throw new Error("Acesso negado para gerar PDF do candidato selecionado.");
   }
   if (!response.ok) {
-    throw new Error("Nao foi possivel gerar o PDF.");
+    throw new Error("Não foi possível gerar o PDF.");
   }
 
   const blob = await response.blob();
@@ -441,7 +571,6 @@ const bindEvents = () => {
       showState("Erro ao gerar PDF. Tente novamente.", true);
     }
   });
-
 };
 
 const init = async () => {
@@ -454,7 +583,7 @@ const init = async () => {
   try {
     await loadRelatorio();
   } catch (error) {
-    showState("Erro ao carregar relatorios. Tente novamente.", true);
+    showState("Erro ao carregar relatórios. Tente novamente.", true);
   }
 };
 

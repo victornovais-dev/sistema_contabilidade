@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
@@ -23,8 +23,8 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/css/relatorios.css?v=20260413-relatorios-summary-only-1" />
-    <link rel="stylesheet" href="assets/css/navbar.css?v=20260413-relatorios-summary-only-1" />
+    <link rel="stylesheet" href="assets/css/relatorios.css?v=20260420-limites-barras-retas-1" />
+    <link rel="stylesheet" href="assets/css/navbar.css?v=20260420-navbar-notification-count-fix-3" />
   </head>
   <body>
     <div id="navbar-root" data-navbar-root></div>
@@ -41,7 +41,7 @@
         <div class="report-header-row">
           <h1>Relatorios</h1>
           <div class="role-filter-box" id="role-filter-box" hidden>
-            <label for="role-filter-select">Político</label>
+            <label for="role-filter-select">Candidato</label>
             <div class="custom-select" data-custom-select>
               <button
                 class="custom-select-trigger"
@@ -52,7 +52,12 @@
                 Selecione
               </button>
               <div class="custom-select-menu" role="listbox" hidden></div>
-              <select id="role-filter-select" class="native-select" aria-label="Filtrar por político" aria-hidden="true">
+              <select
+                id="role-filter-select"
+                class="native-select"
+                aria-label="Filtrar por candidato"
+                aria-hidden="true"
+              >
                 <option value="" disabled selected>Selecione</option>
               </select>
             </div>
@@ -68,6 +73,9 @@
         </section>
         <section class="card summary-card summary-card-solo" id="summary-despesas-card" hidden>
           <div class="summary-card-title">Despesas</div>
+        </section>
+        <section class="card summary-card summary-card-solo" id="summary-limites-card" hidden>
+          <div class="summary-card-title">Limites de gastos</div>
         </section>
       </section>
 
@@ -85,8 +93,8 @@
       </section>
     </main>
 
-    <script src="assets/js/navbar.js?v=20260413-relatorios-summary-only-1" defer></script>
-    <script src="assets/js/role-dropdown.js?v=20260413-relatorios-summary-only-1" defer></script>
-    <script src="assets/js/relatorios.js?v=20260413-relatorios-summary-only-1" defer></script>
+    <script src="assets/js/navbar.js?v=20260421-notifications-admin-contabil-1" defer></script>
+    <script src="assets/js/role-dropdown.js?v=20260420-home-role-filter-1" defer></script>
+    <script src="assets/js/relatorios.js?v=20260421-candidato-role-1" defer></script>
   </body>
 </html>
