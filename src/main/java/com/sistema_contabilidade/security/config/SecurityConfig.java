@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -34,8 +35,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
   private static final String ADMIN_ROLE = "ADMIN";
+  private static final String CONTABIL_ROLE = "CONTABIL";
+  private static final String CONTABIL_AUTHORITY = "ROLE_CONTABIL";
   private static final String ADMIN_PATH = "/admin";
+  private static final String ADD_RECEIPT_PATH = "/adicionar_comprovante";
+  private static final String ADD_RECEIPT_STATIC_PATH = "/adicionar_comprovante.html";
   private static final String MANAGE_ROLES_PATH = "/gerenciar_roles";
+  private static final String NOTIFICATIONS_PATH = "/notificacoes";
+  private static final String NOTIFICATIONS_STATIC_PATH = "/notificacoes.html";
+  private static final String NOTIFICATIONS_API_PATH = "/api/v1/notificacoes/**";
 
   private final JwtAuthFilter jwtAuthFilter;
   private final RateLimitFilter rateLimitFilter;
@@ -85,6 +93,8 @@ public class SecurityConfig {
                           (request, response, accessDeniedException) -> {
                             String requestUri = request.getRequestURI();
                             if (ADMIN_PATH.equals(requestUri)
+                                || ADD_RECEIPT_PATH.equals(requestUri)
+                                || ADD_RECEIPT_STATIC_PATH.equals(requestUri)
                                 || MANAGE_ROLES_PATH.equals(requestUri)) {
                               response.sendRedirect("/404");
                               return;
@@ -103,8 +113,24 @@ public class SecurityConfig {
                       .hasRole(ADMIN_ROLE)
                       .requestMatchers("/atualizar_usuario")
                       .hasRole(ADMIN_ROLE)
+                      .requestMatchers(ADD_RECEIPT_PATH, ADD_RECEIPT_STATIC_PATH)
+                      .access(
+                          (authentication, context) -> {
+                            var authResult = authentication.get();
+                            boolean permitido =
+                                authResult != null
+                                    && authResult.isAuthenticated()
+                                    && authResult.getAuthorities().stream()
+                                        .noneMatch(
+                                            authority ->
+                                                CONTABIL_AUTHORITY.equals(
+                                                    authority.getAuthority()));
+                            return new AuthorizationDecision(permitido);
+                          })
                       .requestMatchers(ADMIN_PATH)
                       .hasRole(ADMIN_ROLE)
+                      .requestMatchers(NOTIFICATIONS_PATH, NOTIFICATIONS_STATIC_PATH)
+                      .hasAnyRole(ADMIN_ROLE, CONTABIL_ROLE)
                       .requestMatchers(MANAGE_ROLES_PATH)
                       .hasRole(ADMIN_ROLE)
                       .requestMatchers(
@@ -126,6 +152,8 @@ public class SecurityConfig {
                       .hasRole(ADMIN_ROLE)
                       .requestMatchers("/api/v1/admin/**")
                       .hasRole(ADMIN_ROLE)
+                      .requestMatchers(NOTIFICATIONS_API_PATH)
+                      .hasAnyRole(ADMIN_ROLE, CONTABIL_ROLE)
                       .requestMatchers("/api/v1/relatorios/roles")
                       .authenticated()
                       .anyRequest()
