@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sistema Contabilidade Guide"
+  short_description: "Mapa tecnico deste repositorio Spring Boot"
+  default_prompt: "Use $sistema-contabilidade-project-guide para entender a arquitetura, os modulos, os fluxos de pagina e as convencoes do repositorio sistema_contabilidade antes de implementar mudancas."
