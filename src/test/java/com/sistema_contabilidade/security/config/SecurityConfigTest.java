@@ -40,6 +40,7 @@ class SecurityConfigTest {
     assertEquals(2, cors.getAllowedOrigins().size());
     assertTrue(cors.getAllowedOrigins().contains("http://localhost:3000"));
     assertTrue(cors.getAllowedOrigins().contains("http://teste.local"));
+    assertTrue(cors.getExposedHeaders().contains("X-Query-Count"));
     assertTrue(cors.getAllowCredentials());
   }
 
@@ -61,7 +62,7 @@ class SecurityConfigTest {
   }
 
   @Test
-  @DisplayName("Deve aceitar hashes SCrypt legados sem prefixo")
+  @DisplayName("Deve aceitar hash SCrypt atual sem prefixo")
   void deveAceitarHashesSCryptLegadosSemPrefixo() {
     SecurityConfig config =
         new SecurityConfig(
@@ -71,12 +72,9 @@ class SecurityConfigTest {
 
     PasswordEncoder encoder = config.passwordEncoder();
     String raw = "senha-legada";
-    String legacyV41 = SCryptPasswordEncoder.defaultsForSpringSecurity_v4_1().encode(raw);
-    String legacyV58 = SCryptPasswordEncoder.defaultsForSpringSecurity_v5_8().encode(raw);
+    String legacyV58 = new SCryptPasswordEncoder(65536, 8, 1, 32, 16).encode(raw);
 
-    assertTrue(encoder.matches(raw, legacyV41));
     assertTrue(encoder.matches(raw, legacyV58));
-    assertTrue(encoder.upgradeEncoding(legacyV41));
     assertTrue(encoder.upgradeEncoding(legacyV58));
   }
 

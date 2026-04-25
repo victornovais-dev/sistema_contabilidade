@@ -30,19 +30,25 @@ class UsuarioPadraoInitializerTest {
     roleAdmin.setNome("ADMIN");
 
     when(usuarioRepository.count()).thenReturn(0L);
-    when(passwordEncoder.encode("123")).thenReturn("{scrypt}hash");
+    when(passwordEncoder.encode("senha-inicial-segura")).thenReturn("{scrypt}hash");
     when(roleRepository.findByNome("ADMIN")).thenReturn(Optional.of(roleAdmin));
 
     UsuarioPadraoInitializer initializer =
-        new UsuarioPadraoInitializer(usuarioRepository, roleRepository, passwordEncoder);
+        new UsuarioPadraoInitializer(
+            usuarioRepository,
+            roleRepository,
+            passwordEncoder,
+            "Administrador Inicial",
+            "admin@sistema.local",
+            "senha-inicial-segura");
 
     initializer.run();
 
     ArgumentCaptor<Usuario> captor = ArgumentCaptor.forClass(Usuario.class);
     verify(usuarioRepository).save(captor.capture());
     Usuario usuarioSalvo = captor.getValue();
-    assertEquals("Victor Novais", usuarioSalvo.getNome());
-    assertEquals("victornovais77@gmail.com", usuarioSalvo.getEmail());
+    assertEquals("Administrador Inicial", usuarioSalvo.getNome());
+    assertEquals("admin@sistema.local", usuarioSalvo.getEmail());
     assertEquals("{scrypt}hash", usuarioSalvo.getSenha());
     assertTrue(usuarioSalvo.getRoles().stream().anyMatch(role -> "ADMIN".equals(role.getNome())));
   }
@@ -57,7 +63,38 @@ class UsuarioPadraoInitializerTest {
     when(usuarioRepository.count()).thenReturn(1L);
 
     UsuarioPadraoInitializer initializer =
-        new UsuarioPadraoInitializer(usuarioRepository, roleRepository, passwordEncoder);
+        new UsuarioPadraoInitializer(
+            usuarioRepository,
+            roleRepository,
+            passwordEncoder,
+            "Administrador Inicial",
+            "admin@sistema.local",
+            "senha-inicial-segura");
+
+    initializer.run();
+
+    verify(usuarioRepository, never()).save(org.mockito.ArgumentMatchers.any(Usuario.class));
+    verify(roleRepository, never()).findByNome(org.mockito.ArgumentMatchers.anyString());
+    verify(passwordEncoder, never()).encode(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  @DisplayName("Nao deve criar usuario padrao sem senha configurada")
+  void naoDeveCriarUsuarioPadraoSemSenhaConfigurada() {
+    UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
+    RoleRepository roleRepository = mock(RoleRepository.class);
+    PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+
+    when(usuarioRepository.count()).thenReturn(0L);
+
+    UsuarioPadraoInitializer initializer =
+        new UsuarioPadraoInitializer(
+            usuarioRepository,
+            roleRepository,
+            passwordEncoder,
+            "Administrador",
+            "admin@sistema.local",
+            " ");
 
     initializer.run();
 

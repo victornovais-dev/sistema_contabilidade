@@ -1,8 +1,6 @@
 package com.sistema_contabilidade.security.config;
 
-import java.util.List;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder;
 
 final class LegacyCompatiblePasswordEncoder implements PasswordEncoder {
 
@@ -10,15 +8,12 @@ final class LegacyCompatiblePasswordEncoder implements PasswordEncoder {
 
   private final PasswordEncoder delegate;
   private final PasswordEncoder preferredEncoder;
-  private final List<PasswordEncoder> legacyMatchers;
+  private final PasswordEncoder legacyMatcher;
 
   LegacyCompatiblePasswordEncoder(PasswordEncoder delegate, PasswordEncoder preferredEncoder) {
     this.delegate = delegate;
     this.preferredEncoder = preferredEncoder;
-    this.legacyMatchers =
-        List.of(
-            SCryptPasswordEncoder.defaultsForSpringSecurity_v4_1(),
-            SCryptPasswordEncoder.defaultsForSpringSecurity_v5_8());
+    this.legacyMatcher = preferredEncoder;
   }
 
   @Override
@@ -36,8 +31,7 @@ final class LegacyCompatiblePasswordEncoder implements PasswordEncoder {
       return delegate.matches(rawPassword, encodedPassword);
     }
 
-    return legacyMatchers.stream()
-        .anyMatch(encoder -> encoder.matches(rawPassword, encodedPassword));
+    return legacyMatcher.matches(rawPassword, encodedPassword);
   }
 
   @Override
