@@ -44,6 +44,9 @@ public class SecurityConfig {
   private static final String NOTIFICATIONS_PATH = "/notificacoes";
   private static final String NOTIFICATIONS_STATIC_PATH = "/notificacoes.html";
   private static final String NOTIFICATIONS_API_PATH = "/api/v1/notificacoes/**";
+  private static final String[] PUBLIC_ACTUATOR_PATHS = {
+    "/actuator/health", "/actuator/info", "/actuator/prometheus"
+  };
 
   private final JwtAuthFilter jwtAuthFilter;
   private final RateLimitFilter rateLimitFilter;
@@ -108,6 +111,8 @@ public class SecurityConfig {
           .authorizeHttpRequests(
               auth ->
                   auth.requestMatchers("/", "/login", "/404", "/error", "/error/**", "/favicon.ico")
+                      .permitAll()
+                      .requestMatchers(PUBLIC_ACTUATOR_PATHS)
                       .permitAll()
                       .requestMatchers("/criar_usuario")
                       .hasRole(ADMIN_ROLE)
@@ -185,6 +190,7 @@ public class SecurityConfig {
     configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
     configuration.setAllowedHeaders(
         List.of("Authorization", "Content-Type", "X-XSRF-TOKEN", "X-CSRF-TOKEN", "X-Request-ID"));
+    configuration.setExposedHeaders(List.of("X-Request-ID", "X-Query-Count"));
     configuration.setAllowCredentials(true);
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", configuration);

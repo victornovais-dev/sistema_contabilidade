@@ -1,0 +1,15 @@
+groups:
+  - name: sistema-contabilidade-query-count
+    rules:
+      - alert: HighQueryCountPerRoute
+        expr: |
+          max by (method, uri) (
+            max_over_time(http_server_query_count_max{uri!~"UNKNOWN|/actuator.*"}[5m])
+          ) > 15
+        for: 2m
+        labels:
+          severity: warning
+          service: sistema_contabilidade
+        annotations:
+          summary: "High SQL query count on {{ $labels.method }} {{ $labels.uri }}"
+          description: "{{ $labels.method }} {{ $labels.uri }} reached {{ $value }} SQL queries in a request during the last 5 minutes. Threshold: 15."
