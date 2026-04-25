@@ -42,12 +42,11 @@ class ItemExpenseLimitServiceTest {
     when(itemRepository.findByTipoAndRoleNome(TipoItem.DESPESA, "ADMIN"))
         .thenReturn(List.of(item("INTERNET", "900.00", null)));
 
+    ItemUpsertRequest request = request("Combustíveis e lubrificantes", "200.00");
     ResponseStatusException exception =
         assertThrows(
             ResponseStatusException.class,
-            () ->
-                service.validarLimiteDespesa(
-                    request("Combustíveis e lubrificantes", "200.00"), "ADMIN", null));
+            () -> service.validarLimiteDespesa(request, "ADMIN", null));
 
     assertEquals(400, exception.getStatusCode().value());
     assertEquals(
@@ -65,12 +64,11 @@ class ItemExpenseLimitServiceTest {
         .thenReturn(
             List.of(item("Aluguel de imóveis", "150.00", null), item("Internet", "350.00", null)));
 
+    ItemUpsertRequest request = request("Aluguel de veículos", "10.00");
     ResponseStatusException exception =
         assertThrows(
             ResponseStatusException.class,
-            () ->
-                service.validarLimiteDespesa(
-                    request("Aluguel de veículos", "10.00"), "ADMIN", null));
+            () -> service.validarLimiteDespesa(request, "ADMIN", null));
 
     assertEquals(
         "Nao e permitido adicionar esta despesa. Locacao pode representar no maximo 20% do total de despesas.",

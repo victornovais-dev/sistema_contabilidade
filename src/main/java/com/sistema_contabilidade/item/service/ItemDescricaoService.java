@@ -1,7 +1,5 @@
 package com.sistema_contabilidade.item.service;
 
-import static com.sistema_contabilidade.item.config.ItemDescricaoCatalog.ITEM_DESCRICOES_CACHE;
-
 import com.sistema_contabilidade.item.config.ItemDescricaoCatalog;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemDescricaoRepository;
@@ -26,7 +24,7 @@ public class ItemDescricaoService {
 
   private final ItemDescricaoRepository itemDescricaoRepository;
 
-  @Cacheable(value = ITEM_DESCRICOES_CACHE, key = "#p0.name()")
+  @Cacheable(value = ItemDescricaoCatalog.ITEM_DESCRICOES_CACHE, key = "#p0.name()")
   @Transactional(readOnly = true)
   public List<String> listarDescricoesPorTipo(TipoItem tipo) {
     if (tipo == null) {

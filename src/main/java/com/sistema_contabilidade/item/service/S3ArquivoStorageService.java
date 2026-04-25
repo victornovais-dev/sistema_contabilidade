@@ -141,7 +141,19 @@ public class S3ArquivoStorageService implements ArquivoStorageService {
     if (prefixo == null || prefixo.isBlank()) {
       return "itens";
     }
-    return prefixo.replace('\\', '/').replaceAll("^/+", "").replaceAll("/+$", "");
+    String normalizado = prefixo.trim().replace('\\', '/');
+    int inicio = 0;
+    int fim = normalizado.length();
+    while (inicio < fim && normalizado.charAt(inicio) == '/') {
+      inicio += 1;
+    }
+    while (fim > inicio && normalizado.charAt(fim - 1) == '/') {
+      fim -= 1;
+    }
+    if (inicio == fim) {
+      return "itens";
+    }
+    return normalizado.substring(inicio, fim);
   }
 
   private ResponseStatusException erroStorage(String mensagem, S3Exception ex, String chave) {

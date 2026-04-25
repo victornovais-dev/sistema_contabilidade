@@ -1,7 +1,5 @@
 package com.sistema_contabilidade.item.service;
 
-import static com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog.ITEM_TIPOS_DOCUMENTO_CACHE;
-
 import com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemTipoDocumentoRepository;
@@ -19,7 +17,7 @@ public class ItemTipoDocumentoService {
 
   private final ItemTipoDocumentoRepository itemTipoDocumentoRepository;
 
-  @Cacheable(ITEM_TIPOS_DOCUMENTO_CACHE)
+  @Cacheable(ItemTipoDocumentoCatalog.ITEM_TIPOS_DOCUMENTO_CACHE)
   @Transactional(readOnly = true)
   public List<String> listarTiposDocumento() {
     try {
@@ -42,7 +40,9 @@ public class ItemTipoDocumentoService {
         .toList();
   }
 
-  @Cacheable(value = ITEM_TIPOS_DOCUMENTO_CACHE, key = "#root.args[0].name()")
+  @Cacheable(
+      value = ItemTipoDocumentoCatalog.ITEM_TIPOS_DOCUMENTO_CACHE,
+      key = "#root.args[0].name()")
   @Transactional(readOnly = true)
   public List<String> listarTiposDocumentoPorTipo(TipoItem tipo) {
     return ItemTipoDocumentoCatalog.defaultDocumentTypesByTipo(tipo).stream()

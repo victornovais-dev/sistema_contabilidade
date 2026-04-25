@@ -32,11 +32,15 @@ public class NotificacaoService {
 
   @Transactional
   public void registrarReceitaLancada(Item item) {
-    sincronizarComItem(item);
+    sincronizarComItemInterno(item);
   }
 
   @Transactional
   public void sincronizarComItem(Item item) {
+    sincronizarComItemInterno(item);
+  }
+
+  private void sincronizarComItemInterno(Item item) {
     if (item == null || item.getId() == null) {
       return;
     }
@@ -173,13 +177,15 @@ public class NotificacaoService {
   private void garantirNotificacoesDasReceitas(
       Authentication authentication, String roleFiltroNormalizada, boolean admin) {
     if (roleFiltroNormalizada == null && admin) {
-      itemRepository.findReceitasOrderByHorarioCriacaoDesc().forEach(this::sincronizarComItem);
+      itemRepository
+          .findReceitasOrderByHorarioCriacaoDesc()
+          .forEach(this::sincronizarComItemInterno);
       return;
     }
     if (roleFiltroNormalizada != null && admin) {
       itemRepository
           .findReceitasPorRoleNomeOrderByHorarioCriacaoDesc(roleFiltroNormalizada)
-          .forEach(this::sincronizarComItem);
+          .forEach(this::sincronizarComItemInterno);
       return;
     }
 
@@ -193,11 +199,11 @@ public class NotificacaoService {
       ItemAccessUtils.validarRoleFiltro(roleFiltroNormalizada, roleNomesUsuario);
       itemRepository
           .findReceitasPorRoleNomeOrderByHorarioCriacaoDesc(roleFiltroNormalizada)
-          .forEach(this::sincronizarComItem);
+          .forEach(this::sincronizarComItemInterno);
       return;
     }
     itemRepository
         .findReceitasPorRoleNomesOrderByHorarioCriacaoDesc(roleNomesUsuario)
-        .forEach(this::sincronizarComItem);
+        .forEach(this::sincronizarComItemInterno);
   }
 }

@@ -153,11 +153,15 @@ public class ItemController {
   @GetMapping("/tipos-documento")
   public ResponseEntity<List<String>> listarTiposDocumento(
       @RequestParam(name = "tipo", required = false) TipoItem tipo) {
+    return ResponseEntity.ok(listarTiposDocumentoComFallback(tipo));
+  }
+
+  private List<String> listarTiposDocumentoComFallback(TipoItem tipo) {
     try {
       if (tipo != null) {
-        return ResponseEntity.ok(itemTipoDocumentoService.listarTiposDocumentoPorTipo(tipo));
+        return itemTipoDocumentoService.listarTiposDocumentoPorTipo(tipo);
       }
-      return ResponseEntity.ok(itemTipoDocumentoService.listarTiposDocumento());
+      return itemTipoDocumentoService.listarTiposDocumento();
     } catch (RuntimeException exception) {
       if (log.isWarnEnabled()) {
         log.warn(
@@ -167,7 +171,7 @@ public class ItemController {
           tipo == null
               ? ItemTipoDocumentoCatalog.defaultDocumentTypes()
               : ItemTipoDocumentoCatalog.defaultDocumentTypesByTipo(tipo);
-      return ResponseEntity.ok(catalogo.stream().map(seed -> seed.nome()).toList());
+      return catalogo.stream().map(seed -> seed.nome()).toList();
     }
   }
 
