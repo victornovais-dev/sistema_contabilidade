@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.security.service;
 
+import com.sistema_contabilidade.security.util.SecurityPaths;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -16,18 +17,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class AdminRouteService {
 
-  private static final String API_PREFIX = "/api/v1";
-  private static final String ADMIN_PAGE_PATH = "/admin";
-  private static final String ADMIN_PAGE_HTML_PATH = "/admin.html";
-  private static final String MANAGE_ROLES_PATH = "/gerenciar_roles";
-  private static final String MANAGE_ROLES_HTML_PATH = "/gerenciar_roles.html";
-  private static final String CREATE_USER_PATH = "/criar_usuario";
-  private static final String CREATE_USER_HTML_PATH = "/criar_usuario.html";
-  private static final String UPDATE_USER_PATH = "/atualizar_usuario";
-  private static final String UPDATE_USER_HTML_PATH = "/atualizar_usuario.html";
-  private static final String ADMIN_API_PATH = API_PREFIX + "/admin";
-  private static final String USERS_API_PATH = API_PREFIX + "/usuarios";
-  private static final String CURRENT_USER_API_PATH = USERS_API_PATH + "/me";
   private static final String ADMIN_HASH_FALLBACK_SECRET = "admin-route-fallback-secret";
   private static final Pattern STATIC_RESOURCE_PATTERN =
       Pattern.compile("^/(assets|partials|css|js|images|webjars|actuator)(/.*)?$");
@@ -48,27 +37,27 @@ public class AdminRouteService {
   }
 
   public String adminPagePath() {
-    return secretPagePath(ADMIN_PAGE_PATH);
+    return secretPagePath(SecurityPaths.ADMIN_PAGE);
   }
 
   public String manageRolesPagePath() {
-    return secretPagePath(MANAGE_ROLES_PATH);
+    return secretPagePath(SecurityPaths.MANAGE_ROLES_PAGE);
   }
 
   public String createUserPagePath() {
-    return secretPagePath(CREATE_USER_PATH);
+    return secretPagePath(SecurityPaths.CREATE_USER_PAGE);
   }
 
   public String updateUserPagePath() {
-    return secretPagePath(UPDATE_USER_PATH);
+    return secretPagePath(SecurityPaths.UPDATE_USER_PAGE);
   }
 
   public String adminApiBasePath() {
-    return API_PREFIX + "/" + routeHash() + "/admin";
+    return SecurityPaths.API_V1_PREFIX + "/" + routeHash() + SecurityPaths.ADMIN_PAGE;
   }
 
   public String adminUserApiBasePath() {
-    return API_PREFIX + "/" + routeHash() + "/usuarios";
+    return SecurityPaths.API_V1_PREFIX + "/" + routeHash() + "/usuarios";
   }
 
   public Map<String, String> routeConfig() {
@@ -84,26 +73,28 @@ public class AdminRouteService {
 
   public Optional<String> resolveInternalPath(String requestPath) {
     if (Objects.equals(requestPath, adminPagePath())) {
-      return Optional.of(ADMIN_PAGE_PATH);
+      return Optional.of(SecurityPaths.ADMIN_PAGE);
     }
     if (Objects.equals(requestPath, manageRolesPagePath())) {
-      return Optional.of(MANAGE_ROLES_PATH);
+      return Optional.of(SecurityPaths.MANAGE_ROLES_PAGE);
     }
     if (Objects.equals(requestPath, createUserPagePath())) {
-      return Optional.of(CREATE_USER_PATH);
+      return Optional.of(SecurityPaths.CREATE_USER_PAGE);
     }
     if (Objects.equals(requestPath, updateUserPagePath())) {
-      return Optional.of(UPDATE_USER_PATH);
+      return Optional.of(SecurityPaths.UPDATE_USER_PAGE);
     }
     if (requestPath.equals(adminApiBasePath())
         || requestPath.startsWith(adminApiBasePath() + "/")) {
       return Optional.of(
-          requestPath.replaceFirst("^" + Pattern.quote(adminApiBasePath()), ADMIN_API_PATH));
+          requestPath.replaceFirst(
+              "^" + Pattern.quote(adminApiBasePath()), SecurityPaths.ADMIN_API_BASE));
     }
     if (requestPath.equals(adminUserApiBasePath())
         || requestPath.startsWith(adminUserApiBasePath() + "/")) {
       return Optional.of(
-          requestPath.replaceFirst("^" + Pattern.quote(adminUserApiBasePath()), USERS_API_PATH));
+          requestPath.replaceFirst(
+              "^" + Pattern.quote(adminUserApiBasePath()), SecurityPaths.USERS_API_BASE));
     }
     return Optional.empty();
   }
@@ -113,23 +104,25 @@ public class AdminRouteService {
       return false;
     }
     if (List.of(
-            ADMIN_PAGE_PATH,
-            ADMIN_PAGE_HTML_PATH,
-            MANAGE_ROLES_PATH,
-            MANAGE_ROLES_HTML_PATH,
-            CREATE_USER_PATH,
-            CREATE_USER_HTML_PATH,
-            UPDATE_USER_PATH,
-            UPDATE_USER_HTML_PATH)
+            SecurityPaths.ADMIN_PAGE,
+            SecurityPaths.ADMIN_PAGE_HTML,
+            SecurityPaths.MANAGE_ROLES_PAGE,
+            SecurityPaths.MANAGE_ROLES_PAGE_HTML,
+            SecurityPaths.CREATE_USER_PAGE,
+            SecurityPaths.CREATE_USER_PAGE_HTML,
+            SecurityPaths.UPDATE_USER_PAGE,
+            SecurityPaths.UPDATE_USER_PAGE_HTML)
         .contains(requestPath)) {
       return true;
     }
-    if (ADMIN_API_PATH.equals(requestPath) || requestPath.startsWith(ADMIN_API_PATH + "/")) {
+    if (SecurityPaths.ADMIN_API_BASE.equals(requestPath)
+        || requestPath.startsWith(SecurityPaths.ADMIN_API_BASE + "/")) {
       return true;
     }
-    if (USERS_API_PATH.equals(requestPath) || requestPath.startsWith(USERS_API_PATH + "/")) {
-      return !CURRENT_USER_API_PATH.equals(requestPath)
-          && !requestPath.startsWith(CURRENT_USER_API_PATH + "/");
+    if (SecurityPaths.USERS_API_BASE.equals(requestPath)
+        || requestPath.startsWith(SecurityPaths.USERS_API_BASE + "/")) {
+      return !SecurityPaths.USERS_ME_API_PATH.equals(requestPath)
+          && !requestPath.startsWith(SecurityPaths.USERS_ME_API_PATH + "/");
     }
     return false;
   }

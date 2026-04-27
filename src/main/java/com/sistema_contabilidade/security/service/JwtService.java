@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 public class JwtService {
 
   private static final String EXPECTED_ALGORITHM = "ES256";
+  private static final String DEVICE_FINGERPRINT_CLAIM = "deviceFingerprint";
 
   @Value("${app.jwt.ec-private-key:}")
   private String ecPrivateKey;
@@ -73,7 +74,7 @@ public class JwtService {
             .expiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
             .signWith(signingKey, Jwts.SIG.ES256);
     if (deviceFingerprint != null && !deviceFingerprint.isBlank()) {
-      builder.claim("deviceFingerprint", deviceFingerprint);
+      builder.claim(DEVICE_FINGERPRINT_CLAIM, deviceFingerprint);
     }
     return builder.compact();
   }
@@ -90,14 +91,14 @@ public class JwtService {
     Jws<Claims> claims = extractClaims(token);
     String username = claims.getPayload().getSubject();
     Instant expiration = claims.getPayload().getExpiration().toInstant();
-    String tokenFingerprint = claims.getPayload().get("deviceFingerprint", String.class);
+    String tokenFingerprint = claims.getPayload().get(DEVICE_FINGERPRINT_CLAIM, String.class);
     return SecurityUtils.safeEquals(username, userDetails.getUsername())
         && isCompatibleFingerprint(tokenFingerprint, currentFingerprint)
         && expiration.isAfter(Instant.now());
   }
 
   public String extractDeviceFingerprint(String token) {
-    return extractClaims(token).getPayload().get("deviceFingerprint", String.class);
+    return extractClaims(token).getPayload().get(DEVICE_FINGERPRINT_CLAIM, String.class);
   }
 
   private Jws<Claims> extractClaims(String token) {

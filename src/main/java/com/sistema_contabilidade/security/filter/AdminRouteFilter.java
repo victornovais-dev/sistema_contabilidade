@@ -2,6 +2,7 @@ package com.sistema_contabilidade.security.filter;
 
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.RequestFingerprintService;
+import com.sistema_contabilidade.security.util.SecurityPaths;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -66,13 +67,13 @@ public class AdminRouteFilter extends OncePerRequestFilter {
   }
 
   private void sendNotFound(String requestPath, HttpServletResponse response) throws IOException {
-    if (requestPath.startsWith("/api/")) {
+    if (requestPath.startsWith(SecurityPaths.API_V1_PREFIX + "/")) {
       response.setStatus(HttpStatus.NOT_FOUND.value());
       response.setContentType(MediaType.APPLICATION_JSON_VALUE);
       response.getWriter().write("{\"status\":404,\"message\":\"Recurso nao encontrado\"}");
       return;
     }
-    response.sendRedirect("/404");
+    response.sendRedirect(SecurityPaths.NOT_FOUND_PAGE);
   }
 
   private static final class RewrittenPathRequestWrapper extends HttpServletRequestWrapper {
@@ -91,18 +92,18 @@ public class AdminRouteFilter extends OncePerRequestFilter {
 
     @Override
     public String getServletPath() {
-      return rewrittenPath;
+      return getRequestURI();
     }
 
     @Override
     public StringBuffer getRequestURL() {
       HttpServletRequest request = (HttpServletRequest) getRequest();
-      StringBuffer requestUrl =
-          new StringBuffer(request.getScheme()).append("://").append(request.getServerName());
+      StringBuilder requestUrl =
+          new StringBuilder(request.getScheme()).append("://").append(request.getServerName());
       if (request.getServerPort() > 0) {
         requestUrl.append(":").append(request.getServerPort());
       }
-      return requestUrl.append(rewrittenPath);
+      return new StringBuffer(requestUrl.append(rewrittenPath).toString());
     }
   }
 }

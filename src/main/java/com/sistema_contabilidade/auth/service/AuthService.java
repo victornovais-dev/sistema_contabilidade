@@ -10,6 +10,7 @@ import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,19 +35,19 @@ public class AuthService {
 
   private static final String TOKEN_TYPE = "Bearer";
   private static final String CREDENCIAIS_INVALIDAS = "Credenciais invalidas";
-  private static final String DUMMY_PASSWORD = "dummy-password-for-timing-protection";
 
   @Value("${app.auth.login-diagnostics.enabled:false}")
   private boolean loginDiagnosticsEnabled;
 
-  private volatile String cachedDummyPasswordHash;
+  private volatile String cachedTimingProtectionHash;
 
   public AuthenticatedLoginResult login(LoginRequest request, HttpServletRequest httpRequest) {
     long t0 = System.currentTimeMillis();
     Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(request.email());
     long t1 = System.currentTimeMillis();
 
-    String hashParaComparar = usuarioOpt.map(Usuario::getSenha).orElseGet(this::dummyPasswordHash);
+    String hashParaComparar =
+        usuarioOpt.map(Usuario::getSenha).orElseGet(this::timingProtectionHash);
     boolean senhaValida = passwordEncoder.matches(request.senha(), hashParaComparar);
     long t2 = System.currentTimeMillis();
 
@@ -107,16 +108,16 @@ public class AuthService {
         .build();
   }
 
-  private String dummyPasswordHash() {
-    String hash = cachedDummyPasswordHash;
+  private String timingProtectionHash() {
+    String hash = cachedTimingProtectionHash;
     if (hash != null) {
       return hash;
     }
     synchronized (this) {
-      if (cachedDummyPasswordHash == null) {
-        cachedDummyPasswordHash = passwordEncoder.encode(DUMMY_PASSWORD);
+      if (cachedTimingProtectionHash == null) {
+        cachedTimingProtectionHash = passwordEncoder.encode(UUID.randomUUID().toString());
       }
-      return cachedDummyPasswordHash;
+      return cachedTimingProtectionHash;
     }
   }
 

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -99,5 +100,24 @@ class SecurityConfigTest {
     assertTrue(cookie.isHttpOnly());
     assertEquals("/", cookie.getPath());
     assertEquals("X-CSRF-TOKEN", token.getHeaderName());
+  }
+
+  @Test
+  @DisplayName("Deve falhar ao obter AuthenticationManager quando configuracao quebrar")
+  void deveFalharAoObterAuthenticationManagerQuandoConfiguracaoQuebrar() throws Exception {
+    SecurityConfig config =
+        new SecurityConfig(
+            Mockito.mock(JwtAuthFilter.class),
+            Mockito.mock(RateLimitFilter.class),
+            Mockito.mock(RequestContextMdcFilter.class));
+    AuthenticationConfiguration configuration = Mockito.mock(AuthenticationConfiguration.class);
+    Mockito.when(configuration.getAuthenticationManager())
+        .thenThrow(new IllegalStateException("quebrou"));
+
+    IllegalStateException exception =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalStateException.class, () -> config.authenticationManager(configuration));
+
+    assertTrue(exception.getMessage().contains("Falha ao obter AuthenticationManager"));
   }
 }

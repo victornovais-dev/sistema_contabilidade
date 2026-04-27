@@ -35,7 +35,7 @@ import tools.jackson.databind.ObjectMapper;
 @SpringBootTest
 @AutoConfigureMockMvc
 @DisplayName("SecurityConfig CSRF tests")
-public class SecurityConfigCsrfTest {
+class SecurityConfigCsrfTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private AdminRouteService adminRouteService;
@@ -239,5 +239,45 @@ public class SecurityConfigCsrfTest {
   @DisplayName("Deve responder 404 ao acessar rota admin legada de API")
   void deveResponder404AoAcessarRotaAdminLegadaDeApi() throws Exception {
     mockMvc.perform(get("/api/v1/admin/roles")).andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("Deve permitir adicionar comprovante para perfil nao contabil")
+  void devePermitirAdicionarComprovanteParaPerfilNaoContabil() throws Exception {
+    var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
+    when(jwtService.extractUsername("token_manager")).thenReturn("manager@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_manager"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(
+            get("/adicionar_comprovante")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_manager")))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("Deve redirecionar para 404 ao acessar adicionar comprovante como contabil")
+  void deveRedirecionarPara404AoAcessarAdicionarComprovanteComoContabil() throws Exception {
+    var userDetails =
+        User.withUsername("contabil@email.com").password("x").roles("CONTABIL").build();
+    when(jwtService.extractUsername("token_contabil")).thenReturn("contabil@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_contabil"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("contabil@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(
+            get("/adicionar_comprovante")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_contabil")))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/404"));
   }
 }

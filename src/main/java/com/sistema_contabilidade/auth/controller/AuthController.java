@@ -5,6 +5,7 @@ import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
 import com.sistema_contabilidade.auth.service.AuthService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
+import com.sistema_contabilidade.security.util.SecurityPaths;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -29,12 +30,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping(SecurityPaths.AUTH_API_BASE)
 @Validated
 @RequiredArgsConstructor
 public class AuthController {
 
   private static final String LEGACY_AUTH_COOKIE_NAME = "SC_TOKEN";
+  private static final String COOKIE_SAME_SITE = "Strict";
 
   private final AuthService authService;
   private final AdminRouteService adminRouteService;
@@ -127,8 +129,8 @@ public class AuthController {
     return ResponseCookie.from(sessionCookieName, token)
         .httpOnly(true)
         .secure(httpRequestIsSecure(request))
-        .sameSite("Strict")
-        .path("/")
+        .sameSite(COOKIE_SAME_SITE)
+        .path(SecurityPaths.ROOT_PATH)
         .maxAge(Duration.ofMinutes(sessionTtlMinutes))
         .build();
   }
@@ -137,8 +139,8 @@ public class AuthController {
     return ResponseCookie.from(sessionCookieName, "")
         .httpOnly(true)
         .secure(secure)
-        .sameSite("Strict")
-        .path("/")
+        .sameSite(COOKIE_SAME_SITE)
+        .path(SecurityPaths.ROOT_PATH)
         .maxAge(0)
         .build();
   }
@@ -147,8 +149,8 @@ public class AuthController {
     return ResponseCookie.from(LEGACY_AUTH_COOKIE_NAME, "")
         .httpOnly(true)
         .secure(false)
-        .sameSite("Strict")
-        .path("/")
+        .sameSite(COOKIE_SAME_SITE)
+        .path(SecurityPaths.ROOT_PATH)
         .maxAge(0)
         .build();
   }

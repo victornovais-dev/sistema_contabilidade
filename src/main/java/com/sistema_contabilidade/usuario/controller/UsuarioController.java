@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.usuario.controller;
 
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
+import com.sistema_contabilidade.security.util.SecurityPaths;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.dto.UsuarioMeResponse;
@@ -30,12 +31,12 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
-@RequestMapping("/api/v1/usuarios")
+@RequestMapping(SecurityPaths.USERS_API_BASE)
 @Validated
 @RequiredArgsConstructor
 public class UsuarioController {
 
-  private static final String ID_PATH = "/{id}";
+  private static final String ID_PATH = SecurityPaths.ID_PATH;
   private static final String ADMIN_EXPRESSION = "hasRole('ADMIN')";
 
   private final UsuarioService usuarioService;

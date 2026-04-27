@@ -25,6 +25,10 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "s3")
 public class S3ArquivoStorageService implements ArquivoStorageService {
 
+  private static final String STORAGE_UNAVAILABLE =
+      "Servico de armazenamento temporariamente indisponivel";
+  private static final String PDF_NOT_FOUND = "Arquivo PDF nao encontrado";
+
   private final S3Client s3Client;
   private final StorageProperties storageProperties;
 
@@ -51,10 +55,7 @@ public class S3ArquivoStorageService implements ArquivoStorageService {
     } catch (S3Exception ex) {
       throw erroStorage("Erro ao salvar arquivo PDF no bucket", ex, chave);
     } catch (SdkClientException ex) {
-      throw new ResponseStatusException(
-          HttpStatus.SERVICE_UNAVAILABLE,
-          "Servico de armazenamento temporariamente indisponivel",
-          ex);
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, STORAGE_UNAVAILABLE, ex);
     }
   }
 
@@ -83,7 +84,7 @@ public class S3ArquivoStorageService implements ArquivoStorageService {
   @Override
   public byte[] carregarPdf(String chaveArquivo) {
     if (chaveArquivo == null || chaveArquivo.isBlank()) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Arquivo PDF nao encontrado");
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, PDF_NOT_FOUND);
     }
 
     try {
@@ -92,17 +93,14 @@ public class S3ArquivoStorageService implements ArquivoStorageService {
               GetObjectRequest.builder().bucket(getBucket()).key(chaveArquivo).build())
           .asByteArray();
     } catch (NoSuchKeyException ex) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Arquivo PDF nao encontrado", ex);
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, PDF_NOT_FOUND, ex);
     } catch (S3Exception ex) {
       if (ex.statusCode() == HttpStatus.NOT_FOUND.value()) {
-        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Arquivo PDF nao encontrado", ex);
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, PDF_NOT_FOUND, ex);
       }
       throw erroStorage("Erro ao ler arquivo PDF do bucket", ex, chaveArquivo);
     } catch (SdkClientException ex) {
-      throw new ResponseStatusException(
-          HttpStatus.SERVICE_UNAVAILABLE,
-          "Servico de armazenamento temporariamente indisponivel",
-          ex);
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, STORAGE_UNAVAILABLE, ex);
     }
   }
 
@@ -166,9 +164,6 @@ public class S3ArquivoStorageService implements ArquivoStorageService {
           ex.awsErrorDetails() == null ? "desconhecido" : ex.awsErrorDetails().errorCode(),
           ex);
     }
-    return new ResponseStatusException(
-        HttpStatus.SERVICE_UNAVAILABLE,
-        "Servico de armazenamento temporariamente indisponivel",
-        ex);
+    return new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, STORAGE_UNAVAILABLE, ex);
   }
 }

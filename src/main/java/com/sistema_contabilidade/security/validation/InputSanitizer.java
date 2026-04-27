@@ -28,7 +28,7 @@ public class InputSanitizer {
           Pattern.compile("(?i)(union\\s+select|insert\\s+into|drop\\s+table|exec\\s*\\()"),
           Pattern.compile("(?i)(sleep\\s*\\(\\d+\\)|benchmark\\s*\\(|waitfor\\s+delay)"),
           Pattern.compile("(?i)(information_schema|pg_catalog|mysql\\.user|sys\\.tables)"),
-          Pattern.compile("(?i)(?:'|%27)\\s*(?:or|and)\\s*(?:'|%27)?[\\w\\d]+"),
+          Pattern.compile("(?i)(?:'|%27)\\s*(?:or|and)\\s*(?:'|%27)?\\w+"),
           Pattern.compile("(?i)(--\\s*$|/\\*|\\*/|;\\s*--)"),
           Pattern.compile("(?i)0x[0-9a-f]{4,}"),
           Pattern.compile("(?i)(&#x|&#0|%3cscript|\\\\u003cscript|\\\\x3cscript)"));
@@ -91,17 +91,21 @@ public class InputSanitizer {
   private String decodeMultipleTimes(String input) {
     String decoded = input;
     for (int index = 0; index < 3; index++) {
-      try {
-        String candidate = URLDecoder.decode(decoded, StandardCharsets.UTF_8);
-        if (candidate.equals(decoded)) {
-          break;
-        }
-        decoded = candidate;
-      } catch (IllegalArgumentException exception) {
-        break;
+      String candidate = tryDecode(decoded);
+      if (candidate == null || candidate.equals(decoded)) {
+        return decoded;
       }
+      decoded = candidate;
     }
     return decoded;
+  }
+
+  private String tryDecode(String input) {
+    try {
+      return URLDecoder.decode(input, StandardCharsets.UTF_8);
+    } catch (IllegalArgumentException exception) {
+      return null;
+    }
   }
 
   private ResponseStatusException invalidInput(String field) {

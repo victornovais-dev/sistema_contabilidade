@@ -32,6 +32,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("S3ArquivoStorageService unit tests")
@@ -60,6 +61,18 @@ class S3ArquivoStorageServiceTest {
 
     assertTrue(chave.startsWith("itens/"));
     assertTrue(chave.endsWith("/arquivo.pdf"));
+    verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+  }
+
+  @Test
+  @DisplayName("Deve usar sobrecarga simples de upload")
+  void deveUsarSobrecargaSimplesDeUpload() {
+    when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+        .thenReturn(PutObjectResponse.builder().build());
+
+    String chave = service.salvarPdf("conteudo".getBytes());
+
+    assertTrue(chave.startsWith("itens/"));
     verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
   }
 
@@ -117,6 +130,21 @@ class S3ArquivoStorageServiceTest {
   }
 
   @Test
+  @DisplayName("Deve retornar chaves quando lote concluir com nomes informados")
+  void deveRetornarChavesQuandoLoteConcluirComNomesInformados() {
+    when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+        .thenReturn(PutObjectResponse.builder().build());
+
+    List<String> chaves =
+        service.salvarPdfs(
+            List.of("a".getBytes(), "b".getBytes()), List.of("primeiro.pdf", "segundo.pdf"));
+
+    assertEquals(2, chaves.size());
+    assertTrue(chaves.get(0).endsWith("/primeiro.pdf"));
+    assertTrue(chaves.get(1).endsWith("/segundo.pdf"));
+  }
+
+  @Test
   @DisplayName("Deve carregar bytes do bucket")
   @SuppressWarnings("unchecked")
   void deveCarregarBytesDoBucket() {
@@ -144,6 +172,61 @@ class S3ArquivoStorageServiceTest {
   }
 
   @Test
+  @DisplayName("Deve retornar 404 quando chave estiver vazia")
+  void deveRetornar404QuandoChaveEstiverVazia() {
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> service.carregarPdf(" "));
+
+    assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve traduzir S3Exception 404 ao carregar PDF")
+  void deveTraduzirS3Exception404AoCarregarPdf() {
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
+        .thenThrow(S3Exception.builder().statusCode(HttpStatus.NOT_FOUND.value()).build());
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class, () -> service.carregarPdf("itens/id/nao-encontrado"));
+
+    assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve traduzir falha de cliente S3 ao carregar PDF")
+  void deveTraduzirFalhaDeClienteS3AoCarregarPdf() {
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
+        .thenThrow(SdkClientException.create("offline"));
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class, () -> service.carregarPdf("itens/id/arquivo.pdf"));
+
+    assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve traduzir erro S3 inesperado ao carregar PDF")
+  void deveTraduzirErroS3InesperadoAoCarregarPdf() {
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
+        .thenThrow(
+            S3Exception.builder()
+                .statusCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .awsErrorDetails(
+                    software.amazon.awssdk.awscore.exception.AwsErrorDetails.builder()
+                        .errorCode("boom")
+                        .build())
+                .build());
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class, () -> service.carregarPdf("itens/id/arquivo.pdf"));
+
+    assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatusCode());
+  }
+
+  @Test
   @DisplayName("Deve chamar delete no bucket")
   void deveChamarDeleteNoBucket() {
     when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
@@ -163,6 +246,17 @@ class S3ArquivoStorageServiceTest {
   }
 
   @Test
+  @DisplayName("Deve ignorar falha ao deletar arquivo no bucket")
+  void deveIgnorarFalhaAoDeletarArquivoNoBucket() {
+    when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
+        .thenThrow(SdkClientException.create("indisponivel"));
+
+    service.deletarPdf("itens/id/arquivo.pdf");
+
+    verify(s3Client).deleteObject(any(DeleteObjectRequest.class));
+  }
+
+  @Test
   @DisplayName("Deve falhar quando bucket nao estiver configurado")
   void deveFalharQuandoBucketNaoEstiverConfigurado() {
     storageProperties.getS3().setBucket(" ");
@@ -171,6 +265,39 @@ class S3ArquivoStorageServiceTest {
     ResponseStatusException ex =
         assertThrows(
             ResponseStatusException.class, () -> service.salvarPdf(arquivoPdf, "arquivo.pdf"));
+
+    assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve usar prefixo padrao quando prefixo for nulo")
+  void deveUsarPrefixoPadraoQuandoPrefixoForNulo() {
+    storageProperties.getS3().setPrefix(null);
+    when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+        .thenReturn(PutObjectResponse.builder().build());
+
+    String chave = service.salvarPdf("conteudo".getBytes(), "arquivo.pdf");
+
+    assertTrue(chave.startsWith("itens/"));
+  }
+
+  @Test
+  @DisplayName("Deve traduzir erro S3 no upload")
+  void deveTraduzirErroS3NoUpload() {
+    byte[] conteudo = "conteudo".getBytes();
+    when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+        .thenThrow(
+            S3Exception.builder()
+                .statusCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .awsErrorDetails(
+                    software.amazon.awssdk.awscore.exception.AwsErrorDetails.builder()
+                        .errorCode("put_failed")
+                        .build())
+                .build());
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class, () -> service.salvarPdf(conteudo, "arquivo.pdf"));
 
     assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatusCode());
   }

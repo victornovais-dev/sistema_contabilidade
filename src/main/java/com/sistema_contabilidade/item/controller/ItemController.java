@@ -20,6 +20,7 @@ import com.sistema_contabilidade.item.service.ItemExpenseLimitService;
 import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
+import com.sistema_contabilidade.security.util.SecurityPaths;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
@@ -58,14 +59,14 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
-@RequestMapping("/api/v1/itens")
+@RequestMapping(SecurityPaths.ITEMS_API_BASE)
 @Validated
 @RequiredArgsConstructor
 @Slf4j
 public class ItemController {
 
   private static final int SINGLE_ROLE_COUNT = 1;
-  private static final String ID_PATH = "/{id}";
+  private static final String ID_PATH = SecurityPaths.ID_PATH;
   private static final String ARQUIVO_PATH = ID_PATH + "/arquivo";
   private static final String ITEM_NAO_ENCONTRADO = "Item nao encontrado";
   private static final String ARQUIVO_ITEM_NAO_ENCONTRADO = "Arquivo do item nao encontrado";

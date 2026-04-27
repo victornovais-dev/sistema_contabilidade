@@ -3,6 +3,7 @@ package com.sistema_contabilidade.auth.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -149,6 +150,48 @@ class AuthServiceTest {
     authService.logout(null);
 
     verify(sessaoUsuarioService, never()).revogarSessao(any());
+  }
+
+  @Test
+  @DisplayName("Deve ignorar logout quando sessao ja estiver revogada")
+  void logoutDeveIgnorarSessaoJaRevogada() {
+    doThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessao invalida"))
+        .when(sessaoUsuarioService)
+        .revogarSessao("sessao-expirada");
+
+    authService.logout("sessao-expirada");
+
+    verify(sessaoUsuarioService).revogarSessao("sessao-expirada");
+  }
+
+  @Test
+  @DisplayName("Deve propagar erro inesperado no logout")
+  void logoutDevePropagarErroInesperado() {
+    doThrow(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Falha"))
+        .when(sessaoUsuarioService)
+        .revogarSessao("sessao-falhou");
+
+    ResponseStatusException exception =
+        assertThrows(ResponseStatusException.class, () -> authService.logout("sessao-falhou"));
+
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve falhar ao renovar sessao quando usuario nao for encontrado")
+  void refreshDeveFalharQuandoUsuarioNaoForEncontrado() {
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    MockHttpServletRequest httpRequest = new MockHttpServletRequest();
+
+    when(sessaoUsuarioService.validarSessao("sessao-segura")).thenReturn(usuarioId);
+    when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.empty());
+
+    ResponseStatusException exception =
+        assertThrows(
+            ResponseStatusException.class, () -> authService.refresh("sessao-segura", httpRequest));
+
+    assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    verify(requestFingerprintService, never()).generateFingerprint(httpRequest);
   }
 
   private static Usuario novoUsuario(String email, String senha) {
