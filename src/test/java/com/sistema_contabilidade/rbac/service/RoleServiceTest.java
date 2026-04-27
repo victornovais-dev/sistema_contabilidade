@@ -16,6 +16,7 @@ import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.PermissaoRepository;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
+import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.util.HashSet;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -41,6 +43,7 @@ class RoleServiceTest {
   @Mock private UsuarioRepository usuarioRepository;
   @Mock private RbacMapper rbacMapper;
   @Mock private CustomUserDetailsService customUserDetailsService;
+  @Spy private InputSanitizer inputSanitizer = new InputSanitizer();
 
   @Test
   @DisplayName("Deve criar role")
@@ -247,6 +250,7 @@ class RoleServiceTest {
         permissaoRepository,
         usuarioRepository,
         rbacMapper,
-        customUserDetailsService);
+        customUserDetailsService,
+        inputSanitizer);
   }
 }

@@ -9,6 +9,7 @@ import com.sistema_contabilidade.notificacao.dto.NotificacaoListResponse;
 import com.sistema_contabilidade.notificacao.model.Notificacao;
 import com.sistema_contabilidade.notificacao.repository.NotificacaoRepository;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,6 +30,7 @@ public class NotificacaoService {
   private final NotificacaoRepository notificacaoRepository;
   private final UsuarioRepository usuarioRepository;
   private final RoleRepository roleRepository;
+  private final InputSanitizer inputSanitizer;
 
   @Transactional
   public void registrarReceitaLancada(Item item) {
@@ -101,7 +103,8 @@ public class NotificacaoService {
 
   @Transactional
   public List<NotificacaoListResponse> listar(Authentication authentication, String roleFiltro) {
-    String roleFiltroNormalizada = ItemAccessUtils.normalizarRole(roleFiltro);
+    String roleFiltroNormalizada =
+        ItemAccessUtils.normalizarRole(inputSanitizer.sanitizeInlineText(roleFiltro, "role", 80));
     boolean admin = ItemAccessUtils.isAdmin(authentication);
     notificacaoRepository.deleteOrfasOuInvalidas();
     garantirNotificacoesDasReceitas(authentication, roleFiltroNormalizada, admin);
@@ -171,7 +174,9 @@ public class NotificacaoService {
         ItemAccessUtils.extrairRoleNomes(
             ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository));
     String roleNotificacao = ItemAccessUtils.normalizarRole(notificacao.getRoleNome());
-    ItemAccessUtils.validarRoleFiltro(roleNotificacao, roleNomesUsuario);
+    if (roleNotificacao == null || !roleNomesUsuario.contains(roleNotificacao)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Notificacao nao encontrada.");
+    }
   }
 
   private void garantirNotificacoesDasReceitas(

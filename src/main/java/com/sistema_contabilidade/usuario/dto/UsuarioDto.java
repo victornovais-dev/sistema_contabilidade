@@ -17,6 +17,7 @@ public class UsuarioDto {
   private UUID id;
 
   @NotBlank(message = "Nome e obrigatorio")
+  @Size(max = 120, message = "Nome deve ter no maximo 120 caracteres")
   private String nome;
 
   @NotBlank(message = "Email e obrigatorio")

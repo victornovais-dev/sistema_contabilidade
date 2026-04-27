@@ -10,6 +10,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import tools.jackson.core.exc.StreamReadException;
+import tools.jackson.databind.exc.UnrecognizedPropertyException;
 
 @RestControllerAdvice
 @Slf4j
@@ -74,6 +77,29 @@ public class UsuarioExceptionHandler {
         new ValidationErrorResponse(
             HttpStatus.BAD_REQUEST.value(), "Validation failed", errors, LocalDateTime.now());
     return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+      HttpMessageNotReadableException ex, WebRequest request) {
+    Throwable cause = ex.getMostSpecificCause();
+    String message = "Payload invalido";
+
+    if (cause instanceof UnrecognizedPropertyException unknownPropertyException) {
+      message = "Campo nao permitido: " + unknownPropertyException.getPropertyName();
+    } else if (cause instanceof StreamReadException streamReadException
+        && streamReadException.getMessage() != null
+        && streamReadException.getMessage().contains("Duplicate Object property")) {
+      message = "JSON invalido: campo duplicado";
+    }
+
+    ErrorResponse error =
+        new ErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            message,
+            request.getDescription(false),
+            LocalDateTime.now());
+    return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
   }
 
   @ExceptionHandler(NoResourceFoundException.class)

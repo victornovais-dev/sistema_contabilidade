@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.rbac.dto.RoleResumoDto;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
+import com.sistema_contabilidade.security.config.JacksonSecurityConfig;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -35,6 +37,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @WebMvcTest(UsuarioController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(JacksonSecurityConfig.class)
 @DisplayName("UsuarioController WebMvc tests")
 class UsuarioControllerWebMvcTest {
 
@@ -213,6 +216,48 @@ class UsuarioControllerWebMvcTest {
                     """))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.message").value("Validation failed"));
+  }
+
+  @Test
+  @DisplayName("Deve rejeitar campo desconhecido no payload de criacao")
+  void criarDeveRetornarBadRequestQuandoPayloadTiverCampoDesconhecido() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/usuarios")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "nome":"Bia",
+                      "email":"bia@email.com",
+                      "senha":"123456",
+                      "role":"ADMIN",
+                      "isAdmin":true
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Campo nao permitido: isAdmin"));
+  }
+
+  @Test
+  @DisplayName("Deve rejeitar JSON com chaves duplicadas")
+  void criarDeveRetornarBadRequestQuandoJsonTiverCampoDuplicado() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/usuarios")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "nome":"Bia",
+                      "email":"bia@email.com",
+                      "email":"outro@email.com",
+                      "senha":"123456",
+                      "role":"ADMIN"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("JSON invalido: campo duplicado"));
   }
 
   @Test

@@ -39,6 +39,7 @@ import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.security.service.RequestFingerprintService;
+import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.io.ByteArrayInputStream;
@@ -56,6 +57,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -67,6 +69,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @WebMvcTest(ItemController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(InputSanitizer.class)
 @DisplayName("ItemController WebMvc tests")
 class ItemControllerWebMvcTest {
 
@@ -159,6 +162,23 @@ class ItemControllerWebMvcTest {
                 .with(authComRoles("multirole@email.com", "FINANCEIRO", "OPERADOR")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].descricao").value("SERVICOS"));
+  }
+
+  @Test
+  @DisplayName("Deve responder 404 quando item existir mas estiver fora do escopo do usuario")
+  void buscarPorIdDeveRetornarNotFoundQuandoItemNaoPertencerAoEscopoDoUsuario() throws Exception {
+    UUID id = UUID.fromString("45454545-1212-3434-5656-787878787878");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("OPERADOR");
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(usuarioRepository.findByEmail("financeiro@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("financeiro", "FINANCEIRO")));
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens/{id}", id).with(authComRoles("financeiro@email.com", "FINANCEIRO")))
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -850,8 +870,8 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
-  @DisplayName("Deve retornar 403 ao buscar item sem role em comum com criador")
-  void buscarPorIdDeveRetornarForbiddenSemIntersecaoDeRoles() throws Exception {
+  @DisplayName("Deve retornar 404 ao buscar item sem role em comum com criador")
+  void buscarPorIdDeveRetornarNotFoundSemIntersecaoDeRoles() throws Exception {
     UUID id = UUID.fromString("99999999-1111-2222-3333-444444444444");
     Item item = new Item();
     item.setId(id);
@@ -864,7 +884,7 @@ class ItemControllerWebMvcTest {
 
     mockMvc
         .perform(get("/api/v1/itens/{id}", id).with(authComRoles("operador@email.com", "OPERATOR")))
-        .andExpect(status().isForbidden());
+        .andExpect(status().isNotFound());
   }
 
   @Test

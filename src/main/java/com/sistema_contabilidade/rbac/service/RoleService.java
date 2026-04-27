@@ -9,6 +9,7 @@ import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.PermissaoRepository;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
+import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
@@ -30,6 +31,7 @@ public class RoleService {
   private final UsuarioRepository usuarioRepository;
   private final RbacMapper rbacMapper;
   private final CustomUserDetailsService customUserDetailsService;
+  private final InputSanitizer inputSanitizer;
 
   @Transactional
   public RoleDto criarRole(String nome) {
@@ -48,14 +50,15 @@ public class RoleService {
 
   @Transactional
   public PermissaoDto criarPermissao(String nome) {
+    String permissaoNome = normalizarPermissaoNome(nome);
     permissaoRepository
-        .findByNome(nome)
+        .findByNome(permissaoNome)
         .ifPresent(
             permissao -> {
               throw new ResponseStatusException(HttpStatus.CONFLICT, "Permissao ja existe");
             });
     Permissao permissao = new Permissao();
-    permissao.setNome(nome);
+    permissao.setNome(permissaoNome);
     Permissao permissaoSalva = permissaoRepository.save(permissao);
     return rbacMapper.toPermissaoDto(permissaoSalva);
   }
@@ -63,6 +66,7 @@ public class RoleService {
   @Transactional
   public RoleDto adicionarPermissaoNaRole(String roleNome, String permissaoNome) {
     String roleNomePadrao = normalizarRoleNome(roleNome);
+    String permissaoNomePadrao = normalizarPermissaoNome(permissaoNome);
     Role role =
         roleRepository
             .findByNome(roleNomePadrao)
@@ -70,7 +74,7 @@ public class RoleService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Role nao encontrada"));
     Permissao permissao =
         permissaoRepository
-            .findByNome(permissaoNome)
+            .findByNome(permissaoNomePadrao)
             .orElseThrow(
                 () ->
                     new ResponseStatusException(HttpStatus.NOT_FOUND, "Permissao nao encontrada"));
@@ -118,9 +122,18 @@ public class RoleService {
   }
 
   private String normalizarRoleNome(String nome) {
-    if (nome == null || nome.isBlank()) {
+    String roleNome = inputSanitizer.sanitizeInlineText(nome, "nome da role", 80);
+    if (roleNome == null || roleNome.isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nome da role e obrigatorio");
     }
-    return nome.trim().replace('_', ' ').replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
+    return roleNome.replace('_', ' ').replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
+  }
+
+  private String normalizarPermissaoNome(String nome) {
+    String permissaoNome = inputSanitizer.sanitizeInlineText(nome, "nome da permissao", 80);
+    if (permissaoNome == null || permissaoNome.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nome da permissao e obrigatorio");
+    }
+    return permissaoNome;
   }
 }

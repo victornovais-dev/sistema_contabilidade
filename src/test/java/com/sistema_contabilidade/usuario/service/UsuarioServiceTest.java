@@ -15,6 +15,7 @@ import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
+import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.dto.UsuarioSelfUpdateRequest;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -46,6 +48,7 @@ class UsuarioServiceTest {
   @Mock private UsuarioMapper usuarioMapper;
   @Mock private RbacMapper rbacMapper;
   @Mock private CustomUserDetailsService customUserDetailsService;
+  @Spy private InputSanitizer inputSanitizer = new InputSanitizer();
 
   @InjectMocks private UsuarioService usuarioService;
 

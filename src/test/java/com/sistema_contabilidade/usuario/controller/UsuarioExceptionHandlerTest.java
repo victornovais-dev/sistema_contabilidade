@@ -14,6 +14,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
@@ -22,6 +23,11 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.core.StreamReadFeature;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.exc.UnrecognizedPropertyException;
+import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("UsuarioExceptionHandler unit tests")
 class UsuarioExceptionHandlerTest {
@@ -122,6 +128,70 @@ class UsuarioExceptionHandlerTest {
 
     assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     assertEquals("Valor invalido", response.getBody().errors().get("nome"));
+  }
+
+  @Test
+  @DisplayName("Deve mapear campo desconhecido para 400")
+  void deveMapearCampoDesconhecidoPara400() throws Exception {
+    UsuarioExceptionHandler handler = new UsuarioExceptionHandler();
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/usuarios");
+    ObjectMapper objectMapper =
+        JsonMapper.builder().enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build();
+    UnrecognizedPropertyException cause =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            UnrecognizedPropertyException.class,
+            () ->
+                objectMapper.readValue(
+                    """
+                    {
+                      "nome":"Bia",
+                      "email":"bia@email.com",
+                      "senha":"123456",
+                      "role":"ADMIN",
+                      "isAdmin":true
+                    }
+                    """,
+                    UsuarioCreateRequest.class));
+    HttpMessageNotReadableException exception =
+        new HttpMessageNotReadableException("payload invalido", cause, null);
+
+    ResponseEntity<ErrorResponse> response =
+        handler.handleHttpMessageNotReadable(exception, new ServletWebRequest(request));
+
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    assertEquals("Campo nao permitido: isAdmin", response.getBody().message());
+  }
+
+  @Test
+  @DisplayName("Deve mapear campo duplicado para 400")
+  void deveMapearCampoDuplicadoPara400() throws Exception {
+    UsuarioExceptionHandler handler = new UsuarioExceptionHandler();
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/usuarios");
+    ObjectMapper objectMapper =
+        JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
+    Exception cause =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            Exception.class,
+            () ->
+                objectMapper.readValue(
+                    """
+                    {
+                      "nome":"Bia",
+                      "email":"bia@email.com",
+                      "email":"outro@email.com",
+                      "senha":"123456",
+                      "role":"ADMIN"
+                    }
+                    """,
+                    UsuarioCreateRequest.class));
+    HttpMessageNotReadableException exception =
+        new HttpMessageNotReadableException("payload invalido", cause, null);
+
+    ResponseEntity<ErrorResponse> response =
+        handler.handleHttpMessageNotReadable(exception, new ServletWebRequest(request));
+
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    assertEquals("JSON invalido: campo duplicado", response.getBody().message());
   }
 
   @Test

@@ -27,16 +27,17 @@ public record ItemUpsertRequest(
     List<byte[]> arquivosPdf,
     List<String> nomesArquivos,
     @NotNull(message = "Tipo e obrigatorio") TipoItem tipo,
-    String role,
-    String descricao,
-    String tipoDocumento,
+    @Size(max = 80, message = "Role deve ter no maximo 80 caracteres") String role,
+    @Size(max = 120, message = "Descricao deve ter no maximo 120 caracteres") String descricao,
+    @Size(max = 120, message = "Tipo de documento deve ter no maximo 120 caracteres")
+        String tipoDocumento,
     @Size(max = 50, message = "Numero do documento deve ter no maximo 50 caracteres")
         @Pattern(regexp = "^\\d{1,50}$", message = "Numero do documento deve conter apenas numeros")
         String numeroDocumento,
     @Size(max = 150, message = "Razao social ou nome deve ter no maximo 150 caracteres")
         String razaoSocialNome,
-    String cnpjCpf,
-    String observacao) {
+    @Size(max = 32, message = "CNPJ ou CPF deve ter no maximo 32 caracteres") String cnpjCpf,
+    @Size(max = 500, message = "Observacao deve ter no maximo 500 caracteres") String observacao) {
 
   public ItemUpsertRequest {
     if (arquivosPdf == null) {

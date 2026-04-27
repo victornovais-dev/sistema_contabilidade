@@ -2,6 +2,14 @@
   const container = document.querySelector("[data-latest-launches]");
   if (!container) return;
 
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+
   const formatCurrency = (value, type) => {
     const numericValue = Number(value || 0);
     const absoluteValue = Math.abs(numericValue);
@@ -44,7 +52,7 @@
   };
 
   const renderEmptyState = (message) => {
-    container.innerHTML = `<div class="ledger-empty">${message}</div>`;
+    container.innerHTML = `<div class="ledger-empty">${escapeHtml(message)}</div>`;
   };
 
   const createItemMarkup = (item) => {
@@ -59,10 +67,10 @@
       <article class="ledger-item">
         <div class="ledger-icon ${iconClass}">${arrow}</div>
         <div class="ledger-copy">
-          <h3>${formatNome(item?.razaoSocialNome)}</h3>
-          <p>${tipoLabel} &middot; ${formatDescricao(item?.descricao)} &middot; ${formatDate(item?.data)}</p>
+          <h3>${escapeHtml(formatNome(item?.razaoSocialNome))}</h3>
+          <p>${escapeHtml(tipoLabel)} &middot; ${escapeHtml(formatDescricao(item?.descricao))} &middot; ${escapeHtml(formatDate(item?.data))}</p>
         </div>
-        <strong class="ledger-value ${valueClass}">${formatCurrency(item?.valor, tipo)}</strong>
+        <strong class="ledger-value ${valueClass}">${escapeHtml(formatCurrency(item?.valor, tipo))}</strong>
       </article>
     `;
   };

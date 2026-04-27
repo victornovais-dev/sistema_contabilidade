@@ -11,7 +11,10 @@ public record UsuarioUpdateByEmailRequest(
         String email,
     @Size(min = 6, message = "Senha deve ter pelo menos 6 caracteres") String senha,
     @NotEmpty(message = "Ao menos uma role deve ser informada")
-        Set<@NotBlank(message = "Role nao pode ser vazia") String> roles) {
+        Set<
+                @NotBlank(message = "Role nao pode ser vazia")
+                @Size(max = 80, message = "Role deve ter no maximo 80 caracteres") String>
+            roles) {
 
   public UsuarioUpdateByEmailRequest {
     roles = roles == null ? Set.of() : Set.copyOf(roles);

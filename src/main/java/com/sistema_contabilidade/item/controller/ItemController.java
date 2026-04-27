@@ -20,6 +20,7 @@ import com.sistema_contabilidade.item.service.ItemExpenseLimitService;
 import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
+import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.validation.Valid;
@@ -67,7 +68,6 @@ public class ItemController {
   private static final String ID_PATH = "/{id}";
   private static final String ARQUIVO_PATH = ID_PATH + "/arquivo";
   private static final String ITEM_NAO_ENCONTRADO = "Item nao encontrado";
-  private static final String ACESSO_NEGADO_ITEM = "Acesso negado ao item";
   private static final String ARQUIVO_ITEM_NAO_ENCONTRADO = "Arquivo do item nao encontrado";
   private static final String NOME_ARQUIVO_INVALIDO = "Nome do arquivo invalido";
   private static final String CONTABIL_AUTHORITY = "ROLE_CONTABIL";
@@ -99,6 +99,7 @@ public class ItemController {
   private final ItemExpenseLimitService itemExpenseLimitService;
   private final NotificacaoService notificacaoService;
   private final UsuarioRepository usuarioRepository;
+  private final InputSanitizer inputSanitizer;
 
   @PostMapping
   public ResponseEntity<ItemResponse> criar(
@@ -367,8 +368,8 @@ public class ItemController {
       @PathVariable("id") UUID id,
       @Valid @RequestBody ItemObservacaoUpdateRequest request) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
-    String observacao = request.observacao();
-    item.setObservacao(observacao == null ? null : observacao.trim());
+    item.setObservacao(
+        inputSanitizer.sanitizeMultilineText(request.observacao(), "observacao", 500));
     Item salvo = itemRepository.save(item);
     return ResponseEntity.ok(ItemResponse.from(salvo));
   }
@@ -442,7 +443,7 @@ public class ItemController {
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, ITEM_NAO_ENCONTRADO));
     if (!isAdmin(authentication) && !temAcessoPorRole(authentication, item)) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, ACESSO_NEGADO_ITEM);
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, ITEM_NAO_ENCONTRADO);
     }
     return item;
   }
@@ -477,7 +478,8 @@ public class ItemController {
           "Usuario autenticado nao possui role para vincular ao comprovante.");
     }
 
-    String roleRequestNormalizada = ItemAccessUtils.normalizarRole(roleRequest);
+    String roleRequestNormalizada =
+        ItemAccessUtils.normalizarRole(inputSanitizer.sanitizeInlineText(roleRequest, "role", 80));
     if (roleRequestNormalizada != null) {
       if (!usuarioAdmin) {
         validarRoleFiltro(roleRequestNormalizada, roleNomesUsuario);
@@ -503,12 +505,16 @@ public class ItemController {
     item.setData(request.data());
     item.setHorarioCriacao(request.horarioCriacao());
     item.setTipo(request.tipo());
-    item.setDescricao(request.descricao());
-    item.setTipoDocumento(request.tipoDocumento());
-    item.setNumeroDocumento(request.numeroDocumento());
-    item.setRazaoSocialNome(request.razaoSocialNome());
-    item.setCnpjCpf(request.cnpjCpf());
-    item.setObservacao(request.observacao());
+    item.setDescricao(inputSanitizer.sanitizeInlineText(request.descricao(), "descricao", 120));
+    item.setTipoDocumento(
+        inputSanitizer.sanitizeInlineText(request.tipoDocumento(), "tipoDocumento", 120));
+    item.setNumeroDocumento(
+        inputSanitizer.sanitizeInlineText(request.numeroDocumento(), "numeroDocumento", 50));
+    item.setRazaoSocialNome(
+        inputSanitizer.sanitizeInlineText(request.razaoSocialNome(), "razaoSocialNome", 150));
+    item.setCnpjCpf(inputSanitizer.sanitizeInlineText(request.cnpjCpf(), "cnpjCpf", 32));
+    item.setObservacao(
+        inputSanitizer.sanitizeMultilineText(request.observacao(), "observacao", 500));
   }
 
   private void validarAnexoObrigatorio(ItemUpsertRequest request) {
@@ -554,17 +560,19 @@ public class ItemController {
   }
 
   private String normalizarDescricao(String descricao) {
-    if (descricao == null) {
+    String descricaoSanitizada = inputSanitizer.sanitizeInlineText(descricao, "descricao", 120);
+    if (descricaoSanitizada == null) {
       return "";
     }
-    return descricao.trim().toUpperCase(Locale.ROOT);
+    return descricaoSanitizada.toUpperCase(Locale.ROOT);
   }
 
   private String normalizarDocumento(String documento) {
-    if (documento == null) {
+    String documentoSanitizado = inputSanitizer.sanitizeInlineText(documento, "cnpjCpf", 32);
+    if (documentoSanitizado == null) {
       return "";
     }
-    return documento.replaceAll("\\D", "");
+    return documentoSanitizado.replaceAll("\\D", "");
   }
 
   private boolean isCpf(String documentoNormalizado) {

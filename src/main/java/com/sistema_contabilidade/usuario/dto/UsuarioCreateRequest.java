@@ -6,14 +6,19 @@ import jakarta.validation.constraints.Size;
 import java.util.Set;
 
 public record UsuarioCreateRequest(
-    @NotBlank(message = "Nome e obrigatorio") String nome,
+    @NotBlank(message = "Nome e obrigatorio")
+        @Size(max = 120, message = "Nome deve ter no maximo 120 caracteres")
+        String nome,
     @NotBlank(message = "Email e obrigatorio") @Email(message = "Email deve ser valido")
         String email,
     @NotBlank(message = "Senha e obrigatoria")
         @Size(min = 6, message = "Senha deve ter pelo menos 6 caracteres")
         String senha,
-    String role,
-    Set<@NotBlank(message = "Role nao pode ser vazia") String> roles) {
+    @Size(max = 80, message = "Role deve ter no maximo 80 caracteres") String role,
+    Set<
+            @NotBlank(message = "Role nao pode ser vazia")
+            @Size(max = 80, message = "Role deve ter no maximo 80 caracteres") String>
+        roles) {
 
   public UsuarioCreateRequest {
     roles = roles == null ? Set.of() : Set.copyOf(roles);

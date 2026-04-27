@@ -2,6 +2,14 @@
   const chart = document.querySelector("[data-income-expense-chart]");
   if (!chart) return;
 
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+
   const createMonthMarkup = (bucket, maxValue) => {
     const incomeHeight = maxValue > 0 ? Math.max((bucket.income / maxValue) * 100, bucket.income > 0 ? 12 : 0) : 0;
     const expenseHeight =
@@ -13,7 +21,7 @@
           <span class="chart-bar chart-bar-income" style="--bar-height: ${incomeHeight}%"></span>
           <span class="chart-bar chart-bar-expense" style="--bar-height: ${expenseHeight}%"></span>
         </div>
-        <span class="chart-month-label">${bucket.label}</span>
+        <span class="chart-month-label">${escapeHtml(bucket.label)}</span>
       </div>
     `;
   };
