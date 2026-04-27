@@ -21,6 +21,16 @@ class AuthDtoRecordsTest {
   }
 
   @Test
+  @DisplayName("Deve expor campos de AuthenticatedLoginResult")
+  void deveExporCamposDeAuthenticatedLoginResult() {
+    AuthenticatedLoginResult result =
+        new AuthenticatedLoginResult(new JwtLoginResponse("jwt", "Bearer"), "sessao");
+
+    assertEquals("jwt", result.response().accessToken());
+    assertEquals("sessao", result.sessionToken());
+  }
+
+  @Test
   @DisplayName("Deve expor campos de LoginSessionResult")
   void deveExporCamposDeLoginSessionResult() {
     UUID usuarioId = UUID.fromString("22222222-2222-2222-2222-222222222222");

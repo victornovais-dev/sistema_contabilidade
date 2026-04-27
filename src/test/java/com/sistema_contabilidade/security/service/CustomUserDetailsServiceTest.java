@@ -59,6 +59,22 @@ class CustomUserDetailsServiceTest {
   }
 
   @Test
+  @DisplayName("Deve montar authorities do banco ao carregar usuario por id")
+  void deveMontarAuthoritiesDoBancoAoCarregarUsuarioPorId() {
+    Usuario usuario = criarUsuarioComRolePermissao();
+    when(usuarioRepository.findWithRolesById(usuario.getId())).thenReturn(Optional.of(usuario));
+    CustomUserDetailsService service = new CustomUserDetailsService(usuarioRepository);
+
+    UserDetails userDetails = service.loadUserById(usuario.getId());
+
+    assertEquals(usuario.getEmail(), userDetails.getUsername());
+    assertEquals(2, userDetails.getAuthorities().size());
+    assertTrue(
+        userDetails.getAuthorities().stream()
+            .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN")));
+  }
+
+  @Test
   @DisplayName("Deve remover cache sem falhar")
   void deveRemoverCacheSemFalhar() {
     CustomUserDetailsService service = new CustomUserDetailsService(usuarioRepository);

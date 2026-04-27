@@ -10,10 +10,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.notificacao.dto.NotificacaoListResponse;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
+import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -39,6 +42,9 @@ class NotificacaoControllerWebMvcTest {
   @MockitoBean private NotificacaoService notificacaoService;
   @MockitoBean private JwtService jwtService;
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
+  @MockitoBean private AdminRouteService adminRouteService;
+  @MockitoBean private RequestFingerprintService requestFingerprintService;
+  @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
 
   @Test
   @DisplayName("Deve restringir controller para admin e contabil")

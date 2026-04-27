@@ -17,6 +17,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder;
@@ -40,10 +41,14 @@ public class SecurityConfig {
   private static final String ADMIN_PATH = "/admin";
   private static final String ADD_RECEIPT_PATH = "/adicionar_comprovante";
   private static final String ADD_RECEIPT_STATIC_PATH = "/adicionar_comprovante.html";
+  private static final String CREATE_USER_PATH = "/criar_usuario";
+  private static final String CREATE_USER_STATIC_PATH = "/criar_usuario.html";
   private static final String MANAGE_ROLES_PATH = "/gerenciar_roles";
   private static final String NOTIFICATIONS_PATH = "/notificacoes";
   private static final String NOTIFICATIONS_STATIC_PATH = "/notificacoes.html";
   private static final String NOTIFICATIONS_API_PATH = "/api/v1/notificacoes/**";
+  private static final String UPDATE_USER_PATH = "/atualizar_usuario";
+  private static final String UPDATE_USER_STATIC_PATH = "/atualizar_usuario.html";
   private static final String[] PUBLIC_ACTUATOR_PATHS = {
     "/actuator/health", "/actuator/info", "/actuator/prometheus"
   };
@@ -51,6 +56,37 @@ public class SecurityConfig {
   private final JwtAuthFilter jwtAuthFilter;
   private final RateLimitFilter rateLimitFilter;
   private final RequestContextMdcFilter requestContextMdcFilter;
+
+  private int argon2SaltLength = 16;
+  private int argon2HashLength = 32;
+  private int argon2Parallelism = 2;
+  private int argon2MemoryCost = 1 << 16;
+  private int argon2TimeCost = 3;
+
+  @Value("${app.security.argon2.salt-length:16}")
+  void setArgon2SaltLength(int argon2SaltLength) {
+    this.argon2SaltLength = argon2SaltLength;
+  }
+
+  @Value("${app.security.argon2.hash-length:32}")
+  void setArgon2HashLength(int argon2HashLength) {
+    this.argon2HashLength = argon2HashLength;
+  }
+
+  @Value("${app.security.argon2.parallelism:2}")
+  void setArgon2Parallelism(int argon2Parallelism) {
+    this.argon2Parallelism = argon2Parallelism;
+  }
+
+  @Value("${app.security.argon2.memory-cost:65536}")
+  void setArgon2MemoryCost(int argon2MemoryCost) {
+    this.argon2MemoryCost = argon2MemoryCost;
+  }
+
+  @Value("${app.security.argon2.time-cost:3}")
+  void setArgon2TimeCost(int argon2TimeCost) {
+    this.argon2TimeCost = argon2TimeCost;
+  }
 
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) {
@@ -63,8 +99,16 @@ public class SecurityConfig {
                     csp ->
                         csp.policyDirectives(
                             "default-src 'self'; "
+                                + "script-src 'self'; "
                                 + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                                + "font-src 'self' https://fonts.gstatic.com data:;"));
+                                + "font-src 'self' https://fonts.gstatic.com data:; "
+                                + "img-src 'self' data: https:; "
+                                + "connect-src 'self'; "
+                                + "object-src 'none'; "
+                                + "frame-ancestors 'none'; "
+                                + "base-uri 'self'; "
+                                + "form-action 'self';"));
+                headers.contentTypeOptions(Customizer.withDefaults());
                 headers.frameOptions(
                     org.springframework.security.config.annotation.web.configurers.HeadersConfigurer
                             .FrameOptionsConfig
@@ -75,6 +119,7 @@ public class SecurityConfig {
                 headers.addHeaderWriter(
                     new StaticHeadersWriter(
                         "Permissions-Policy", "camera=(), microphone=(), geolocation=()"));
+                headers.addHeaderWriter(new StaticHeadersWriter("X-XSS-Protection", "0"));
                 headers.httpStrictTransportSecurity(
                     hsts -> hsts.maxAgeInSeconds(31536000).includeSubDomains(true));
               })
@@ -98,7 +143,14 @@ public class SecurityConfig {
                             if (ADMIN_PATH.equals(requestUri)
                                 || ADD_RECEIPT_PATH.equals(requestUri)
                                 || ADD_RECEIPT_STATIC_PATH.equals(requestUri)
+                                || CREATE_USER_PATH.equals(requestUri)
+                                || CREATE_USER_STATIC_PATH.equals(requestUri)
                                 || MANAGE_ROLES_PATH.equals(requestUri)) {
+                              response.sendRedirect("/404");
+                              return;
+                            }
+                            if (UPDATE_USER_PATH.equals(requestUri)
+                                || UPDATE_USER_STATIC_PATH.equals(requestUri)) {
                               response.sendRedirect("/404");
                               return;
                             }
@@ -114,9 +166,9 @@ public class SecurityConfig {
                       .permitAll()
                       .requestMatchers(PUBLIC_ACTUATOR_PATHS)
                       .permitAll()
-                      .requestMatchers("/criar_usuario")
+                      .requestMatchers(CREATE_USER_PATH)
                       .hasRole(ADMIN_ROLE)
-                      .requestMatchers("/atualizar_usuario")
+                      .requestMatchers(UPDATE_USER_PATH)
                       .hasRole(ADMIN_ROLE)
                       .requestMatchers(ADD_RECEIPT_PATH, ADD_RECEIPT_STATIC_PATH)
                       .access(
@@ -189,7 +241,13 @@ public class SecurityConfig {
     configuration.setAllowedOrigins(origins);
     configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
     configuration.setAllowedHeaders(
-        List.of("Authorization", "Content-Type", "X-XSRF-TOKEN", "X-CSRF-TOKEN", "X-Request-ID"));
+        List.of(
+            "Authorization",
+            "Content-Type",
+            "X-XSRF-TOKEN",
+            "X-CSRF-TOKEN",
+            "X-Request-ID",
+            "X-Requested-With"));
     configuration.setExposedHeaders(List.of("X-Request-ID", "X-Query-Count"));
     configuration.setAllowCredentials(true);
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -199,9 +257,17 @@ public class SecurityConfig {
 
   @Bean
   PasswordEncoder passwordEncoder() {
-    PasswordEncoder preferredEncoder = SCryptPasswordEncoder.defaultsForSpringSecurity_v5_8();
+    PasswordEncoder preferredEncoder =
+        new Argon2PasswordEncoder(
+            argon2SaltLength,
+            argon2HashLength,
+            argon2Parallelism,
+            argon2MemoryCost,
+            argon2TimeCost);
     return new LegacyCompatiblePasswordEncoder(
-        PasswordEncoderFactories.createDelegatingPasswordEncoder(), preferredEncoder);
+        PasswordEncoderFactories.createDelegatingPasswordEncoder(),
+        preferredEncoder,
+        SCryptPasswordEncoder.defaultsForSpringSecurity_v5_8());
   }
 
   @Bean

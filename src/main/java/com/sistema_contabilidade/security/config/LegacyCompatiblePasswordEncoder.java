@@ -4,21 +4,22 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 final class LegacyCompatiblePasswordEncoder implements PasswordEncoder {
 
-  private static final String SCRYPT_PREFIX = "{scrypt}";
+  private static final String ARGON2_PREFIX = "{argon2}";
 
   private final PasswordEncoder delegate;
   private final PasswordEncoder preferredEncoder;
   private final PasswordEncoder legacyMatcher;
 
-  LegacyCompatiblePasswordEncoder(PasswordEncoder delegate, PasswordEncoder preferredEncoder) {
+  LegacyCompatiblePasswordEncoder(
+      PasswordEncoder delegate, PasswordEncoder preferredEncoder, PasswordEncoder legacyMatcher) {
     this.delegate = delegate;
     this.preferredEncoder = preferredEncoder;
-    this.legacyMatcher = preferredEncoder;
+    this.legacyMatcher = legacyMatcher;
   }
 
   @Override
   public String encode(CharSequence rawPassword) {
-    return SCRYPT_PREFIX + preferredEncoder.encode(rawPassword);
+    return ARGON2_PREFIX + preferredEncoder.encode(rawPassword);
   }
 
   @Override
@@ -44,7 +45,7 @@ final class LegacyCompatiblePasswordEncoder implements PasswordEncoder {
       return true;
     }
 
-    if (encodedPassword.startsWith(SCRYPT_PREFIX)) {
+    if (encodedPassword.startsWith(ARGON2_PREFIX)) {
       return preferredEncoder.upgradeEncoding(removePrefix(encodedPassword));
     }
 

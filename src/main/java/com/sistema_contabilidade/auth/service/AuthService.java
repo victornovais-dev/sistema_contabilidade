@@ -1,19 +1,20 @@
 package com.sistema_contabilidade.auth.service;
 
+import com.sistema_contabilidade.auth.dto.AuthenticatedLoginResult;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,89 +25,99 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class AuthService {
 
-  private final AuthenticationManager authenticationManager;
   private final JwtService jwtService;
   private final UsuarioRepository usuarioRepository;
   private final PasswordEncoder passwordEncoder;
   private final CustomUserDetailsService customUserDetailsService;
+  private final SessaoUsuarioService sessaoUsuarioService;
+  private final RequestFingerprintService requestFingerprintService;
+
+  private static final String TOKEN_TYPE = "Bearer";
+  private static final String CREDENCIAIS_INVALIDAS = "Credenciais invalidas";
+  private static final String DUMMY_PASSWORD = "dummy-password-for-timing-protection";
 
   @Value("${app.auth.login-diagnostics.enabled:false}")
   private boolean loginDiagnosticsEnabled;
 
-  public JwtLoginResponse login(LoginRequest request) {
-    if (loginDiagnosticsEnabled) {
-      return loginComDiagnostico(request);
-    }
+  private volatile String cachedDummyPasswordHash;
 
-    Authentication authentication =
-        authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(request.email(), request.senha()));
-    UserDetails userDetails = extrairUserDetails(authentication);
-    atualizarSenhaSeNecessario(request);
-    String token = jwtService.generateToken(userDetails);
-    return new JwtLoginResponse(token, "Bearer");
-  }
-
-  private JwtLoginResponse loginComDiagnostico(LoginRequest request) {
+  public AuthenticatedLoginResult login(LoginRequest request, HttpServletRequest httpRequest) {
     long t0 = System.currentTimeMillis();
-
-    Usuario usuario =
-        usuarioRepository.findByEmail(request.email()).orElseThrow(this::credenciaisInvalidas);
+    Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(request.email());
     long t1 = System.currentTimeMillis();
 
-    boolean senhaValida = passwordEncoder.matches(request.senha(), usuario.getSenha());
+    String hashParaComparar = usuarioOpt.map(Usuario::getSenha).orElseGet(this::dummyPasswordHash);
+    boolean senhaValida = passwordEncoder.matches(request.senha(), hashParaComparar);
     long t2 = System.currentTimeMillis();
 
-    if (!senhaValida) {
-      if (log.isInfoEnabled()) {
-        log.info("DB={}ms | Scrypt={}ms | JWT=0ms | Total={}ms", (t1 - t0), (t2 - t1), (t2 - t0));
-      }
+    if (usuarioOpt.isEmpty() || !senhaValida) {
+      logDiagnostico(t0, t1, t2, t2);
       throw credenciaisInvalidas();
     }
 
+    Usuario usuario = usuarioOpt.orElseThrow(this::credenciaisInvalidas);
     atualizarSenhaSeNecessario(usuario, request.senha());
+    sessaoUsuarioService.revogarSessoesAtivas(usuario.getId());
+    String sessionToken = sessaoUsuarioService.criarSessao(usuario.getId());
 
-    UserDetails userDetails =
-        org.springframework.security.core.userdetails.User.withUsername(usuario.getEmail())
-            .password(usuario.getSenha())
-            .authorities("ROLE_AUTHENTICATED")
-            .build();
-    String token = jwtService.generateToken(userDetails);
+    UserDetails userDetails = criarUserDetails(usuario);
+    String token =
+        jwtService.generateToken(
+            userDetails, requestFingerprintService.generateFingerprint(httpRequest));
     long t3 = System.currentTimeMillis();
+    logDiagnostico(t0, t1, t2, t3);
+    return new AuthenticatedLoginResult(new JwtLoginResponse(token, TOKEN_TYPE), sessionToken);
+  }
 
-    if (log.isInfoEnabled()) {
-      log.info(
-          "DB={}ms | Scrypt={}ms | JWT={}ms | Total={}ms",
-          (t1 - t0),
-          (t2 - t1),
-          (t3 - t2),
-          (t3 - t0));
+  public JwtLoginResponse refresh(String sessionToken, HttpServletRequest httpRequest) {
+    Usuario usuario = usuarioAutenticadoDaSessao(sessionToken);
+    String token =
+        jwtService.generateToken(
+            criarUserDetails(usuario), requestFingerprintService.generateFingerprint(httpRequest));
+    return new JwtLoginResponse(token, TOKEN_TYPE);
+  }
+
+  public void logout(String sessionToken) {
+    if (sessionToken == null || sessionToken.isBlank()) {
+      return;
     }
-
-    return new JwtLoginResponse(token, "Bearer");
+    try {
+      sessaoUsuarioService.revogarSessao(sessionToken);
+    } catch (ResponseStatusException exception) {
+      if (exception.getStatusCode().value() != HttpStatus.UNAUTHORIZED.value()) {
+        throw exception;
+      }
+    }
   }
 
   private ResponseStatusException credenciaisInvalidas() {
-    return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais invalidas");
+    return new ResponseStatusException(HttpStatus.UNAUTHORIZED, CREDENCIAIS_INVALIDAS);
   }
 
-  private UserDetails extrairUserDetails(Authentication authentication) {
-    Object principal = authentication.getPrincipal();
-    if (principal instanceof UserDetails userDetails) {
-      return userDetails;
-    }
-    throw new ResponseStatusException(
-        HttpStatus.UNAUTHORIZED,
-        "Credenciais invalidas",
-        new AuthenticationCredentialsNotFoundException("Principal sem UserDetails"));
+  private Usuario usuarioAutenticadoDaSessao(String sessionToken) {
+    return usuarioRepository
+        .findById(sessaoUsuarioService.validarSessao(sessionToken))
+        .orElseThrow(this::credenciaisInvalidas);
   }
 
-  private void atualizarSenhaSeNecessario(LoginRequest request) {
-    Usuario usuario = usuarioRepository.findByEmail(request.email()).orElse(null);
-    if (usuario == null) {
-      return;
+  private UserDetails criarUserDetails(Usuario usuario) {
+    return User.withUsername(usuario.getEmail())
+        .password(usuario.getSenha())
+        .authorities("ROLE_AUTHENTICATED")
+        .build();
+  }
+
+  private String dummyPasswordHash() {
+    String hash = cachedDummyPasswordHash;
+    if (hash != null) {
+      return hash;
     }
-    atualizarSenhaSeNecessario(usuario, request.senha());
+    synchronized (this) {
+      if (cachedDummyPasswordHash == null) {
+        cachedDummyPasswordHash = passwordEncoder.encode(DUMMY_PASSWORD);
+      }
+      return cachedDummyPasswordHash;
+    }
   }
 
   private void atualizarSenhaSeNecessario(Usuario usuario, String senhaEmTextoPlano) {
@@ -118,5 +129,16 @@ public class AuthService {
     Usuario usuarioAtualizado = usuarioRepository.save(usuario);
     customUserDetailsService.atualizarCacheUsuario(
         usuarioAtualizado.getId(), usuarioAtualizado.getEmail());
+  }
+
+  private void logDiagnostico(long t0, long t1, long t2, long t3) {
+    if (loginDiagnosticsEnabled && log.isInfoEnabled()) {
+      log.info(
+          "DB={}ms | Argon2={}ms | JWT/Sessao={}ms | Total={}ms",
+          (t1 - t0),
+          (t2 - t1),
+          (t3 - t2),
+          (t3 - t0));
+    }
   }
 }

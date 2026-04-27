@@ -1,6 +1,9 @@
 package com.sistema_contabilidade.security.service;
 
+import com.sistema_contabilidade.security.util.SecurityUtils;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import jakarta.annotation.PostConstruct;
 import java.security.GeneralSecurityException;
@@ -21,6 +24,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class JwtService {
+
+  private static final String EXPECTED_ALGORITHM = "ES256";
 
   @Value("${app.jwt.ec-private-key:}")
   private String ecPrivateKey;
@@ -56,27 +61,51 @@ public class JwtService {
   }
 
   public String generateToken(UserDetails userDetails) {
+    return generateToken(userDetails, null);
+  }
+
+  public String generateToken(UserDetails userDetails, String deviceFingerprint) {
     Instant now = Instant.now();
-    return Jwts.builder()
-        .subject(userDetails.getUsername())
-        .issuedAt(Date.from(now))
-        .expiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
-        .signWith(signingKey, Jwts.SIG.ES256)
-        .compact();
+    var builder =
+        Jwts.builder()
+            .subject(userDetails.getUsername())
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
+            .signWith(signingKey, Jwts.SIG.ES256);
+    if (deviceFingerprint != null && !deviceFingerprint.isBlank()) {
+      builder.claim("deviceFingerprint", deviceFingerprint);
+    }
+    return builder.compact();
   }
 
   public String extractUsername(String token) {
-    return extractClaims(token).getSubject();
+    return extractClaims(token).getPayload().getSubject();
   }
 
   public boolean isTokenValid(String token, UserDetails userDetails) {
-    String username = extractUsername(token);
-    Instant expiration = extractClaims(token).getExpiration().toInstant();
-    return username.equals(userDetails.getUsername()) && expiration.isAfter(Instant.now());
+    return isTokenValid(token, userDetails, null);
   }
 
-  private Claims extractClaims(String token) {
-    return Jwts.parser().verifyWith(verificationKey).build().parseSignedClaims(token).getPayload();
+  public boolean isTokenValid(String token, UserDetails userDetails, String currentFingerprint) {
+    Jws<Claims> claims = extractClaims(token);
+    String username = claims.getPayload().getSubject();
+    Instant expiration = claims.getPayload().getExpiration().toInstant();
+    String tokenFingerprint = claims.getPayload().get("deviceFingerprint", String.class);
+    return SecurityUtils.safeEquals(username, userDetails.getUsername())
+        && isCompatibleFingerprint(tokenFingerprint, currentFingerprint)
+        && expiration.isAfter(Instant.now());
+  }
+
+  public String extractDeviceFingerprint(String token) {
+    return extractClaims(token).getPayload().get("deviceFingerprint", String.class);
+  }
+
+  private Jws<Claims> extractClaims(String token) {
+    Jws<Claims> jws = Jwts.parser().verifyWith(verificationKey).build().parseSignedClaims(token);
+    if (!SecurityUtils.safeEquals(EXPECTED_ALGORITHM, jws.getHeader().getAlgorithm())) {
+      throw new JwtException("Algoritmo JWT nao permitido");
+    }
+    return jws;
   }
 
   private byte[] decodeKeyMaterial(String keyMaterial) {
@@ -100,5 +129,12 @@ public class JwtService {
     } catch (GeneralSecurityException e) {
       throw new IllegalStateException("Nao foi possivel gerar chaves EC para JWT", e);
     }
+  }
+
+  private boolean isCompatibleFingerprint(String tokenFingerprint, String currentFingerprint) {
+    if (tokenFingerprint == null || tokenFingerprint.isBlank()) {
+      return true;
+    }
+    return SecurityUtils.safeEquals(tokenFingerprint, currentFingerprint);
   }
 }

@@ -15,5 +15,8 @@ public interface UsuarioRepository
   @EntityGraph(attributePaths = {"roles", "roles.permissoes"})
   Optional<Usuario> findByEmail(String email);
 
+  @EntityGraph(attributePaths = {"roles", "roles.permissoes"})
+  Optional<Usuario> findWithRolesById(UUID id);
+
   boolean existsByEmail(String email);
 }

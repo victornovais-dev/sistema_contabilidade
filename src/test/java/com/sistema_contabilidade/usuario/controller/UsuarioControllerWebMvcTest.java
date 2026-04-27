@@ -8,10 +8,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.rbac.dto.RoleResumoDto;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
+import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
@@ -40,6 +43,9 @@ class UsuarioControllerWebMvcTest {
   @MockitoBean private UsuarioService usuarioService;
   @MockitoBean private JwtService jwtService;
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
+  @MockitoBean private AdminRouteService adminRouteService;
+  @MockitoBean private RequestFingerprintService requestFingerprintService;
+  @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
 
   @Test
   @DisplayName("Deve retornar lista de usuarios")

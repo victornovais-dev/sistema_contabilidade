@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
@@ -34,8 +35,10 @@ import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.io.ByteArrayInputStream;
@@ -81,6 +84,9 @@ class ItemControllerWebMvcTest {
   @MockitoBean private UsuarioRepository usuarioRepository;
   @MockitoBean private JwtService jwtService;
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
+  @MockitoBean private AdminRouteService adminRouteService;
+  @MockitoBean private RequestFingerprintService requestFingerprintService;
+  @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
 
   @Test
   @DisplayName("Deve retornar lista de itens")

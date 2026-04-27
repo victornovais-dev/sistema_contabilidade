@@ -1,48 +1,64 @@
 <!doctype html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
   <body>
-    <nav class="navbar" th:fragment="navbar">
-      <div class="navbar-content">
-        <a class="brand" href="/home" aria-label="Ir para a home">
-          <img
-            class="brand-logo brand-logo-light"
-            src="/assets/img/sacs-contabil-navbar-azul.png"
-            alt=""
-            aria-hidden="true"
-          />
-          <img
-            class="brand-logo brand-logo-dark"
-            src="/assets/img/sacs-contabil-navbar-branco.png"
-            alt=""
-            aria-hidden="true"
-          />
-        </a>
-        <div class="nav-links" aria-label="Navegacao principal">
-          <a class="nav-link" href="/home">Home</a>
-          <a
-            class="nav-link"
-            href="/adicionar_comprovante"
-            th:if="${usuarioRoles == null or !usuarioRoles.contains('CONTABIL')}"
-            >Adicionar</a
-          >
-          <a class="nav-link" href="/lista_comprovantes">Comprovantes</a>
-          <a class="nav-link" href="/relatorios">Relatorios</a>
-          <a
-            class="nav-link nav-link-notifications"
-            href="/notificacoes"
-            th:if="${usuarioRoles != null and (usuarioRoles.contains('ADMIN') or usuarioRoles.contains('CONTABIL'))}"
-          >
-            <span>Notificações</span>
-            <span class="nav-badge" data-notification-count hidden aria-live="polite"></span>
+    <th:block th:fragment="navbar">
+      <script src="/assets/js/auth-session.js?v=20260425-layer6-1"></script>
+      <nav class="navbar">
+        <div class="navbar-content">
+          <a class="brand" href="/home" aria-label="Ir para a home">
+            <img
+              class="brand-logo brand-logo-light"
+              src="/assets/img/sacs-contabil-navbar-azul.png"
+              alt=""
+              aria-hidden="true"
+            />
+            <img
+              class="brand-logo brand-logo-dark"
+              src="/assets/img/sacs-contabil-navbar-branco.png"
+              alt=""
+              aria-hidden="true"
+            />
           </a>
+          <div class="nav-links" aria-label="Navegacao principal">
+            <a class="nav-link" href="/home">Home</a>
+            <a
+              class="nav-link"
+              href="/adicionar_comprovante"
+              th:if="${usuarioRoles == null or !usuarioRoles.contains('CONTABIL')}"
+              >Adicionar</a
+            >
+            <a class="nav-link" href="/lista_comprovantes">Comprovantes</a>
+            <a class="nav-link" href="/relatorios">Relatorios</a>
+            <a
+              class="nav-link"
+              href="/404"
+              data-route-key="adminPagePath"
+              th:href="${adminPagePath}"
+              th:if="${usuarioRoles != null and usuarioRoles.contains('ADMIN')}"
+              >Admin</a
+            >
+            <a
+              class="nav-link nav-link-notifications"
+              href="/notificacoes"
+              th:if="${usuarioRoles != null and (usuarioRoles.contains('ADMIN') or usuarioRoles.contains('CONTABIL'))}"
+            >
+              <span>Notifica&ccedil;&otilde;es</span>
+              <span class="nav-badge" data-notification-count hidden aria-live="polite"></span>
+            </a>
+          </div>
+          <div class="nav-actions">
+            <button class="logout-btn" type="button" aria-label="Sair da conta">Logout</button>
+            <button
+              class="theme-toggle"
+              type="button"
+              aria-pressed="false"
+              aria-label="Alternar tema"
+            >
+              <span class="theme-icon" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
-        <div class="nav-actions">
-          <button class="logout-btn" type="button" aria-label="Sair da conta">Logout</button>
-          <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Alternar tema">
-            <span class="theme-icon" aria-hidden="true"></span>
-          </button>
-        </div>
-      </div>
-    </nav>
+      </nav>
+    </th:block>
   </body>
 </html>

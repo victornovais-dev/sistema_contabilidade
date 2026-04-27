@@ -18,7 +18,7 @@ public class AsyncConfig {
     executor.setMaxPoolSize(30);
     executor.setQueueCapacity(50);
     executor.setKeepAliveSeconds(60);
-    executor.setThreadNamePrefix("auth-scrypt-");
+    executor.setThreadNamePrefix("auth-password-");
     executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
     executor.initialize();
     return executor;

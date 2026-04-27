@@ -57,7 +57,7 @@ class SecurityConfigTest {
     String raw = "senha-forte";
     String encoded = encoder.encode(raw);
 
-    assertTrue(encoded.startsWith("{scrypt}"));
+    assertTrue(encoded.startsWith("{argon2}"));
     assertTrue(encoder.matches(raw, encoded));
   }
 

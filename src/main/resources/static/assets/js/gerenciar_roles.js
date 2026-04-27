@@ -15,6 +15,10 @@
   let csrfToken = null;
 
   const getAccessToken = () => localStorage.getItem("sc_access_token");
+  const getAdminApiBasePath = () =>
+    window.SCAuth?.getAdminApiBasePath?.() ||
+    window.__SC_ROUTE_CONFIG?.adminApiBasePath ||
+    "/api/v1/admin";
 
   const showFeedback = (message, type = "") => {
     if (!feedback) return;
@@ -223,8 +227,8 @@
 
   const refresh = async () => {
     const [roles, permissions] = await Promise.all([
-      fetchJson("/api/v1/admin/roles"),
-      fetchJson("/api/v1/admin/permissoes"),
+      fetchJson(`${getAdminApiBasePath()}/roles`),
+      fetchJson(`${getAdminApiBasePath()}/permissoes`),
     ]);
 
     renderRoles(roles);
@@ -251,7 +255,7 @@
     if (!nome) return;
 
     try {
-      await postJson("/api/v1/admin/roles", { nome });
+      await postJson(`${getAdminApiBasePath()}/roles`, { nome });
       if (roleNameInput) roleNameInput.value = "";
       await refresh();
       showFeedback("Role criada com sucesso.", "success");
@@ -268,7 +272,7 @@
     if (!nome) return;
 
     try {
-      await postJson("/api/v1/admin/permissoes", { nome });
+      await postJson(`${getAdminApiBasePath()}/permissoes`, { nome });
       if (permissionNameInput) permissionNameInput.value = "";
       await refresh();
       showFeedback("Permissao criada com sucesso.", "success");
@@ -290,7 +294,7 @@
     if (!roleNome || !permissao) return;
 
     try {
-      await postJson(`/api/v1/admin/roles/${encodeURIComponent(roleNome)}/permissoes`, {
+      await postJson(`${getAdminApiBasePath()}/roles/${encodeURIComponent(roleNome)}/permissoes`, {
         permissao,
       });
 
@@ -307,7 +311,10 @@
     }
   });
 
-  refresh().catch((error) => {
+  (async () => {
+    await window.SCAuth?.waitUntilReady?.();
+    await refresh();
+  })().catch((error) => {
     showFeedback(
       error instanceof Error ? error.message : "Falha ao carregar dados de RBAC.",
       "error",

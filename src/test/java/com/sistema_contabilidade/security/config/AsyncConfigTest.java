@@ -23,7 +23,7 @@ class AsyncConfigTest {
     assertEquals(10, taskExecutor.getCorePoolSize());
     assertEquals(30, taskExecutor.getMaxPoolSize());
     assertEquals(50, taskExecutor.getQueueCapacity());
-    assertEquals("auth-scrypt-", taskExecutor.getThreadNamePrefix());
+    assertEquals("auth-password-", taskExecutor.getThreadNamePrefix());
     assertNotNull(taskExecutor.getThreadPoolExecutor());
   }
 }

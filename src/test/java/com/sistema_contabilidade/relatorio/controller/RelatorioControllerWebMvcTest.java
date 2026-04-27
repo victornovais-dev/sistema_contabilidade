@@ -9,10 +9,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.service.RelatorioFinanceiroService;
+import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +37,9 @@ class RelatorioControllerWebMvcTest {
   @MockitoBean private RelatorioFinanceiroService relatorioFinanceiroService;
   @MockitoBean private JwtService jwtService;
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
+  @MockitoBean private AdminRouteService adminRouteService;
+  @MockitoBean private RequestFingerprintService requestFingerprintService;
+  @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
 
   @Test
   @DisplayName("Deve retornar relatorio financeiro")

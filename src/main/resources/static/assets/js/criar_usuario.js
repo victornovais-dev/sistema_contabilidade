@@ -78,8 +78,17 @@ const bindThemeToggle = () => {
 
 bindThemeToggle();
 
-const token = localStorage.getItem("sc_access_token");
-if (!token) {
+const getAccessToken = () => localStorage.getItem("sc_access_token");
+const getAdminApiBasePath = () =>
+  window.SCAuth?.getAdminApiBasePath?.() ||
+  window.__SC_ROUTE_CONFIG?.adminApiBasePath ||
+  "/api/v1/admin";
+const getAdminUserApiBasePath = () =>
+  window.SCAuth?.getAdminUserApiBasePath?.() ||
+  window.__SC_ROUTE_CONFIG?.adminUserApiBasePath ||
+  "/api/v1/usuarios";
+
+if (!getAccessToken()) {
   window.location.href = "/login";
 }
 
@@ -178,10 +187,10 @@ const renderRoleLoadError = (message) => {
 };
 
 const loadAvailableRoles = async () => {
-  const response = await fetch("/api/v1/admin/roles", {
+  const response = await fetch(`${getAdminApiBasePath()}/roles`, {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${getAccessToken()}`,
     },
     credentials: "same-origin",
   });
@@ -353,12 +362,12 @@ form.addEventListener("submit", async (event) => {
     if (!csrfToken) {
       await carregarCsrfToken();
     }
-    const response = await fetch("/api/v1/usuarios", {
+    const response = await fetch(getAdminUserApiBasePath(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-CSRF-TOKEN": csrfToken,
-        Authorization: "Bearer " + token,
+        Authorization: `Bearer ${getAccessToken()}`,
       },
       body: JSON.stringify(payload),
     });
@@ -387,6 +396,7 @@ renderSelectedRoles();
 
 void (async () => {
   try {
+    await window.SCAuth?.waitUntilReady?.();
     await loadAvailableRoles();
   } catch (error) {
     renderRoleLoadError("Nao foi possivel carregar as roles cadastradas.");

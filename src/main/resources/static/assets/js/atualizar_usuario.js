@@ -59,9 +59,9 @@ const carregarCsrfToken = async (forceRefresh = false) => {
     method: "GET",
     credentials: "same-origin",
     cache: "no-store",
-    headers: token
+    headers: getAccessToken()
       ? {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${getAccessToken()}`,
         }
       : {},
   });
@@ -101,8 +101,17 @@ const bindThemeToggle = () => {
 
 bindThemeToggle();
 
-const token = localStorage.getItem("sc_access_token");
-if (!token) {
+const getAccessToken = () => localStorage.getItem("sc_access_token");
+const getAdminApiBasePath = () =>
+  window.SCAuth?.getAdminApiBasePath?.() ||
+  window.__SC_ROUTE_CONFIG?.adminApiBasePath ||
+  "/api/v1/admin";
+const getAdminUserApiBasePath = () =>
+  window.SCAuth?.getAdminUserApiBasePath?.() ||
+  window.__SC_ROUTE_CONFIG?.adminUserApiBasePath ||
+  "/api/v1/usuarios";
+
+if (!getAccessToken()) {
   window.location.href = "/login";
 }
 
@@ -186,10 +195,10 @@ const renderRoleOptions = (roles) => {
 };
 
 const loadAvailableRoles = async () => {
-  const response = await fetch("/api/v1/admin/roles", {
+  const response = await fetch(`${getAdminApiBasePath()}/roles`, {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${getAccessToken()}`,
     },
     credentials: "same-origin",
   });
@@ -355,13 +364,16 @@ const carregarUsuario = async () => {
     return;
   }
 
-  const response = await fetch(`/api/v1/usuarios/por-email?email=${encodeURIComponent(email)}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
+  const response = await fetch(
+    `${getAdminUserApiBasePath()}/por-email?email=${encodeURIComponent(email)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${getAccessToken()}`,
+      },
+      credentials: "same-origin",
     },
-    credentials: "same-origin",
-  });
+  );
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -404,12 +416,12 @@ form.addEventListener("submit", async (event) => {
 
   try {
     const enviarAtualizacao = async (csrf) =>
-      fetch("/api/v1/usuarios/por-email", {
+      fetch(`${getAdminUserApiBasePath()}/por-email`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           "X-CSRF-TOKEN": csrf,
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${getAccessToken()}`,
         },
         credentials: "same-origin",
         body: JSON.stringify(payload),
@@ -450,6 +462,7 @@ form.addEventListener("submit", async (event) => {
 const init = async () => {
   renderSelectedRoles();
   try {
+    await window.SCAuth?.waitUntilReady?.();
     await loadAvailableRoles();
   } catch (error) {
     showFeedback("error", "Nao foi possivel carregar as roles cadastradas.");

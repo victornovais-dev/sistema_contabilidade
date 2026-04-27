@@ -16,6 +16,55 @@
 
   const getAccessToken = () => localStorage.getItem("sc_access_token");
 
+  const clearClientAuthState = () => {
+    if (window.SCAuth?.clearClientAuthState) {
+      window.SCAuth.clearClientAuthState();
+      return;
+    }
+    localStorage.removeItem("sc_access_token");
+  };
+
+  const fetchCsrfToken = async () => {
+    const response = await fetch("/api/v1/auth/csrf", {
+      method: "GET",
+      credentials: "same-origin",
+    });
+    if (!response.ok) {
+      throw new Error("Falha ao obter token CSRF.");
+    }
+    const payload = await response.json();
+    if (!payload || !payload.token) {
+      throw new Error("Token CSRF ausente.");
+    }
+    return payload.token;
+  };
+
+  const logout = async () => {
+    if (window.SCAuth?.logout) {
+      try {
+        await window.SCAuth.logout();
+      } finally {
+        window.location.href = "/login";
+      }
+      return;
+    }
+    try {
+      const csrfToken = await fetchCsrfToken();
+      await fetch("/api/v1/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRF-TOKEN": csrfToken,
+        },
+      });
+    } catch (error) {
+      // Mesmo se a sessao do servidor ja tiver expirado, limpamos o estado local.
+    } finally {
+      clearClientAuthState();
+      window.location.href = "/login";
+    }
+  };
+
   const getStoredSelectedRole = () =>
     String(localStorage.getItem(roleFilterStorageKey) || "").trim();
 
@@ -93,9 +142,7 @@
     const logoutButton = document.querySelector(".navbar .logout-btn");
     if (logoutButton) {
       logoutButton.addEventListener("click", () => {
-        localStorage.removeItem("sc_access_token");
-        document.cookie = "SC_TOKEN=; Max-Age=0; path=/";
-        window.location.href = "/login";
+        void logout();
       });
     }
 
@@ -226,6 +273,10 @@
 
   window.addEventListener("sc:home-role-change", () => {
     void updateNotificationCount();
+  });
+
+  window.addEventListener("sc:routes-updated", () => {
+    setActiveLink();
   });
 
   initTheme();

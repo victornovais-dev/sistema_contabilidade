@@ -2,17 +2,19 @@ package com.sistema_contabilidade.auth.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.auth.dto.AuthenticatedLoginResult;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -21,139 +23,139 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AuthService unit tests")
 class AuthServiceTest {
 
-  @Mock private AuthenticationManager authenticationManager;
   @Mock private JwtService jwtService;
   @Mock private UsuarioRepository usuarioRepository;
   @Mock private PasswordEncoder passwordEncoder;
   @Mock private CustomUserDetailsService customUserDetailsService;
+  @Mock private SessaoUsuarioService sessaoUsuarioService;
+  @Mock private RequestFingerprintService requestFingerprintService;
 
   @InjectMocks private AuthService authService;
 
   @Test
-  @DisplayName("Deve autenticar e retornar token JWT")
-  void loginDeveRetornarJwtLoginResponse() {
-    // Arrange
+  @DisplayName("Deve autenticar e retornar access token com sessao opaca")
+  void loginDeveRetornarAccessTokenESessao() {
     LoginRequest request = new LoginRequest("ana@email.com", "123456");
-    UserDetails userDetails = new User("ana@email.com", "123456", Collections.emptyList());
-    Usuario usuario = new Usuario();
-    usuario.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
-    usuario.setEmail("ana@email.com");
-    usuario.setSenha("{scrypt}hash-atual");
-    when(authenticationManager.authenticate(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(
-            new UsernamePasswordAuthenticationToken(
-                userDetails, userDetails.getPassword(), userDetails.getAuthorities()));
+    MockHttpServletRequest httpRequest = new MockHttpServletRequest();
+    Usuario usuario = novoUsuario("ana@email.com", "{argon2}hash-atual");
+
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
-    when(passwordEncoder.upgradeEncoding("{scrypt}hash-atual")).thenReturn(false);
-    when(jwtService.generateToken(userDetails)).thenReturn("jwt-token");
+    when(passwordEncoder.matches("123456", "{argon2}hash-atual")).thenReturn(true);
+    when(passwordEncoder.upgradeEncoding("{argon2}hash-atual")).thenReturn(false);
+    when(sessaoUsuarioService.criarSessao(usuario.getId())).thenReturn("sessao-segura");
+    when(requestFingerprintService.generateFingerprint(httpRequest)).thenReturn("fingerprint");
+    when(jwtService.generateToken(any(), any())).thenReturn("jwt-token");
 
-    // Act
-    JwtLoginResponse response = authService.login(request);
+    AuthenticatedLoginResult response = authService.login(request, httpRequest);
 
-    // Assert
-    assertEquals("jwt-token", response.accessToken());
-    assertEquals("Bearer", response.tokenType());
-    verify(authenticationManager).authenticate(org.mockito.ArgumentMatchers.any());
+    assertEquals("jwt-token", response.response().accessToken());
+    assertEquals("Bearer", response.response().tokenType());
+    assertEquals("sessao-segura", response.sessionToken());
+    verify(sessaoUsuarioService).revogarSessoesAtivas(usuario.getId());
   }
 
   @Test
-  @DisplayName("Deve atualizar hash legado para SCrypt no login com sucesso")
+  @DisplayName("Deve atualizar hash legado para Argon2id no login com sucesso")
   void loginDeveAtualizarHashQuandoNecessario() {
     LoginRequest request = new LoginRequest("ana@email.com", "123456");
-    UserDetails userDetails = new User("ana@email.com", "123456", Collections.emptyList());
-    Usuario usuario = new Usuario();
-    usuario.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
-    usuario.setEmail("ana@email.com");
-    usuario.setSenha("$d0801$hash-legado");
-    when(authenticationManager.authenticate(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(
-            new UsernamePasswordAuthenticationToken(
-                userDetails, userDetails.getPassword(), userDetails.getAuthorities()));
+    MockHttpServletRequest httpRequest = new MockHttpServletRequest();
+    Usuario usuario = novoUsuario("ana@email.com", "$d0801$hash-legado");
+
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
+    when(passwordEncoder.matches("123456", "$d0801$hash-legado")).thenReturn(true);
     when(passwordEncoder.upgradeEncoding("$d0801$hash-legado")).thenReturn(true);
-    when(passwordEncoder.encode("123456")).thenReturn("{scrypt}hash-novo");
+    when(passwordEncoder.encode("123456")).thenReturn("{argon2}hash-novo");
     when(usuarioRepository.save(usuario)).thenReturn(usuario);
-    when(jwtService.generateToken(userDetails)).thenReturn("jwt-token");
+    when(sessaoUsuarioService.criarSessao(usuario.getId())).thenReturn("sessao-segura");
+    when(requestFingerprintService.generateFingerprint(httpRequest)).thenReturn("fingerprint");
+    when(jwtService.generateToken(any(), any())).thenReturn("jwt-token");
 
-    JwtLoginResponse response = authService.login(request);
+    AuthenticatedLoginResult response = authService.login(request, httpRequest);
 
-    assertEquals("jwt-token", response.accessToken());
-    assertEquals("{scrypt}hash-novo", usuario.getSenha());
+    assertEquals("jwt-token", response.response().accessToken());
+    assertEquals("{argon2}hash-novo", usuario.getSenha());
     verify(usuarioRepository).save(usuario);
-    verify(customUserDetailsService)
-        .atualizarCacheUsuario(
-            UUID.fromString("11111111-1111-1111-1111-111111111111"), "ana@email.com");
+    verify(customUserDetailsService).atualizarCacheUsuario(usuario.getId(), "ana@email.com");
   }
 
   @Test
-  @DisplayName("Deve usar login com diagnostico quando habilitado")
-  void loginComDiagnosticoDeveRetornarJwtLoginResponse() {
-    ReflectionTestUtils.setField(authService, "loginDiagnosticsEnabled", true);
-    LoginRequest request = new LoginRequest("ana@email.com", "123456");
+  @DisplayName("Deve retornar erro generico quando usuario nao existe")
+  void loginDeveRetornarErroGenericoQuandoUsuarioNaoExiste() {
+    LoginRequest request = new LoginRequest("ausente@email.com", "123456");
+    MockHttpServletRequest httpRequest = new MockHttpServletRequest();
 
-    Usuario usuario = new Usuario();
-    usuario.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
-    usuario.setEmail("ana@email.com");
-    usuario.setSenha("hash");
+    when(usuarioRepository.findByEmail("ausente@email.com")).thenReturn(Optional.empty());
+    when(passwordEncoder.encode(any())).thenReturn("{argon2}dummy-hash");
+    when(passwordEncoder.matches("123456", "{argon2}dummy-hash")).thenReturn(false);
 
-    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
-    when(passwordEncoder.matches("123456", "hash")).thenReturn(true);
-    when(passwordEncoder.upgradeEncoding("hash")).thenReturn(false);
-    when(jwtService.generateToken(org.mockito.ArgumentMatchers.any())).thenReturn("jwt-token");
+    ResponseStatusException exception =
+        assertThrows(ResponseStatusException.class, () -> authService.login(request, httpRequest));
 
-    JwtLoginResponse response = authService.login(request);
-
-    assertEquals("jwt-token", response.accessToken());
-    assertEquals("Bearer", response.tokenType());
-    verify(authenticationManager, never()).authenticate(org.mockito.ArgumentMatchers.any());
+    assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    assertEquals("Credenciais invalidas", exception.getReason());
+    verify(jwtService, never()).generateToken(any(), any());
+    verify(sessaoUsuarioService, never()).criarSessao(any());
   }
 
   @Test
-  @DisplayName("Deve retornar 401 no diagnostico quando senha for invalida")
-  void loginComDiagnosticoSenhaInvalidaDeveRetornarUnauthorized() {
-    ReflectionTestUtils.setField(authService, "loginDiagnosticsEnabled", true);
+  @DisplayName("Deve retornar erro generico quando senha for invalida")
+  void loginDeveRetornarErroGenericoQuandoSenhaForInvalida() {
     LoginRequest request = new LoginRequest("ana@email.com", "senha-incorreta");
-
-    Usuario usuario = new Usuario();
-    usuario.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
-    usuario.setEmail("ana@email.com");
-    usuario.setSenha("hash");
+    MockHttpServletRequest httpRequest = new MockHttpServletRequest();
+    Usuario usuario = novoUsuario("ana@email.com", "{argon2}hash");
 
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
-    when(passwordEncoder.matches("senha-incorreta", "hash")).thenReturn(false);
+    when(passwordEncoder.matches("senha-incorreta", "{argon2}hash")).thenReturn(false);
 
     ResponseStatusException exception =
-        assertThrows(ResponseStatusException.class, () -> authService.login(request));
+        assertThrows(ResponseStatusException.class, () -> authService.login(request, httpRequest));
 
-    assertEquals(401, exception.getStatusCode().value());
-    verify(jwtService, never()).generateToken(org.mockito.ArgumentMatchers.any());
-    verify(authenticationManager, never()).authenticate(org.mockito.ArgumentMatchers.any());
+    assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    assertEquals("Credenciais invalidas", exception.getReason());
+    verify(jwtService, never()).generateToken(any(), any());
+    verify(sessaoUsuarioService, never()).criarSessao(any());
   }
 
   @Test
-  @DisplayName("Deve retornar 401 quando principal nao for UserDetails")
-  void loginComPrincipalInvalidoDeveRetornarUnauthorized() {
-    LoginRequest request = new LoginRequest("ana@email.com", "123456");
-    when(authenticationManager.authenticate(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(new UsernamePasswordAuthenticationToken("principal", "credencial"));
+  @DisplayName("Deve emitir novo access token ao renovar sessao valida")
+  void refreshDeveEmitirNovoAccessToken() {
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    MockHttpServletRequest httpRequest = new MockHttpServletRequest();
+    Usuario usuario = novoUsuario("ana@email.com", "{argon2}hash");
 
-    ResponseStatusException exception =
-        assertThrows(ResponseStatusException.class, () -> authService.login(request));
+    when(sessaoUsuarioService.validarSessao("sessao-segura")).thenReturn(usuarioId);
+    when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.of(usuario));
+    when(requestFingerprintService.generateFingerprint(httpRequest)).thenReturn("fingerprint");
+    when(jwtService.generateToken(any(), any())).thenReturn("novo-jwt");
 
-    assertEquals(401, exception.getStatusCode().value());
-    assertEquals(AuthenticationCredentialsNotFoundException.class, exception.getCause().getClass());
+    JwtLoginResponse response = authService.refresh("sessao-segura", httpRequest);
+
+    assertEquals("novo-jwt", response.accessToken());
+    assertEquals("Bearer", response.tokenType());
+  }
+
+  @Test
+  @DisplayName("Deve ignorar logout sem sessao")
+  void logoutDeveIgnorarSessaoAusente() {
+    authService.logout(null);
+
+    verify(sessaoUsuarioService, never()).revogarSessao(any());
+  }
+
+  private static Usuario novoUsuario(String email, String senha) {
+    Usuario usuario = new Usuario();
+    usuario.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
+    usuario.setEmail(email);
+    usuario.setSenha(senha);
+    return usuario;
   }
 }

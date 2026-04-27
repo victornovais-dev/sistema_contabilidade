@@ -4,6 +4,7 @@ import com.sistema_contabilidade.auth.model.SessaoUsuario;
 import com.sistema_contabilidade.auth.repository.SessaoUsuarioRepository;
 import jakarta.transaction.Transactional;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -60,5 +61,15 @@ public class SessaoUsuarioService {
                     new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessao nao encontrada"));
     sessao.setRevogada(true);
     sessaoUsuarioRepository.save(sessao);
+  }
+
+  @Transactional
+  public void revogarSessoesAtivas(UUID usuarioId) {
+    List<SessaoUsuario> sessoesAtivas =
+        sessaoUsuarioRepository.findAllByUsuarioIdAndRevogadaFalse(usuarioId);
+    for (SessaoUsuario sessao : sessoesAtivas) {
+      sessao.setRevogada(true);
+    }
+    sessaoUsuarioRepository.saveAll(sessoesAtivas);
   }
 }

@@ -7,13 +7,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.home.dto.HomeDashboardMonthResponse;
 import com.sistema_contabilidade.home.dto.HomeDashboardResponse;
 import com.sistema_contabilidade.home.dto.HomeLatestLaunchResponse;
 import com.sistema_contabilidade.home.service.HomeDashboardService;
 import com.sistema_contabilidade.item.model.TipoItem;
+import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,6 +39,9 @@ class HomeDashboardControllerWebMvcTest {
   @MockitoBean private HomeDashboardService homeDashboardService;
   @MockitoBean private JwtService jwtService;
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
+  @MockitoBean private AdminRouteService adminRouteService;
+  @MockitoBean private RequestFingerprintService requestFingerprintService;
+  @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
 
   @Test
   @DisplayName("Deve retornar dashboard da home")

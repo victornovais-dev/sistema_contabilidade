@@ -38,4 +38,26 @@ class JwtServiceTest {
     assertEquals("user@email.com", jwtService.extractUsername(token));
     assertTrue(jwtService.isTokenValid(token, userDetails));
   }
+
+  @Test
+  @DisplayName("Deve incluir fingerprint do dispositivo quando informado")
+  void deveIncluirFingerprintDoDispositivoQuandoInformado() throws Exception {
+    JwtService jwtService = new JwtService();
+    KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
+    keyPairGenerator.initialize(256);
+    KeyPair keyPair = keyPairGenerator.generateKeyPair();
+    String privateKey = Base64.getEncoder().encodeToString(keyPair.getPrivate().getEncoded());
+    String publicKey = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
+    ReflectionTestUtils.setField(jwtService, "ecPrivateKey", privateKey);
+    ReflectionTestUtils.setField(jwtService, "ecPublicKey", publicKey);
+    ReflectionTestUtils.setField(jwtService, "expirationMinutes", 60L);
+    ReflectionTestUtils.invokeMethod(jwtService, "initializeKeys");
+    var userDetails =
+        User.withUsername("user@email.com").password("x").authorities("ROLE_USER").build();
+
+    String token = jwtService.generateToken(userDetails, "fingerprint");
+
+    assertEquals("fingerprint", jwtService.extractDeviceFingerprint(token));
+    assertTrue(jwtService.isTokenValid(token, userDetails, "fingerprint"));
+  }
 }

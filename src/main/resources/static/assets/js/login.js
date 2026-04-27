@@ -14,14 +14,6 @@ const writeCookie = (name, value, days = 365) => {
   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
 };
 
-const writeSessionCookie = (name, value, hours = 8) => {
-  const maxAgeSeconds = Math.max(1, Math.floor(hours * 3600));
-  const expires = new Date(Date.now() + maxAgeSeconds * 1000).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(
-    value,
-  )}; expires=${expires}; Max-Age=${maxAgeSeconds}; path=/`;
-};
-
 const savedTheme = readCookie("theme") || localStorage.getItem("theme");
 root.dataset.theme = savedTheme === "dark" ? "dark" : "light";
 writeCookie("theme", root.dataset.theme);
@@ -74,6 +66,7 @@ loginForm.addEventListener("submit", async (event) => {
     }
     const response = await fetch("/api/v1/auth/login", {
       method: "POST",
+      credentials: "same-origin",
       headers: {
         "Content-Type": "application/json",
         "X-CSRF-TOKEN": csrfToken,
@@ -92,11 +85,20 @@ loginForm.addEventListener("submit", async (event) => {
       return;
     }
 
-    localStorage.setItem("sc_access_token", data.accessToken);
-    writeSessionCookie("SC_TOKEN", data.accessToken, 8);
+    if (window.SCAuth?.storeAccessToken) {
+      await window.SCAuth.storeAccessToken(data.accessToken);
+    } else {
+      localStorage.setItem("sc_access_token", data.accessToken);
+    }
     feedback.textContent = "Login realizado com sucesso. Redirecionando...";
     window.location.href = "/home";
   } catch (error) {
     feedback.textContent = "Erro de conexao com o servidor";
+  }
+});
+
+window.SCAuth?.waitUntilReady?.().then((authenticated) => {
+  if (authenticated && window.location.pathname === "/login") {
+    window.location.href = "/home";
   }
 });

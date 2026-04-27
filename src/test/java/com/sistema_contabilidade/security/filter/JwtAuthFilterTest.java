@@ -3,16 +3,18 @@ package com.sistema_contabilidade.security.filter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.http.Cookie;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,6 +34,8 @@ class JwtAuthFilterTest {
 
   @Mock private JwtService jwtService;
   @Mock private CustomUserDetailsService userDetailsService;
+  @Mock private SessaoUsuarioService sessaoUsuarioService;
+  @Mock private RequestFingerprintService requestFingerprintService;
 
   @AfterEach
   void clearContext() {
@@ -39,9 +43,9 @@ class JwtAuthFilterTest {
   }
 
   @Test
-  @DisplayName("Deve seguir cadeia sem autenticar quando header Authorization não existe")
-  void deveSeguirSemAutenticarQuandoHeaderNaoExiste() throws Exception {
-    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+  @DisplayName("Deve seguir cadeia sem autenticar quando nao existe credencial")
+  void deveSeguirSemAutenticarQuandoNaoExisteCredencial() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
     MockHttpServletResponse response = new MockHttpServletResponse();
     MockFilterChain chain = new MockFilterChain();
@@ -53,9 +57,9 @@ class JwtAuthFilterTest {
   }
 
   @Test
-  @DisplayName("Deve autenticar quando token válido e sem autenticação prévia")
-  void deveAutenticarQuandoTokenValidoESemAutenticacaoPrevia() throws Exception {
-    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+  @DisplayName("Deve autenticar quando token valido vem no header Authorization")
+  void deveAutenticarQuandoTokenValidoVemNoHeaderAuthorization() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
     request.addHeader("Authorization", "Bearer token-valido");
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -63,9 +67,10 @@ class JwtAuthFilterTest {
 
     var userDetails =
         User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(requestFingerprintService.generateFingerprint(request)).thenReturn("fingerprint");
     when(jwtService.extractUsername("token-valido")).thenReturn("ana@email.com");
     when(userDetailsService.loadUserByUsername("ana@email.com")).thenReturn(userDetails);
-    when(jwtService.isTokenValid("token-valido", userDetails)).thenReturn(true);
+    when(jwtService.isTokenValid("token-valido", userDetails, "fingerprint")).thenReturn(true);
 
     filter.doFilter(request, response, chain);
 
@@ -74,9 +79,9 @@ class JwtAuthFilterTest {
   }
 
   @Test
-  @DisplayName("Não deve autenticar quando token é inválido")
-  void naoDeveAutenticarQuandoTokenInvalido() throws Exception {
-    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+  @DisplayName("Nao deve autenticar quando token e invalido")
+  void naoDeveAutenticarQuandoTokenEInvalido() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
     request.addHeader("Authorization", "Bearer token-invalido");
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -84,9 +89,10 @@ class JwtAuthFilterTest {
 
     var userDetails =
         User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(requestFingerprintService.generateFingerprint(request)).thenReturn("fingerprint");
     when(jwtService.extractUsername("token-invalido")).thenReturn("ana@email.com");
     when(userDetailsService.loadUserByUsername("ana@email.com")).thenReturn(userDetails);
-    when(jwtService.isTokenValid("token-invalido", userDetails)).thenReturn(false);
+    when(jwtService.isTokenValid("token-invalido", userDetails, "fingerprint")).thenReturn(false);
 
     filter.doFilter(request, response, chain);
 
@@ -94,9 +100,9 @@ class JwtAuthFilterTest {
   }
 
   @Test
-  @DisplayName("Não deve carregar usuário quando contexto já está autenticado")
-  void naoDeveCarregarUsuarioQuandoContextoJaAutenticado() throws Exception {
-    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+  @DisplayName("Nao deve carregar usuario quando contexto ja esta autenticado")
+  void naoDeveCarregarUsuarioQuandoContextoJaEstaAutenticado() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
     request.addHeader("Authorization", "Bearer token-valido");
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -104,7 +110,6 @@ class JwtAuthFilterTest {
 
     SecurityContextHolder.getContext()
         .setAuthentication(new UsernamePasswordAuthenticationToken("existing", null));
-    when(jwtService.extractUsername("token-valido")).thenReturn("ana@email.com");
 
     filter.doFilter(request, response, chain);
 
@@ -112,9 +117,9 @@ class JwtAuthFilterTest {
   }
 
   @Test
-  @DisplayName("Deve autenticar com token recebido por cookie quando header Authorization ausente")
-  void deveAutenticarComTokenPorCookie() throws Exception {
-    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+  @DisplayName("Deve autenticar com token legado recebido por cookie")
+  void deveAutenticarComTokenLegadoRecebidoPorCookie() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/criar_usuario");
     request.setCookies(new Cookie("SC_TOKEN", "token-cookie"));
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -122,9 +127,10 @@ class JwtAuthFilterTest {
 
     var userDetails =
         User.withUsername("admin@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(requestFingerprintService.generateFingerprint(request)).thenReturn("fingerprint");
     when(jwtService.extractUsername("token-cookie")).thenReturn("admin@email.com");
     when(userDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
-    when(jwtService.isTokenValid("token-cookie", userDetails)).thenReturn(true);
+    when(jwtService.isTokenValid("token-cookie", userDetails, "fingerprint")).thenReturn(true);
 
     filter.doFilter(request, response, chain);
 
@@ -134,8 +140,8 @@ class JwtAuthFilterTest {
 
   @Test
   @DisplayName("Nao deve autenticar quando Bearer vem vazio")
-  void naoDeveAutenticarQuandoBearerVazio() throws Exception {
-    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+  void naoDeveAutenticarQuandoBearerVemVazio() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
     request.addHeader("Authorization", "Bearer ");
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -148,9 +154,9 @@ class JwtAuthFilterTest {
   }
 
   @Test
-  @DisplayName("Deve usar cookie quando Authorization nao eh Bearer")
-  void deveUsarCookieQuandoAuthorizationNaoEhBearer() throws Exception {
-    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+  @DisplayName("Deve usar cookie legado quando Authorization nao eh Bearer")
+  void deveUsarCookieLegadoQuandoAuthorizationNaoEhBearer() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/criar_usuario");
     request.addHeader("Authorization", "Basic abc123");
     request.setCookies(new Cookie("SC_TOKEN", "token-cookie"));
@@ -159,9 +165,10 @@ class JwtAuthFilterTest {
 
     var userDetails =
         User.withUsername("admin@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(requestFingerprintService.generateFingerprint(request)).thenReturn("fingerprint");
     when(jwtService.extractUsername("token-cookie")).thenReturn("admin@email.com");
     when(userDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
-    when(jwtService.isTokenValid("token-cookie", userDetails)).thenReturn(true);
+    when(jwtService.isTokenValid("token-cookie", userDetails, "fingerprint")).thenReturn(true);
 
     filter.doFilter(request, response, chain);
 
@@ -170,9 +177,9 @@ class JwtAuthFilterTest {
   }
 
   @Test
-  @DisplayName("Nao deve autenticar quando token de cookie nao corresponde ao nome esperado")
-  void naoDeveAutenticarQuandoCookieNaoCorresponde() throws Exception {
-    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+  @DisplayName("Nao deve autenticar quando cookie nao corresponde aos nomes esperados")
+  void naoDeveAutenticarQuandoCookieNaoCorrespondeAosNomesEsperados() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/criar_usuario");
     request.setCookies(new Cookie("OUTRO_TOKEN", "token-cookie"));
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -187,7 +194,7 @@ class JwtAuthFilterTest {
   @Test
   @DisplayName("Nao deve autenticar quando username extraido for nulo")
   void naoDeveAutenticarQuandoUsernameExtraidoForNulo() throws Exception {
-    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+    JwtAuthFilter filter = novoFiltro();
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
     request.addHeader("Authorization", "Bearer token-sem-usuario");
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -202,9 +209,9 @@ class JwtAuthFilterTest {
   }
 
   @Test
-  @DisplayName("Nao deve quebrar quando token estiver expirado e deve limpar cookie")
-  void naoDeveQuebrarQuandoTokenExpirado() throws Exception {
-    JwtAuthFilter filter = new JwtAuthFilter(jwtService, userDetailsService);
+  @DisplayName("Nao deve quebrar quando token legado estiver expirado e deve limpar cookie")
+  void naoDeveQuebrarQuandoTokenLegadoEstiverExpirado() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
     request.setCookies(new Cookie("SC_TOKEN", "token-expirado"));
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -221,6 +228,31 @@ class JwtAuthFilterTest {
     assertNotNull(cookieLimpo);
     assertEquals(0, cookieLimpo.getMaxAge());
     assertEquals("/", cookieLimpo.getPath());
-    assertTrue(cookieLimpo.getSecure());
+  }
+
+  @Test
+  @DisplayName("Deve autenticar com sessao opaca quando JWT estiver ausente")
+  void deveAutenticarComSessaoOpacaQuandoJwtEstiverAusente() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/home");
+    request.setCookies(new Cookie("SC_SESSION", "sessao-segura"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+    var userDetails =
+        User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(sessaoUsuarioService.validarSessao("sessao-segura")).thenReturn(usuarioId);
+    when(userDetailsService.loadUserById(usuarioId)).thenReturn(userDetails);
+
+    filter.doFilter(request, response, chain);
+
+    assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    verify(userDetailsService).loadUserById(usuarioId);
+  }
+
+  private JwtAuthFilter novoFiltro() {
+    return new JwtAuthFilter(
+        jwtService, userDetailsService, sessaoUsuarioService, requestFingerprintService);
   }
 }

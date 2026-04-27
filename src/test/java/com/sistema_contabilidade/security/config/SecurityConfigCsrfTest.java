@@ -7,11 +7,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sistema_contabilidade.auth.dto.AuthenticatedLoginResult;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.service.AuthService;
+import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.relatorio.service.RelatorioFinanceiroService;
+import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
@@ -28,25 +29,30 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @DisplayName("SecurityConfig CSRF tests")
-class SecurityConfigCsrfTest {
+public class SecurityConfigCsrfTest {
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private AdminRouteService adminRouteService;
 
   @MockitoBean private AuthService authService;
   @MockitoBean private RelatorioFinanceiroService relatorioFinanceiroService;
   @MockitoBean private JwtService jwtService;
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
+  @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private UsuarioService usuarioService;
 
   @Test
   @DisplayName("Deve bloquear login sem token CSRF")
   void deveBloquearLoginSemTokenCsrf() throws Exception {
-    when(authService.login(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(new JwtLoginResponse("token", "Bearer"));
+    when(authService.login(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+        .thenReturn(
+            new AuthenticatedLoginResult(new JwtLoginResponse("token", "Bearer"), "sessao"));
 
     mockMvc
         .perform(
@@ -65,8 +71,9 @@ class SecurityConfigCsrfTest {
   @Test
   @DisplayName("Deve permitir login com token CSRF")
   void devePermitirLoginComTokenCsrf() throws Exception {
-    when(authService.login(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(new JwtLoginResponse("token", "Bearer"));
+    when(authService.login(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+        .thenReturn(
+            new AuthenticatedLoginResult(new JwtLoginResponse("token", "Bearer"), "sessao"));
 
     MvcResult csrfResult =
         mockMvc.perform(get("/api/v1/auth/csrf")).andExpect(status().isOk()).andReturn();
@@ -104,7 +111,11 @@ class SecurityConfigCsrfTest {
   void deveRedirecionarPara404AoAcessarAdminSemRoleAdmin() throws Exception {
     var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
     when(jwtService.extractUsername("token_manager")).thenReturn("manager@email.com");
-    when(jwtService.isTokenValid("token_manager", userDetails)).thenReturn(true);
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_manager"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
     when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
 
     mockMvc
@@ -118,7 +129,11 @@ class SecurityConfigCsrfTest {
   void deveRedirecionarPara404AoAcessarGerenciarRolesSemRoleAdmin() throws Exception {
     var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
     when(jwtService.extractUsername("token_manager")).thenReturn("manager@email.com");
-    when(jwtService.isTokenValid("token_manager", userDetails)).thenReturn(true);
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_manager"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
     when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
 
     mockMvc
@@ -134,12 +149,16 @@ class SecurityConfigCsrfTest {
   void deveBloquearListagemDeUsuariosParaNaoAdmin() throws Exception {
     var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
     when(jwtService.extractUsername("token_manager")).thenReturn("manager@email.com");
-    when(jwtService.isTokenValid("token_manager", userDetails)).thenReturn(true);
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_manager"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
     when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
 
     mockMvc
         .perform(
-            get("/api/v1/usuarios")
+            get(adminRouteService.adminUserApiBasePath())
                 .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_manager")))
         .andExpect(status().isForbidden());
   }
@@ -149,7 +168,11 @@ class SecurityConfigCsrfTest {
   void devePermitirAtualizacaoDoProprioPerfil() throws Exception {
     var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
     when(jwtService.extractUsername("token_manager")).thenReturn("manager@email.com");
-    when(jwtService.isTokenValid("token_manager", userDetails)).thenReturn(true);
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_manager"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
     when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
     when(usuarioService.updatePerfil(
             org.mockito.ArgumentMatchers.eq("manager@email.com"),
@@ -196,7 +219,11 @@ class SecurityConfigCsrfTest {
     var userDetails =
         User.withUsername("multi@email.com").password("x").roles("MANAGER", "OPERADOR").build();
     when(jwtService.extractUsername("token_multi")).thenReturn("multi@email.com");
-    when(jwtService.isTokenValid("token_multi", userDetails)).thenReturn(true);
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_multi"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
     when(customUserDetailsService.loadUserByUsername("multi@email.com")).thenReturn(userDetails);
     when(relatorioFinanceiroService.listarRolesDisponiveis(org.mockito.ArgumentMatchers.any()))
         .thenReturn(java.util.List.of("MANAGER", "OPERADOR"));
@@ -206,5 +233,11 @@ class SecurityConfigCsrfTest {
             get("/api/v1/relatorios/roles")
                 .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_multi")))
         .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("Deve responder 404 ao acessar rota admin legada de API")
+  void deveResponder404AoAcessarRotaAdminLegadaDeApi() throws Exception {
+    mockMvc.perform(get("/api/v1/admin/roles")).andExpect(status().isNotFound());
   }
 }
