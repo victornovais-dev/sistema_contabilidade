@@ -3,48 +3,44 @@
 ## Resumo
 
 - Projeto principal: backend Spring Boot 4.0.3 com Java 25.
-- Build: Maven Wrapper (`.\mvnw`), com Spotless, Checkstyle, SpotBugs, PMD, Error Prone, Jacoco e ArchUnit.
-- UI servida hoje: templates Thymeleaf em `src/main/resources/templates` para primeiro render server-side, com assets e fallbacks em `src/main/resources/static`.
-- As paginas continuam dependentes de JS/CSS em `static/assets`, e a navbar tem fragmento Thymeleaf e partial estatico.
-- Ha tambem um `frontend-angular/`, mas o fluxo atual servido pelo backend ainda depende fortemente dos arquivos estaticos.
+- Build: Maven Wrapper (`.\mvnw`) com Spotless, Checkstyle, SpotBugs, PMD, Error Prone, JaCoCo e ArchUnit.
+- UI atual: primeiro render por Thymeleaf em `src/main/resources/templates`, com JS/CSS e fallbacks em `src/main/resources/static`.
+- O `frontend-angular/` existe, mas o fluxo principal ainda depende do backend server-side e dos assets estaticos.
 
 ## Dependencias relevantes
 
 - Spring Boot Web MVC, Data JPA, Security, Validation, Thymeleaf, Actuator
 - Redis + Spring Cache + Caffeine
-- JWT (`jjwt`)
+- JWT (`jjwt`) e sessao opaca em cookie
 - MySQL runtime
 - MapStruct + Lombok
 - Playwright para PDF
 - AWS S3 SDK para storage remoto
-- Micrometer/Prometheus para metricas operacionais e auditoria de query count por rota
+- Micrometer/Prometheus para metricas e auditoria de query count por rota
 
 ## Modulos principais
 
-- `auth`: login e JWT
-- `usuario`: CRUD de usuarios, paginas de usuario, regras de criacao/atualizacao
-- `rbac`: roles e inicializacao de perfis
-- `item`: lancamento de comprovantes, upload/download, observacao, verificacao, descricoes e tipos de documento
-- `home`: cards e dashboard inicial
-- `relatorio`: resumo financeiro e geracao de PDF
-- `notificacao`: notificacoes geradas a partir de receitas
-- `security`: filtros JWT, rate limit, headers, CORS, CSRF
-- `monitoring`: contagem de queries SQL por request, exportacao Micrometer e integracao com Prometheus
-- `common`: utilitarios compartilhados, como classificacao de receitas e roles tecnicas
+- `auth`: login, refresh, logout, sessao opaca, cookies, rotas do usuario autenticado
+- `usuario`: CRUD, perfil, paginas, navbar model advice
+- `rbac`: roles, permissoes e inicializacao
+- `item`: lancamentos, anexos, download, observacao, verificacao, descricoes e tipos de documento
+- `home`: dashboard inicial e cards
+- `relatorio`: resumo financeiro, PDF Playwright e mock executivo
+- `notificacao`: notificacoes derivadas de receitas
+- `security`: JWT/session filter, rate limit, headers, CORS, CSRF, rotas admin secretas
+- `monitoring`: contagem de queries por request e exportacao Micrometer
+- `common`: utilitarios compartilhados, como classificacao de receitas e filtro de roles tecnicas
 
 ## Arquitetura e convencoes
 
-- ArchUnit exige sufixos e camadas:
+- ArchUnit exige sufixos e pacotes por camada:
   - `*Controller` em `..controller..`
   - `*Service` em `..service..`
   - `*Repository` em `..repository..`
-- Dependencias permitidas:
-  - controller pode acessar service e repository
-  - service pode acessar repository
-  - repository nao pode acessar as outras camadas
-- Quando houver duvida estrutural, valide contra `ArchitectureRulesTest`.
+- Fluxo preferencial do projeto: `controller -> service -> repository`
+- `ArchitectureRulesTest` e a esteira Maven sao a fonte de verdade para convencoes e limites
 
-## Paginas estaticas atuais
+## Paginas e rotas
 
 Rotas HTML servidas por `PaginaUsuarioController`:
 
@@ -58,286 +54,225 @@ Rotas HTML servidas por `PaginaUsuarioController`:
 - `/notificacoes`
 - `/admin`
 - `/gerenciar_roles`
+- `/404`
 
-Pontos atuais importantes:
+Observacao importante:
 
-- `PaginaUsuarioController` retorna templates para as paginas autenticadas principais.
-- `/login` e `/404` ainda retornam recursos HTML estaticos.
-- `UsuarioNavbarModelAdvice` injeta dados de roles/usuario para a navbar Thymeleaf.
-- `SecurityConfig` tambem controla acesso por pagina; atualize os testes quando mudar permissao de rota.
+- as paginas admin legadas continuam existindo como rotas internas, mas o acesso real no browser passa por prefixos secretos gerados por `AdminRouteService`
+- o filtro admin redireciona paths legados para `/404` e tambem esconde as APIs administrativas antigas
 
-Arquivos principais em `src/main/resources/static`:
+Arquivos centrais de UI:
 
-- `adicionar_comprovante.html`
-- `criar_usuario.html`
-- `home.html`
-- `lista_comprovantes.html`
-- `relatorios.html`
-- `notificacoes.html`
+- templates: `home.html`, `adicionar_comprovante.html`, `lista_comprovantes.html`, `relatorios.html`, `notificacoes.html`, `admin.html`
+- navbar Thymeleaf: `templates/fragments/navbar.html`
+- navbar estatica: `static/partials/navbar.html`
+- mock executivo: `relatorio-executivo-exemplo.html`
 
-Cada pagina costuma ter JS/CSS proprios em `static/assets/js` e `static/assets/css`.
+## Navbar, sessao e frontend compartilhado
 
-Templates principais em `src/main/resources/templates`:
+- `auth-session.js` centraliza bootstrap, refresh e logout do frontend autenticado
+- a sessao principal usa cookie opaco `SC_SESSION`
+- `SC_TOKEN` continua apenas como compatibilidade legada para alguns testes e fluxos antigos
+- a navbar precisa ficar sincronizada entre:
+  - `src/main/resources/templates/fragments/navbar.html`
+  - `src/main/resources/static/partials/navbar.html`
+  - `static/assets/js/navbar.js`
+  - `static/assets/css/navbar.css`
+- o badge de notificacoes considera apenas notificacoes nao verificadas
 
-- `home.html`
-- `adicionar_comprovante.html`
-- `lista_comprovantes.html`
-- `relatorios.html`
-- `notificacoes.html`
-- `fragments/navbar.html`
+## Seguranca
+
+- `SecurityConfig` usa:
+  - JWT + autenticacao por sessao opaca
+  - CSRF com cookie
+  - CORS configuravel por property
+  - CSP, HSTS, Referrer-Policy e Permissions-Policy
+  - `RateLimitFilter`
+  - `JwtAuthFilter`
+  - `RequestContextMdcFilter`
+- `PasswordEncoder` preferencial: Argon2, com compatibilidade para hashes antigos
+- `AuthController` limpa o cookie legado e trabalha com `SC_SESSION`
+- `AdminRouteService` calcula paths secretos a partir de `app.admin.route-secret`
+- `app.admin.route-secret` por padrao deriva de `ADMIN_ROUTE_SECRET` ou `SESSION_CRYPTO_SECRET`
+- ao tocar auth/admin, leia tambem:
+  - `SecurityPaths`
+  - `AdminRouteService`
+  - `AuthController`
+  - `JwtAuthFilter`
+  - `SecurityConfig`
 
 ## Fluxos importantes
 
 ### 1. Adicionar comprovante
 
 - Pagina: `adicionar_comprovante.html`
-- API principal: `ItemController` em `/api/v1/itens`
-- Busca dinamica de opcoes:
+- API principal: `POST /api/v1/itens`
+- Selects dinamicos:
   - `/api/v1/itens/roles`
   - `/api/v1/itens/descricoes?tipo=...`
   - `/api/v1/itens/tipos-documento?tipo=...`
-- Regras recentes importantes:
-  - descricoes vem do backend
-  - `CONTA FEFEC` foi removida de receitas no frontend e no backend
-  - receitas `CONTA DC`, `CONTA FEFC` e `CONTA FP` exigem anexo
+- Regras atuais:
+  - anexo em PDF e obrigatorio na criacao
+  - tamanho maximo atual: `20 MB`
+  - validacao existe no frontend e no backend
+  - `Extrato Bancario` existe na UI como tipo especial e limita descricao a `CONTA FEFC`, `CONTA FP` e `CONTA DC`
+  - `CONTABIL` nao acessa a pagina
   - CPF deve ser unico; CNPJ pode repetir
-  - tipos de documento sao separados por tipo:
-    - Receita: Pix, Transferencia, Cheque, Dinheiro
-    - Despesa: Nota fiscal, Fatura, Boleto, Outros
-  - despesas em categorias limitadas passam por `ItemExpenseLimitService`
-  - CONTABIL nao acessa a pagina de adicionar comprovante
+- Upload/PDF:
+  - validacao binaria de PDF acontece em `PdfUploadSecurityValidator`
+  - storage local e S3 usam nomes sanitizados e chave final com UUID
 
 ### 2. Lista de comprovantes
 
 - Pagina: `lista_comprovantes.html`
 - API principal: `GET /api/v1/itens`
-- O card do item ja suporta:
+- O card do item suporta:
   - observacao
-  - download de arquivos
+  - download de arquivo unico ou ZIP
+  - anexos adicionais por item
   - exclusao
-  - botao de verificacao persistido no banco
-- Regras recentes importantes:
+  - check de verificacao
+- Regras atuais:
   - item verificado nao pode ser excluido
-  - CONTABIL nao pode excluir comprovante
-  - SUPPORT pode marcar vermelho -> verde, mas nao pode voltar verde -> vermelho
-  - CANDIDATO nao ve o botao de check e nao pode alterar verificacao no backend
-  - exclusao de item remove notificacao correspondente
-  - frontend usa animacao suave ao excluir/sumir card
+  - `CONTABIL` nao pode excluir
+  - `SUPPORT` pode marcar vermelho -> verde, mas nao pode voltar verde -> vermelho
+  - `CANDIDATO` nao pode alterar verificacao
+  - receitas marcadas como verificadas atualizam o badge da navbar, mas continuam aparecendo na pagina de notificacoes
+  - o modal de anexos mostra card de erro por arquivo rejeitado
 
 ### 3. Home
 
 - Pagina: `home.html`
 - API principal: `/api/v1/home/dashboard`
-- Hoje trabalha com cards de receitas totais, despesas totais, utilizado e saldo final
-- Card `Utilizado` mostra percentual e legenda `Receita Gasta`
-- Card `Saldo final` tem legenda `Saldo final`
-- A classificacao de receitas passa por `RevenueClassificationUtils`
-- Botao `Novo lancamento` foi removido
+- Cards principais:
+  - receitas totais
+  - despesas totais
+  - utilizado
+  - saldo final
+- O bloco lateral relevante hoje inclui `Datas importantes` no lugar do card antigo `Receitas vs Despesas`
+- `Datas importantes` tem scroll proprio e layout visual alinhado ao painel de ultimos lancamentos
 
 ### 4. Relatorios
 
 - Pagina: `relatorios.html`
 - API principal: `/api/v1/relatorios/financeiro`
 - PDF: `/api/v1/relatorios/financeiro/pdf`
-- Cards usam agregacoes do backend e, em alguns casos, fallback no frontend para manter compatibilidade
-- Card `Limites de gastos` mostra graficos verticais com gasto e teto em valores numericos
-- Limites atuais:
-  - Combustivel: teto de 10% das despesas totais
-  - Alimentacao: teto de 10% das despesas totais
-  - Locacao de Veiculos: teto de 20% das despesas totais
-- Locacao no limite considera somente `ALUGUEL DE VEICULOS`
-- O backend tambem bloqueia novas despesas acima do teto dessas categorias
+- O resumo vem do backend em `RelatorioFinanceiroService`; parte do layout/agrupamento continua sendo completada pelo frontend
+- `PlaywrightPdfService` renderiza o template Thymeleaf do PDF e embute a logo como data URI
+- `relatorio-financeiro.html` e `PlaywrightPdfService` sao os arquivos centrais do PDF
+- O mock `relatorio-executivo-exemplo.html` existe como referencia visual separada
+- `Despesas por categoria` usa grafico circular e paleta fixa por categoria
 
 ### 5. Notificacoes
 
 - Pagina: `notificacoes.html`
-- Receitas lancadas geram notificacao persistida
 - API principal: `/api/v1/notificacoes`
-- Notificacoes sao atreladas a itens de receita:
-  - se a receita existe em comprovantes, a notificacao correspondente deve existir
-  - se a receita for deletada, a notificacao tambem deve ser removida
-- O check de notificacao e o check de lista de comprovantes representam a mesma informacao de item/verificacao
-- Card `Valor lancado` soma itens com check verde
-- Textos atuais:
-  - titulo deve renderizar como `Notificações` na UI
-  - `Notificacoes` sem acento nos arquivos HTML/JS pode indicar regressao de encoding ou texto antigo
-  - label operacional: `Soma dos itens lancados`
-  - label de notificadas: `Soma das receitas notificadas`
-- Menu de notificacoes exibe contador independente da pagina atual
-- Pagina de notificacoes deve aparecer apenas para ADMIN e CONTABIL
+- Toda receita sincroniza uma notificacao persistida
+- Regras atuais:
+  - se a receita e removida, a notificacao correspondente sai
+  - se a receita fica verificada, a notificacao continua na pagina
+  - o badge da navbar conta apenas notificacoes ainda nao verificadas
+  - `Valor lancado` reflete itens com check verde
+  - a pagina e restrita a `ADMIN` e `CONTABIL`
 
-### 6. Navbar e UI server-side
+## Relatorio financeiro e PDF
 
-- Navbar foi embutida no HTML inicial para reduzir piscada durante troca de paginas.
-- Existe navbar em:
-  - `src/main/resources/templates/fragments/navbar.html`
-  - `src/main/resources/static/partials/navbar.html`
-- Mantenha as duas sincronizadas quando alterar estrutura visual ou permissoes de menu.
-- Logos:
-  - dark mode: `assets/img/sacs-contabil-navbar-branco.png`
-  - light mode: `assets/img/sacs-contabil-navbar-azul.png`
-- O contador de notificacoes e carregado por `assets/js/navbar.js`.
-- Campo `Politico` foi renomeado para `Candidato`; opcoes tecnicas ADMIN, CONTABIL, MANAGER e SUPPORT nao devem aparecer como candidatos.
+- `RelatorioFinanceiroService` calcula:
+  - receitas financeiras
+  - receitas estimaveis
+  - despesas consideradas
+  - despesas advocacia/contabilidade
+  - total de despesas
+  - percentuais de categorias limitadas
+  - saldo final
+- o PDF usa:
+  - `relatorio-financeiro.html`
+  - `PlaywrightPdfService`
+  - `ThymeleafTemplateRenderer`
+- o download pela pagina de relatorios hoje baixa o arquivo diretamente, sem abrir `about:blank` e sem depender de `file://`
 
-## Seguranca
+## Configuracao e ambiente
 
-- `SecurityConfig` usa:
-  - JWT stateless
-  - CSRF com cookie
-  - CORS configuravel por property
-  - rate limit filter
-  - CSP, HSTS, Referrer-Policy e Permissions-Policy
-- `/criar_usuario`, `/admin`, `/gerenciar_roles` exigem `ADMIN`
-- `/adicionar_comprovante` exige autenticacao e bloqueia CONTABIL
-- `/notificacoes` exige ADMIN ou CONTABIL
-- Demais paginas principais exigem autenticacao
-- Roles tecnicas atuais:
-  - ADMIN
-  - MANAGER
-  - SUPPORT
-  - CONTABIL
-  - CANDIDATO
-- `CandidateRoleUtils` centraliza roles tecnicas que devem ser filtradas de seletores de candidato.
-- `UsuarioPadraoInitializer` nao deve mais depender de senha hardcoded:
-  - nome: `DEFAULT_ADMIN_NAME` (fallback `Administrador`)
-  - email: `DEFAULT_ADMIN_EMAIL` (fallback `admin@sistema.local`)
-  - senha: `DEFAULT_ADMIN_PASSWORD`
-- Se a base estiver vazia e `DEFAULT_ADMIN_PASSWORD` nao estiver configurada, o initializer registra aviso e nao cria usuario padrao.
-
-## Configuracao e armadilhas de ambiente
-
-- `application.properties` importa `.env` com `spring.config.import=optional:file:.env[.properties]`
-- O profile default atual e `local`
+- `application.properties` importa `.env`
+- profile default: `local`
 - `application-local.properties` define:
   - MySQL local
   - `spring.jpa.hibernate.ddl-auto=update`
   - storage local em `uploads/itens`
+  - limite de PDF: `20971520`
   - Redis local
-- Armadilha importante:
-  - variaveis no `.env` podem sobrescrever o comportamento local
-  - exemplo classico: `APP_STORAGE_TYPE=s3` quebra o fluxo local de upload se o bucket nao estiver configurado
-- Em producao Docker/RDS, o app espera:
-  - `SPRING_DATASOURCE_URL`
-  - `DB_USERNAME_PROD` ou `DB_USERNAME`
-  - `DB_PASSWORD_PROD` ou `DB_PASSWORD`
-  - `SESSION_CRYPTO_SECRET`
-- Para observabilidade local:
-  - `APP_QUERY_MONITOR_ENABLED` ativa/desativa auditoria
-  - `APP_QUERY_MONITOR_THRESHOLD` define o limite por request (padrao `15`)
-  - `APP_QUERY_MONITOR_ADD_RESPONSE_HEADER` controla `X-Query-Count`
-- Se o container reiniciar apos o banner Spring, verifique `/app/logs/*.json`.
-- Erro `Unable to determine Dialect without JDBC metadata` costuma indicar URL JDBC ausente/invalida ou falha de conexao/autenticacao no banco.
-- Na EC2, teste rede RDS com `nc -vz <host> 3306`; teste credencial com `mariadb -h <host> -P 3306 -u <user> -p`.
-- Nao exponha senhas/tokens no chat ou em commits; se vazarem, rotacione.
+  - `spring.thymeleaf.cache=false`
+- Cuidado:
+  - `.env` pode sobrescrever storage, banco, cache e segredos
+  - nao exponha valores de token, senha ou secret no chat
 
 ## Cache e performance
 
-- Cache atual usa Caffeine
-- Caches declarados:
+- cache atual usa Caffeine
+- caches declarados:
   - `userDetails`
   - `itemDescricoes`
   - `itemTiposDocumento`
-- O projeto tambem possui Redis configurado; confirme se a mudanca e cache local, distribuido ou apenas configuracao preparada
+- Redis continua configurado para cenarios que precisem cache distribuido
 
-## Observabilidade e auditoria de queries
+## Observabilidade e query count
 
-- Hibernate usa `QueryCountStatementInspector` via `spring.jpa.properties.hibernate.session_factory.statement_inspector`.
-- `QueryCountContext` mantem o contador por thread/request.
+- `QueryCountStatementInspector` conta queries Hibernate por request
 - `QueryCountFilter`:
-  - reseta e encerra o contador por request
-  - adiciona header `X-Query-Count`
-  - registra a metrica Micrometer `http.server.query.count`
-  - usa tags `method`, `uri` e `status`
-  - ignora `/actuator`, assets estaticos e `favicon`
-  - registra warning quando passar do limite configurado
-- Endpoints criticos ja cobertos por auditoria de query budget:
-  - `GET /api/v1/itens`
-  - `GET /api/v1/itens/{id}`
-  - `GET /api/v1/itens/{id}/arquivos`
-  - `GET /api/v1/itens/{id}/arquivos/download`
-  - `GET /api/v1/relatorios/financeiro`
-- O alvo operacional atual e manter `X-Query-Count <= 15` nesses endpoints.
-- `management.endpoints.web.exposure.include` expõe `health`, `info`, `metrics` e `prometheus`.
-- O stack local de observabilidade fica em `observability/`:
-  - Prometheus: `http://localhost:9090`
-  - Grafana: `http://localhost:3001`
-  - credenciais locais padrao: `admin / admin`
-- Arquivos importantes:
-  - `observability/prometheus/prometheus.yml`
-  - `observability/prometheus/rules/query-count-alerts.yml`
-  - `observability/grafana/dashboards/query-count-dashboard.json`
-  - `observability/grafana/provisioning/**`
-- O dashboard local mostra piores rotas por query count, media por request, ranking por rota e rotas acima do threshold.
+  - reseta/encerra o contexto
+  - adiciona `X-Query-Count`
+  - publica `http.server.query.count`
+  - ignora `/actuator`, assets e `favicon`
+- threshold operacional local continua configuravel por property
+- stack de observabilidade local fica em `observability/`
+
+## SonarQube e qualidade
+
+- fluxo padrao do projeto:
+  - `.\scripts\use-java25.ps1`
+  - `.\mvnw spotless:apply`
+  - `.\mvnw test`
+  - `.\mvnw -DskipTests compile checkstyle:check spotbugs:check pmd:check`
+  - `.\mvnw verify`
+- script utilitario:
+  - `scripts/sonar-precommit.ps1`
+- o script usa:
+  - `SONAR_HOST_URL`
+  - `SONAR_TOKEN` ou `SONARQUBE_TOKEN`
+  - `SONAR_PROJECT_KEY`
+- instancia local recente do time:
+  - SonarQube Community `26.4.0.121862`
+  - dashboard: `http://localhost:9000`
+- estado mais recente validado no repositorio:
+  - issues abertas `0`
+  - hotspots `0`
+  - quality gate `OK`
+  - new coverage `85.0%`
 
 ## Testes
 
-- Ha dezenas de arquivos de teste em `src/test/java`, incluindo WebMvc, service, repository, arquitetura e observabilidade
-- Suite completa recente: 350 testes verdes
-- Ha testes dedicados para:
-  - query count header
-  - auditoria de endpoints criticos
-  - exportacao da metrica em `/actuator/prometheus`
-  - fallback/compatibilidade de storage S3
-- SonarQube recente:
-  - Quality Gate OK
-  - new code issues: 0
-  - new coverage: 80.9%
-  - duplicated lines density: 0.0%
-- Suites relevantes por area:
-  - controller webmvc tests
-  - service tests
-  - DTO tests
-  - initializer tests
-  - `ArchitectureRulesTest`
-  - `QueryCountAuditIntegrationTest`
-  - `QueryCountPrometheusIntegrationTest`
-- Para mudancas localizadas, prefira rodar a suite diretamente afetada antes do fluxo completo
-
-## Comandos operacionais
-
-Antes de Maven no PowerShell:
-
-```powershell
-.\scripts\use-java25.ps1
-```
-
-Comandos recorrentes:
-
-```powershell
-.\mvnw test
-.\mvnw verify
-.\mvnw spotless:apply
-.\mvnw -Dtest=ArchitectureRulesTest test
-```
-
-Fluxo de qualidade completo usado no projeto:
-
-```powershell
-.\scripts\use-java25.ps1
-.\mvnw spotless:apply
-.\mvnw test
-.\mvnw -DskipTests compile checkstyle:check spotbugs:check pmd:check
-.\mvnw verify
-```
-
-SonarQube:
-
-- `scripts/sonar-precommit.ps1` usa `SONAR_TOKEN`/`SONARQUBE_TOKEN` e `SONAR_HOST_URL`.
-- Se Sonar estiver em Docker sem porta publicada, rode scanner na rede do container ou publique a porta 9000.
-- O filtro que mais aparece nas tarefas recentes e:
-  - `issueStatuses=OPEN,CONFIRMED`
-  - `inNewCodePeriod=true`
-- Relatorio local esperado apos analise limpa:
-  - Quality Gate OK
-  - Issues abertas 0
+- suite recente: `406` testes verdes
+- existem testes dedicados para:
+  - auth/session/csrf
+  - controllers WebMvc
+  - storage local e S3
+  - PDF Playwright
+  - notificacoes
+  - query count audit
+  - Prometheus
+  - ArchUnit
+- antes de alterar regra sensivel, localize primeiro o teste mais proximo e alinhe a mudanca por ali
 
 ## Estrategia pratica para mudancas
 
-1. Identificar a pagina ou modulo principal.
-2. Confirmar se a regra de negocio ja existe no backend antes de mexer no frontend.
-3. Verificar se ha cache, fallback, seed ou catalogo envolvido.
-4. Espelhar validacoes criticas em frontend e backend quando o fluxo e de formulario.
-5. Rodar os testes da area afetada e depois o fluxo de qualidade exigido pelo repositorio.
-6. Se mexer em pagina com navbar, atualize template Thymeleaf, partial estatico, CSS e JS juntos.
-7. Se alterar roles/permissoes, atualize backend, frontend, `SecurityConfig`, `PaginaUsuarioControllerTest` e filtros de candidato.
-8. Se mexer em listagem/relatorio/download de itens, observe tambem o budget de queries e atualize os testes/a metrica quando necessario.
+1. Descobrir se a pagina usa template Thymeleaf, static HTML, ou ambos.
+2. Confirmar se a regra ja existe no backend antes de mexer no frontend.
+3. Ao alterar auth/admin, checar tambem `AdminRouteService`, `SecurityPaths`, `AuthController`, `JwtAuthFilter` e `SecurityConfig`.
+4. Ao alterar upload/download, checar `PdfUploadSecurityValidator`, storage local/S3, `ItemController` e os testes WebMvc.
+5. Ao alterar notificacoes, checar sincronizacao entre `ItemController`, `NotificacaoService`, navbar e pagina `notificacoes`.
+6. Ao alterar relatorios, separar claramente:
+   - agregacao backend
+   - layout frontend
+   - layout PDF Playwright
+7. Se mexer em navbar ou pagina principal, sincronizar template, partial estatica, CSS e JS.
+8. Rodar primeiro a suite afetada e depois o fluxo completo de qualidade.
