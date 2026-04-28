@@ -6,8 +6,8 @@
     <title>Home | Sistema</title>
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
     <script src="assets/js/theme-init.js?v=20260413-home-summary-1"></script>
-    <script src="assets/js/auth-session.js?v=20260425-layer6-1"></script>
-    <link rel="stylesheet" href="assets/css/home.css?v=20260420-utilizado-centralizado-1" />
+    <script src="assets/js/auth-session.js?v=20260427-logout-fresh-csrf-1"></script>
+    <link rel="stylesheet" href="assets/css/home.css?v=20260427-home-dates-badge-minus10-1" />
     <link rel="stylesheet" href="assets/css/navbar.css?v=20260420-navbar-notification-count-fix-3" />
   </head>
   <body>
@@ -87,33 +87,51 @@
       </section>
 
       <section class="dashboard-content" aria-label="Painel financeiro">
-        <article class="panel-card chart-panel">
+        <article class="panel-card important-dates-panel">
           <header class="panel-header">
-            <h2>Receitas vs Despesas</h2>
-            <a href="/relatorios" class="panel-link">Ver relat&oacute;rio &rarr;</a>
+            <div class="panel-header-copy">
+              <h2>Datas importantes</h2>
+              <p class="panel-subtitle">Prazos eleitorais e marcos da presta&ccedil;&atilde;o de contas</p>
+            </div>
           </header>
 
-          <div class="chart-stage" role="img" aria-label="Comparativo visual entre receitas e despesas por m&ecirc;s">
-            <div class="chart-columns" data-income-expense-chart>
-              <div class="chart-month">
-                <div class="chart-bars">
-                  <span class="chart-bar chart-bar-income" style="--bar-height: 16%"></span>
-                  <span class="chart-bar chart-bar-expense" style="--bar-height: 14%"></span>
-                </div>
-                <span class="chart-month-label">...</span>
+          <div class="important-dates-list" aria-label="Calend&aacute;rio de datas importantes">
+            <article class="important-date-item">
+              <div class="important-date-badge" aria-label="05 de outubro de 2026">
+                <span class="important-date-day">05</span>
+                <span class="important-date-month">Out</span>
               </div>
-            </div>
-
-            <div class="chart-legend" aria-hidden="true">
-              <span class="chart-legend-item">
-                <span class="chart-legend-dot chart-legend-dot-income"></span>
-                Receitas
-              </span>
-              <span class="chart-legend-item">
-                <span class="chart-legend-dot chart-legend-dot-expense"></span>
-                Despesas
-              </span>
-            </div>
+              <div class="important-date-copy">
+                <p>In&iacute;cio do prazo para entregar a presta&ccedil;&atilde;o de contas final do 1&ordm; turno.</p>
+              </div>
+            </article>
+            <article class="important-date-item">
+              <div class="important-date-badge" aria-label="25 de outubro de 2026">
+                <span class="important-date-day">25</span>
+                <span class="important-date-month">Out</span>
+              </div>
+              <div class="important-date-copy">
+                <p>2&ordm; turno, onde houver. &Uacute;ltimo dia para quem disputa o segundo turno arrecadar recursos e contrair obriga&ccedil;&otilde;es.</p>
+              </div>
+            </article>
+            <article class="important-date-item">
+              <div class="important-date-badge" aria-label="03 de novembro de 2026">
+                <span class="important-date-day">03</span>
+                <span class="important-date-month">Nov</span>
+              </div>
+              <div class="important-date-copy">
+                <p>&Uacute;ltimo dia para entregar as contas referentes ao 1&ordm; turno. Tamb&eacute;m &eacute; prazo para transferir sobras de campanha e devolver FEFC n&atilde;o utilizado, salvo candidatos que disputaram o 2&ordm; turno.</p>
+              </div>
+            </article>
+            <article class="important-date-item">
+              <div class="important-date-badge" aria-label="14 de novembro de 2026">
+                <span class="important-date-day">14</span>
+                <span class="important-date-month">Nov</span>
+              </div>
+              <div class="important-date-copy">
+                <p>&Uacute;ltimo dia para quem disputou o 2&ordm; turno entregar as contas dos dois turnos e transferir sobras/devolver FEFC n&atilde;o usado.</p>
+              </div>
+            </article>
           </div>
         </article>
 
@@ -143,7 +161,6 @@
     <script src="assets/js/home-role-filter.js?v=20260421-candidato-role-1" defer></script>
     <script src="assets/js/home-dashboard-data.js?v=20260413-home-summary-1" defer></script>
     <script src="assets/js/home-metrics.js?v=20260413-home-summary-1" defer></script>
-    <script src="assets/js/home-income-expense-chart.js?v=20260413-home-summary-1" defer></script>
     <script src="assets/js/home-latest-launches.js?v=20260413-home-summary-1" defer></script>
   </body>
 </html>

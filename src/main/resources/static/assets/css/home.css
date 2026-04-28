@@ -29,6 +29,7 @@
   --danger-soft: rgba(225, 96, 71, 0.12);
   --neutral-soft: rgba(27, 27, 31, 0.06);
   --shadow: 0 24px 60px rgba(20, 20, 24, 0.18);
+  --dashboard-panel-height: 420px;
 }
 
 html[data-theme="dark"] {
@@ -522,8 +523,149 @@ html[data-theme="dark"] .panel-card {
   white-space: nowrap;
 }
 
+.panel-header-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.panel-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
 .chart-panel {
   min-height: 294px;
+}
+
+.important-dates-panel {
+  min-height: var(--dashboard-panel-height);
+  max-height: var(--dashboard-panel-height);
+  height: var(--dashboard-panel-height);
+  align-self: stretch;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.important-dates-list {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 8px;
+  padding-bottom: 2px;
+  align-content: start;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(216, 75, 52, 0.45) transparent;
+}
+
+.important-dates-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.important-dates-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.important-dates-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(216, 75, 52, 0.45);
+}
+
+.important-date-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.42)),
+    rgba(27, 27, 31, 0.02);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+html[data-theme="dark"] .important-date-item {
+  background:
+    radial-gradient(circle at top left, rgba(255, 122, 89, 0.08), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.02);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.important-date-badge {
+  min-width: 49px;
+  width: 49px;
+  min-height: 49px;
+  padding: 6px 5px 5px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ff7a59;
+  text-align: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 7px 14px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.important-date-day {
+  display: block;
+  font-size: 1.28rem;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #ff7a59;
+}
+
+.important-date-month {
+  display: block;
+  font-size: 0.65rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #9d9da7;
+}
+
+html[data-theme="dark"] .important-date-badge {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.02));
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.important-date-copy {
+  position: relative;
+  padding-left: 14px;
+}
+
+.important-date-copy::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--brand), rgba(216, 75, 52, 0.15));
+}
+
+.important-date-copy p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.89rem;
+  line-height: 1.42;
+  font-weight: 600;
 }
 
 .chart-stage {
@@ -634,12 +776,36 @@ html[data-theme="dark"] .chart-stage {
 }
 
 .ledger-panel {
-  min-height: 294px;
+  min-height: var(--dashboard-panel-height);
+  max-height: var(--dashboard-panel-height);
+  height: var(--dashboard-panel-height);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .ledger-list {
   display: grid;
   gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(216, 75, 52, 0.45) transparent;
+}
+
+.ledger-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ledger-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ledger-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(216, 75, 52, 0.45);
 }
 
 .ledger-item {
@@ -857,6 +1023,19 @@ html[data-theme="dark"] .navbar {
   .panel-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .important-date-item {
+    grid-template-columns: 1fr;
+  }
+
+  .important-date-badge {
+    min-width: 0;
+    width: fit-content;
+  }
+
+  .important-date-copy {
+    padding-left: 12px;
   }
 
   .chart-columns {

@@ -373,7 +373,7 @@ html[data-theme="light"] .custom-select-option.is-active {
 }
 
 .summary-card.summary-card-solo {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   row-gap: 0;
   column-gap: 22px;
 }
@@ -405,7 +405,7 @@ html[data-theme="light"] .custom-select-option.is-active {
 html[data-theme="dark"] .expense-limit-row {
   border-color: rgba(255, 255, 255, 0.1);
   background:
-    radial-gradient(circle at 20% 0%, rgba(255, 122, 89, 0.08), transparent 34%),
+    radial-gradient(circle at 20% 0%, rgba(229, 68, 68, 0.1), transparent 34%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025)),
     rgba(255, 255, 255, 0.035);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -417,20 +417,45 @@ html[data-theme="dark"] .expense-limit-row {
   gap: 8px;
 }
 
+.expense-limit-title-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .expense-limit-header h3 {
   margin: 0;
   color: var(--ink);
   font-size: clamp(0.98rem, 1.4vw, 1.12rem);
+  line-height: 1.2;
 }
 
-.expense-limit-header span {
+.expense-limit-row.is-long-title .expense-limit-title-row {
+  gap: 8px;
+}
+
+.expense-limit-row.is-long-title .expense-limit-header h3 {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: clamp(0.86rem, 1.08vw, 0.98rem);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.expense-limit-row.is-long-title .expense-limit-over-limit {
+  font-size: 0.88rem;
+}
+
+.expense-limit-ratio {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(255, 122, 89, 0.14);
-  color: var(--accent);
+  background: rgba(229, 68, 68, 0.18);
+  color: #ff6868;
   font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -438,9 +463,33 @@ html[data-theme="dark"] .expense-limit-row {
   white-space: nowrap;
 }
 
-.expense-limit-row.is-over-limit .expense-limit-header span {
+.expense-limit-row.is-over-limit .expense-limit-ratio {
   background: rgba(229, 68, 68, 0.18);
   color: #ff6868;
+}
+
+.expense-limit-over-limit {
+  flex: 0 0 auto;
+  color: #ff6767;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.expense-limit-row.is-over-limit {
+  border-color: rgba(229, 68, 68, 0.28);
+}
+
+html[data-theme="dark"] .expense-limit-row.is-over-limit {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(229, 68, 68, 0.16), transparent 38%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.028)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 16px 30px rgba(122, 19, 19, 0.12);
 }
 
 .expense-limit-bars {
@@ -463,6 +512,10 @@ html[data-theme="dark"] .expense-limit-row {
   height: 1px;
   background: rgba(127, 127, 140, 0.28);
   pointer-events: none;
+}
+
+html[data-theme="dark"] .expense-limit-over-limit {
+  color: #ff7b7b;
 }
 
 .limit-bar {
@@ -504,7 +557,7 @@ html[data-theme="dark"] .limit-bar {
 }
 
 .limit-bar.is-spent .limit-bar-header span {
-  color: #ff9a62;
+  color: #ff7373;
 }
 
 .limit-bar.is-ceiling .limit-bar-header span {
@@ -600,10 +653,10 @@ html[data-theme="dark"] .limit-bar-track::after {
 }
 
 .limit-bar-fill.is-spent {
-  background: linear-gradient(180deg, #ffb06f, #ff7a59 46%, #e85c3f);
+  background: linear-gradient(180deg, #ff8a8a, #ff5e5e 48%, #df3f3f);
   box-shadow:
-    0 12px 22px rgba(255, 122, 89, 0.3),
-    inset 0 -10px 18px rgba(138, 43, 28, 0.18);
+    0 12px 22px rgba(229, 68, 68, 0.32),
+    inset 0 -10px 18px rgba(128, 22, 22, 0.18);
 }
 
 .limit-bar-fill.is-ceiling {
@@ -733,6 +786,10 @@ html[data-theme="light"] .summary-value.utilizado {
     gap: 16px 14px;
   }
 
+  .summary-card.summary-card-solo {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .summary-card.summary-card-overview {
     grid-template-columns: 1fr;
     row-gap: 16px;
@@ -764,6 +821,10 @@ html[data-theme="light"] .summary-value.utilizado {
 
 @media (max-width: 420px) {
   .summary-card {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-card.summary-card-solo {
     grid-template-columns: 1fr;
   }
 }

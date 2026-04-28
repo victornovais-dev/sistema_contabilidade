@@ -8,6 +8,10 @@ import com.microsoft.playwright.Page.SetContentOptions;
 import com.microsoft.playwright.options.Margin;
 import com.microsoft.playwright.options.WaitUntilState;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroPdfData;
+import java.io.IOException;
+import java.util.Base64;
+import java.util.Map;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -47,6 +51,7 @@ public class PlaywrightPdfService {
       """
       <div style="width: 100%; background: #ffffff;"></div>
       """;
+  private static final String LOGO_RESOURCE_PATH = "static/assets/img/Sacs Contábil_logo_azul.png";
 
   private final Browser browser;
   private final ThymeleafTemplateRenderer templateRenderer;
@@ -57,10 +62,14 @@ public class PlaywrightPdfService {
   }
 
   public byte[] generateFinancialReportPdf(RelatorioFinanceiroPdfData data) {
-    String html = templateRenderer.render("relatorio-financeiro", "report", data);
+    String logoDataUri = loadLogoDataUri();
+    String html =
+        templateRenderer.render(
+            "relatorio-financeiro", "report", data, Map.of("logoDataUri", logoDataUri));
     try (BrowserContext browserContext = browser.newContext();
         Page page = browserContext.newPage()) {
       page.setContent(html, new SetContentOptions().setWaitUntil(WaitUntilState.NETWORKIDLE));
+      page.waitForFunction("window.__reportLayoutReady === true");
       return page.pdf(
           new PdfOptions()
               .setFormat("A4")
@@ -69,9 +78,19 @@ public class PlaywrightPdfService {
               .setFooterTemplate(PDF_FOOTER_TEMPLATE)
               .setPrintBackground(true)
               .setMargin(
-                  new Margin().setTop("12mm").setRight("0mm").setBottom("18mm").setLeft("0mm")));
+                  new Margin().setTop("0mm").setRight("0mm").setBottom("18mm").setLeft("0mm")));
     } catch (RuntimeException exception) {
       throw new IllegalStateException("Falha ao gerar PDF com Playwright", exception);
+    }
+  }
+
+  private String loadLogoDataUri() {
+    try {
+      ClassPathResource resource = new ClassPathResource(LOGO_RESOURCE_PATH);
+      byte[] bytes = resource.getInputStream().readAllBytes();
+      return "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
+    } catch (IOException exception) {
+      throw new IllegalStateException("Falha ao carregar logo do relatorio PDF", exception);
     }
   }
 }

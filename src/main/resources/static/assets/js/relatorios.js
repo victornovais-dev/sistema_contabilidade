@@ -348,14 +348,19 @@ const addExpenseLimitChart = (container, category) => {
   const row = document.createElement("article");
   row.className = "expense-limit-row";
   row.classList.toggle("is-over-limit", isOverLimit);
+  row.classList.toggle("is-long-title", category.label === "Locação de Veículos");
 
   const header = document.createElement("div");
   header.className = "expense-limit-header";
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "expense-limit-title-row";
 
   const title = document.createElement("h3");
   title.textContent = category.label;
 
   const ratio = document.createElement("span");
+  ratio.className = "expense-limit-ratio";
   ratio.textContent = category.limitText;
 
   const bars = document.createElement("div");
@@ -364,7 +369,15 @@ const addExpenseLimitChart = (container, category) => {
   addLimitBar(bars, "Gasto", spent, maxValue, isOverLimit ? "is-danger" : "is-spent");
   addLimitBar(bars, "Teto", ceiling, maxValue, "is-ceiling");
 
-  header.append(title, ratio);
+  titleRow.appendChild(title);
+  if (isOverLimit) {
+    const overLimit = document.createElement("span");
+    overLimit.className = "expense-limit-over-limit";
+    overLimit.textContent = "Limite excedido";
+    titleRow.appendChild(overLimit);
+  }
+
+  header.append(titleRow, ratio);
   row.append(header, bars);
   container.appendChild(row);
 };
@@ -394,12 +407,15 @@ const renderRelatorio = () => {
     relatorio.despesasConsideradas != null
       ? Number(relatorio.despesasConsideradas)
       : despesasTotais - despesasAdvocaciaContabilidade;
+  const despesasBaseLimites = despesasConsideradas + receitasEstimaveis;
+  const despesasTotaisResumo =
+    despesasConsideradas + receitasEstimaveis + despesasAdvocaciaContabilidade;
   const despesasCombustivel = sumDespesasBy(despesas, isCombustivelExpense);
   const despesasAlimentacao = sumDespesasBy(despesas, isAlimentacaoExpense);
   const despesasLocacaoVeiculos = sumDespesasBy(despesas, isLocacaoExpense);
-  const tetoCombustivel = despesasTotais * LIMITE_COMBUSTIVEL_RATIO;
-  const tetoAlimentacao = despesasTotais * LIMITE_ALIMENTACAO_RATIO;
-  const tetoLocacaoVeiculos = despesasTotais * LIMITE_LOCACAO_VEICULOS_RATIO;
+  const tetoCombustivel = despesasBaseLimites * LIMITE_COMBUSTIVEL_RATIO;
+  const tetoAlimentacao = despesasBaseLimites * LIMITE_ALIMENTACAO_RATIO;
+  const tetoLocacaoVeiculos = despesasBaseLimites * LIMITE_LOCACAO_VEICULOS_RATIO;
   const utilizadoRatio = receitasTotais > 0 ? despesasTotais / receitasTotais : 0;
 
   addSummaryMetric(summaryOverviewCard, "Financeiras", formatCurrency(receitasFinanceiras), {
@@ -425,6 +441,9 @@ const renderRelatorio = () => {
   addSummaryMetric(summaryDespesasCard, "Considerada", formatCurrency(despesasConsideradas), {
     variant: "negative",
   });
+  addSummaryMetric(summaryDespesasCard, "Estim\u00e1veis", formatCurrency(receitasEstimaveis), {
+    variant: "negative",
+  });
   addSummaryMetric(
     summaryDespesasCard,
     "Advocacia e contabilidade",
@@ -433,7 +452,7 @@ const renderRelatorio = () => {
       variant: "negative",
     },
   );
-  addSummaryMetric(summaryDespesasCard, "Total", formatCurrency(relatorio.totalDespesas), {
+  addSummaryMetric(summaryDespesasCard, "Total", formatCurrency(despesasTotaisResumo), {
     variant: "negative",
   });
 
@@ -529,7 +548,7 @@ const downloadPdf = async () => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
 
 const loadRoleFilterOptions = async () => {

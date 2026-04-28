@@ -46,19 +46,23 @@
         background: var(--paper);
         border: 1px solid #dbe3ef;
         box-shadow: var(--shadow);
-        padding: 18mm 16mm;
+        padding: 16mm 14mm 14mm;
         position: relative;
         overflow: hidden;
       }
 
-      .page::before {
+      .first-page-intro::before {
         content: "";
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
+        top: -16mm;
+        left: -14mm;
+        right: -14mm;
         height: 8px;
         background: linear-gradient(90deg, #1d4ed8, #0ea5e9);
+      }
+
+      .first-page-intro {
+        position: relative;
       }
 
       .header {
@@ -66,7 +70,7 @@
         justify-content: space-between;
         align-items: flex-start;
         gap: 28px;
-        margin-bottom: 28px;
+        margin-bottom: 14px;
       }
 
       .identity {
@@ -76,19 +80,18 @@
       }
 
       .logo {
-        width: 56px;
-        height: 56px;
-        border-radius: 18px;
-        background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
-        color: #fff;
+        width: 110px;
+        height: 58px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 22px;
-        font-weight: 800;
-        letter-spacing: 0.4px;
-        box-shadow: 0 10px 20px rgba(29, 78, 216, 0.2);
         flex: 0 0 auto;
+      }
+
+      .logo img {
+        width: 100%;
+        height: auto;
+        display: block;
       }
 
       h1 {
@@ -100,16 +103,16 @@
 
       .subtitle {
         color: var(--muted);
-        font-size: 14px;
-        line-height: 1.6;
+        font-size: 13px;
+        line-height: 1.45;
         max-width: 520px;
       }
 
       .meta {
-        min-width: 250px;
+        min-width: 238px;
         border: 1px solid var(--line);
         border-radius: 18px;
-        padding: 14px 16px;
+        padding: 12px 14px;
         background: #f8fbff;
       }
 
@@ -117,8 +120,8 @@
         display: flex;
         justify-content: space-between;
         gap: 12px;
-        padding: 7px 0;
-        font-size: 13px;
+        padding: 6px 0;
+        font-size: 12px;
         border-bottom: 1px dashed #dbe6f3;
       }
 
@@ -142,18 +145,18 @@
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 16px;
-        margin-bottom: 28px;
+        margin-bottom: 10px;
         align-items: stretch;
       }
 
       .summary-card {
         border: 1px solid var(--line);
         border-radius: 22px;
-        padding: 18px 20px 18px;
+        padding: 15px 16px;
         background: #fff;
         position: relative;
         overflow: hidden;
-        min-height: 168px;
+        min-height: 140px;
         min-width: 0;
       }
 
@@ -185,7 +188,7 @@
         justify-content: space-between;
         align-items: center;
         gap: 12px;
-        margin-bottom: 16px;
+        margin-bottom: 10px;
       }
 
       .summary-label {
@@ -219,7 +222,7 @@
         font-weight: 800;
         letter-spacing: -0.03em;
         line-height: 1.1;
-        margin-bottom: 10px;
+        margin-bottom: 6px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -241,8 +244,8 @@
 
       .summary-note {
         color: var(--neutral);
-        font-size: 13px;
-        line-height: 1.55;
+        font-size: 12px;
+        line-height: 1.35;
         max-width: 100%;
       }
 
@@ -413,13 +416,8 @@
       }
 
       .chart-layout {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 14px;
-        margin-top: 24px;
-        align-items: stretch;
-        break-inside: avoid-page;
-        page-break-inside: avoid;
+        display: block;
+        margin-top: 0;
         break-before: auto;
         page-break-before: auto;
       }
@@ -434,6 +432,52 @@
         page-break-inside: avoid;
       }
 
+      .chart-panel-distribution {
+        break-inside: auto;
+        page-break-inside: auto;
+        padding-top: 14px;
+        padding-bottom: 14px;
+      }
+
+      .chart-panel-distribution h3 {
+        margin-bottom: 12px;
+      }
+
+      .chart-panel-distribution .legend {
+        gap: 6px;
+      }
+
+      .chart-panel-distribution .legend-item {
+        padding-top: 8px;
+        padding-bottom: 8px;
+        min-height: 0;
+      }
+
+      .chart-panel-expense-pie {
+        padding: 4px 16px 8px;
+      }
+
+      .chart-panel-expense-pie h3 {
+        margin-bottom: 0;
+      }
+
+      .continuation-page {
+        display: block;
+        break-before: page;
+        page-break-before: always;
+      }
+
+      .continuation-header-image {
+        display: block;
+        width: 100%;
+        height: 30px;
+        border: 0;
+      }
+
+      .chart-panel + .chart-panel {
+        margin-top: 14px;
+      }
+
       .chart-panel h3 {
         margin: 0 0 14px 0;
         font-size: 17px;
@@ -444,9 +488,28 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        min-height: 240px;
-        padding: 8px 0 6px;
+        min-height: 0;
+        padding: 3px 0;
+        line-height: 0;
       }
+
+      .chart-wrap-pie {
+        padding: 0;
+      }
+
+      .expense-pie-chart {
+        display: block;
+        width: 100%;
+        max-width: 450px;
+        height: auto;
+        overflow: visible;
+      }
+
+      .expense-pie-slice {
+        stroke: #ffffff;
+        stroke-width: 4;
+      }
+
 
       .legend {
         display: flex;
@@ -480,14 +543,17 @@
         color: var(--ink);
         font-weight: 600;
         min-width: 0;
-        white-space: nowrap;
+        line-height: 1.35;
+        white-space: normal;
+        overflow-wrap: anywhere;
       }
 
       .legend-value {
         color: var(--ink);
         font-weight: 700;
         text-align: right;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: anywhere;
       }
 
       .summary-value.is-compact {
@@ -509,179 +575,127 @@
           background: #ffffff;
         }
 
-        .chart-layout,
         .chart-panel,
         .bottom,
         .panel {
           break-inside: avoid-page;
           page-break-inside: avoid;
         }
+
+        .chart-panel-distribution {
+          break-inside: auto;
+          page-break-inside: auto;
+        }
       }
     </style>
   </head>
   <body>
     <div class="page">
-      <header class="header">
-        <div class="identity">
-          <div class="logo">R$</div>
-          <div>
-            <h1>Relatorio Financeiro</h1>
-            <div class="subtitle">
-              Demonstrativo consolidado de receitas, despesas e resultado final do periodo,
-              com layout executivo preparado para impressao em A4.
+      <section class="first-page-intro">
+        <header class="header">
+          <div class="identity">
+            <div class="logo">
+              <img th:src="${logoDataUri}" alt="Sacs Contabil" />
+            </div>
+            <div>
+              <h1>Relatorio Financeiro</h1>
+              <div class="subtitle">
+                Demonstrativo consolidado de receitas, despesas e resultado final do periodo.
+              </div>
+            </div>
+          </div>
+
+          <div class="meta">
+            <div class="meta-row">
+              <span class="meta-label">Empresa</span>
+              <span class="meta-value" th:text="${report.empresa}">Nome da Empresa</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Periodo</span>
+              <span class="meta-value" th:text="${report.periodo}">01/03/2026 a 31/03/2026</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Responsavel</span>
+              <span class="meta-value" th:text="${report.responsavel}">Financeiro</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Emissao</span>
+              <span class="meta-value" th:text="${report.dataEmissao}">01/04/2026</span>
+            </div>
+          </div>
+        </header>
+
+        <section class="summary">
+          <article class="summary-card income">
+            <div class="summary-top">
+              <div class="summary-label">Total de receitas</div>
+              <div class="dot"></div>
+            </div>
+            <div
+              class="summary-value"
+              th:classappend="${#strings.length(report.totalReceitas) > 16 ? ' is-compact' : ''}"
+              th:text="${report.totalReceitas}"
+            >
+              R$ 18.750,00
+            </div>
+            <div class="summary-note">Somatorio de todas as entradas registradas no periodo.</div>
+          </article>
+
+          <article class="summary-card expense">
+            <div class="summary-top">
+              <div class="summary-label">Total de despesas</div>
+              <div class="dot"></div>
+            </div>
+            <div
+              class="summary-value"
+              th:classappend="${#strings.length(report.totalDespesas) > 16 ? ' is-compact' : ''}"
+              th:text="${report.totalDespesas}"
+            >
+              R$ 11.420,00
+            </div>
+            <div class="summary-note">Custos operacionais, administrativos e recorrentes.</div>
+          </article>
+
+          <article class="summary-card balance">
+            <div class="summary-top">
+              <div class="summary-label">Saldo final</div>
+              <div class="dot"></div>
+            </div>
+            <div
+              class="summary-value"
+              th:classappend="${#strings.length(report.saldoFinal) > 16 ? ' is-compact' : ''}"
+              th:text="${report.saldoFinal}"
+            >
+              R$ 7.330,00
+            </div>
+            <div class="summary-note" th:text="${report.resultadoDescricao}">
+              Resultado liquido apurado apos o fechamento do periodo.
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section class="chart-layout">
+        <div class="chart-panel chart-panel-expense-pie">
+          <h3>Despesas por categoria</h3>
+          <div class="chart-wrap chart-wrap-pie" th:if="${!#lists.isEmpty(report.categoriasDespesa)}">
+            <svg
+              class="expense-pie-chart"
+              viewBox="0 0 450 282"
+              aria-label="Grafico circular das despesas por categoria"
+              role="img"
+            ></svg>
+            <div class="expense-pie-chart-data" hidden>
+              <span
+                th:each="cat : ${report.categoriasDespesa}"
+                class="expense-pie-chart-data-item"
+                th:attr="data-cor=${cat.cor},data-percentual=${cat.percentual},data-nome=${cat.nome}"
+              ></span>
             </div>
           </div>
         </div>
 
-        <div class="meta">
-          <div class="meta-row">
-            <span class="meta-label">Empresa</span>
-            <span class="meta-value" th:text="${report.empresa}">Nome da Empresa</span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">Periodo</span>
-            <span class="meta-value" th:text="${report.periodo}">01/03/2026 a 31/03/2026</span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">Responsavel</span>
-            <span class="meta-value" th:text="${report.responsavel}">Financeiro</span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">Emissao</span>
-            <span class="meta-value" th:text="${report.dataEmissao}">01/04/2026</span>
-          </div>
-        </div>
-      </header>
-
-      <section class="summary">
-        <article class="summary-card income">
-          <div class="summary-top">
-            <div class="summary-label">Total de receitas</div>
-            <div class="dot"></div>
-          </div>
-          <div
-            class="summary-value"
-            th:classappend="${#strings.length(report.totalReceitas) > 16 ? ' is-compact' : ''}"
-            th:text="${report.totalReceitas}"
-          >
-            R$ 18.750,00
-          </div>
-          <div class="summary-note">Somatorio de todas as entradas registradas no periodo.</div>
-        </article>
-
-        <article class="summary-card expense">
-          <div class="summary-top">
-            <div class="summary-label">Total de despesas</div>
-            <div class="dot"></div>
-          </div>
-          <div
-            class="summary-value"
-            th:classappend="${#strings.length(report.totalDespesas) > 16 ? ' is-compact' : ''}"
-            th:text="${report.totalDespesas}"
-          >
-            R$ 11.420,00
-          </div>
-          <div class="summary-note">Custos operacionais, administrativos e recorrentes.</div>
-        </article>
-
-        <article class="summary-card balance">
-          <div class="summary-top">
-            <div class="summary-label">Saldo final</div>
-            <div class="dot"></div>
-          </div>
-          <div
-            class="summary-value"
-            th:classappend="${#strings.length(report.saldoFinal) > 16 ? ' is-compact' : ''}"
-            th:text="${report.saldoFinal}"
-          >
-            R$ 7.330,00
-          </div>
-          <div class="summary-note" th:text="${report.resultadoDescricao}">
-            Resultado liquido apurado apos o fechamento do periodo.
-          </div>
-        </article>
-      </section>
-
-      <section class="section">
-        <div class="section-head">
-          <h2>Receitas</h2>
-          <span class="badge">Entradas</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 120px">Data</th>
-                <th class="text-center">Categoria</th>
-                <th style="width: 160px" class="text-right">Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr th:each="item : ${report.receitas}">
-                <td th:text="${item.data}">03/03/2026</td>
-                <td class="text-center" th:text="${item.categoria}">Servicos</td>
-                <td class="text-right value-income" th:text="${item.valor}">R$ 5.400,00</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="section-head">
-          <h2>Despesas</h2>
-          <span class="badge">Saidas</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 120px">Data</th>
-                <th class="text-center">Categoria</th>
-                <th style="width: 160px" class="text-right">Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr th:each="item : ${report.despesas}">
-                <td th:text="${item.data}">05/03/2026</td>
-                <td class="text-center" th:text="${item.categoria}">Estrutura</td>
-                <td class="text-right value-expense" th:text="${item.valor}">R$ 2.500,00</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="chart-layout">
-        <div class="chart-panel">
-          <h3>Despesas por categoria</h3>
-          <div class="chart-wrap" th:if="${!#lists.isEmpty(report.donutSlices)}">
-            <svg
-              width="320"
-              height="320"
-              viewBox="0 0 320 320"
-              aria-label="Grafico de pizza das despesas por categoria"
-              role="img"
-            >
-              <g transform="rotate(-90 160 160)">
-                <circle
-                  th:each="fatia : ${report.donutSlices}"
-                  cx="160"
-                  cy="160"
-                  r="82"
-                  fill="none"
-                  th:style="'stroke:' + ${fatia.cor} + ';'"
-                  stroke-width="54"
-                  th:attr="stroke-dasharray=${fatia.dashArray},stroke-dashoffset=${fatia.dashOffset}"
-                  stroke-linecap="butt"
-                ></circle>
-              </g>
-              <circle cx="160" cy="160" r="52" fill="#ffffff"></circle>
-            </svg>
-          </div>
-        </div>
-
-        <div class="chart-panel">
+        <div class="chart-panel chart-panel-distribution">
           <h3>Distribuicao por categoria</h3>
           <div class="legend">
             <div class="legend-item" th:each="cat : ${report.categoriasDespesa}">
@@ -695,24 +709,191 @@
         </div>
       </section>
 
-      <section class="bottom">
-        <div class="panel financial-summary-panel">
-          <h3>Resumo Financeiro</h3>
-          <div class="calc-row">
-            <span>Total de receitas</span>
-            <strong style="color: #15803d" th:text="${report.totalReceitas}">R$ 18.750,00</strong>
-          </div>
-          <div class="calc-row">
-            <span>Total de despesas</span>
-            <strong style="color: #b91c1c" th:text="${report.totalDespesas}">R$ 11.420,00</strong>
-          </div>
-          <div class="calc-row total">
-            <span>Saldo final</span>
-            <strong style="color: #1d4ed8" th:text="${report.saldoFinal}">R$ 7.330,00</strong>
-          </div>
-        </div>
-      </section>
-
     </div>
+    <script>
+      (() => {
+        window.__reportLayoutReady = false;
+        const CONTINUATION_HEADER_IMAGE_SRC =
+          "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjMwIiB2aWV3Qm94PSIwIDAgMSAzMCI+PHJlY3Qgd2lkdGg9IjEiIGhlaWdodD0iMzAiIGZpbGw9IiNmZmZmZmYiLz48L3N2Zz4=";
+
+        const mmToPx = (mm) => (mm * 96) / 25.4;
+        const PAGE_CONTENT_HEIGHT = mmToPx(297 - 18);
+
+        const waitForNextPaint = () =>
+          new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const getNumericStyle = (element, property) => {
+          const value = window.getComputedStyle(element)[property];
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : 0;
+        };
+
+        const SVG_NS = "http://www.w3.org/2000/svg";
+
+        const createSvgNode = (tagName, attributes = {}) => {
+          const node = document.createElementNS(SVG_NS, tagName);
+          Object.entries(attributes).forEach(([key, value]) => {
+            node.setAttribute(key, String(value));
+          });
+          return node;
+        };
+
+        const polarToCartesian = (cx, cy, radius, angleInRadians) => ({
+          x: cx + radius * Math.cos(angleInRadians),
+          y: cy + radius * Math.sin(angleInRadians),
+        });
+
+        const buildPieSlicePath = (cx, cy, radius, startAngle, endAngle) => {
+          const startPoint = polarToCartesian(cx, cy, radius, startAngle);
+          const endPoint = polarToCartesian(cx, cy, radius, endAngle);
+          const largeArcFlag = endAngle - startAngle > Math.PI ? 1 : 0;
+          return [
+            `M ${cx} ${cy}`,
+            `L ${startPoint.x} ${startPoint.y}`,
+            `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endPoint.x} ${endPoint.y}`,
+            "Z",
+          ].join(" ");
+        };
+
+        const parsePercentual = (value) => {
+          if (!value) return 0;
+          const parsed = Number.parseFloat(String(value).replace("%", "").replace(",", "."));
+          return Number.isFinite(parsed) ? parsed : 0;
+        };
+
+        const renderExpensePieChart = () => {
+          const svg = document.querySelector(".expense-pie-chart");
+          const dataItems = Array.from(document.querySelectorAll(".expense-pie-chart-data-item"));
+
+          if (!svg || dataItems.length === 0) return;
+
+          svg.innerHTML = "";
+
+          const cx = 225;
+          const cy = 138;
+          const radius = 128;
+          let currentAngle = -Math.PI / 2;
+
+          dataItems.forEach((item) => {
+            const percentualTexto = item.getAttribute("data-percentual") ?? "0%";
+            const percentual = parsePercentual(percentualTexto);
+            if (percentual <= 0) {
+              return;
+            }
+
+            const sweepAngle = (percentual / 100) * Math.PI * 2;
+            const endAngle = currentAngle + sweepAngle;
+            const midAngle = currentAngle + sweepAngle / 2;
+
+            const slice = createSvgNode("path", {
+              d: buildPieSlicePath(cx, cy, radius, currentAngle, endAngle),
+              fill: item.getAttribute("data-cor") ?? "#0ea5e9",
+              class: "expense-pie-slice",
+            });
+            svg.appendChild(slice);
+
+            currentAngle = endAngle;
+          });
+        };
+
+        const paginateDistributionPanel = () => {
+          const page = document.querySelector(".page");
+          const panel = document.querySelector(".chart-panel-distribution");
+          const title = panel?.querySelector("h3");
+          const legend = panel?.querySelector(".legend");
+
+          if (!page || !panel || !title || !legend) return;
+
+          const pageTop = page.getBoundingClientRect().top;
+          const panelTop = panel.getBoundingClientRect().top - pageTop;
+          const titleHeight = title.getBoundingClientRect().height;
+          const titleMarginBottom = getNumericStyle(title, "marginBottom");
+          const panelPaddingTop = getNumericStyle(panel, "paddingTop");
+          const panelPaddingBottom = getNumericStyle(panel, "paddingBottom");
+          const legendGap =
+            getNumericStyle(legend, "rowGap") || getNumericStyle(legend, "gap") || 0;
+          const allItems = Array.from(legend.querySelectorAll(".legend-item"));
+
+          if (allItems.length === 0) return;
+
+          const groups = [];
+          let currentIndex = 0;
+          let availableHeight = PAGE_CONTENT_HEIGHT - panelTop;
+
+          while (currentIndex < allItems.length) {
+            const group = [];
+            let usedHeight = panelPaddingTop + titleHeight + titleMarginBottom + panelPaddingBottom;
+
+            while (currentIndex < allItems.length) {
+              const item = allItems[currentIndex];
+              const itemHeight = item.getBoundingClientRect().height;
+              const nextHeight = usedHeight + (group.length > 0 ? legendGap : 0) + itemHeight;
+
+              if (group.length > 0 && nextHeight > availableHeight) break;
+
+              group.push(item);
+              usedHeight = nextHeight;
+              currentIndex += 1;
+            }
+
+            if (group.length === 0) {
+              group.push(allItems[currentIndex]);
+              currentIndex += 1;
+            }
+
+            groups.push(group);
+            availableHeight = PAGE_CONTENT_HEIGHT;
+          }
+
+          if (groups.length <= 1) return;
+
+          legend.innerHTML = "";
+          groups[0].forEach((item) => legend.appendChild(item));
+
+          let anchor = panel;
+          groups.slice(1).forEach((group) => {
+            const continuationPage = document.createElement("div");
+            continuationPage.className = "continuation-page";
+            const continuationHeaderImage = document.createElement("img");
+            continuationHeaderImage.className = "continuation-header-image";
+            continuationHeaderImage.alt = "";
+            continuationHeaderImage.src = CONTINUATION_HEADER_IMAGE_SRC;
+            const continuationPanel = panel.cloneNode(false);
+            continuationPanel.classList.add("is-continuation");
+            const continuationLegend = legend.cloneNode(false);
+            group.forEach((item) => continuationLegend.appendChild(item));
+
+            continuationPanel.appendChild(continuationLegend);
+            continuationPanel.style.paddingTop = "0";
+            continuationPage.appendChild(continuationHeaderImage);
+            continuationPage.appendChild(continuationPanel);
+            anchor.insertAdjacentElement("afterend", continuationPage);
+            anchor = continuationPage;
+          });
+        };
+
+        const initReportLayout = async () => {
+          try {
+            if (document.fonts?.ready) {
+              await document.fonts.ready;
+            }
+          } catch (error) {
+            // Segue sem bloquear quando a API de fonts nao estiver disponivel.
+          }
+
+          renderExpensePieChart();
+          await waitForNextPaint();
+          paginateDistributionPanel();
+          await waitForNextPaint();
+          window.__reportLayoutReady = true;
+        };
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", initReportLayout, { once: true });
+        } else {
+          initReportLayout();
+        }
+      })();
+    </script>
   </body>
 </html>

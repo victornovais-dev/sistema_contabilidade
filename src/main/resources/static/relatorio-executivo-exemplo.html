@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Exemplo de Relatório Contábil de Campanha</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <script src="/assets/js/theme-init.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/css/relatorio-executivo-exemplo.css?v=20260428-demo-2" />
+  </head>
+  <body>
+    <div class="demo-bg">
+      <div class="demo-orb demo-orb-left"></div>
+      <div class="demo-orb demo-orb-right"></div>
+      <div class="demo-grid"></div>
+    </div>
+
+    <main class="demo-page">
+      <section class="hero-card">
+        <div class="hero-top">
+          <div class="hero-title">
+            <span class="chip">Prestação de Contas</span>
+            <h1>Relatório Contábil de Campanha</h1>
+            <p>
+              Exemplo pensado para contabilidade eleitoral: leitura executiva de caixa,
+              conformidade, conciliação bancária, risco de prestação de contas e pendências que
+              exigem ação imediata da equipe.
+            </p>
+          </div>
+
+          <aside class="hero-meta">
+            <dl>
+              <div class="hero-meta-row"><span>Candidato</span><strong>ANDRE DO PRADO</strong></div>
+              <div class="hero-meta-row"><span>Período</span><strong>01/04/2026 a 28/04/2026</strong></div>
+              <div class="hero-meta-row"><span>Conta principal</span><strong>Conta DC</strong></div>
+              <div class="hero-meta-row"><span>Atualização</span><strong>28/04/2026 09:40</strong></div>
+            </dl>
+          </aside>
+        </div>
+
+        <div class="metrics-grid">
+          <article class="metric-card">
+            <div class="metric-label">Saldo disponível</div>
+            <div class="metric-value green">R$ 44.000,00</div>
+            <div class="metric-note">Disponível após receitas, despesas e baixas registradas</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Total arrecadado</div>
+            <div class="metric-value blue">R$ 105.000,00</div>
+            <div class="metric-note">
+              Financeiras, estimáveis e transferências efetivamente registradas
+            </div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Total comprometido</div>
+            <div class="metric-value orange">R$ 61.000,00</div>
+            <div class="metric-note">
+              Despesas consideradas, estimáveis e apoio técnico obrigatório
+            </div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Pendências críticas</div>
+            <div class="metric-value">11</div>
+            <div class="metric-note">Itens sem conciliação, sem check ou sem comprovante</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="demo-grid-layout">
+        <article class="demo-card span-8">
+          <h2 class="section-title">Fluxo acumulado de caixa</h2>
+          <p class="section-copy">
+            Gráfico principal para mostrar se a campanha está acelerando arrecadação, consumindo
+            caixa muito rápido ou entrando em zona de atenção.
+          </p>
+          <div class="chart-shell">
+            <svg viewBox="0 0 760 300" role="img" aria-label="Fluxo acumulado">
+              <defs>
+                <linearGradient id="fluxoStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#2fd37b" />
+                  <stop offset="55%" stop-color="#42a5ff" />
+                  <stop offset="100%" stop-color="#ff7a45" />
+                </linearGradient>
+                <linearGradient id="fluxoArea" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="rgba(66,165,255,0.24)" />
+                  <stop offset="100%" stop-color="rgba(66,165,255,0.02)" />
+                </linearGradient>
+              </defs>
+              <g stroke="rgba(255,255,255,0.09)" stroke-width="1">
+                <line x1="52" y1="52" x2="720" y2="52"></line>
+                <line x1="52" y1="120" x2="720" y2="120"></line>
+                <line x1="52" y1="188" x2="720" y2="188"></line>
+                <line x1="52" y1="256" x2="720" y2="256"></line>
+              </g>
+              <path
+                d="M52 238 C116 232, 144 220, 186 204 S272 164, 326 170 S424 126, 484 114 S590 78, 720 62 L720 256 L52 256 Z"
+                fill="url(#fluxoArea)"
+              ></path>
+              <path
+                d="M52 238 C116 232, 144 220, 186 204 S272 164, 326 170 S424 126, 484 114 S590 78, 720 62"
+                fill="none"
+                stroke="url(#fluxoStroke)"
+                stroke-width="5"
+                stroke-linecap="round"
+              ></path>
+              <g fill="#f3f4f6" font-size="12" font-weight="600">
+                <text x="52" y="280">01/04</text>
+                <text x="182" y="280">08/04</text>
+                <text x="328" y="280">15/04</text>
+                <text x="482" y="280">22/04</text>
+                <text x="648" y="280">28/04</text>
+              </g>
+            </svg>
+          </div>
+        </article>
+
+        <article class="demo-card span-4">
+          <h2 class="section-title">Risco de prestação de contas</h2>
+          <p class="section-copy">
+            Tudo que pode virar exigência, ressalva ou dor operacional no fechamento.
+          </p>
+          <div class="alert-list">
+            <div class="alert-item">
+              <div>
+                <strong>Receitas notificadas sem baixa</strong>
+                <span>3 entradas ainda não conciliadas na rotina de notificações</span>
+              </div>
+              <span class="badge-status badge-danger">Crítico</span>
+            </div>
+            <div class="alert-item">
+              <div>
+                <strong>Itens sem verificação</strong>
+                <span>8 lançamentos aguardando conferência documental</span>
+              </div>
+              <span class="badge-status badge-warn">Atenção</span>
+            </div>
+            <div class="alert-item">
+              <div>
+                <strong>Despesas sem comprovante</strong>
+                <span>2 saídas ainda pendentes de PDF ou anexação correta</span>
+              </div>
+              <span class="badge-status badge-danger">Risco</span>
+            </div>
+            <div class="alert-item">
+              <div>
+                <strong>Conta bancária</strong>
+                <span>Saldo contábil e bancário em linha no último fechamento</span>
+              </div>
+              <span class="badge-status badge-ok">OK</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="demo-card span-6">
+          <h2 class="section-title">Origem dos recursos</h2>
+          <p class="section-copy">
+            Separação pensada para responder rápido de onde veio o dinheiro e onde está o peso da
+            arrecadação.
+          </p>
+          <div class="split-bars">
+            <div class="split-row">
+              <div class="split-label">Conta DC</div>
+              <div class="split-track"><div class="split-fill fill-blue" style="width: 70%"></div></div>
+              <strong>R$ 73.500,00</strong>
+            </div>
+            <div class="split-row">
+              <div class="split-label">Receitas estimáveis</div>
+              <div class="split-track"><div class="split-fill fill-cyan" style="width: 18%"></div></div>
+              <strong>R$ 19.000,00</strong>
+            </div>
+            <div class="split-row">
+              <div class="split-label">Transferências partidárias</div>
+              <div class="split-track"><div class="split-fill fill-pink" style="width: 12%"></div></div>
+              <strong>R$ 12.500,00</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="demo-card span-6">
+          <h2 class="section-title">Destino dos gastos eleitorais</h2>
+          <p class="section-copy">
+            Top categorias para orientar corte, revisão e priorização do uso dos recursos.
+          </p>
+          <div class="ranking-list">
+            <div class="ranking-item">
+              <div><strong>Produção de material gráfico</strong><span>Maior concentração do período</span></div>
+              <strong class="orange">R$ 50.000,00</strong>
+            </div>
+            <div class="ranking-item">
+              <div><strong>Serviços advocatícios</strong><span>Despesa obrigatória de apoio técnico</span></div>
+              <strong class="orange">R$ 5.000,00</strong>
+            </div>
+            <div class="ranking-item">
+              <div><strong>Combustíveis e lubrificantes</strong><span>Categoria sensível para limite legal</span></div>
+              <strong class="orange">R$ 4.000,00</strong>
+            </div>
+            <div class="ranking-item">
+              <div><strong>Programas de rádio, TV ou vídeo</strong><span>Despesa de comunicação e mídia</span></div>
+              <strong class="orange">R$ 1.000,00</strong>
+            </div>
+            <div class="ranking-item">
+              <div><strong>Água e manutenção</strong><span>Despesas operacionais recorrentes</span></div>
+              <strong class="orange">R$ 1.000,00</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="demo-card span-7">
+          <h2 class="section-title">Limites legais e conformidade</h2>
+          <p class="section-copy">
+            Bloco obrigatório para decidir rápido onde a campanha está segura e onde precisa frear.
+          </p>
+          <div class="progress-group">
+            <div class="progress-card">
+              <div class="progress-top">
+                <strong>Combustível</strong>
+                <div class="progress-values"><span>Gasto: R$ 12.000,00</span><span>Teto: R$ 10.500,00</span></div>
+              </div>
+              <div class="progress-bar"><div class="progress-fill fill-red" style="width: 100%"></div></div>
+            </div>
+            <div class="progress-card">
+              <div class="progress-top">
+                <strong>Alimentação</strong>
+                <div class="progress-values"><span>Gasto: R$ 500,00</span><span>Teto: R$ 6.250,00</span></div>
+              </div>
+              <div class="progress-bar"><div class="progress-fill fill-green" style="width: 8%"></div></div>
+            </div>
+            <div class="progress-card">
+              <div class="progress-top">
+                <strong>Locação de veículos</strong>
+                <div class="progress-values"><span>Gasto: R$ 8.000,00</span><span>Teto: R$ 12.500,00</span></div>
+              </div>
+              <div class="progress-bar"><div class="progress-fill fill-orange" style="width: 64%"></div></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="demo-card span-5">
+          <h2 class="section-title">Conciliação bancária e fechamento</h2>
+          <p class="section-copy">
+            Visão operacional para fechamento diário sem deixar diferença crescer.
+          </p>
+          <div class="indicator-list">
+            <div class="indicator-item">
+              <div><strong>Saldo contábil</strong><span>Fechamento do sistema</span></div>
+              <strong class="green">R$ 44.000,00</strong>
+            </div>
+            <div class="indicator-item">
+              <div><strong>Saldo bancário</strong><span>Última posição conciliada</span></div>
+              <strong class="blue">R$ 43.500,00</strong>
+            </div>
+            <div class="indicator-item">
+              <div><strong>Diferença em apuração</strong><span>Movimentos aguardando reflexo bancário</span></div>
+              <strong class="orange">R$ 500,00</strong>
+            </div>
+            <div class="indicator-item">
+              <div><strong>Receitas sem reflexo bancário</strong><span>Itens a revisar no extrato</span></div>
+              <strong>2</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="demo-card span-12">
+          <h2 class="section-title">Lançamentos críticos do período</h2>
+          <p class="section-copy">
+            Recorte final para a equipe contábil atacar exatamente o que pode travar conferência,
+            prestação de contas ou limite regulatório.
+          </p>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Descrição</th>
+                  <th>Categoria</th>
+                  <th>Valor</th>
+                  <th>Situação</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>27/04/2026</td>
+                  <td>GOV SP</td>
+                  <td>Conta DC</td>
+                  <td class="green">R$ 100.000,00</td>
+                  <td><span class="badge-status badge-ok">Conciliado</span></td>
+                </tr>
+                <tr>
+                  <td>27/04/2026</td>
+                  <td>LUCAS SILVA</td>
+                  <td>Estimável</td>
+                  <td class="green">R$ 5.000,00</td>
+                  <td><span class="badge-status badge-warn">Notificação aberta</span></td>
+                </tr>
+                <tr>
+                  <td>27/04/2026</td>
+                  <td>GRÁFICA CENTRAL</td>
+                  <td>Produção de material gráfico</td>
+                  <td class="orange">R$ 50.000,00</td>
+                  <td><span class="badge-status badge-ok">Com PDF e check</span></td>
+                </tr>
+                <tr>
+                  <td>27/04/2026</td>
+                  <td>POSTO BR</td>
+                  <td>Combustíveis e lubrificantes</td>
+                  <td class="orange">R$ 4.000,00</td>
+                  <td><span class="badge-status badge-danger">Exige revisão de limite</span></td>
+                </tr>
+                <tr>
+                  <td>28/04/2026</td>
+                  <td>ADVOGADO XPTO</td>
+                  <td>Serviços advocatícios</td>
+                  <td class="orange">R$ 5.000,00</td>
+                  <td><span class="badge-status badge-ok">Classificado corretamente</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

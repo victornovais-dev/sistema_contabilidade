@@ -335,9 +335,9 @@ class RelatorioFinanceiroServiceTest {
     assertEquals("Alimentação", data.categoriasDespesa().getFirst().nome());
     assertEquals("R$ 200,00", data.categoriasDespesa().getFirst().valor());
     assertEquals("66,67%", data.categoriasDespesa().getFirst().percentual());
-    assertEquals("#ef4444", data.categoriasDespesa().getFirst().cor());
+    assertEquals("#A65628", data.categoriasDespesa().getFirst().cor());
     assertEquals("Telefone", data.categoriasDespesa().get(1).nome());
-    assertEquals("#8b5cf6", data.categoriasDespesa().get(1).cor());
+    assertEquals("#DCBEFF", data.categoriasDespesa().get(1).cor());
     assertEquals("Categoria Livre", data.categoriasDespesa().get(2).nome());
     assertFalse(data.donutSlices().isEmpty());
   }

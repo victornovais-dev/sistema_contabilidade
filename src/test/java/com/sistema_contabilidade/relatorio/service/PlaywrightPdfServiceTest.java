@@ -13,6 +13,7 @@ import com.microsoft.playwright.Page;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroPdfData;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -31,7 +32,9 @@ class PlaywrightPdfServiceTest {
     RelatorioFinanceiroPdfData data = sampleData();
     byte[] pdf = "pdf".getBytes(StandardCharsets.UTF_8);
 
-    when(templateRenderer.render("relatorio-financeiro", "report", data)).thenReturn("<html/>");
+    when(templateRenderer.render(
+            eq("relatorio-financeiro"), eq("report"), eq(data), any(Map.class)))
+        .thenReturn("<html/>");
     when(browser.newContext()).thenReturn(browserContext);
     when(browserContext.newPage()).thenReturn(page);
     when(page.pdf(any(Page.PdfOptions.class))).thenReturn(pdf);
@@ -40,6 +43,7 @@ class PlaywrightPdfServiceTest {
 
     assertArrayEquals(pdf, result);
     verify(page).setContent(eq("<html/>"), any(Page.SetContentOptions.class));
+    verify(page).waitForFunction("window.__reportLayoutReady === true");
     verify(page).pdf(any(Page.PdfOptions.class));
     verify(browserContext).close();
   }
@@ -52,7 +56,9 @@ class PlaywrightPdfServiceTest {
     PlaywrightPdfService service = new PlaywrightPdfService(browser, templateRenderer);
     RelatorioFinanceiroPdfData data = sampleData();
 
-    when(templateRenderer.render("relatorio-financeiro", "report", data)).thenReturn("<html/>");
+    when(templateRenderer.render(
+            eq("relatorio-financeiro"), eq("report"), eq(data), any(Map.class)))
+        .thenReturn("<html/>");
     when(browser.newContext()).thenThrow(new RuntimeException("playwright"));
 
     IllegalStateException exception =

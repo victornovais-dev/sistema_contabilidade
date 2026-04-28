@@ -46,67 +46,92 @@ public class RelatorioFinanceiroService {
   private static final Set<String> DESPESAS_COMBUSTIVEL = Set.of("COMBUSTIVEIS E LUBRIFICANTES");
   private static final Set<String> DESPESAS_ALIMENTACAO = Set.of("ALIMENTACAO");
   private static final Set<String> DESPESAS_LOCACAO = Set.of("ALUGUEL DE VEICULOS");
-  private static final String COLOR_PRIMARY_BLUE = "#2563eb";
-  private static final String COLOR_DANGER_RED = "#ef4444";
-  private static final String COLOR_WARNING_AMBER = "#f59e0b";
-  private static final String COLOR_SUCCESS_GREEN = "#10b981";
-  private static final String COLOR_VIOLET = "#8b5cf6";
-  private static final String COLOR_INFO_CYAN = "#0ea5e9";
-  private static final String COLOR_ORANGE = "#f97316";
-  private static final String COLOR_NEUTRAL_GRAY = "#6b7280";
   private static final double DONUT_RADIUS = 82.0d;
   private static final double DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
+  private static final String COLOR_RED = "#E6194B";
+  private static final String COLOR_GREEN = "#3CB44B";
+  private static final String COLOR_BLUE = "#4363D8";
+  private static final String COLOR_ORANGE = "#F58231";
+  private static final String COLOR_PURPLE = "#911EB4";
+  private static final String COLOR_CYAN = "#46F0F0";
+  private static final String COLOR_MAGENTA = "#F032E6";
   private static final List<String> FALLBACK_CATEGORY_COLORS =
       List.of(
-          COLOR_PRIMARY_BLUE,
-          COLOR_DANGER_RED,
-          COLOR_WARNING_AMBER,
-          COLOR_SUCCESS_GREEN,
-          COLOR_VIOLET,
-          COLOR_INFO_CYAN,
-          COLOR_ORANGE);
+          COLOR_RED,
+          COLOR_GREEN,
+          COLOR_BLUE,
+          COLOR_ORANGE,
+          COLOR_PURPLE,
+          COLOR_CYAN,
+          COLOR_MAGENTA,
+          "#808000",
+          "#FFD8B1",
+          "#008080",
+          "#000075",
+          "#FFB300",
+          "#800000",
+          "#A6CEE3",
+          "#AAFFC3",
+          "#9A6324",
+          "#DCBEFF",
+          "#469990",
+          "#FF6F00",
+          "#A65628",
+          "#00B4D8",
+          "#B10DC9",
+          "#7FDBFF",
+          "#FFDC00",
+          "#2ECC40",
+          "#85144B",
+          "#39CCCC",
+          "#111111",
+          "#6A3D9A",
+          "#00A896",
+          "#FF4136",
+          "#0074D9",
+          "#B8860B");
   private static final Map<String, String> CATEGORY_COLOR_BY_NAME =
       Map.ofEntries(
-          Map.entry("PUBLICIDADE POR MATERIAIS IMPRESSOS", COLOR_PRIMARY_BLUE),
-          Map.entry("PUBLICIDADE NA INTERNET", COLOR_DANGER_RED),
-          Map.entry("PUBLICIDADE POR CARRO DE SOM", COLOR_WARNING_AMBER),
-          Map.entry("PRODUCAO DE PROGRAMAS DE RADIO, TV OU VIDEO", COLOR_SUCCESS_GREEN),
-          Map.entry("IMPULSIONAMENTO DE CONTEUDO", COLOR_VIOLET),
-          Map.entry("SERVICOS PRESTADOS POR TERCEIROS", COLOR_INFO_CYAN),
-          Map.entry("SERVICOS ADVOCATICIOS", COLOR_ORANGE),
-          Map.entry("SERVICOS CONTABEIS", "#0891b2"),
-          Map.entry("ATIVIDADES DE MILITANCIA E MOBILIZACAO DE RUA", "#0f766e"),
-          Map.entry("REMUNERACAO DE PESSOAL", "#dc2626"),
-          Map.entry("ALUGUEL DE IMOVEIS", COLOR_PRIMARY_BLUE),
-          Map.entry("ALUGUEL DE VEICULOS", "#3b82f6"),
-          Map.entry("COMBUSTIVEIS E LUBRIFICANTES", "#ea580c"),
-          Map.entry("ENERGIA ELETRICA", COLOR_WARNING_AMBER),
-          Map.entry("AGUA", "#06b6d4"),
-          Map.entry("INTERNET", "#6366f1"),
-          Map.entry("TELEFONE", COLOR_VIOLET),
-          Map.entry("MATERIAL DE EXPEDIENTE", "#84cc16"),
-          Map.entry("MATERIAL DE CAMPANHA (NAO PUBLICITARIO)", "#65a30d"),
-          Map.entry("ALIMENTACAO", COLOR_DANGER_RED),
-          Map.entry("TRANSPORTE OU DESLOCAMENTO", COLOR_ORANGE),
-          Map.entry("HOSPEDAGEM", "#14b8a6"),
-          Map.entry("ORGANIZACAO DE EVENTOS", "#a855f7"),
-          Map.entry("PRODUCAO DE JINGLES, VINHETAS E SLOGANS", "#ec4899"),
-          Map.entry("PRODUCAO DE MATERIAL GRAFICO", "#0284c7"),
-          Map.entry("CRIACAO E INCLUSAO DE PAGINAS NA INTERNET", "#4f46e5"),
-          Map.entry("MANUTENCAO DE SITES", "#7c3aed"),
-          Map.entry("SOFTWARES E FERRAMENTAS DIGITAIS", COLOR_SUCCESS_GREEN),
-          Map.entry("TAXAS BANCARIAS", "#475569"),
-          Map.entry("ENCARGOS FINANCEIROS", "#334155"),
-          Map.entry("MULTAS ELEITORAIS", "#991b1b"),
-          Map.entry("DOACOES A OUTROS CANDIDATOS/PARTIDOS", "#7c2d12"),
-          Map.entry("BAIXA DE ESTIMAVEIS EM DINHEIRO", "#1d4ed8"),
-          Map.entry("OUTRAS DESPESAS", COLOR_NEUTRAL_GRAY),
-          Map.entry("ALUGUEL", COLOR_PRIMARY_BLUE),
-          Map.entry("ENERGIA", COLOR_WARNING_AMBER),
-          Map.entry("SERVICOS", COLOR_INFO_CYAN),
-          Map.entry("IMPOSTOS", "#475569"),
-          Map.entry("MATERIAIS", "#84cc16"),
-          Map.entry("OUTROS", COLOR_NEUTRAL_GRAY));
+          Map.entry("PUBLICIDADE POR MATERIAIS IMPRESSOS", COLOR_RED),
+          Map.entry("PUBLICIDADE NA INTERNET", COLOR_GREEN),
+          Map.entry("PUBLICIDADE POR CARRO DE SOM", COLOR_BLUE),
+          Map.entry("PRODUCAO DE PROGRAMAS DE RADIO, TV OU VIDEO", COLOR_ORANGE),
+          Map.entry("IMPULSIONAMENTO DE CONTEUDO", COLOR_PURPLE),
+          Map.entry("SERVICOS PRESTADOS POR TERCEIROS", COLOR_CYAN),
+          Map.entry("SERVICOS ADVOCATICIOS", COLOR_MAGENTA),
+          Map.entry("SERVICOS CONTABEIS", "#808000"),
+          Map.entry("ATIVIDADES DE MILITANCIA E MOBILIZACAO DE RUA", "#FFD8B1"),
+          Map.entry("REMUNERACAO DE PESSOAL", "#008080"),
+          Map.entry("ALUGUEL DE IMOVEIS", "#000075"),
+          Map.entry("ALUGUEL DE VEICULOS", "#FFB300"),
+          Map.entry("COMBUSTIVEIS E LUBRIFICANTES", "#800000"),
+          Map.entry("ENERGIA ELETRICA", "#A6CEE3"),
+          Map.entry("AGUA", "#AAFFC3"),
+          Map.entry("INTERNET", "#9A6324"),
+          Map.entry("TELEFONE", "#DCBEFF"),
+          Map.entry("MATERIAL DE EXPEDIENTE", "#469990"),
+          Map.entry("MATERIAL DE CAMPANHA (NAO PUBLICITARIO)", "#FF6F00"),
+          Map.entry("ALIMENTACAO", "#A65628"),
+          Map.entry("TRANSPORTE OU DESLOCAMENTO", "#00B4D8"),
+          Map.entry("HOSPEDAGEM", "#B10DC9"),
+          Map.entry("ORGANIZACAO DE EVENTOS", "#7FDBFF"),
+          Map.entry("PRODUCAO DE JINGLES, VINHETAS E SLOGANS", "#FFDC00"),
+          Map.entry("PRODUCAO DE MATERIAL GRAFICO", "#2ECC40"),
+          Map.entry("CRIACAO E INCLUSAO DE PAGINAS NA INTERNET", "#85144B"),
+          Map.entry("MANUTENCAO DE SITES", "#39CCCC"),
+          Map.entry("SOFTWARES E FERRAMENTAS DIGITAIS", "#111111"),
+          Map.entry("TAXAS BANCARIAS", "#6A3D9A"),
+          Map.entry("ENCARGOS FINANCEIROS", "#00A896"),
+          Map.entry("MULTAS ELEITORAIS", "#FF4136"),
+          Map.entry("DOACOES A OUTROS CANDIDATOS/PARTIDOS", "#0074D9"),
+          Map.entry("BAIXA DE ESTIMAVEIS EM DINHEIRO", "#B8860B"),
+          Map.entry("OUTRAS DESPESAS", COLOR_RED),
+          Map.entry("ALUGUEL", COLOR_GREEN),
+          Map.entry("ENERGIA", COLOR_BLUE),
+          Map.entry("SERVICOS", COLOR_ORANGE),
+          Map.entry("IMPOSTOS", COLOR_PURPLE),
+          Map.entry("MATERIAIS", COLOR_CYAN),
+          Map.entry("OUTROS", COLOR_MAGENTA));
 
   private final ItemRepository itemRepository;
   private final RoleRepository roleRepository;
@@ -197,7 +222,7 @@ public class RelatorioFinanceiroService {
     List<RelatorioFinanceiroPdfData.CategoriaResumo> categoriasDespesa =
         buildExpenseCategories(relatorio.despesas(), relatorio.totalDespesas());
     return new RelatorioFinanceiroPdfData(
-        "Sistema Contabilidade",
+        "SACS CONTÁBIL",
         buildPeriodo(relatorio),
         extrairNomeResponsavel(authentication),
         DATE_TIME_FORMATTER.format(LocalDateTime.now()),
@@ -258,7 +283,8 @@ public class RelatorioFinanceiroService {
             .toList();
 
     List<RelatorioFinanceiroPdfData.CategoriaResumo> categorias = new ArrayList<>();
-    for (Map.Entry<String, BigDecimal> entry : orderedEntries) {
+    for (int index = 0; index < orderedEntries.size(); index++) {
+      Map.Entry<String, BigDecimal> entry = orderedEntries.get(index);
       BigDecimal percentual =
           total.signum() == 0
               ? BigDecimal.ZERO
@@ -271,7 +297,7 @@ public class RelatorioFinanceiroService {
               entry.getKey(),
               moeda(entry.getValue()),
               percentualNumero(percentual) + "%",
-              colorForCategory(entry.getKey())));
+              colorForCategory(entry.getKey(), index)));
     }
     return categorias;
   }
@@ -504,17 +530,17 @@ public class RelatorioFinanceiroService {
     return String.format(Locale.US, "%.2f", value);
   }
 
-  private String colorForCategory(String categoryName) {
+  private String colorForCategory(String categoryName, int index) {
     String normalized = normalizeCategoryName(categoryName);
     String mapped = CATEGORY_COLOR_BY_NAME.get(normalized);
     if (mapped != null) {
       return mapped;
     }
-    if (normalized.isBlank()) {
-      return COLOR_NEUTRAL_GRAY;
+    if (FALLBACK_CATEGORY_COLORS.isEmpty()) {
+      return "#6b7280";
     }
-    int index = Math.floorMod(normalized.hashCode(), FALLBACK_CATEGORY_COLORS.size());
-    return FALLBACK_CATEGORY_COLORS.get(index);
+    int fallbackIndex = Math.floorMod(index, FALLBACK_CATEGORY_COLORS.size());
+    return FALLBACK_CATEGORY_COLORS.get(fallbackIndex);
   }
 
   private String normalizeCategoryName(String value) {
