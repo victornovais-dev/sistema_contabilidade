@@ -30,4 +30,23 @@ class RateLimitFilterTest {
 
     assertEquals(429, res2.getStatus());
   }
+
+  @Test
+  @DisplayName("Deve permitir endpoints diferentes no mesmo cliente")
+  void devePermitirEndpointsDiferentesNoMesmoCliente() throws Exception {
+    RateLimitFilter filter = new RateLimitFilter(1, 60);
+
+    MockHttpServletRequest req1 = new MockHttpServletRequest("GET", "/api/v1/auth/csrf");
+    req1.setRemoteAddr("127.0.0.1");
+    MockHttpServletResponse res1 = new MockHttpServletResponse();
+    filter.doFilter(req1, res1, new MockFilterChain());
+    assertEquals(200, res1.getStatus());
+
+    MockHttpServletRequest req2 = new MockHttpServletRequest("POST", "/api/v1/auth/login");
+    req2.setRemoteAddr("127.0.0.1");
+    MockHttpServletResponse res2 = new MockHttpServletResponse();
+    filter.doFilter(req2, res2, new MockFilterChain());
+
+    assertEquals(200, res2.getStatus());
+  }
 }

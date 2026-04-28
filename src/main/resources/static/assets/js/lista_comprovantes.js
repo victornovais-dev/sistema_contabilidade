@@ -84,6 +84,9 @@ const observacaoClose = document.querySelector(".observacao-close");
 const observacaoContent = document.getElementById("observacao-content");
 const observacaoEdit = document.querySelector(".observacao-edit");
 const observacaoSave = document.querySelector(".observacao-save");
+const MAX_RECEIPT_SIZE_BYTES = 20 * 1024 * 1024;
+const PDF_ONLY_MESSAGE = "Envie somente arquivos PDF.";
+const MAX_RECEIPT_SIZE_MESSAGE = "Cada comprovante deve ter no maximo 20 MB.";
 let pendingUploadItemId = null;
 let pendingObservacaoItemId = null;
 let uploadIsEditing = false;
@@ -95,6 +98,7 @@ let yearMenuCloseHandlerBound = false;
 let observacaoIsEditing = false;
 let retainedUploadFiles = [];
 let settingUploadFilesProgrammatically = false;
+let uploadErrorEntries = [];
 
 const RECEITA_DESCRICOES = ["CONTA FEFEC", "CONTA FP", "CONTA DC"];
 
@@ -273,15 +277,17 @@ const isPdfFile = (file) => {
 };
 
 const extractErrorMessage = async (response, fallbackMessage) => {
+  const effectiveFallback =
+    response?.status === 413 ? MAX_RECEIPT_SIZE_MESSAGE : fallbackMessage;
   try {
     const payload = await response.json();
     if (payload && typeof payload === "object") {
-      return payload.message || payload.error || fallbackMessage;
+      return payload.message || payload.error || effectiveFallback;
     }
   } catch (error) {
     // Keep fallback message when payload is not JSON.
   }
-  return fallbackMessage;
+  return effectiveFallback;
 };
 
 const formatCurrency = (value) =>
@@ -1185,6 +1191,7 @@ const openUploadModal = async (id) => {
   uploadIsEditing = false;
   pendingDeleteArquivoIds = new Set();
   retainedUploadFiles = [];
+  clearUploadErrorEntries();
   if (uploadInput) {
     uploadInput.value = "";
   }
@@ -1205,6 +1212,7 @@ const closeUploadModal = () => {
   uploadOverlay.classList.remove("is-visible");
   uploadOverlay.setAttribute("aria-hidden", "true");
   retainedUploadFiles = [];
+  clearUploadErrorEntries();
   if (uploadInput) {
     uploadInput.value = "";
   }
@@ -1459,6 +1467,59 @@ const filesToBase64 = async (files) => {
 const filesToNames = (files) =>
   files && files.length > 0 ? Array.from(files).map((file) => file.name) : [];
 
+const createUploadErrorEntry = (fileName, message) => ({
+  id: `${fileName || "arquivo"}::${message || "erro"}`,
+  fileName: String(fileName || "Arquivo.pdf"),
+  message: String(message || "Falha ao enviar arquivo."),
+});
+
+const clearUploadErrorEntries = () => {
+  uploadErrorEntries = [];
+};
+
+const setUploadErrorEntries = (entries) => {
+  uploadErrorEntries = Array.isArray(entries) ? entries.filter(Boolean) : [];
+  renderSelectedFiles(uploadInput?.files);
+};
+
+const dismissUploadErrorEntry = (entryId) => {
+  uploadErrorEntries = uploadErrorEntries.filter((entry) => entry.id !== entryId);
+  renderSelectedFiles(uploadInput?.files);
+};
+
+const findInvalidUploadFile = (files) =>
+  Array.from(files || []).find((file) => !isPdfFile(file));
+
+const findOversizedUploadFile = (files) =>
+  Array.from(files || []).find((file) => file.size > MAX_RECEIPT_SIZE_BYTES);
+
+const sanitizeUploadFiles = (files) =>
+  Array.from(files || []).filter(
+    (file) => isPdfFile(file) && file.size <= MAX_RECEIPT_SIZE_BYTES,
+  );
+
+const collectUploadErrorEntries = (files) => {
+  const entries = [];
+  Array.from(files || []).forEach((file) => {
+    if (!isPdfFile(file)) {
+      entries.push(createUploadErrorEntry(file?.name, PDF_ONLY_MESSAGE));
+      return;
+    }
+    if (file.size > MAX_RECEIPT_SIZE_BYTES) {
+      entries.push(createUploadErrorEntry(file?.name, MAX_RECEIPT_SIZE_MESSAGE));
+    }
+  });
+  return entries;
+};
+
+const validateUploadFilesOrThrow = (files) => {
+  const entries = collectUploadErrorEntries(files);
+  if (entries.length > 0) {
+    throw Object.assign(new Error(entries[0].message), { uploadEntries: entries });
+  }
+  return Array.from(files || []);
+};
+
 const uploadFileKey = (file) => {
   if (!file) return "";
   return `${file.name}::${file.size}::${file.lastModified}`;
@@ -1523,7 +1584,7 @@ const deleteArquivo = async (itemId, arquivoId) => {
 const uploadArquivos = async (files) => {
   if (!pendingUploadItemId || !uploadInput) return;
   const effectiveFiles = files ? Array.from(files) : uploadInput.files ? Array.from(uploadInput.files) : [];
-  const pdfs = effectiveFiles.filter(isPdfFile);
+  const pdfs = validateUploadFilesOrThrow(effectiveFiles);
   if (pdfs.length === 0) {
     return [];
   }
@@ -1547,7 +1608,10 @@ const uploadArquivos = async (files) => {
     body: JSON.stringify({ arquivosPdf, nomesArquivos }),
   });
   if (!response.ok) {
-    return [];
+    const message = await extractErrorMessage(response, "Falha ao enviar arquivos do comprovante.");
+    throw Object.assign(new Error(message), {
+      uploadEntries: pdfs.map((file) => createUploadErrorEntry(file?.name, message)),
+    });
   }
   let savedArquivos = [];
   try {
@@ -1594,7 +1658,8 @@ const fileMatches = (a, b) => {
 
 const saveUploadChanges = async () => {
   if (!pendingUploadItemId) return;
-  const newFiles = uploadInput?.files ? Array.from(uploadInput.files).filter(isPdfFile) : [];
+  clearUploadErrorEntries();
+  const newFiles = uploadInput?.files ? validateUploadFilesOrThrow(uploadInput.files) : [];
   const deleteIds = Array.from(pendingDeleteArquivoIds);
   if (newFiles.length === 0 && deleteIds.length === 0) {
     updateUploadSaveVisibility();
@@ -1624,6 +1689,9 @@ const saveUploadChanges = async () => {
     updateUploadSaveVisibility();
     await loadItemArquivos(pendingUploadItemId);
   } catch (error) {
+    if (error?.uploadEntries) {
+      setUploadErrorEntries(error.uploadEntries);
+    }
     showListState(error instanceof Error ? error.message : "Falha ao salvar alterações de arquivos.");
   } finally {
     if (uploadSave) {
@@ -1640,12 +1708,13 @@ const renderSelectedFiles = (files) => {
     uploadInput?.files && uploadInput.files.length > 0
       ? Array.from(uploadInput.files)
       : files && files.length > 0
-        ? Array.from(files)
+      ? Array.from(files)
         : [];
   const pdfs = allFiles.filter(isPdfFile);
-  uploadSelected.classList.toggle("is-grid", pdfs.length > 1);
+  const visualCardsCount = pdfs.length + uploadErrorEntries.length;
+  uploadSelected.classList.toggle("is-grid", visualCardsCount > 1);
   updateUploadSaveVisibility();
-  if (pdfs.length === 0) {
+  if (visualCardsCount === 0) {
     uploadSelected.classList.remove("is-grid");
     return;
   }
@@ -1685,6 +1754,43 @@ const renderSelectedFiles = (files) => {
     card.appendChild(remove);
     uploadSelected.appendChild(card);
   });
+  uploadErrorEntries.forEach((entry) => {
+    const card = document.createElement("div");
+    card.className = "upload-file-card is-error";
+
+    const icon = document.createElement("div");
+    icon.className = "upload-file-icon is-error";
+    icon.textContent = "!";
+
+    const meta = document.createElement("div");
+    meta.className = "upload-file-meta";
+
+    const name = document.createElement("div");
+    name.className = "upload-file-name";
+    name.textContent = entry.fileName || "Arquivo.pdf";
+
+    const message = document.createElement("div");
+    message.className = "upload-file-message";
+    message.textContent = entry.message || "Falha ao enviar arquivo.";
+
+    const dismiss = document.createElement("button");
+    dismiss.type = "button";
+    dismiss.className = "upload-file-remove-selected is-error";
+    dismiss.textContent = "×";
+    dismiss.setAttribute("aria-label", "Dispensar erro do arquivo");
+    dismiss.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dismissUploadErrorEntry(entry.id);
+    });
+
+    meta.appendChild(name);
+    meta.appendChild(message);
+    card.appendChild(icon);
+    card.appendChild(meta);
+    card.appendChild(dismiss);
+    uploadSelected.appendChild(card);
+  });
 };
 
 const bindUploadDrop = () => {
@@ -1692,7 +1798,20 @@ const bindUploadDrop = () => {
   const setFiles = (files) => {
     if (!files || files.length === 0) return;
     const picked = Array.from(files);
-    const merged = mergeUploadFiles(retainedUploadFiles, picked);
+    setUploadErrorEntries(collectUploadErrorEntries(picked));
+    const invalidFile = findInvalidUploadFile(picked);
+    if (invalidFile) {
+      showListState(PDF_ONLY_MESSAGE);
+    }
+    const oversizedFile = findOversizedUploadFile(picked);
+    if (oversizedFile) {
+      showListState(MAX_RECEIPT_SIZE_MESSAGE);
+    }
+    const validFiles = sanitizeUploadFiles(picked);
+    if (validFiles.length === 0) {
+      return;
+    }
+    const merged = mergeUploadFiles(retainedUploadFiles, validFiles);
     retainedUploadFiles = merged;
     setUploadInputFiles(merged);
   };
@@ -2133,6 +2252,9 @@ const bindEvents = () => {
           const updated = await patchVerificacao(card.dataset.id, nextChecked);
           const persistedChecked = Boolean(updated?.verificado);
           syncItemCheckedState(card.dataset.id, persistedChecked);
+          if (String(card.dataset.tipo || "").toLowerCase() === "receita") {
+            window.dispatchEvent(new CustomEvent("notifications:changed"));
+          }
         } catch (error) {
           showListState(
             error instanceof Error ? error.message : "Falha ao atualizar verificação.",
@@ -2229,7 +2351,17 @@ const init = async () => {
         return;
       }
 
-      const merged = mergeUploadFiles(retainedUploadFiles, picked);
+      setUploadErrorEntries(collectUploadErrorEntries(picked));
+      const invalidFile = findInvalidUploadFile(picked);
+      if (invalidFile) {
+        showListState(PDF_ONLY_MESSAGE);
+      }
+      const oversizedFile = findOversizedUploadFile(picked);
+      if (oversizedFile) {
+        showListState(MAX_RECEIPT_SIZE_MESSAGE);
+      }
+      const validFiles = sanitizeUploadFiles(picked);
+      const merged = mergeUploadFiles(retainedUploadFiles, validFiles);
       retainedUploadFiles = merged;
       setUploadInputFiles(merged);
     });

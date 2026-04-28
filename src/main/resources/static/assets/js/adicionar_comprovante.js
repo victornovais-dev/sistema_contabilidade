@@ -30,6 +30,8 @@ let yearMenuCloseHandlerBound = false;
 let retainedReceiptFiles = [];
 let settingReceiptFilesProgrammatically = false;
 const descricaoOptionsCache = new Map();
+const EXTRATO_BANCARIO_TYPE = "EXTRATO_BANCARIO";
+const EXTRATO_BANCARIO_DESCRICOES = ["CONTA FEFC", "CONTA FP", "CONTA DC"];
 const DEFAULT_TIPO_DOCUMENTO_OPTIONS_BY_TIPO = {
   RECEITA: ["Pix", "Transfer\u00eancia", "Cheque", "Dinheiro"],
   DESPESA: ["Nota fiscal", "Fatura", "Boleto", "Outros"],
@@ -37,15 +39,31 @@ const DEFAULT_TIPO_DOCUMENTO_OPTIONS_BY_TIPO = {
 const MAX_VALOR_CENTS = 1000000000;
 const MAX_RAZAO_SOCIAL_LENGTH = 150;
 const MAX_NUMERO_DOCUMENTO_LENGTH = 50;
+const MAX_RECEIPT_SIZE_BYTES = 20 * 1024 * 1024;
 const TECHNICAL_ROLES = new Set(["ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO"]);
-const REQUIRED_ATTACHMENT_DESCRIPTIONS = new Set([
-  "CONTA DC",
-  "CONTA FEFC",
-  "CONTA FP",
-]);
+const REQUIRED_ATTACHMENT_MESSAGE = "Anexe ao menos um comprovante em PDF.";
 const tipoDocumentoOptionsCache = new Map();
 let descricaoRequestSequence = 0;
 let tipoDocumentoRequestSequence = 0;
+
+const waitForAuthReady = async () => {
+  if (window.SCAuth?.waitUntilReady) {
+    try {
+      await window.SCAuth.waitUntilReady();
+    } catch (error) {
+      // O chamador decide como tratar sessao nao inicializada.
+    }
+  }
+};
+
+const getAccessToken = async () => {
+  await waitForAuthReady();
+  return window.SCAuth?.getAccessToken?.() || localStorage.getItem("sc_access_token");
+};
+
+const redirectToLogin = () => {
+  window.location.href = "/login";
+};
 
 const parseDate = (value) => {
   const digits = (value || "").replace(/\D/g, "");
@@ -105,13 +123,17 @@ const sanitizeNumeroDocumento = (value) =>
     .replace(/\D/g, "")
     .slice(0, MAX_NUMERO_DOCUMENTO_LENGTH);
 
-const normalizeDescricao = (value) => String(value || "").trim().toUpperCase();
-
 const normalizeTipoLancamento = (value) => String(value || "").trim().toUpperCase();
 
-const requiresAttachmentBySelection = (tipo, descricao) =>
-  normalizeTipoLancamento(tipo) === "RECEITA" &&
-  REQUIRED_ATTACHMENT_DESCRIPTIONS.has(normalizeDescricao(descricao));
+const resolveApiTipo = (value) => {
+  const tipo = normalizeTipoLancamento(value);
+  return tipo === EXTRATO_BANCARIO_TYPE ? "RECEITA" : tipo;
+};
+
+const isSupportedTipoLancamento = (value) => {
+  const tipo = normalizeTipoLancamento(value);
+  return tipo === "RECEITA" || tipo === "DESPESA" || tipo === EXTRATO_BANCARIO_TYPE;
+};
 
 const formatCpfCnpj = (value) => {
   const digits = (value || "").replace(/\D/g, "").slice(0, 14);
@@ -165,7 +187,7 @@ const isPdfFile = (file) => {
 
 const ensureCsrfToken = async (forceRefresh = false) => {
   if (!forceRefresh && csrfToken) return csrfToken;
-  const accessToken = localStorage.getItem("sc_access_token");
+  const accessToken = await getAccessToken();
   const response = await fetch("/api/v1/auth/csrf", {
     method: "GET",
     credentials: "same-origin",
@@ -395,8 +417,11 @@ const renderRoleOptions = (roles) => {
 };
 
 const loadRoleOptions = async () => {
-  const accessToken = localStorage.getItem("sc_access_token");
+  const accessToken = await getAccessToken();
   if (!accessToken || !roleSelect) {
+    if (!accessToken) {
+      redirectToLogin();
+    }
     return;
   }
 
@@ -409,7 +434,7 @@ const loadRoleOptions = async () => {
   });
 
   if (response.status === 401) {
-    window.location.href = "/login";
+    redirectToLogin();
     return;
   }
   if (!response.ok) {
@@ -576,9 +601,9 @@ const loadDescricaoOptions = async (tipo) => {
     return descricaoOptionsCache.get(tipo);
   }
 
-  const accessToken = localStorage.getItem("sc_access_token");
+  const accessToken = await getAccessToken();
   if (!accessToken) {
-    window.location.href = "/login";
+    redirectToLogin();
     return [];
   }
 
@@ -591,7 +616,7 @@ const loadDescricaoOptions = async (tipo) => {
   });
 
   if (response.status === 401) {
-    window.location.href = "/login";
+    redirectToLogin();
     return [];
   }
   if (!response.ok) {
@@ -605,26 +630,30 @@ const loadDescricaoOptions = async (tipo) => {
 };
 
 const loadTipoDocumentoOptions = async (tipo) => {
+  const apiTipo = resolveApiTipo(tipo);
   if (tipoDocumentoOptionsCache.has(tipo)) {
     return tipoDocumentoOptionsCache.get(tipo);
   }
 
-  const accessToken = localStorage.getItem("sc_access_token");
+  const accessToken = await getAccessToken();
   if (!accessToken) {
-    window.location.href = "/login";
+    redirectToLogin();
     return [];
   }
 
-  const response = await fetch(`/api/v1/itens/tipos-documento?tipo=${encodeURIComponent(tipo)}`, {
+  const response = await fetch(
+    `/api/v1/itens/tipos-documento?tipo=${encodeURIComponent(apiTipo)}`,
+    {
     method: "GET",
     credentials: "same-origin",
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
-  });
+    },
+  );
 
   if (response.status === 401) {
-    window.location.href = "/login";
+    redirectToLogin();
     return [];
   }
   if (!response.ok) {
@@ -645,8 +674,9 @@ const initTipoDocumentoOptions = async () => {
 const updateTipoDocumentoByTipo = async (tipoValue) => {
   const requestId = ++tipoDocumentoRequestSequence;
   const tipo = String(tipoValue || "").trim().toUpperCase();
+  const apiTipo = resolveApiTipo(tipo);
 
-  if (tipo !== "RECEITA" && tipo !== "DESPESA") {
+  if (apiTipo !== "RECEITA" && apiTipo !== "DESPESA") {
     renderTipoDocumentoOptions([]);
     setTipoDocumentoEnabled(false);
     return;
@@ -669,7 +699,7 @@ const updateTipoDocumentoByTipo = async (tipoValue) => {
     if (requestId !== tipoDocumentoRequestSequence) {
       return;
     }
-    const fallback = DEFAULT_TIPO_DOCUMENTO_OPTIONS_BY_TIPO[tipo] || [];
+    const fallback = DEFAULT_TIPO_DOCUMENTO_OPTIONS_BY_TIPO[apiTipo] || [];
     renderTipoDocumentoOptions(fallback);
     setTipoDocumentoEnabled(fallback.length > 0);
     resetNativeSelect(tipoDocumentoSelect);
@@ -684,8 +714,17 @@ const updateTipoDocumentoByTipo = async (tipoValue) => {
 const updateDescricaoByTipo = async (tipoValue) => {
   const requestId = ++descricaoRequestSequence;
   const tipo = String(tipoValue || "").trim().toUpperCase();
+  const apiTipo = resolveApiTipo(tipo);
 
-  if (tipo !== "RECEITA" && tipo !== "DESPESA") {
+  if (tipo === EXTRATO_BANCARIO_TYPE) {
+    renderDescricaoOptions(EXTRATO_BANCARIO_DESCRICOES);
+    setDescricaoEnabled(true);
+    resetNativeSelect(descricaoSelect);
+    customDescricao?.syncFromSelect?.();
+    return;
+  }
+
+  if (apiTipo !== "RECEITA" && apiTipo !== "DESPESA") {
     renderDescricaoOptions([]);
     setDescricaoEnabled(false);
     return;
@@ -696,7 +735,7 @@ const updateDescricaoByTipo = async (tipoValue) => {
   setDescricaoLoadingState(true);
 
   try {
-    const descriptions = await loadDescricaoOptions(tipo);
+    const descriptions = await loadDescricaoOptions(apiTipo);
     if (requestId !== descricaoRequestSequence) {
       return;
     }
@@ -834,6 +873,7 @@ const setReceiptFiles = (files) => {
 
 if (fileInput) {
   retainedReceiptFiles = fileInput.files ? Array.from(fileInput.files) : [];
+  fileInput.required = true;
   updateReceiptHint(retainedReceiptFiles);
 
   fileInput.addEventListener("change", () => {
@@ -1305,15 +1345,17 @@ if (form) {
           (file) =>
             file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf"),
         );
+        const oversized = files.find((file) => file.size > MAX_RECEIPT_SIZE_BYTES);
         if (invalid) {
           fileInput.setCustomValidity("Envie somente arquivos PDF.");
           hasError = true;
+        } else if (oversized) {
+          fileInput.setCustomValidity("Cada comprovante deve ter no maximo 20 MB.");
+          hasError = true;
         }
       }
-      if (requiresAttachmentBySelection(typeSelect?.value, descricaoSelect?.value) && files.length === 0) {
-        fileInput.setCustomValidity(
-          "Conta DC, Conta FEFC e Conta FP exigem ao menos um anexo.",
-        );
+      if (files.length === 0) {
+        fileInput.setCustomValidity(REQUIRED_ATTACHMENT_MESSAGE);
         hasError = true;
       }
     }
@@ -1398,7 +1440,7 @@ if (form) {
     const files = fileInput.files ? Array.from(fileInput.files) : [];
     const dataIso = toIsoLocalDate(dateInput.value);
     const tipoSelecionado = String(typeSelect?.value || "").trim().toUpperCase();
-    if (tipoSelecionado !== "RECEITA" && tipoSelecionado !== "DESPESA") {
+    if (!isSupportedTipoLancamento(tipoSelecionado)) {
       if (typeSelect) {
         typeSelect.setCustomValidity("Selecione um tipo valido.");
         typeSelect.reportValidity();
@@ -1417,11 +1459,11 @@ if (form) {
       }
       return;
     }
-    const tipo = tipoSelecionado;
-    const accessToken = localStorage.getItem("sc_access_token");
+    const tipo = resolveApiTipo(tipoSelecionado);
+    const accessToken = await getAccessToken();
 
     if (!accessToken) {
-      window.location.href = "/login";
+      redirectToLogin();
       return;
     }
 
@@ -1466,12 +1508,12 @@ if (form) {
         response.redirected ||
         (typeof response.status === "number" && response.status >= 300 && response.status < 400);
       if (isRedirect) {
-        window.location.href = "/login";
+        redirectToLogin();
         throw new Error("Sessão expirada. Faça login novamente.");
       }
 
       if (response.status === 401) {
-        window.location.href = "/login";
+        redirectToLogin();
         throw new Error("Sessão expirada. Faça login novamente.");
       }
 
@@ -1485,7 +1527,7 @@ if (form) {
         response.redirected ||
         (typeof response.status === "number" && response.status >= 300 && response.status < 400);
       if (isRedirectAfterRetry) {
-        window.location.href = "/login";
+        redirectToLogin();
         throw new Error("Sessão expirada. Faça login novamente.");
       }
 

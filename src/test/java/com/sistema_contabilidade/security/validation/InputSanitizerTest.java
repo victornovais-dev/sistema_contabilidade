@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.security.validation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -109,5 +110,37 @@ class InputSanitizerTest {
 
     assertEquals("", vazio);
     assertEquals(120, longo.length());
+  }
+
+  @Test
+  @DisplayName("Deve cobrir helpers privados de deteccao de tags")
+  void deveCobrirHelpersPrivadosDeDeteccaoDeTags() throws Exception {
+    Method containsHtmlTag =
+        InputSanitizer.class.getDeclaredMethod("containsHtmlTag", String.class);
+    Method normalizeTagStart =
+        InputSanitizer.class.getDeclaredMethod("normalizeTagStart", String.class, int.class);
+    Method skipWhitespace =
+        InputSanitizer.class.getDeclaredMethod("skipWhitespace", String.class, int.class);
+    Method isValidTagStart =
+        InputSanitizer.class.getDeclaredMethod("isValidTagStart", String.class, int.class);
+
+    containsHtmlTag.setAccessible(true);
+    normalizeTagStart.setAccessible(true);
+    skipWhitespace.setAccessible(true);
+    isValidTagStart.setAccessible(true);
+
+    boolean hasSlashTag =
+        (boolean) containsHtmlTag.invoke(inputSanitizer, "prefix < /div > suffix");
+    boolean hasInvalidTag =
+        (boolean) containsHtmlTag.invoke(inputSanitizer, "valor < 123 > literal");
+    int normalizedStart = (int) normalizeTagStart.invoke(inputSanitizer, "< /div >", 1);
+    int skippedStart = (int) skipWhitespace.invoke(inputSanitizer, "   abc", 0);
+    boolean validOutOfRange = (boolean) isValidTagStart.invoke(inputSanitizer, "", 0);
+
+    assertTrue(hasSlashTag);
+    assertFalse(hasInvalidTag);
+    assertEquals(3, normalizedStart);
+    assertEquals(3, skippedStart);
+    assertFalse(validOutOfRange);
   }
 }

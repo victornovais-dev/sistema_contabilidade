@@ -56,7 +56,8 @@ public class AuthController {
     httpResponse.addHeader(
         HttpHeaders.SET_COOKIE,
         buildSessionCookie(loginResult.sessionToken(), httpRequest).toString());
-    httpResponse.addHeader(HttpHeaders.SET_COOKIE, clearLegacyAuthCookie().toString());
+    httpResponse.addHeader(
+        HttpHeaders.SET_COOKIE, clearLegacyAuthCookie(httpRequestIsSecure(httpRequest)).toString());
     return ResponseEntity.ok(loginResult.response());
   }
 
@@ -70,7 +71,8 @@ public class AuthController {
     authService.logout(resolveSessionToken(request));
     httpResponse.addHeader(
         HttpHeaders.SET_COOKIE, clearSessionCookie(httpRequestIsSecure(request)).toString());
-    httpResponse.addHeader(HttpHeaders.SET_COOKIE, clearLegacyAuthCookie().toString());
+    httpResponse.addHeader(
+        HttpHeaders.SET_COOKIE, clearLegacyAuthCookie(httpRequestIsSecure(request)).toString());
     return ResponseEntity.noContent().build();
   }
 
@@ -145,10 +147,10 @@ public class AuthController {
         .build();
   }
 
-  private ResponseCookie clearLegacyAuthCookie() {
+  private ResponseCookie clearLegacyAuthCookie(boolean secure) {
     return ResponseCookie.from(LEGACY_AUTH_COOKIE_NAME, "")
         .httpOnly(true)
-        .secure(false)
+        .secure(secure)
         .sameSite(COOKIE_SAME_SITE)
         .path(SecurityPaths.ROOT_PATH)
         .maxAge(0)

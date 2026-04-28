@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class NotificacaoService {
 
   private final ItemRepository itemRepository;
@@ -57,6 +59,15 @@ public class NotificacaoService {
     LocalDateTime criadoEm =
         item.getHorarioCriacao() == null ? LocalDateTime.now() : item.getHorarioCriacao();
     String roleNome = ItemAccessUtils.normalizarRole(item.getRoleNome());
+    if (roleNome == null) {
+      if (log.isWarnEnabled()) {
+        log.warn(
+            "Item de receita sem role valida ignorado na sincronizacao de notificacoes | itemId: {}",
+            item.getId());
+      }
+      notificacaoRepository.deleteByItemId(item.getId());
+      return;
+    }
     boolean nova = notificacao.getId() == null;
     boolean alterada = nova;
 

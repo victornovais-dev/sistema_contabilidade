@@ -39,7 +39,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    String clientKey = resolveClientKey(request);
+    String clientKey = resolveClientBucket(request);
     long now = Instant.now().getEpochSecond();
 
     Deque<Long> window = requestsByClient.computeIfAbsent(clientKey, ignored -> new ArrayDeque<>());
@@ -61,11 +61,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     filterChain.doFilter(request, response);
   }
 
-  private String resolveClientKey(HttpServletRequest request) {
+  private String resolveClientBucket(HttpServletRequest request) {
+    String requestBucket = request.getMethod() + ":" + request.getRequestURI();
     String forwardedFor = request.getHeader("X-Forwarded-For");
     if (forwardedFor != null && !forwardedFor.isBlank()) {
-      return forwardedFor.split(",")[0].trim();
+      return forwardedFor.split(",")[0].trim() + "|" + requestBucket;
     }
-    return request.getRemoteAddr();
+    return request.getRemoteAddr() + "|" + requestBucket;
   }
 }

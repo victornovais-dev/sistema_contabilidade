@@ -104,7 +104,7 @@ class SecurityConfigTest {
 
   @Test
   @DisplayName("Deve falhar ao obter AuthenticationManager quando configuracao quebrar")
-  void deveFalharAoObterAuthenticationManagerQuandoConfiguracaoQuebrar() throws Exception {
+  void deveFalharAoObterAuthenticationManagerQuandoConfiguracaoQuebrar() {
     SecurityConfig config =
         new SecurityConfig(
             Mockito.mock(JwtAuthFilter.class),

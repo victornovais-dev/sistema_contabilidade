@@ -6,7 +6,7 @@
     <title>Registrar Gasto</title>
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
     <script src="assets/js/theme-init.js"></script>
-    <script src="assets/js/auth-session.js?v=20260425-layer6-1"></script>
+    <script src="assets/js/auth-session.js?v=20260427-logout-fresh-csrf-1"></script>
     <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css" />
     <link rel="stylesheet" href="assets/css/adicionar_comprovante.css?v=20260413-validacoes-1" />
     <link rel="stylesheet" href="assets/css/navbar.css?v=20260420-navbar-notification-count-fix-3" />
@@ -70,6 +70,14 @@
                     <button class="custom-select-option" type="button" role="option" data-value="RECEITA">
                       Receita
                     </button>
+                    <button
+                      class="custom-select-option"
+                      type="button"
+                      role="option"
+                      data-value="EXTRATO_BANCARIO"
+                    >
+                      Extrato Bancário
+                    </button>
                     <button class="custom-select-option" type="button" role="option" data-value="DESPESA">
                       Despesa
                     </button>
@@ -77,6 +85,7 @@
                   <select class="native-select" name="entry_type" required aria-hidden="true">
                     <option value="" disabled selected>Selecione</option>
                     <option value="RECEITA">Receita</option>
+                    <option value="EXTRATO_BANCARIO">Extrato Bancário</option>
                     <option value="DESPESA">Despesa</option>
                   </select>
                 </div>
@@ -199,6 +208,7 @@
                 name="receipt"
                 accept=".pdf,application/pdf"
                 multiple
+                required
               />
                 <label class="btn btn-secondary file-button" for="receipt">Escolher arquivo</label>
                 <div class="file-info">
@@ -226,6 +236,6 @@
 
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/js/navbar.js?v=20260421-notifications-admin-contabil-1" defer></script>
-    <script src="assets/js/adicionar_comprovante.js?v=20260421-candidato-role-1" defer></script>
+    <script src="assets/js/adicionar_comprovante.js?v=20260427-auth-ready-1" defer></script>
   </body>
 </html>

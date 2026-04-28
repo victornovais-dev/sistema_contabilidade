@@ -78,7 +78,7 @@ class SecurityConfigCsrfTest {
     MvcResult csrfResult =
         mockMvc.perform(get("/api/v1/auth/csrf")).andExpect(status().isOk()).andReturn();
     JsonNode payload = new ObjectMapper().readTree(csrfResult.getResponse().getContentAsString());
-    String csrfToken = payload.get("token").asText();
+    String csrfToken = payload.required("token").asString();
     Cookie csrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
 
     mockMvc
@@ -192,7 +192,7 @@ class SecurityConfigCsrfTest {
             .andExpect(status().isOk())
             .andReturn();
     JsonNode payload = new ObjectMapper().readTree(csrfResult.getResponse().getContentAsString());
-    String csrfToken = payload.get("token").asText();
+    String csrfToken = payload.required("token").asString();
     Cookie csrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
 
     mockMvc

@@ -43,6 +43,10 @@ class S3ArquivoStorageServiceTest {
   private StorageProperties storageProperties;
   private S3ArquivoStorageService service;
 
+  private static byte[] pdfValido() {
+    return "%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF".getBytes();
+  }
+
   @BeforeEach
   void setUp() {
     storageProperties = new StorageProperties();
@@ -57,10 +61,10 @@ class S3ArquivoStorageServiceTest {
     when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
         .thenReturn(PutObjectResponse.builder().build());
 
-    String chave = service.salvarPdf("conteudo".getBytes(), "arquivo.pdf");
+    String chave = service.salvarPdf(pdfValido(), "arquivo.pdf");
 
     assertTrue(chave.startsWith("itens/"));
-    assertTrue(chave.endsWith("/arquivo.pdf"));
+    assertTrue(chave.endsWith("_arquivo.pdf"));
     verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
   }
 
@@ -70,7 +74,7 @@ class S3ArquivoStorageServiceTest {
     when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
         .thenReturn(PutObjectResponse.builder().build());
 
-    String chave = service.salvarPdf("conteudo".getBytes());
+    String chave = service.salvarPdf(pdfValido());
 
     assertTrue(chave.startsWith("itens/"));
     verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
@@ -80,12 +84,13 @@ class S3ArquivoStorageServiceTest {
   @DisplayName("Deve normalizar prefixo antes do upload")
   void deveNormalizarPrefixoAntesDoUpload() {
     storageProperties.getS3().setPrefix(" /financeiro\\mensal// ");
+    service = new S3ArquivoStorageService(s3Client, storageProperties);
     when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
         .thenReturn(PutObjectResponse.builder().build());
     ArgumentCaptor<PutObjectRequest> requestCaptor =
         ArgumentCaptor.forClass(PutObjectRequest.class);
 
-    String chave = service.salvarPdf("conteudo".getBytes(), "arquivo.pdf");
+    String chave = service.salvarPdf(pdfValido(), "arquivo.pdf");
 
     verify(s3Client).putObject(requestCaptor.capture(), any(RequestBody.class));
     assertTrue(chave.startsWith("financeiro/mensal/"));
@@ -96,10 +101,11 @@ class S3ArquivoStorageServiceTest {
   @DisplayName("Deve usar prefixo padrao quando prefixo estiver vazio")
   void deveUsarPrefixoPadraoQuandoPrefixoEstiverVazio() {
     storageProperties.getS3().setPrefix("///");
+    service = new S3ArquivoStorageService(s3Client, storageProperties);
     when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
         .thenReturn(PutObjectResponse.builder().build());
 
-    String chave = service.salvarPdf("conteudo".getBytes(), "arquivo.pdf");
+    String chave = service.salvarPdf(pdfValido(), "arquivo.pdf");
 
     assertTrue(chave.startsWith("itens/"));
   }
@@ -120,7 +126,7 @@ class S3ArquivoStorageServiceTest {
         .thenThrow(SdkClientException.create("s3 indisponivel"));
     when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
         .thenReturn(DeleteObjectResponse.builder().build());
-    List<byte[]> arquivos = List.of("a".getBytes(), "b".getBytes());
+    List<byte[]> arquivos = List.of(pdfValido(), pdfValido());
 
     ResponseStatusException ex =
         assertThrows(ResponseStatusException.class, () -> service.salvarPdfs(arquivos, null));
@@ -137,11 +143,11 @@ class S3ArquivoStorageServiceTest {
 
     List<String> chaves =
         service.salvarPdfs(
-            List.of("a".getBytes(), "b".getBytes()), List.of("primeiro.pdf", "segundo.pdf"));
+            List.of(pdfValido(), pdfValido()), List.of("primeiro.pdf", "segundo.pdf"));
 
     assertEquals(2, chaves.size());
-    assertTrue(chaves.get(0).endsWith("/primeiro.pdf"));
-    assertTrue(chaves.get(1).endsWith("/segundo.pdf"));
+    assertTrue(chaves.get(0).endsWith("_primeiro.pdf"));
+    assertTrue(chaves.get(1).endsWith("_segundo.pdf"));
   }
 
   @Test
@@ -260,7 +266,8 @@ class S3ArquivoStorageServiceTest {
   @DisplayName("Deve falhar quando bucket nao estiver configurado")
   void deveFalharQuandoBucketNaoEstiverConfigurado() {
     storageProperties.getS3().setBucket(" ");
-    byte[] arquivoPdf = "x".getBytes();
+    service = new S3ArquivoStorageService(s3Client, storageProperties);
+    byte[] arquivoPdf = pdfValido();
 
     ResponseStatusException ex =
         assertThrows(
@@ -273,10 +280,11 @@ class S3ArquivoStorageServiceTest {
   @DisplayName("Deve usar prefixo padrao quando prefixo for nulo")
   void deveUsarPrefixoPadraoQuandoPrefixoForNulo() {
     storageProperties.getS3().setPrefix(null);
+    service = new S3ArquivoStorageService(s3Client, storageProperties);
     when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
         .thenReturn(PutObjectResponse.builder().build());
 
-    String chave = service.salvarPdf("conteudo".getBytes(), "arquivo.pdf");
+    String chave = service.salvarPdf(pdfValido(), "arquivo.pdf");
 
     assertTrue(chave.startsWith("itens/"));
   }
@@ -284,7 +292,7 @@ class S3ArquivoStorageServiceTest {
   @Test
   @DisplayName("Deve traduzir erro S3 no upload")
   void deveTraduzirErroS3NoUpload() {
-    byte[] conteudo = "conteudo".getBytes();
+    byte[] conteudo = pdfValido();
     when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
         .thenThrow(
             S3Exception.builder()
@@ -300,5 +308,18 @@ class S3ArquivoStorageServiceTest {
             ResponseStatusException.class, () -> service.salvarPdf(conteudo, "arquivo.pdf"));
 
     assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve rejeitar upload com extensao perigosa")
+  void deveRejeitarUploadComExtensaoPerigosa() {
+    byte[] arquivoPdf = pdfValido();
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class, () -> service.salvarPdf(arquivoPdf, "comprovante.php"));
+
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    verify(s3Client, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
   }
 }

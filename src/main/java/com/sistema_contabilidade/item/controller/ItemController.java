@@ -16,7 +16,6 @@ import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ArquivoStorageService;
 import com.sistema_contabilidade.item.service.ItemAccessUtils;
 import com.sistema_contabilidade.item.service.ItemDescricaoService;
-import com.sistema_contabilidade.item.service.ItemExpenseLimitService;
 import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
@@ -30,7 +29,6 @@ import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
@@ -71,6 +69,10 @@ public class ItemController {
   private static final String ITEM_NAO_ENCONTRADO = "Item nao encontrado";
   private static final String ARQUIVO_ITEM_NAO_ENCONTRADO = "Arquivo do item nao encontrado";
   private static final String NOME_ARQUIVO_INVALIDO = "Nome do arquivo invalido";
+  private static final String CACHE_CONTROL_PRIVATE_NO_STORE =
+      "no-store, no-cache, must-revalidate";
+  private static final String CONTENT_TYPE_OPTIONS_HEADER = "X-Content-Type-Options";
+  private static final String NOSNIFF = "nosniff";
   private static final String CONTABIL_AUTHORITY = "ROLE_CONTABIL";
   private static final String SUPPORT_AUTHORITY = "ROLE_SUPPORT";
   private static final String CANDIDATO_AUTHORITY = "ROLE_CANDIDATO";
@@ -82,14 +84,8 @@ public class ItemController {
       "Usuarios SUPPORT nao podem desmarcar comprovantes verificados.";
   private static final String CANDIDATO_NAO_PODE_ALTERAR_VERIFICACAO =
       "Usuarios CANDIDATO nao podem alterar verificacao de comprovantes.";
-  private static final String ANEXO_OBRIGATORIO_DESCRICAO_FINANCEIRA =
-      "Conta DC, Conta FEFC e Conta FP exigem ao menos um anexo.";
-  private static final String DESCRICAO_RECEITA_INDISPONIVEL =
-      "CONTA FEFEC nao esta disponivel para receitas.";
+  private static final String ANEXO_OBRIGATORIO = "Anexe ao menos um comprovante em PDF.";
   private static final String CPF_DUPLICADO = "Ja existe um item cadastrado com este CPF.";
-  private static final Set<String> DESCRICOES_COM_ANEXO_OBRIGATORIO =
-      Set.of("CONTA DC", "CONTA FEFC", "CONTA FP");
-  private static final Set<String> DESCRICOES_RECEITA_REMOVIDAS = Set.of("CONTA FEFEC");
 
   private final ItemRepository itemRepository;
   private final ItemArquivoRepository itemArquivoRepository;
@@ -97,7 +93,6 @@ public class ItemController {
   private final ItemListService itemListService;
   private final ItemDescricaoService itemDescricaoService;
   private final ItemTipoDocumentoService itemTipoDocumentoService;
-  private final ItemExpenseLimitService itemExpenseLimitService;
   private final NotificacaoService notificacaoService;
   private final UsuarioRepository usuarioRepository;
   private final InputSanitizer inputSanitizer;
@@ -110,10 +105,9 @@ public class ItemController {
     Item item = new Item();
     List<String> arquivosSalvos = List.of();
     String roleNomeItem = resolverRoleNomeItem(usuarioAutenticado, request.role(), null);
-    validarDescricaoDisponivel(request);
-    validarAnexoObrigatorio(request);
+    validarDescricaoDisponivel();
+    validarAnexoObrigatorioNaCriacao(request);
     validarCpfUnico(request.cnpjCpf(), null);
-    itemExpenseLimitService.validarLimiteDespesa(request, roleNomeItem, null);
     aplicarCamposBase(item, request);
     item.setCriadoPor(usuarioAutenticado);
     item.setRoleNome(roleNomeItem);
@@ -199,6 +193,8 @@ public class ItemController {
     return ResponseEntity.ok()
         .contentType(MediaType.APPLICATION_PDF)
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nomeArquivo + "\"")
+        .header(HttpHeaders.CACHE_CONTROL, CACHE_CONTROL_PRIVATE_NO_STORE)
+        .header(CONTENT_TYPE_OPTIONS_HEADER, NOSNIFF)
         .body(new InputStreamResource(new ByteArrayInputStream(arquivoPdf)));
   }
 
@@ -231,6 +227,8 @@ public class ItemController {
     return ResponseEntity.ok()
         .contentType(MediaType.APPLICATION_PDF)
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nomeArquivo + "\"")
+        .header(HttpHeaders.CACHE_CONTROL, CACHE_CONTROL_PRIVATE_NO_STORE)
+        .header(CONTENT_TYPE_OPTIONS_HEADER, NOSNIFF)
         .body(new InputStreamResource(new ByteArrayInputStream(arquivoPdf)));
   }
 
@@ -271,6 +269,8 @@ public class ItemController {
         .contentType(MediaType.APPLICATION_OCTET_STREAM)
         .header(
             HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"comprovantes-" + id + ".zip\"")
+        .header(HttpHeaders.CACHE_CONTROL, CACHE_CONTROL_PRIVATE_NO_STORE)
+        .header(CONTENT_TYPE_OPTIONS_HEADER, NOSNIFF)
         .body(new InputStreamResource(new ByteArrayInputStream(outputStream.toByteArray())));
   }
 
@@ -344,10 +344,8 @@ public class ItemController {
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
     String roleNomeItem =
         resolverRoleNomeItem(usuarioAutenticado, request.role(), item.getRoleNome());
-    validarDescricaoDisponivel(request);
-    validarAnexoObrigatorio(request);
+    validarDescricaoDisponivel();
     validarCpfUnico(request.cnpjCpf(), item.getId());
-    itemExpenseLimitService.validarLimiteDespesa(request, roleNomeItem, item.getId());
     aplicarCamposBase(item, request);
     item.setRoleNome(roleNomeItem);
 
@@ -384,6 +382,7 @@ public class ItemController {
     validarPermissaoAtualizarVerificacao(authentication, item, request);
     item.setVerificado(Boolean.TRUE.equals(request.verificado()));
     Item salvo = itemRepository.save(item);
+    notificacaoService.sincronizarComItem(salvo);
     return ResponseEntity.ok(ItemResponse.from(salvo));
   }
 
@@ -518,30 +517,15 @@ public class ItemController {
         inputSanitizer.sanitizeMultilineText(request.observacao(), "observacao", 500));
   }
 
-  private void validarAnexoObrigatorio(ItemUpsertRequest request) {
-    if (request.tipo() != TipoItem.RECEITA) {
-      return;
-    }
-    String descricaoNormalizada = normalizarDescricao(request.descricao());
-    if (!DESCRICOES_COM_ANEXO_OBRIGATORIO.contains(descricaoNormalizada)) {
-      return;
-    }
+  private void validarAnexoObrigatorioNaCriacao(ItemUpsertRequest request) {
     List<byte[]> arquivosPdf = request.arquivosPdf();
     if (arquivosPdf == null || arquivosPdf.isEmpty()) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, ANEXO_OBRIGATORIO_DESCRICAO_FINANCEIRA);
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ANEXO_OBRIGATORIO);
     }
   }
 
-  private void validarDescricaoDisponivel(ItemUpsertRequest request) {
-    if (request.tipo() != TipoItem.RECEITA) {
-      return;
-    }
-    String descricaoNormalizada = normalizarDescricao(request.descricao());
-    if (!DESCRICOES_RECEITA_REMOVIDAS.contains(descricaoNormalizada)) {
-      return;
-    }
-    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, DESCRICAO_RECEITA_INDISPONIVEL);
+  private void validarDescricaoDisponivel() {
+    // Descricoes de receita sao validadas pela UI e pelo catalogo/fluxo de negocio.
   }
 
   private void validarCpfUnico(String cnpjCpf, UUID itemIdIgnorado) {
@@ -558,14 +542,6 @@ public class ItemController {
     if (quantidade > 0) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, CPF_DUPLICADO);
     }
-  }
-
-  private String normalizarDescricao(String descricao) {
-    String descricaoSanitizada = inputSanitizer.sanitizeInlineText(descricao, "descricao", 120);
-    if (descricaoSanitizada == null) {
-      return "";
-    }
-    return descricaoSanitizada.toUpperCase(Locale.ROOT);
   }
 
   private String normalizarDocumento(String documento) {

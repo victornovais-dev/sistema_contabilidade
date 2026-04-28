@@ -132,7 +132,7 @@ class UsuarioExceptionHandlerTest {
 
   @Test
   @DisplayName("Deve mapear campo desconhecido para 400")
-  void deveMapearCampoDesconhecidoPara400() throws Exception {
+  void deveMapearCampoDesconhecidoPara400() {
     UsuarioExceptionHandler handler = new UsuarioExceptionHandler();
     MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/usuarios");
     ObjectMapper objectMapper =
@@ -164,7 +164,7 @@ class UsuarioExceptionHandlerTest {
 
   @Test
   @DisplayName("Deve mapear campo duplicado para 400")
-  void deveMapearCampoDuplicadoPara400() throws Exception {
+  void deveMapearCampoDuplicadoPara400() {
     UsuarioExceptionHandler handler = new UsuarioExceptionHandler();
     MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/usuarios");
     ObjectMapper objectMapper =

@@ -2,8 +2,15 @@
   const TOKEN_STORAGE_KEY = "sc_access_token";
   const PLACEHOLDER_TOKEN = "__sc_bootstrap_pending__";
   const REFRESH_MARGIN_MS = 60_000;
+  const TRANSIENT_REFRESH_RETRY_MS = 15_000;
   const ROUTES_ENDPOINT = "/api/v1/auth/routes";
   const AUTH_API_PREFIX = "/api/v1/auth/";
+  const AUTH_BOOTSTRAP_BYPASS_PATHS = new Set([
+    "/api/v1/auth/csrf",
+    "/api/v1/auth/login",
+    "/api/v1/auth/logout",
+    "/api/v1/auth/refresh",
+  ]);
   const state = {
     accessToken: null,
     tokenExpiryMs: null,
@@ -51,6 +58,16 @@
       window.clearTimeout(state.refreshTimer);
       state.refreshTimer = null;
     }
+  };
+
+  const scheduleRefreshRetry = (delayMs = TRANSIENT_REFRESH_RETRY_MS) => {
+    clearRefreshTimer();
+    if (!state.accessToken) {
+      return;
+    }
+    state.refreshTimer = window.setTimeout(() => {
+      void refreshAccessToken();
+    }, delayMs);
   };
 
   const dispatchAuthEvent = (name, detail) => {
@@ -122,6 +139,12 @@
   const sameOriginApiRequest = (url) =>
     url.origin === window.location.origin && url.pathname.startsWith("/api/");
 
+  const shouldWaitForBootstrap = (url) =>
+    sameOriginApiRequest(url) && !AUTH_BOOTSTRAP_BYPASS_PATHS.has(url.pathname);
+
+  const shouldClearAuthStateAfterRefreshFailure = (status) =>
+    status === 401 || status === 403 || !state.accessToken;
+
   const ensureCsrfToken = async (forceRefresh = false) => {
     if (!forceRefresh && state.csrfToken) {
       return state.csrfToken;
@@ -173,18 +196,36 @@
   };
 
   const refreshAccessToken = async () => {
-    const csrfToken = await ensureCsrfToken();
-    const response = await nativeFetch("/api/v1/auth/refresh", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "X-CSRF-TOKEN": csrfToken,
-        "X-Requested-With": "XMLHttpRequest",
-      },
-    });
+    const executeRefresh = async () => {
+      const csrfToken = await ensureCsrfToken(true);
+      return nativeFetch("/api/v1/auth/refresh", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRF-TOKEN": csrfToken,
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
+    };
+
+    let response;
+    try {
+      response = await executeRefresh();
+    } catch (error) {
+      if (shouldClearAuthStateAfterRefreshFailure()) {
+        clearAuthState();
+      } else {
+        scheduleRefreshRetry();
+      }
+      throw error;
+    }
 
     if (!response.ok) {
-      clearAuthState();
+      if (shouldClearAuthStateAfterRefreshFailure(response.status)) {
+        clearAuthState();
+      } else {
+        scheduleRefreshRetry();
+      }
       throw new Error("Nao foi possivel renovar a sessao.");
     }
 
@@ -210,16 +251,27 @@
   };
 
   const logout = async () => {
-    try {
-      const csrfToken = await ensureCsrfToken();
-      await nativeFetch("/api/v1/auth/logout", {
+    const executeLogout = async () => {
+      const csrfToken = await ensureCsrfToken(true);
+      return nativeFetch("/api/v1/auth/logout", {
         method: "POST",
         credentials: "same-origin",
+        cache: "no-store",
         headers: {
           "X-CSRF-TOKEN": csrfToken,
           "X-Requested-With": "XMLHttpRequest",
         },
       });
+    };
+
+    try {
+      let response = await executeLogout();
+      if (response.status === 403) {
+        response = await executeLogout();
+      }
+      if (!response.ok && response.status !== 401 && response.status !== 403) {
+        throw new Error("Nao foi possivel encerrar a sessao.");
+      }
     } catch (error) {
       // O estado local ainda precisa ser limpo mesmo se a sessao do servidor expirou.
     } finally {
@@ -256,6 +308,14 @@
       return nativeFetch(input, init);
     }
 
+    if (!state.bootstrapComplete && state.bootstrapPromise && shouldWaitForBootstrap(url)) {
+      try {
+        await state.bootstrapPromise;
+      } catch (error) {
+        // Se o bootstrap falhar, deixamos a requisicao seguir com cookie/sessao.
+      }
+    }
+
     const requestInit = { ...(init || {}) };
     const alreadyRetried = Boolean(requestInit.__scRetried);
     delete requestInit.__scRetried;
@@ -272,6 +332,8 @@
 
     if (state.accessToken && (!existingAuthorization || isPlaceholderAuthorization)) {
       headers.set("Authorization", `Bearer ${state.accessToken}`);
+    } else if (isPlaceholderAuthorization && state.bootstrapComplete && !state.accessToken) {
+      headers.delete("Authorization");
     }
 
     headers.set("X-Requested-With", "XMLHttpRequest");
@@ -315,6 +377,7 @@
 
   window.SCAuth = {
     clearClientAuthState: () => clearAuthState({ keepRoutes: true }),
+    ensureCsrfToken,
     getAccessToken: () => state.accessToken,
     getAdminApiBasePath: () => state.routeConfig.adminApiBasePath || "/api/v1/admin",
     getAdminUserApiBasePath: () => state.routeConfig.adminUserApiBasePath || "/api/v1/usuarios",

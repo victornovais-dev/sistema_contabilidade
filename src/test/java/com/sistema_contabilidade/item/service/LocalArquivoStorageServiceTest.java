@@ -22,12 +22,16 @@ class LocalArquivoStorageServiceTest {
 
   @TempDir Path tempDir;
 
+  private static byte[] pdfValido() {
+    return "%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF".getBytes();
+  }
+
   @Test
   @DisplayName("Deve criar pasta e salvar arquivo PDF retornando caminho")
   void deveCriarPastaESalvarArquivoPdfRetornandoCaminho() throws IOException {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
     LocalArquivoStorageService service = new LocalArquivoStorageService(pastaArquivos);
-    byte[] conteudo = "pdf-test".getBytes();
+    byte[] conteudo = pdfValido();
 
     String caminhoSalvo = service.salvarPdf(conteudo);
     Path arquivoSalvo = Path.of(caminhoSalvo);
@@ -41,8 +45,8 @@ class LocalArquivoStorageServiceTest {
   void deveSalvarMultiplosPdfsRetornandoCaminhos() throws IOException {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
     LocalArquivoStorageService service = new LocalArquivoStorageService(pastaArquivos);
-    byte[] conteudoA = "pdf-test-a".getBytes();
-    byte[] conteudoB = "pdf-test-b".getBytes();
+    byte[] conteudoA = pdfValido();
+    byte[] conteudoB = pdfValido();
 
     List<String> caminhos = service.salvarPdfs(List.of(conteudoA, conteudoB));
 
@@ -66,13 +70,14 @@ class LocalArquivoStorageServiceTest {
   void deveSanitizarNomeDoArquivoAoSalvarPdf() {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
     LocalArquivoStorageService service = new LocalArquivoStorageService(pastaArquivos);
-    byte[] conteudo = "pdf-test".getBytes();
+    byte[] conteudo = pdfValido();
 
     String caminhoSalvo = service.salvarPdf(conteudo, " relatorio-ca 2026 ");
     Path arquivoSalvo = Path.of(caminhoSalvo);
 
     assertTrue(Files.exists(arquivoSalvo));
-    assertEquals("relatorio_ca_2026.pdf", arquivoSalvo.getFileName().toString());
+    String nomeArquivo = arquivoSalvo.getFileName().toString();
+    assertTrue(nomeArquivo.endsWith("_relatorio_ca_2026.pdf"));
   }
 
   @Test
@@ -80,13 +85,14 @@ class LocalArquivoStorageServiceTest {
   void deveAplicarSuffixQuandoArquivoJaExiste() {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
     LocalArquivoStorageService service = new LocalArquivoStorageService(pastaArquivos);
-    byte[] conteudo = "pdf-test".getBytes();
+    byte[] conteudo = pdfValido();
 
     String primeiro = service.salvarPdf(conteudo, "duplicado.pdf");
     String segundo = service.salvarPdf(conteudo, "duplicado.pdf");
 
     assertNotEquals(primeiro, segundo);
-    assertTrue(Path.of(segundo).getFileName().toString().startsWith("duplicado_"));
+    assertTrue(Path.of(primeiro).getFileName().toString().endsWith("_duplicado.pdf"));
+    assertTrue(Path.of(segundo).getFileName().toString().endsWith("_duplicado.pdf"));
     assertTrue(Path.of(segundo).getFileName().toString().endsWith(".pdf"));
   }
 
@@ -95,11 +101,11 @@ class LocalArquivoStorageServiceTest {
   void deveRemoverDiretoriosDoNomeInformado() {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
     LocalArquivoStorageService service = new LocalArquivoStorageService(pastaArquivos);
-    byte[] conteudo = "pdf-test".getBytes();
+    byte[] conteudo = pdfValido();
 
     String caminhoSalvo = service.salvarPdf(conteudo, "pasta/subpasta/arquivo-final.pdf");
 
-    assertEquals("arquivo_final.pdf", Path.of(caminhoSalvo).getFileName().toString());
+    assertTrue(Path.of(caminhoSalvo).getFileName().toString().endsWith("_arquivo_final.pdf"));
   }
 
   @Test
@@ -107,11 +113,11 @@ class LocalArquivoStorageServiceTest {
   void deveAdicionarExtensaoPdfQuandoAusente() {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
     LocalArquivoStorageService service = new LocalArquivoStorageService(pastaArquivos);
-    byte[] conteudo = "pdf-test".getBytes();
+    byte[] conteudo = pdfValido();
 
     String caminhoSalvo = service.salvarPdf(conteudo, "arquivo");
 
-    assertEquals("arquivo.pdf", Path.of(caminhoSalvo).getFileName().toString());
+    assertTrue(Path.of(caminhoSalvo).getFileName().toString().endsWith("_arquivo.pdf"));
   }
 
   @Test
@@ -119,7 +125,7 @@ class LocalArquivoStorageServiceTest {
   void deveTruncarNomeDeArquivoMuitoLongo() {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
     LocalArquivoStorageService service = new LocalArquivoStorageService(pastaArquivos);
-    byte[] conteudo = "pdf-test".getBytes();
+    byte[] conteudo = pdfValido();
     String nomeLongo = "a".repeat(140);
 
     String caminhoSalvo = service.salvarPdf(conteudo, nomeLongo);
@@ -132,7 +138,7 @@ class LocalArquivoStorageServiceTest {
   void deveCarregarPdfSalvo() {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
     LocalArquivoStorageService service = new LocalArquivoStorageService(pastaArquivos);
-    byte[] conteudo = "pdf-test".getBytes();
+    byte[] conteudo = pdfValido();
     String caminhoSalvo = service.salvarPdf(conteudo, "carregar.pdf");
 
     byte[] carregado = service.carregarPdf(caminhoSalvo);
@@ -185,7 +191,7 @@ class LocalArquivoStorageServiceTest {
   void deveDeletarPdfSalvo() {
     String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
     LocalArquivoStorageService service = new LocalArquivoStorageService(pastaArquivos);
-    byte[] conteudo = "pdf-test".getBytes();
+    byte[] conteudo = pdfValido();
     String caminhoSalvo = service.salvarPdf(conteudo, "deletar.pdf");
     Path arquivo = Path.of(caminhoSalvo);
     assertTrue(Files.exists(arquivo));
@@ -224,5 +230,20 @@ class LocalArquivoStorageServiceTest {
     LocalArquivoStorageService service = new LocalArquivoStorageService(tempDir.toString());
 
     assertEquals("arquivo.pdf", service.resolverNomeArquivo("uploads/itens/arquivo.pdf"));
+  }
+
+  @Test
+  @DisplayName("Deve rejeitar upload sem assinatura PDF valida")
+  void deveRejeitarUploadSemAssinaturaPdfValida() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    LocalArquivoStorageService service = new LocalArquivoStorageService(pastaArquivos);
+    byte[] arquivoInvalido = "texto".getBytes();
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> service.salvarPdf(arquivoInvalido, "comprovante.pdf"));
+
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
   }
 }

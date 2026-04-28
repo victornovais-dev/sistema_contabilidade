@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 public class StorageProperties {
 
   private String type = "local";
+  private long maxPdfSizeBytes = 20L * 1024L * 1024L;
   private LocalProperties local = new LocalProperties();
   private S3Properties s3 = new S3Properties();
 

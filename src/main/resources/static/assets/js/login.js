@@ -20,6 +20,12 @@ writeCookie("theme", root.dataset.theme);
 localStorage.setItem("theme", root.dataset.theme);
 
 const carregarCsrfToken = async () => {
+  if (window.SCAuth?.ensureCsrfToken) {
+    csrfToken = await window.SCAuth.ensureCsrfToken();
+    if (csrfToken) {
+      return;
+    }
+  }
   const response = await fetch("/api/v1/auth/csrf", {
     method: "GET",
     credentials: "same-origin",

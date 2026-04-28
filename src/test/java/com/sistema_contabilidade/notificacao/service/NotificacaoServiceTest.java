@@ -96,6 +96,27 @@ class NotificacaoServiceTest {
   }
 
   @Test
+  @DisplayName("Nao deve salvar notificacao quando receita estiver sem role")
+  void registrarReceitaLancadaNaoDeveSalvarQuandoReceitaEstiverSemRole() {
+    NotificacaoService service =
+        new NotificacaoService(
+            itemRepository,
+            notificacaoRepository,
+            usuarioRepository,
+            roleRepository,
+            inputSanitizer);
+    Item item = new Item();
+    item.setId(UUID.fromString("91919191-1111-1111-1111-111111111111"));
+    item.setTipo(TipoItem.RECEITA);
+    item.setRoleNome("   ");
+
+    service.registrarReceitaLancada(item);
+
+    verify(notificacaoRepository, never()).save(any());
+    verify(notificacaoRepository).deleteByItemId(item.getId());
+  }
+
+  @Test
   @DisplayName("Deve atualizar notificacao existente quando item de receita mudar")
   void sincronizarComItemDeveAtualizarNotificacaoExistente() {
     NotificacaoService service =
@@ -131,6 +152,34 @@ class NotificacaoServiceTest {
     assertEquals("ADMIN", captor.getValue().getRoleNome());
     assertEquals("CONTA FEFC", captor.getValue().getDescricao());
     assertTrue(captor.getValue().isLimpa());
+  }
+
+  @Test
+  @DisplayName("Deve manter notificacao quando receita estiver verificada")
+  void sincronizarComItemDeveManterQuandoReceitaEstiverVerificada() {
+    NotificacaoService service =
+        new NotificacaoService(
+            itemRepository,
+            notificacaoRepository,
+            usuarioRepository,
+            roleRepository,
+            inputSanitizer);
+    UUID itemId = UUID.fromString("13131313-3434-5656-7878-909090909090");
+    Item item = new Item();
+    item.setId(itemId);
+    item.setTipo(TipoItem.RECEITA);
+    item.setRoleNome("OPERADOR");
+    item.setDescricao("CONTA FP");
+    item.setRazaoSocialNome("Fornecedor Teste");
+    item.setValor(new BigDecimal("1500.00"));
+    item.setHorarioCriacao(LocalDateTime.of(2026, 4, 27, 22, 0));
+    item.setVerificado(true);
+    when(notificacaoRepository.findFirstByItemId(itemId)).thenReturn(Optional.empty());
+
+    service.sincronizarComItem(item);
+
+    verify(notificacaoRepository, never()).deleteByItemId(itemId);
+    verify(notificacaoRepository).save(any(Notificacao.class));
   }
 
   @Test

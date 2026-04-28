@@ -20,7 +20,6 @@ public class InputSanitizer {
   private static final Pattern CONTROL_CHARS = Pattern.compile("[\\p{Cntrl}&&[^\\r\\n\\t]]");
   private static final List<Pattern> ATTACK_PATTERNS =
       List.of(
-          Pattern.compile("(?i)<\\s*/?\\s*[a-z!][^>]*>"),
           Pattern.compile("(?i)javascript\\s*:"),
           Pattern.compile("(?i)vbscript\\s*:"),
           Pattern.compile("(?i)data\\s*:\\s*text/html"),
@@ -76,6 +75,12 @@ public class InputSanitizer {
     }
 
     String decoded = decodeMultipleTimes(normalized).toLowerCase(Locale.ROOT);
+    if (containsHtmlTag(decoded)) {
+      if (log.isWarnEnabled()) {
+        log.warn("Payload suspeito bloqueado no campo {}: {}", field, preview(normalized));
+      }
+      throw invalidInput(field);
+    }
     for (Pattern pattern : ATTACK_PATTERNS) {
       if (pattern.matcher(decoded).find()) {
         if (log.isWarnEnabled()) {
@@ -103,9 +108,49 @@ public class InputSanitizer {
   private String tryDecode(String input) {
     try {
       return URLDecoder.decode(input, StandardCharsets.UTF_8);
-    } catch (IllegalArgumentException exception) {
+    } catch (IllegalArgumentException _) {
       return null;
     }
+  }
+
+  private boolean containsHtmlTag(String input) {
+    int start = input.indexOf('<');
+    while (start >= 0) {
+      int candidate = normalizeTagStart(input, start + 1);
+      if (isValidTagStart(input, candidate) && hasTagClosure(input, candidate)) {
+        return true;
+      }
+      start = input.indexOf('<', start + 1);
+    }
+    return false;
+  }
+
+  private int normalizeTagStart(String input, int candidate) {
+    int normalized = skipWhitespace(input, candidate);
+    if (normalized < input.length() && input.charAt(normalized) == '/') {
+      normalized++;
+    }
+    return skipWhitespace(input, normalized);
+  }
+
+  private int skipWhitespace(String input, int index) {
+    int current = index;
+    while (current < input.length() && Character.isWhitespace(input.charAt(current))) {
+      current++;
+    }
+    return current;
+  }
+
+  private boolean isValidTagStart(String input, int index) {
+    if (index >= input.length()) {
+      return false;
+    }
+    char marker = input.charAt(index);
+    return (marker >= 'a' && marker <= 'z') || marker == '!';
+  }
+
+  private boolean hasTagClosure(String input, int index) {
+    return input.indexOf('>', index + 1) > index;
   }
 
   private ResponseStatusException invalidInput(String field) {

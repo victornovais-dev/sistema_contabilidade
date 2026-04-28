@@ -1,11 +1,12 @@
 package com.sistema_contabilidade.item.service;
 
 import com.sistema_contabilidade.config.StorageProperties;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -21,16 +22,38 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "s3")
 public class S3ArquivoStorageService implements ArquivoStorageService {
 
   private static final String STORAGE_UNAVAILABLE =
       "Servico de armazenamento temporariamente indisponivel";
   private static final String PDF_NOT_FOUND = "Arquivo PDF nao encontrado";
+  private static final String DEFAULT_PREFIX = "itens";
 
   private final S3Client s3Client;
-  private final StorageProperties storageProperties;
+
+  private final String bucket;
+  private final String prefix;
+  private final PdfUploadSecurityValidator pdfUploadSecurityValidator;
+
+  @Autowired
+  @SuppressFBWarnings(
+      value = "EI_EXPOSE_REP2",
+      justification =
+          "S3Client is an injected SDK bean managed by Spring and intentionally shared.")
+  public S3ArquivoStorageService(
+      S3Client s3Client,
+      StorageProperties storageProperties,
+      PdfUploadSecurityValidator pdfUploadSecurityValidator) {
+    this.s3Client = s3Client;
+    this.bucket = resolveBucket(storageProperties);
+    this.prefix = resolvePrefix(storageProperties);
+    this.pdfUploadSecurityValidator = pdfUploadSecurityValidator;
+  }
+
+  S3ArquivoStorageService(S3Client s3Client, StorageProperties storageProperties) {
+    this(s3Client, storageProperties, new PdfUploadSecurityValidator(storageProperties));
+  }
 
   @Override
   public String salvarPdf(byte[] arquivoPdf) {
@@ -39,18 +62,19 @@ public class S3ArquivoStorageService implements ArquivoStorageService {
 
   @Override
   public String salvarPdf(byte[] arquivoPdf, String nomeOriginal) {
-    String bucket = getBucket();
+    String bucketName = getBucket();
     String chave = gerarChave(nomeOriginal);
     try {
+      pdfUploadSecurityValidator.validateUpload(arquivoPdf, nomeOriginal);
       s3Client.putObject(
           PutObjectRequest.builder()
-              .bucket(bucket)
+              .bucket(bucketName)
               .key(chave)
               .contentType("application/pdf")
               .contentLength((long) arquivoPdf.length)
               .build(),
           RequestBody.fromBytes(arquivoPdf));
-      log.info("Upload S3 concluido | bucket: {} | chave: {}", bucket, chave);
+      log.info("Upload S3 concluido | bucket: {} | chave: {}", bucketName, chave);
       return chave;
     } catch (S3Exception ex) {
       throw erroStorage("Erro ao salvar arquivo PDF no bucket", ex, chave);
@@ -120,14 +144,12 @@ public class S3ArquivoStorageService implements ArquivoStorageService {
   }
 
   private String gerarChave(String nomeOriginal) {
-    String prefixo = normalizarPrefixo(storageProperties.getS3().getPrefix());
     String nomeSanitizado = ArquivoStorageNamingUtils.gerarNomeSanitizado(nomeOriginal);
     String id = UUID.randomUUID().toString();
-    return prefixo + "/" + id + "/" + nomeSanitizado;
+    return prefix + "/" + id + "/" + nomeSanitizado;
   }
 
   private String getBucket() {
-    String bucket = storageProperties.getS3().getBucket();
     if (bucket == null || bucket.isBlank()) {
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE, "Bucket de armazenamento nao configurado");
@@ -137,7 +159,7 @@ public class S3ArquivoStorageService implements ArquivoStorageService {
 
   private String normalizarPrefixo(String prefixo) {
     if (prefixo == null || prefixo.isBlank()) {
-      return "itens";
+      return DEFAULT_PREFIX;
     }
     String normalizado = prefixo.trim().replace('\\', '/');
     int inicio = 0;
@@ -149,9 +171,23 @@ public class S3ArquivoStorageService implements ArquivoStorageService {
       fim -= 1;
     }
     if (inicio == fim) {
-      return "itens";
+      return DEFAULT_PREFIX;
     }
     return normalizado.substring(inicio, fim);
+  }
+
+  private String resolveBucket(StorageProperties storageProperties) {
+    if (storageProperties == null || storageProperties.getS3() == null) {
+      return null;
+    }
+    return storageProperties.getS3().getBucket();
+  }
+
+  private String resolvePrefix(StorageProperties storageProperties) {
+    if (storageProperties == null || storageProperties.getS3() == null) {
+      return DEFAULT_PREFIX;
+    }
+    return normalizarPrefixo(storageProperties.getS3().getPrefix());
   }
 
   private ResponseStatusException erroStorage(String mensagem, S3Exception ex, String chave) {

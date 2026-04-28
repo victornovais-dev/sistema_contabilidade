@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,7 +28,6 @@ import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ArquivoStorageService;
 import com.sistema_contabilidade.item.service.ItemDescricaoService;
-import com.sistema_contabilidade.item.service.ItemExpenseLimitService;
 import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
@@ -80,7 +78,6 @@ class ItemControllerWebMvcTest {
   @MockitoBean private ArquivoStorageService itemArquivoStorageService;
   @MockitoBean private ItemDescricaoService itemDescricaoService;
   @MockitoBean private ItemTipoDocumentoService itemTipoDocumentoService;
-  @MockitoBean private ItemExpenseLimitService itemExpenseLimitService;
   @MockitoBean private ItemListService itemListService;
   @MockitoBean private NotificacaoService notificacaoService;
   @MockitoBean private RoleRepository roleRepository;
@@ -468,16 +465,19 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
-  @DisplayName("Deve retornar 400 ao criar despesa que excede limite de categoria")
-  void criarDeveRetornarBadRequestQuandoDespesaExcederLimiteDeCategoria() throws Exception {
+  @DisplayName("Deve permitir criar despesa mesmo quando for categoria antes limitada")
+  void criarDevePermitirDespesaAntesLimitada() throws Exception {
+    Item item = new Item();
+    item.setId(UUID.fromString("12345678-1234-1234-1234-123456789999"));
+    item.setValor(new BigDecimal("120.50"));
+    item.setData(LocalDate.of(2026, 3, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 18, 0, 0));
+    item.setCaminhoArquivoPdf("uploads/itens/documento.pdf");
+    item.setTipo(TipoItem.DESPESA);
+    item.setDescricao("ALIMENTAÇÃO");
     when(usuarioRepository.findByEmail("operador@email.com"))
         .thenReturn(Optional.of(usuarioComRoles("OPERADOR", "OPERATOR")));
-    doThrow(
-            new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Nao e permitido adicionar esta despesa. Alimentacao pode representar no maximo 10% do total de despesas."))
-        .when(itemExpenseLimitService)
-        .validarLimiteDespesa(any(), eq("OPERATOR"), eq(null));
+    when(itemRepository.save(any(Item.class))).thenReturn(item);
 
     mockMvc
         .perform(
@@ -496,9 +496,10 @@ class ItemControllerWebMvcTest {
                       "descricao":"ALIMENTAÇÃO"
                     }
                     """))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.tipo").value("DESPESA"));
 
-    verify(itemRepository, never()).save(any(Item.class));
+    verify(itemRepository).save(any(Item.class));
   }
 
   @Test
@@ -722,10 +723,19 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
-  @DisplayName("Deve retornar 400 ao criar receita com CONTA FEFEC")
-  void criarDeveRetornarBadRequestQuandoReceitaUsarContaFefec() throws Exception {
+  @DisplayName("Deve permitir criar receita com CONTA FEFEC")
+  void criarDevePermitirReceitaComContaFefec() throws Exception {
+    Item item = new Item();
+    item.setId(UUID.fromString("88888888-1234-1234-1234-123456789999"));
+    item.setValor(new BigDecimal("120.50"));
+    item.setData(LocalDate.of(2026, 3, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 18, 0, 0));
+    item.setCaminhoArquivoPdf("uploads/itens/comprovante.pdf");
+    item.setTipo(TipoItem.RECEITA);
+    item.setDescricao("CONTA FEFC");
     when(usuarioRepository.findByEmail("operador@email.com"))
         .thenReturn(Optional.of(usuarioComRoles("OPERADOR", "OPERATOR")));
+    when(itemRepository.save(any(Item.class))).thenReturn(item);
 
     mockMvc
         .perform(
@@ -746,25 +756,16 @@ class ItemControllerWebMvcTest {
                       "descricao":"CONTA FEFEC"
                     }
                     """))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.tipo").value("RECEITA"))
+        .andExpect(jsonPath("$.descricao").value("CONTA FEFC"));
 
-    verify(itemRepository, never()).save(any(Item.class));
+    verify(itemRepository).save(any(Item.class));
   }
 
   @Test
-  @DisplayName("Deve permitir criar item sem anexo quando descricao nao exigir comprovante")
-  void criarDevePermitirSalvarSemAnexoQuandoDescricaoNaoExigirComprovante() throws Exception {
-    Item item = new Item();
-    item.setId(UUID.fromString("12121212-3434-5656-7878-909090909091"));
-    item.setValor(new BigDecimal("120.50"));
-    item.setData(LocalDate.of(2026, 3, 15));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 18, 0, 0));
-    item.setTipo(TipoItem.DESPESA);
-    item.setDescricao("OUTRAS DESPESAS");
-    when(itemArquivoStorageService.salvarPdfs(
-            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList()))
-        .thenReturn(List.of());
-    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class))).thenReturn(item);
+  @DisplayName("Deve retornar 400 ao criar item sem anexo")
+  void criarDeveRetornarBadRequestQuandoNaoHouverAnexo() throws Exception {
     when(usuarioRepository.findByEmail("operador@email.com"))
         .thenReturn(Optional.of(usuarioComRoles("OPERADOR", "OPERATOR")));
 
@@ -785,8 +786,9 @@ class ItemControllerWebMvcTest {
                       "descricao":"OUTRAS DESPESAS"
                     }
                     """))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.descricao").value("OUTRAS DESPESAS"));
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
   }
 
   @Test
@@ -921,6 +923,8 @@ class ItemControllerWebMvcTest {
         .andExpect(content().contentType(MediaType.APPLICATION_PDF))
         .andExpect(
             header().string("Content-Disposition", "attachment; filename=\"comprovante-1.pdf\""))
+        .andExpect(header().string("Cache-Control", "no-store, no-cache, must-revalidate"))
+        .andExpect(header().string("X-Content-Type-Options", "nosniff"))
         .andExpect(content().bytes(conteudoPdf));
   }
 
@@ -1015,6 +1019,8 @@ class ItemControllerWebMvcTest {
                     .string(
                         "Content-Disposition",
                         "attachment; filename=\"comprovantes-" + id + ".zip\""))
+            .andExpect(header().string("Cache-Control", "no-store, no-cache, must-revalidate"))
+            .andExpect(header().string("X-Content-Type-Options", "nosniff"))
             .andReturn()
             .getResponse()
             .getContentAsByteArray();
@@ -1125,21 +1131,18 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
-  @DisplayName("Deve retornar 400 ao atualizar despesa que excede limite de categoria")
-  void atualizarDeveRetornarBadRequestQuandoDespesaExcederLimiteDeCategoria() throws Exception {
+  @DisplayName("Deve permitir atualizar despesa mesmo quando for categoria antes limitada")
+  void atualizarDevePermitirDespesaAntesLimitada() throws Exception {
     UUID id = UUID.fromString("98989898-5656-3434-1212-000000000000");
     Item item = new Item();
     item.setId(id);
     item.setRoleNome("ADMIN");
+    item.setTipo(TipoItem.DESPESA);
+    item.setDescricao("ALUGUEL DE VEÍCULOS");
     when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
     when(usuarioRepository.findByEmail("admin@email.com"))
         .thenReturn(Optional.of(usuarioComRoles("admin", "ADMIN")));
-    doThrow(
-            new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Nao e permitido adicionar esta despesa. Locacao pode representar no maximo 20% do total de despesas."))
-        .when(itemExpenseLimitService)
-        .validarLimiteDespesa(any(), eq("ADMIN"), eq(id));
+    when(itemRepository.save(any(Item.class))).thenReturn(item);
 
     mockMvc
         .perform(
@@ -1158,9 +1161,10 @@ class ItemControllerWebMvcTest {
                       "descricao":"ALUGUEL DE VEÍCULOS"
                     }
                     """))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tipo").value("DESPESA"));
 
-    verify(itemRepository, never()).save(any(Item.class));
+    verify(itemRepository).save(any(Item.class));
   }
 
   @Test
@@ -1227,14 +1231,17 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
-  @DisplayName("Deve retornar 400 ao atualizar conta financeira sem anexo")
-  void atualizarDeveRetornarBadRequestQuandoContaFinanceiraNaoTiverAnexo() throws Exception {
+  @DisplayName("Deve permitir atualizar conta financeira sem anexo")
+  void atualizarDevePermitirAtualizarContaFinanceiraSemAnexo() throws Exception {
     UUID id = UUID.fromString("12121212-5656-7878-9090-000000000001");
     Item item = new Item();
     item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    item.setDescricao("CONTA FEFC");
     when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
     when(usuarioRepository.findByEmail("admin@email.com"))
         .thenReturn(Optional.of(usuarioComRoles("admin", "ADMIN")));
+    when(itemRepository.save(any(Item.class))).thenReturn(item);
 
     mockMvc
         .perform(
@@ -1253,7 +1260,9 @@ class ItemControllerWebMvcTest {
                       "descricao":"CONTA FEFC"
                     }
                     """))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tipo").value("RECEITA"))
+        .andExpect(jsonPath("$.descricao").value("CONTA FEFC"));
   }
 
   @Test
@@ -1483,6 +1492,7 @@ class ItemControllerWebMvcTest {
         .andExpect(jsonPath("$.verificado").value(true));
 
     assertTrue(item.isVerificado());
+    verify(notificacaoService).sincronizarComItem(item);
   }
 
   @Test

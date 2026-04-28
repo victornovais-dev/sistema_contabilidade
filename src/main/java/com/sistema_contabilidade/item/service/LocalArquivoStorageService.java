@@ -19,15 +19,25 @@ import org.springframework.web.server.ResponseStatusException;
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "local", matchIfMissing = true)
 public class LocalArquivoStorageService implements ArquivoStorageService {
 
+  private static final String INVALID_FILE_PATH = "Caminho de arquivo invalido";
+
   private final Path diretorioArquivos;
+  private final PdfUploadSecurityValidator pdfUploadSecurityValidator;
 
   @Autowired
-  public LocalArquivoStorageService(StorageProperties storageProperties) {
-    this(storageProperties.getLocal().getBaseDir());
+  public LocalArquivoStorageService(
+      StorageProperties storageProperties, PdfUploadSecurityValidator pdfUploadSecurityValidator) {
+    this(storageProperties.getLocal().getBaseDir(), pdfUploadSecurityValidator);
   }
 
   LocalArquivoStorageService(String diretorioArquivos) {
+    this(diretorioArquivos, new PdfUploadSecurityValidator(new StorageProperties()));
+  }
+
+  LocalArquivoStorageService(
+      String diretorioArquivos, PdfUploadSecurityValidator pdfUploadSecurityValidator) {
     this.diretorioArquivos = Path.of(diretorioArquivos);
+    this.pdfUploadSecurityValidator = pdfUploadSecurityValidator;
   }
 
   @Override
@@ -38,12 +48,20 @@ public class LocalArquivoStorageService implements ArquivoStorageService {
   @Override
   public String salvarPdf(byte[] arquivoPdf, String nomeOriginal) {
     try {
-      Files.createDirectories(diretorioArquivos);
+      pdfUploadSecurityValidator.validateUpload(arquivoPdf, nomeOriginal);
+      Path diretorioBase = diretorioArquivos.toAbsolutePath().normalize();
+      Files.createDirectories(diretorioBase);
       String nomeSanitizado = ArquivoStorageNamingUtils.gerarNomeSanitizado(nomeOriginal);
-      Path arquivo = diretorioArquivos.resolve(nomeSanitizado);
+      Path arquivo = diretorioBase.resolve(nomeSanitizado).normalize();
+      if (!arquivo.startsWith(diretorioBase)) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, INVALID_FILE_PATH);
+      }
       if (Files.exists(arquivo)) {
         String nomeComSuffix = ArquivoStorageNamingUtils.aplicarSuffix(nomeSanitizado);
-        arquivo = diretorioArquivos.resolve(nomeComSuffix);
+        arquivo = diretorioBase.resolve(nomeComSuffix).normalize();
+        if (!arquivo.startsWith(diretorioBase)) {
+          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, INVALID_FILE_PATH);
+        }
       }
       Files.write(arquivo, arquivoPdf, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
       return arquivo.toString();
@@ -86,7 +104,7 @@ public class LocalArquivoStorageService implements ArquivoStorageService {
     Path caminhoReal = caminhoInformado.toAbsolutePath().normalize();
 
     if (!caminhoReal.startsWith(caminhoBase)) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Caminho de arquivo invalido");
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, INVALID_FILE_PATH);
     }
 
     if (!Files.exists(caminhoReal) || !Files.isRegularFile(caminhoReal)) {
@@ -112,7 +130,7 @@ public class LocalArquivoStorageService implements ArquivoStorageService {
     Path caminhoReal = caminhoInformado.toAbsolutePath().normalize();
 
     if (!caminhoReal.startsWith(caminhoBase)) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Caminho de arquivo invalido");
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, INVALID_FILE_PATH);
     }
 
     try {
