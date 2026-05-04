@@ -62,6 +62,10 @@ const SUPPORT_UNCHECK_BLOCKED_MESSAGE =
   "Usuarios SUPPORT nao podem desmarcar comprovantes verificados.";
 
 const loadCurrentUserRoles = async () => {
+  if (window.SCAuth?.getUserRoles) {
+    return window.SCAuth.getUserRoles();
+  }
+
   const accessToken = getAccessToken();
   if (!accessToken) return [];
 
@@ -223,8 +227,29 @@ const setRefreshing = (refreshing) => {
   });
 };
 
+const waitForAuthReady = async () => {
+  if (!window.SCAuth?.waitUntilReady) {
+    return;
+  }
+  try {
+    await window.SCAuth.waitUntilReady();
+  } catch (error) {
+    // If bootstrap fails, the request flow still gets a chance to handle auth errors normally.
+  }
+};
+
 const ensureCsrfToken = async (forceRefresh = false) => {
   if (!forceRefresh && state.csrfToken) return state.csrfToken;
+  if (forceRefresh) {
+    await waitForAuthReady();
+  }
+  if (window.SCAuth?.ensureCsrfToken) {
+    state.csrfToken = await window.SCAuth.ensureCsrfToken(forceRefresh);
+    if (!state.csrfToken) {
+      throw new Error("Token CSRF invalido.");
+    }
+    return state.csrfToken;
+  }
   const response = await fetch("/api/v1/auth/csrf", {
     method: "GET",
     credentials: "same-origin",
@@ -339,19 +364,26 @@ const patchVerificacao = async (itemId, verificado) => {
     return null;
   }
 
-  const csrfToken = await ensureCsrfToken(true);
-  const response = await fetch(`/api/v1/itens/${itemId}/verificacao`, {
-    method: "PATCH",
-    credentials: "same-origin",
-    redirect: "manual",
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      Accept: "application/json",
-      "X-CSRF-TOKEN": csrfToken,
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ verificado }),
-  });
+  const executePatch = async (csrfToken) =>
+    fetch(`/api/v1/itens/${itemId}/verificacao`, {
+      method: "PATCH",
+      credentials: "same-origin",
+      redirect: "manual",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "application/json",
+        "X-CSRF-TOKEN": csrfToken,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ verificado }),
+    });
+
+  let csrfToken = await ensureCsrfToken(true);
+  let response = await executePatch(csrfToken);
+  if (response.status === 403) {
+    csrfToken = await ensureCsrfToken(true);
+    response = await executePatch(csrfToken);
+  }
 
   const isRedirect =
     response.type === "opaqueredirect" ||

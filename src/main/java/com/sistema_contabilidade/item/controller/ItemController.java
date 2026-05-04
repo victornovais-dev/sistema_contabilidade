@@ -3,7 +3,8 @@ package com.sistema_contabilidade.item.controller;
 import com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog;
 import com.sistema_contabilidade.item.dto.ItemArquivoResponse;
 import com.sistema_contabilidade.item.dto.ItemArquivosUploadRequest;
-import com.sistema_contabilidade.item.dto.ItemListResponse;
+import com.sistema_contabilidade.item.dto.ItemListPageRequest;
+import com.sistema_contabilidade.item.dto.ItemListPageResponse;
 import com.sistema_contabilidade.item.dto.ItemObservacaoUpdateRequest;
 import com.sistema_contabilidade.item.dto.ItemResponse;
 import com.sistema_contabilidade.item.dto.ItemUpsertRequest;
@@ -23,6 +24,7 @@ import com.sistema_contabilidade.security.util.SecurityPaths;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.Valid;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -35,6 +37,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -45,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -96,6 +100,7 @@ public class ItemController {
   private final NotificacaoService notificacaoService;
   private final UsuarioRepository usuarioRepository;
   private final InputSanitizer inputSanitizer;
+  private final ObjectProvider<EntityManager> entityManagerProvider;
 
   @PostMapping
   public ResponseEntity<ItemResponse> criar(
@@ -131,9 +136,9 @@ public class ItemController {
   }
 
   @GetMapping
-  public ResponseEntity<List<ItemListResponse>> listarTodos(
-      Authentication authentication, @RequestParam(name = "role", required = false) String role) {
-    return ResponseEntity.ok(itemListService.listarItens(authentication, role));
+  public ResponseEntity<ItemListPageResponse> listarTodos(
+      Authentication authentication, @Valid @ModelAttribute ItemListPageRequest request) {
+    return ResponseEntity.ok(itemListService.listarItens(authentication, request));
   }
 
   @GetMapping("/roles")
@@ -445,7 +450,33 @@ public class ItemController {
     if (!isAdmin(authentication) && !temAcessoPorRole(authentication, item)) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ITEM_NAO_ENCONTRADO);
     }
-    return item;
+    return recarregarItemComVersaoInicializadaSeNecessario(item);
+  }
+
+  @SuppressWarnings("PMD.CloseResource")
+  private Item recarregarItemComVersaoInicializadaSeNecessario(Item item) {
+    if (item.getId() == null || item.getVersion() != null) {
+      return item;
+    }
+    int linhasAtualizadas = itemRepository.initializeVersionIfNull(item.getId());
+    EntityManager entityManager = entityManagerProvider.getIfAvailable();
+    if (entityManager == null) {
+      if (linhasAtualizadas > 0) {
+        item.setVersion(0L);
+        return item;
+      }
+      Long versionAtual = itemRepository.findVersionById(item.getId()).orElse(0L);
+      item.setVersion(versionAtual);
+      return item;
+    }
+    if (linhasAtualizadas > 0 || itemRepository.findVersionById(item.getId()).isPresent()) {
+      entityManager.clear();
+      return itemRepository
+          .findByIdComCriadorERoles(item.getId())
+          .orElseThrow(
+              () -> new ResponseStatusException(HttpStatus.NOT_FOUND, ITEM_NAO_ENCONTRADO));
+    }
+    throw new ResponseStatusException(HttpStatus.NOT_FOUND, ITEM_NAO_ENCONTRADO);
   }
 
   private boolean temAcessoPorRole(Authentication authentication, Item item) {

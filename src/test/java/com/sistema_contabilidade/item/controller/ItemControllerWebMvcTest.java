@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,6 +21,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog;
+import com.sistema_contabilidade.item.dto.ItemListPageResponse;
+import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
 import com.sistema_contabilidade.item.model.TipoItem;
@@ -102,10 +104,10 @@ class ItemControllerWebMvcTest {
     item.setRazaoSocialNome("EMPRESA TESTE");
     item.setCnpjCpf("12.345.678/0001-99");
     item.setObservacao("Observacao de teste");
-    when(itemListService.listarItens(any(), eq(null)))
+    when(itemListService.listarItens(any(), any()))
         .thenReturn(
-            List.of(
-                new com.sistema_contabilidade.item.dto.ItemListResponse(
+            pagina(
+                new ItemListResponse(
                     item.getId(),
                     item.getValor(),
                     item.getData(),
@@ -123,8 +125,10 @@ class ItemControllerWebMvcTest {
     mockMvc
         .perform(get("/api/v1/itens").with(authComRoles("admin@email.com", "ADMIN")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].valor").value(10.00))
-        .andExpect(jsonPath("$[0].tipo").value("RECEITA"));
+        .andExpect(jsonPath("$.items[0].valor").value(10.00))
+        .andExpect(jsonPath("$.items[0].tipo").value("RECEITA"))
+        .andExpect(jsonPath("$.page").value(1))
+        .andExpect(jsonPath("$.pageSize").value(10));
   }
 
   @Test
@@ -134,10 +138,10 @@ class ItemControllerWebMvcTest {
     item.setId(UUID.fromString("12121212-1111-1111-1111-111111111111"));
     item.setTipo(TipoItem.DESPESA);
     item.setDescricao("SERVICOS");
-    when(itemListService.listarItens(any(), eq("financeiro")))
+    when(itemListService.listarItens(any(), any()))
         .thenReturn(
-            List.of(
-                new com.sistema_contabilidade.item.dto.ItemListResponse(
+            pagina(
+                new ItemListResponse(
                     item.getId(),
                     null,
                     null,
@@ -158,7 +162,10 @@ class ItemControllerWebMvcTest {
                 .param("role", "financeiro")
                 .with(authComRoles("multirole@email.com", "FINANCEIRO", "OPERADOR")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].descricao").value("SERVICOS"));
+        .andExpect(jsonPath("$.items[0].descricao").value("SERVICOS"));
+
+    verify(itemListService)
+        .listarItens(any(), argThat(request -> "financeiro".equals(request.getRole())));
   }
 
   @Test
@@ -185,10 +192,10 @@ class ItemControllerWebMvcTest {
     item.setId(UUID.fromString("34343434-1111-1111-1111-111111111111"));
     item.setTipo(TipoItem.RECEITA);
     item.setDescricao("ALUGUEL");
-    when(itemListService.listarItens(any(), eq("tarcisio")))
+    when(itemListService.listarItens(any(), any()))
         .thenReturn(
-            List.of(
-                new com.sistema_contabilidade.item.dto.ItemListResponse(
+            pagina(
+                new ItemListResponse(
                     item.getId(),
                     null,
                     null,
@@ -209,7 +216,10 @@ class ItemControllerWebMvcTest {
                 .param("role", "tarcisio")
                 .with(authComRoles("admin@email.com", "ADMIN")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].descricao").value("ALUGUEL"));
+        .andExpect(jsonPath("$.items[0].descricao").value("ALUGUEL"));
+
+    verify(itemListService)
+        .listarItens(any(), argThat(request -> "tarcisio".equals(request.getRole())));
   }
 
   @Test
@@ -241,7 +251,7 @@ class ItemControllerWebMvcTest {
   @Test
   @DisplayName("Deve retornar 403 quando usuario filtrar por role que nao possui")
   void listarTodosDeveRetornarForbiddenQuandoRoleNaoPertenceAoUsuario() throws Exception {
-    when(itemListService.listarItens(any(), eq("financeiro")))
+    when(itemListService.listarItens(any(), any()))
         .thenThrow(
             new ResponseStatusException(
                 HttpStatus.FORBIDDEN, "A role selecionada nao pertence ao usuario autenticado."));
@@ -297,12 +307,13 @@ class ItemControllerWebMvcTest {
   @Test
   @DisplayName("Deve retornar lista vazia quando usuario nao possui roles")
   void listarTodosDeveRetornarVazioQuandoUsuarioNaoPossuiRoles() throws Exception {
-    when(itemListService.listarItens(any(), eq(null))).thenReturn(List.of());
+    when(itemListService.listarItens(any(), any())).thenReturn(pagina());
 
     mockMvc
         .perform(get("/api/v1/itens").with(authComRoles("semroles@email.com")))
         .andExpect(status().isOk())
-        .andExpect(content().json("[]"));
+        .andExpect(jsonPath("$.items.length()").value(0))
+        .andExpect(jsonPath("$.totalItems").value(0));
   }
 
   @Test
@@ -1361,6 +1372,11 @@ class ItemControllerWebMvcTest {
         .andExpect(status().isNotFound());
   }
 
+  private ItemListPageResponse pagina(ItemListResponse... items) {
+    return new ItemListPageResponse(
+        List.of(items), 1, 10, items.length, items.length > 0 ? 1 : 1, false, false);
+  }
+
   private RequestPostProcessor authComRoles(String email, String... roles) {
     return request -> {
       List<SimpleGrantedAuthority> authorities = new ArrayList<>();
@@ -1493,6 +1509,37 @@ class ItemControllerWebMvcTest {
 
     assertTrue(item.isVerificado());
     verify(notificacaoService).sincronizarComItem(item);
+  }
+
+  @Test
+  @DisplayName("Deve normalizar versao nula de item legado antes de atualizar verificacao")
+  void atualizarVerificacaoDeveNormalizarVersaoNulaDeItemLegado() throws Exception {
+    UUID id = UUID.fromString("abababab-bbbb-cccc-dddd-eeeeeeeeeee0");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.DESPESA);
+    item.setVerificado(false);
+    item.setVersion(null);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemRepository.initializeVersionIfNull(id)).thenReturn(1);
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/verificacao", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"verificado":true}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.verificado").value(true));
+
+    assertEquals(0L, item.getVersion());
+    verify(itemRepository).initializeVersionIfNull(id);
+    verify(itemRepository, never()).findVersionById(id);
   }
 
   @Test

@@ -33,6 +33,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
@@ -280,6 +281,26 @@ class UsuarioServiceTest {
     assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     assertEquals("Email ja cadastrado", ex.getReason());
     verify(usuarioRepository, never()).save(any(Usuario.class));
+  }
+
+  @Test
+  @DisplayName("Deve retornar conflito quando banco detectar email duplicado durante corrida")
+  void criarDeveRetornarConflitoQuandoBancoDetectarEmailDuplicadoDuranteCorrida() {
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN", null);
+    Role role = role("ADMIN");
+
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+    when(roleRepository.findByNomeIgnoreCase("ADMIN")).thenReturn(Optional.of(role));
+    when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
+    when(usuarioRepository.save(any(Usuario.class)))
+        .thenThrow(new DataIntegrityViolationException("duplicate key"));
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> usuarioService.save(request));
+
+    assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+    assertEquals("Email ja cadastrado", ex.getReason());
   }
 
   @Test

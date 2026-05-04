@@ -9,10 +9,12 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -25,7 +27,12 @@ import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(name = "itens")
+@Table(
+    name = "itens",
+    indexes = {
+      @Index(name = "idx_itens_horario_id", columnList = "horario_criacao, id"),
+      @Index(name = "idx_itens_role_horario_id", columnList = "role_nome, horario_criacao, id")
+    })
 @Getter
 @Setter
 @NoArgsConstructor
@@ -35,6 +42,8 @@ public class Item {
   @GeneratedValue(strategy = GenerationType.UUID)
   @UuidGenerator(style = UuidGenerator.Style.TIME)
   private UUID id;
+
+  @Version private Long version;
 
   @Column(nullable = false, precision = 15, scale = 2)
   private BigDecimal valor;

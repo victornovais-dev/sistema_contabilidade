@@ -1,15 +1,19 @@
 ﻿const state = {
   items: [],
-  filteredItems: [],
   itemChecks: new Map(),
   pendingDeleteId: null,
   csrfToken: null,
   availableRoles: [],
   selectedRole: "",
   userRoles: [],
+  userRolesReady: false,
   pagination: {
     page: 1,
     pageSize: 10,
+    totalItems: 0,
+    totalPages: 1,
+    hasNext: false,
+    hasPrevious: false,
   },
 };
 
@@ -52,6 +56,7 @@ const roleDropdown =
         select: roleFilterSelect,
         onChange: async (value) => {
           setSelectedRole(value || "");
+          resetPagination();
           try {
             await loadItems();
           } catch (error) {
@@ -93,12 +98,18 @@ let uploadIsEditing = false;
 let pendingDeleteArquivoIds = new Set();
 let filterDatePicker = null;
 let dateFilterReady = false;
+let dateFilterInitPromise = null;
+let flatpickrWarmupPromise = null;
+let flatpickrWarmupScheduled = false;
+let lastAppliedDateRangeValue = "";
 let monthMenuCloseHandlerBound = false;
 let yearMenuCloseHandlerBound = false;
 let observacaoIsEditing = false;
 let retainedUploadFiles = [];
 let settingUploadFilesProgrammatically = false;
 let uploadErrorEntries = [];
+let razaoFilterDebounceTimer = null;
+let loadItemsRequestSequence = 0;
 
 const RECEITA_DESCRICOES = ["CONTA FEFEC", "CONTA FP", "CONTA DC"];
 
@@ -141,7 +152,19 @@ const DESPESA_DESCRICOES = [
 
 const getAccessToken = () => localStorage.getItem("sc_access_token");
 
+const normalizeRoles = (roles) =>
+  Array.isArray(roles)
+    ? roles.map((role) => String(role || "").trim().toUpperCase()).filter(Boolean)
+    : [];
+
+const sameRoles = (left, right) =>
+  left.length === right.length && left.every((role, index) => role === right[index]);
+
 const loadCurrentUserRoles = async () => {
+  if (window.SCAuth?.getUserRoles) {
+    return window.SCAuth.getUserRoles();
+  }
+
   const accessToken = getAccessToken();
   if (!accessToken) return [];
 
@@ -158,21 +181,95 @@ const loadCurrentUserRoles = async () => {
       return [];
     }
     if (!response.ok) return [];
-    const roles = await response.json();
-    return Array.isArray(roles)
-      ? roles.map((role) => String(role || "").trim().toUpperCase()).filter(Boolean)
-      : [];
+    return normalizeRoles(await response.json());
   } catch (error) {
     return [];
   }
 };
 
+const applyCurrentUserRoles = (roles) => {
+  const normalizedRoles = normalizeRoles(roles);
+  const previousRoles = state.userRoles;
+  const shouldRerender =
+    state.items.length > 0 &&
+    (!state.userRolesReady || !sameRoles(previousRoles, normalizedRoles));
+  state.userRoles = normalizedRoles;
+  state.userRolesReady = true;
+  if (shouldRerender) {
+    renderItems();
+  }
+};
+
+const loadAndApplyCurrentUserRoles = async () => {
+  try {
+    applyCurrentUserRoles(await loadCurrentUserRoles());
+  } catch (error) {
+    applyCurrentUserRoles([]);
+  }
+};
+
 const isContabilUser = () => state.userRoles.includes("CONTABIL");
 
-const buildRoleQuery = () => {
-  if (!state.selectedRole) return "";
-  const params = new URLSearchParams({ role: state.selectedRole });
+const formatLocalDateIso = (date) => {
+  if (!(date instanceof Date)) return "";
+  const yyyy = String(date.getFullYear());
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const buildApiTipo = () => {
+  const type = String(filterTypeValue || "").trim();
+  return type ? type.toUpperCase() : "";
+};
+
+const getNormalizedDateFilterValue = () =>
+  filterDateInput ? formatDateRangeInput(filterDateInput.value || "").trim() : "";
+
+const buildListQuery = () => {
+  const params = new URLSearchParams({
+    page: String(state.pagination.page),
+    pageSize: String(state.pagination.pageSize),
+  });
+
+  if (state.selectedRole) {
+    params.set("role", state.selectedRole);
+  }
+
+  const tipo = buildApiTipo();
+  if (tipo) {
+    params.set("tipo", tipo);
+  }
+
+  const { start, end } = parseDateRange(filterDateInput?.value || "");
+  if (start) {
+    params.set("dataInicio", formatLocalDateIso(start));
+  }
+  if (end) {
+    params.set("dataFim", formatLocalDateIso(end));
+  }
+
+  const descricao = String(filterDescricaoValue || "").trim();
+  if (descricao) {
+    params.set("descricao", descricao);
+  }
+
+  const razao = String(filterRazaoInput?.value || "").trim();
+  if (razao) {
+    params.set("razao", razao);
+  }
+
   return `?${params.toString()}`;
+};
+
+const debounce = (callback, delayMs) => (...args) => {
+  if (razaoFilterDebounceTimer) {
+    window.clearTimeout(razaoFilterDebounceTimer);
+  }
+  razaoFilterDebounceTimer = window.setTimeout(() => {
+    razaoFilterDebounceTimer = null;
+    callback(...args);
+  }, delayMs);
 };
 
 const orderRoles = (roles) => {
@@ -454,6 +551,26 @@ const formatDateRangeInput = (value) => {
   return `${start} - ${end}`;
 };
 
+const scheduleAfterFirstRender = (callback) => {
+  const runWhenIdle = () => {
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(() => {
+        callback();
+      }, { timeout: 1200 });
+      return;
+    }
+    window.setTimeout(() => {
+      callback();
+    }, 0);
+  };
+
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      runWhenIdle();
+    });
+  });
+};
+
 const loadScript = (src) =>
   new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[data-src="${src}"]`);
@@ -487,13 +604,43 @@ const loadScript = (src) =>
     document.head.appendChild(script);
   });
 
+const FLATPICKR_SCRIPT_SRC = "assets/vendor/flatpickr/flatpickr.min.js";
+
+const warmupFlatpickrAssets = async () => {
+  if (flatpickrWarmupPromise) {
+    return flatpickrWarmupPromise;
+  }
+
+  flatpickrWarmupPromise = Promise.allSettled([
+    window.flatpickr ? Promise.resolve() : loadScript(FLATPICKR_SCRIPT_SRC),
+  ]).then(() => {
+    const ready = Boolean(window.flatpickr);
+    if (!ready) {
+      flatpickrWarmupPromise = null;
+    }
+    return ready;
+  });
+
+  return flatpickrWarmupPromise;
+};
+
+const scheduleFlatpickrWarmup = () => {
+  if (flatpickrWarmupScheduled) {
+    return;
+  }
+  flatpickrWarmupScheduled = true;
+  scheduleAfterFirstRender(() => {
+    void warmupFlatpickrAssets();
+  });
+};
+
 const ensureFlatpickrReady = async () => {
   if (window.flatpickr) {
     return true;
   }
 
   try {
-    await loadScript("assets/vendor/flatpickr/flatpickr.min.js");
+    await warmupFlatpickrAssets();
     return Boolean(window.flatpickr);
   } catch (error) {
     return false;
@@ -505,12 +652,17 @@ const initDateFilter = async () => {
     return;
   }
 
-  const flatpickrReady = await ensureFlatpickrReady();
-  if (!flatpickrReady || !window.flatpickr) {
-    return;
+  if (dateFilterInitPromise) {
+    return dateFilterInitPromise;
   }
 
-  const maxDate = todayMidnight();
+  dateFilterInitPromise = (async () => {
+    const flatpickrReady = await ensureFlatpickrReady();
+    if (!flatpickrReady || !window.flatpickr) {
+      return;
+    }
+
+    const maxDate = todayMidnight();
 
   const ensureYearDropdown = (instance) => {
     const container = instance?.calendarContainer;
@@ -672,7 +824,7 @@ const initDateFilter = async () => {
     const months = [
       "Janeiro",
       "Fevereiro",
-      "Março",
+      "Mar\u00E7o",
       "Abril",
       "Maio",
       "Junho",
@@ -782,39 +934,51 @@ const initDateFilter = async () => {
     }
   };
 
-  filterDatePicker = window.flatpickr(filterDateInput, {
-    mode: "range",
-    dateFormat: "d/m/Y",
-    allowInput: true,
-    clickOpens: true,
-    maxDate,
-    monthSelectorType: "static",
-    locale: {
-      rangeSeparator: " - ",
-    },
-    onReady: (_, __, instance) => {
-      ensureMonthDropdown(instance);
-      ensureYearDropdown(instance);
-    },
-    onMonthChange: (_, __, instance) => {
-      ensureMonthDropdown(instance);
-      ensureYearDropdown(instance);
-    },
-    onYearChange: (_, __, instance) => {
-      ensureMonthDropdown(instance);
-      ensureYearDropdown(instance);
-    },
-    onOpen: (_, __, instance) => {
-      ensureMonthDropdown(instance);
-      ensureYearDropdown(instance);
-    },
-    onValueUpdate: (_, dateText) => {
-      filterDateInput.value = dateText;
-    },
-    onChange: applyFilters,
+    filterDatePicker = window.flatpickr(filterDateInput, {
+      mode: "range",
+      dateFormat: "d/m/Y",
+      allowInput: true,
+      clickOpens: true,
+      maxDate,
+      monthSelectorType: "static",
+      locale: {
+        rangeSeparator: " - ",
+      },
+      onReady: (_, __, instance) => {
+        ensureMonthDropdown(instance);
+        ensureYearDropdown(instance);
+      },
+      onMonthChange: (_, __, instance) => {
+        ensureMonthDropdown(instance);
+        ensureYearDropdown(instance);
+      },
+      onYearChange: (_, __, instance) => {
+        ensureMonthDropdown(instance);
+        ensureYearDropdown(instance);
+      },
+      onOpen: (_, __, instance) => {
+        ensureMonthDropdown(instance);
+        ensureYearDropdown(instance);
+      },
+      onValueUpdate: (_, dateText) => {
+        filterDateInput.value = dateText;
+      },
+      onChange: () => {
+        const normalizedValue = getNormalizedDateFilterValue();
+        if (normalizedValue === lastAppliedDateRangeValue) {
+          return;
+        }
+        lastAppliedDateRangeValue = normalizedValue;
+        void applyFilters();
+      },
+    });
+
+    dateFilterReady = true;
+  })().finally(() => {
+    dateFilterInitPromise = null;
   });
 
-  dateFilterReady = true;
+  return dateFilterInitPromise;
 };
 
 const showListState = (message) => {
@@ -943,7 +1107,7 @@ const createItemCard = (item) => {
 
   const checkButton = node.querySelector(".item-check-toggle");
   if (checkButton instanceof HTMLButtonElement) {
-    if (isCandidatoUser()) {
+    if (!state.userRolesReady || isCandidatoUser()) {
       checkButton.remove();
     } else {
       const checked = isItemChecked(item.id);
@@ -952,7 +1116,9 @@ const createItemCard = (item) => {
   }
 
   const deleteButton = node.querySelector(".delete-item");
-  if (isContabilUser() && deleteButton instanceof HTMLElement) {
+  if (!state.userRolesReady && deleteButton instanceof HTMLElement) {
+    deleteButton.remove();
+  } else if (isContabilUser() && deleteButton instanceof HTMLElement) {
     deleteButton.remove();
   } else {
     setDeleteButtonLocked(deleteButton, isItemChecked(item.id));
@@ -980,8 +1146,7 @@ const updateDownloadButton = (itemId, hasArquivos) => {
 };
 
 const clampPaginationPage = () => {
-  const pageSize = state.pagination.pageSize;
-  const totalPages = Math.max(1, Math.ceil(state.filteredItems.length / pageSize));
+  const totalPages = Math.max(1, Number(state.pagination.totalPages || 1));
   state.pagination.page = Math.min(Math.max(1, state.pagination.page), totalPages);
   return totalPages;
 };
@@ -1015,7 +1180,7 @@ const createPaginationEllipsis = () => {
 const renderPagination = () => {
   if (!pagination) return;
 
-  if (state.filteredItems.length === 0) {
+  if (state.items.length === 0) {
     pagination.hidden = true;
     pagination.innerHTML = "";
     return;
@@ -1092,7 +1257,7 @@ const renderPagination = () => {
 const renderItems = () => {
   if (!itemsList) return;
   itemsList.innerHTML = "";
-  if (state.filteredItems.length === 0) {
+  if (state.items.length === 0) {
     showListState("Nenhum comprovante encontrado.");
     if (pagination) {
       pagination.hidden = true;
@@ -1102,18 +1267,13 @@ const renderItems = () => {
   }
   hideListState();
 
-  const totalPages = clampPaginationPage();
-  const page = state.pagination.page;
-  const pageSize = state.pagination.pageSize;
-  const startIndex = (page - 1) * pageSize;
-  const pageItems = state.filteredItems.slice(startIndex, startIndex + pageSize);
-
   const fragment = document.createDocumentFragment();
-  pageItems.forEach((item) => {
+  state.items.forEach((item) => {
     fragment.appendChild(createItemCard(item));
   });
   itemsList.appendChild(fragment);
 
+  const totalPages = clampPaginationPage();
   if (totalPages > 1) {
     renderPagination();
   } else if (pagination) {
@@ -1122,50 +1282,42 @@ const renderItems = () => {
   }
 };
 
-const applyFilters = (resetPage = true) => {
-  const type = (filterTypeValue || "").trim();
-  const { start, end } = parseDateRange(filterDateInput?.value || "");
-  const descricaoFilter = (filterDescricaoValue || "").trim().toUpperCase();
-  const razaoFilter = normalizeText(filterRazaoInput?.value || "").trim();
-
-  state.filteredItems = state.items.filter((item) => {
-    const itemType = String(item.tipo || "").toLowerCase();
-    if (type && itemType !== type) {
-      return false;
-    }
-
-    if (start && end) {
-      const itemDate = new Date(`${item.data}T00:00:00`);
-      itemDate.setHours(0, 0, 0, 0);
-      if (itemDate < start || itemDate > end) {
-        return false;
-      }
-    }
-
-    if (razaoFilter) {
-      const razaoText = normalizeText(item.razaoSocialNome);
-      if (!razaoText.includes(razaoFilter)) {
-        return false;
-      }
-    }
-
-    if (descricaoFilter) {
-      const rawKey = String(item.descricao || "").trim().toUpperCase();
-      if (rawKey !== descricaoFilter) {
-        return false;
-      }
-    }
-    return true;
-  });
-
+const applyFilters = async (resetPage = true) => {
   if (resetPage) {
     resetPagination();
   }
-  renderItems();
+  try {
+    await loadItems();
+  } catch (error) {
+    showListState(
+      error instanceof Error ? error.message : "Erro ao carregar comprovantes. Tente novamente.",
+    );
+  }
+};
+
+const waitForAuthReady = async () => {
+  if (!window.SCAuth?.waitUntilReady) {
+    return;
+  }
+  try {
+    await window.SCAuth.waitUntilReady();
+  } catch (error) {
+    // If bootstrap fails, the request flow still gets a chance to handle auth errors normally.
+  }
 };
 
 const ensureCsrfToken = async (forceRefresh = false) => {
   if (!forceRefresh && state.csrfToken) return state.csrfToken;
+  if (forceRefresh) {
+    await waitForAuthReady();
+  }
+  if (window.SCAuth?.ensureCsrfToken) {
+    state.csrfToken = await window.SCAuth.ensureCsrfToken(forceRefresh);
+    if (!state.csrfToken) {
+      throw new Error("Token CSRF ausente.");
+    }
+    return state.csrfToken;
+  }
   const response = await fetch("/api/v1/auth/csrf", {
     method: "GET",
     credentials: "same-origin",
@@ -1301,19 +1453,26 @@ const patchVerificacao = async (id, verificado) => {
     return null;
   }
 
-  const csrfToken = await ensureCsrfToken(true);
-  const response = await fetch(`/api/v1/itens/${id}/verificacao`, {
-    method: "PATCH",
-    credentials: "same-origin",
-    redirect: "manual",
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      Accept: "application/json",
-      "X-CSRF-TOKEN": csrfToken,
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ verificado }),
-  });
+  const executePatch = async (csrfToken) =>
+    fetch(`/api/v1/itens/${id}/verificacao`, {
+      method: "PATCH",
+      credentials: "same-origin",
+      redirect: "manual",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "application/json",
+        "X-CSRF-TOKEN": csrfToken,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ verificado }),
+    });
+
+  let csrfToken = await ensureCsrfToken(true);
+  let response = await executePatch(csrfToken);
+  if (response.status === 403) {
+    csrfToken = await ensureCsrfToken(true);
+    response = await executePatch(csrfToken);
+  }
 
   const isRedirect =
     response.type === "opaqueredirect" ||
@@ -1896,8 +2055,9 @@ const loadItems = async () => {
     return;
   }
 
+  const requestSequence = ++loadItemsRequestSequence;
   showListState("Carregando comprovantes...");
-  const response = await fetch(`/api/v1/itens${buildRoleQuery()}`, {
+  const response = await fetch(`/api/v1/itens${buildListQuery()}`, {
     method: "GET",
     credentials: "same-origin",
     headers: {
@@ -1916,17 +2076,43 @@ const loadItems = async () => {
     throw new Error(await extractErrorMessage(response, "Não foi possível carregar os comprovantes."));
   }
 
-  const items = await response.json();
-  state.items = Array.isArray(items) ? items : [];
+  const payload = await response.json();
+  if (requestSequence !== loadItemsRequestSequence) {
+    return;
+  }
+
+  const normalizedPayload = Array.isArray(payload)
+    ? {
+        items: payload,
+        page: state.pagination.page,
+        pageSize: state.pagination.pageSize,
+        totalItems: payload.length,
+        totalPages: payload.length > 0 ? 1 : 1,
+        hasNext: false,
+        hasPrevious: false,
+      }
+    : {
+        items: Array.isArray(payload?.items) ? payload.items : [],
+        page: Number(payload?.page) > 0 ? Number(payload.page) : 1,
+        pageSize:
+          Number(payload?.pageSize) > 0 ? Number(payload.pageSize) : state.pagination.pageSize,
+        totalItems: Number(payload?.totalItems) >= 0 ? Number(payload.totalItems) : 0,
+        totalPages: Number(payload?.totalPages) > 0 ? Number(payload.totalPages) : 1,
+        hasNext: payload?.hasNext === true,
+        hasPrevious: payload?.hasPrevious === true,
+      };
+
+  state.items = normalizedPayload.items;
+  state.pagination.page = normalizedPayload.page;
+  state.pagination.pageSize = normalizedPayload.pageSize;
+  state.pagination.totalItems = normalizedPayload.totalItems;
+  state.pagination.totalPages = normalizedPayload.totalPages;
+  state.pagination.hasNext = normalizedPayload.hasNext;
+  state.pagination.hasPrevious = normalizedPayload.hasPrevious;
   state.itemChecks = new Map(
     state.items.map((item) => [String(item.id), Boolean(item.verificado)]),
   );
-  state.items.sort((a, b) => {
-    const dateA = new Date(a.horarioCriacao).getTime();
-    const dateB = new Date(b.horarioCriacao).getTime();
-    return dateB - dateA;
-  });
-  applyFilters();
+  renderItems();
 };
 
 const loadRoleFilterOptions = async () => {
@@ -1953,6 +2139,23 @@ const loadRoleFilterOptions = async () => {
 
   const roles = await response.json();
   applyRoleOptions(roles);
+};
+
+const loadInitialRoleFilterOptions = async (initialSelectedRole) => {
+  try {
+    await loadRoleFilterOptions();
+  } catch (error) {
+    removeRoleFilterBox();
+  }
+  return state.selectedRole !== initialSelectedRole;
+};
+
+const loadItemsSafely = async (fallbackMessage) => {
+  try {
+    await loadItems();
+  } catch (error) {
+    showListState(error instanceof Error ? error.message : fallbackMessage);
+  }
 };
 
 const openDeleteModal = (id) => {
@@ -2048,30 +2251,30 @@ const deletePendingItem = async () => {
 
   closeDeleteModal();
   await animateItemRemoval(pendingDeleteId);
-  state.items = state.items.filter((item) => item.id !== pendingDeleteId);
-  applyFilters(false);
+  await loadItems();
 };
 
 const bindEvents = () => {
   if (filterDateInput) {
-    filterDateInput.addEventListener("click", () => {
+    const openDatePicker = () => {
       if (filterDatePicker) {
         filterDatePicker.open();
+        return;
       }
-    });
+      void initDateFilter().then(() => {
+        filterDatePicker?.open();
+      });
+    };
 
-    filterDateInput.addEventListener("focus", () => {
-      if (filterDatePicker) {
-        filterDatePicker.open();
-      }
-    });
+    filterDateInput.addEventListener("click", openDatePicker);
+
+    filterDateInput.addEventListener("focus", openDatePicker);
 
     filterDateInput.addEventListener("input", () => {
       const formattedValue = formatDateRangeInput(filterDateInput.value);
       if (filterDateInput.value !== formattedValue) {
         filterDateInput.value = formattedValue;
       }
-      applyFilters();
     });
 
     filterDateInput.addEventListener("blur", () => {
@@ -2098,7 +2301,12 @@ const bindEvents = () => {
           }
         }
       }
-      applyFilters();
+      const normalizedValue = getNormalizedDateFilterValue();
+      if (normalizedValue === lastAppliedDateRangeValue) {
+        return;
+      }
+      lastAppliedDateRangeValue = normalizedValue;
+      void applyFilters();
     });
   }
 
@@ -2121,7 +2329,7 @@ const bindEvents = () => {
       getFilterDescricaoOptions().forEach((node) => node.classList.remove("is-active"));
       option.classList.add("is-active");
       closeFilterDescricaoMenu();
-      applyFilters();
+      void applyFilters();
     });
 
     document.addEventListener(
@@ -2138,7 +2346,12 @@ const bindEvents = () => {
   }
 
   if (filterRazaoInput) {
-    filterRazaoInput.addEventListener("input", applyFilters);
+    filterRazaoInput.addEventListener(
+      "input",
+      debounce(() => {
+        void applyFilters();
+      }, 300),
+    );
   }
 
   if (filterTypeTrigger && filterTypeMenu) {
@@ -2163,7 +2376,7 @@ const bindEvents = () => {
         option.classList.add("is-active");
         renderFilterDescricaoOptions(filterTypeValue);
         closeMenu();
-        applyFilters();
+        void applyFilters();
       });
     });
 
@@ -2189,6 +2402,7 @@ const bindEvents = () => {
           filterDateInput.value = "";
         }
       }
+      lastAppliedDateRangeValue = "";
       filterDescricaoValue = "";
       if (filterDescricaoTrigger) filterDescricaoTrigger.textContent = "Todas";
       if (filterRazaoInput) filterRazaoInput.value = "";
@@ -2197,7 +2411,7 @@ const bindEvents = () => {
       filterTypeOptions.forEach((node) => node.classList.remove("is-active"));
       if (filterTypeOptions[0]) filterTypeOptions[0].classList.add("is-active");
       renderFilterDescricaoOptions(filterTypeValue);
-      applyFilters();
+      void applyFilters();
     });
   }
 
@@ -2211,7 +2425,7 @@ const bindEvents = () => {
         filterDescricaoValue = "";
         if (filterDescricaoTrigger) filterDescricaoTrigger.textContent = "Todas";
         renderFilterDescricaoOptions(filterTypeValue);
-        applyFilters();
+        void applyFilters();
       }
     });
   }
@@ -2281,7 +2495,7 @@ const bindEvents = () => {
   }
 
   if (pagination && itemsList) {
-    pagination.addEventListener("click", (event) => {
+    pagination.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const button = target.closest("button[data-page]");
@@ -2290,7 +2504,13 @@ const bindEvents = () => {
       const next = Number(button.dataset.page);
       if (!Number.isFinite(next)) return;
       state.pagination.page = next;
-      renderItems();
+      try {
+        await loadItems();
+      } catch (error) {
+        showListState(
+          error instanceof Error ? error.message : "Erro ao carregar comprovantes. Tente novamente.",
+        );
+      }
       itemsList.scrollIntoView({ block: "start" });
     });
   }
@@ -2337,7 +2557,7 @@ const bindEvents = () => {
 
 const init = async () => {
   bindEvents();
-  await initDateFilter();
+  scheduleFlatpickrWarmup();
   bindUploadDrop();
   bindUploadEditActions();
   if (uploadInput) {
@@ -2366,23 +2586,31 @@ const init = async () => {
       setUploadInputFiles(merged);
     });
   }
-  try {
-    state.userRoles = await loadCurrentUserRoles();
-  } catch (error) {
-    state.userRoles = [];
+  state.selectedRole = getStoredSelectedRole();
+
+  const initialSelectedRole = state.selectedRole;
+  const shouldAwaitRoleFilterBeforeFirstLoad =
+    !initialSelectedRole && Boolean(roleFilterBox) && Boolean(roleFilterSelect);
+  const userRolesPromise = loadAndApplyCurrentUserRoles();
+  const roleFilterPromise = loadInitialRoleFilterOptions(initialSelectedRole);
+
+  if (shouldAwaitRoleFilterBeforeFirstLoad) {
+    await roleFilterPromise;
   }
-  try {
-    await loadRoleFilterOptions();
-  } catch (error) {
-    removeRoleFilterBox();
+
+  await loadItemsSafely("Erro ao carregar comprovantes. Tente novamente.");
+
+  if (!shouldAwaitRoleFilterBeforeFirstLoad) {
+    void roleFilterPromise.then((selectedRoleChanged) => {
+      if (!selectedRoleChanged) {
+        return;
+      }
+      resetPagination();
+      void loadItemsSafely("Erro ao carregar comprovantes do candidato selecionado.");
+    });
   }
-  try {
-    await loadItems();
-  } catch (error) {
-    showListState(
-      error instanceof Error ? error.message : "Erro ao carregar comprovantes. Tente novamente."
-    );
-  }
+
+  await userRolesPromise;
 };
 
 init();

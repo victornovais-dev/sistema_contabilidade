@@ -11,5 +11,6 @@ public interface UsuarioMapper {
   UsuarioDto toDto(Usuario usuario);
 
   @Mapping(target = "roles", ignore = true)
+  @Mapping(target = "version", ignore = true)
   Usuario toEntity(UsuarioDto usuarioDto);
 }

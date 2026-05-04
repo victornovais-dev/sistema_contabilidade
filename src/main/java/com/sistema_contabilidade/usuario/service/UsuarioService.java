@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -59,7 +60,7 @@ public class UsuarioService {
     extrairRolesSolicitadas(usuarioCreateRequest).stream()
         .map(this::buscarRole)
         .forEach(usuario.getRoles()::add);
-    usuario = usuarioRepository.save(usuario);
+    usuario = salvarUsuarioComTratamentoDeConcorrencia(usuario);
     return usuarioMapper.toDto(usuario);
   }
 
@@ -76,7 +77,7 @@ public class UsuarioService {
     if (usuarioAtualizado.getSenha() != null && !usuarioAtualizado.getSenha().isBlank()) {
       usuarioExistente.setSenha(passwordEncoder.encode(usuarioAtualizado.getSenha()));
     }
-    Usuario salvo = usuarioRepository.save(usuarioExistente);
+    Usuario salvo = salvarUsuarioComTratamentoDeConcorrencia(usuarioExistente);
     customUserDetailsService.atualizarCacheUsuario(salvo.getId(), salvo.getEmail());
     if (!emailAnterior.equalsIgnoreCase(salvo.getEmail())) {
       customUserDetailsService.removerCacheUsuario(salvo.getId(), emailAnterior);
@@ -96,7 +97,7 @@ public class UsuarioService {
     if (request.senha() != null && !request.senha().isBlank()) {
       usuarioExistente.setSenha(passwordEncoder.encode(request.senha()));
     }
-    Usuario salvo = usuarioRepository.save(usuarioExistente);
+    Usuario salvo = salvarUsuarioComTratamentoDeConcorrencia(usuarioExistente);
     customUserDetailsService.atualizarCacheUsuario(salvo.getId(), salvo.getEmail());
     if (!emailAnterior.equalsIgnoreCase(salvo.getEmail())) {
       customUserDetailsService.removerCacheUsuario(salvo.getId(), emailAnterior);
@@ -137,7 +138,7 @@ public class UsuarioService {
     if (request.senha() != null && !request.senha().isBlank()) {
       usuarioExistente.setSenha(passwordEncoder.encode(request.senha()));
     }
-    Usuario salvo = usuarioRepository.save(usuarioExistente);
+    Usuario salvo = salvarUsuarioComTratamentoDeConcorrencia(usuarioExistente);
     customUserDetailsService.atualizarCacheUsuario(salvo.getId(), salvo.getEmail());
     return rbacMapper.toUsuarioComRolesDto(salvo);
   }
@@ -221,6 +222,14 @@ public class UsuarioService {
         roles.stream().map(role -> role.toUpperCase(Locale.ROOT)).collect(Collectors.toSet());
     if (rolesNormalizadas.contains(ROLE_SUPPORT) && rolesNormalizadas.contains(ROLE_MANAGER)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, SUPPORT_MANAGER_CONFLITO);
+    }
+  }
+
+  private Usuario salvarUsuarioComTratamentoDeConcorrencia(Usuario usuario) {
+    try {
+      return usuarioRepository.save(usuario);
+    } catch (DataIntegrityViolationException exception) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Email ja cadastrado", exception);
     }
   }
 }

@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import java.util.HashSet;
@@ -35,6 +36,8 @@ public class Usuario {
   @GeneratedValue(strategy = GenerationType.UUID)
   @UuidGenerator(style = UuidGenerator.Style.TIME)
   private UUID id;
+
+  @Version private Long version;
 
   @NotBlank
   @Column(nullable = false)

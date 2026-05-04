@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.item.repository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sistema_contabilidade.home.dto.HomeLatestLaunchResponse;
@@ -16,16 +17,30 @@ import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
@@ -35,6 +50,7 @@ class ItemRepositoryTest {
   @Autowired private ItemRepository itemRepository;
   @Autowired private UsuarioRepository usuarioRepository;
   @Autowired private RoleRepository roleRepository;
+  @Autowired private DataSource dataSource;
 
   @Test
   @DisplayName("Deve salvar e buscar item por id")
@@ -130,6 +146,72 @@ class ItemRepositoryTest {
   }
 
   @Test
+  @DisplayName("Deve paginar lista filtrando descricao exata e razao like")
+  void devePaginarListaFiltrandoDescricaoExataERazaoLike() {
+    Usuario criador = criarUsuarioComRole("pagina@email.com", "FINANCEIRO");
+
+    Item itemElegivel =
+        novoItem(TipoItem.DESPESA, "uploads/itens/pag-1.pdf", criador, "FINANCEIRO");
+    itemElegivel.setDescricao("SERVICOS");
+    itemElegivel.setRazaoSocialNome("Fornecedor Alpha");
+    itemElegivel.setHorarioCriacao(LocalDateTime.of(2026, 4, 10, 12, 0));
+
+    Item itemDescricaoDiferente =
+        novoItem(TipoItem.DESPESA, "uploads/itens/pag-2.pdf", criador, "FINANCEIRO");
+    itemDescricaoDiferente.setDescricao("OUTROS");
+    itemDescricaoDiferente.setRazaoSocialNome("Fornecedor Alpha");
+    itemDescricaoDiferente.setHorarioCriacao(LocalDateTime.of(2026, 4, 9, 12, 0));
+
+    Item itemRazaoDiferente =
+        novoItem(TipoItem.DESPESA, "uploads/itens/pag-3.pdf", criador, "FINANCEIRO");
+    itemRazaoDiferente.setDescricao("SERVICOS");
+    itemRazaoDiferente.setRazaoSocialNome("Fornecedor Beta");
+    itemRazaoDiferente.setHorarioCriacao(LocalDateTime.of(2026, 4, 8, 12, 0));
+
+    itemRepository.save(itemElegivel);
+    itemRepository.save(itemDescricaoDiferente);
+    itemRepository.save(itemRazaoDiferente);
+
+    Page<Item> page =
+        itemRepository.findAll(
+            ItemListSpecifications.forList(
+                Set.of("FINANCEIRO"), TipoItem.DESPESA, null, null, "SERVICOS", "alpha"),
+            PageRequest.of(
+                0, 10, Sort.by(Sort.Order.desc("horarioCriacao"), Sort.Order.desc("id"))));
+
+    assertEquals(1L, page.getTotalElements());
+    assertEquals(itemElegivel.getId(), page.getContent().getFirst().getId());
+  }
+
+  @Test
+  @DisplayName("Deve criar indices de ordenacao e filtro por role na tabela itens")
+  void deveCriarIndicesDeOrdenacaoEFiltroPorRoleNaTabelaItens() throws Exception {
+    Map<String, List<IndexColumnInfo>> indexes = new HashMap<>();
+
+    try (Connection connection = dataSource.getConnection();
+        ResultSet resultSet =
+            connection.getMetaData().getIndexInfo(null, null, "ITENS", false, false)) {
+      while (resultSet.next()) {
+        String indexName = resultSet.getString("INDEX_NAME");
+        String columnName = resultSet.getString("COLUMN_NAME");
+        short ordinalPosition = resultSet.getShort("ORDINAL_POSITION");
+        if (indexName == null || columnName == null) {
+          continue;
+        }
+        indexes
+            .computeIfAbsent(indexName.toUpperCase(Locale.ROOT), ignored -> new ArrayList<>())
+            .add(new IndexColumnInfo(ordinalPosition, columnName.toUpperCase(Locale.ROOT)));
+      }
+    }
+
+    assertEquals(
+        List.of("HORARIO_CRIACAO", "ID"), ordenarColunas(indexes.get("IDX_ITENS_HORARIO_ID")));
+    assertEquals(
+        List.of("ROLE_NOME", "HORARIO_CRIACAO", "ID"),
+        ordenarColunas(indexes.get("IDX_ITENS_ROLE_HORARIO_ID")));
+  }
+
+  @Test
   @DisplayName("Deve buscar item por id sem duplicar arquivo quando criador possui multiplas roles")
   void deveBuscarItemPorIdSemDuplicarArquivoQuandoCriadorPossuiMultiplasRoles() {
     Usuario criador = criarUsuarioComRoles("arquivos@email.com", "FINANCEIRO", "OPERADOR", "ADMIN");
@@ -143,6 +225,53 @@ class ItemRepositoryTest {
     assertEquals(1, encontrado.getArquivos().size());
     assertEquals(
         "uploads/itens/unico.pdf", encontrado.getArquivos().getFirst().getCaminhoArquivoPdf());
+  }
+
+  @Test
+  @DisplayName("Deve falhar ao salvar item legado com version nula")
+  void deveFalharAoSalvarItemLegadoComVersionNula() throws Exception {
+    java.util.UUID itemId = java.util.UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    inserirItemLegadoComVersaoNula(itemId, "uploads/itens/legado.pdf");
+
+    Item item = itemRepository.findByIdComCriadorERoles(itemId).orElseThrow();
+    item.setVerificado(true);
+
+    assertThrows(RuntimeException.class, () -> itemRepository.saveAndFlush(item));
+  }
+
+  @Test
+  @DisplayName("Deve inicializar version nula de item legado e permitir salvar")
+  void deveInicializarVersionNulaDeItemLegadoEPermitirSalvar() throws Exception {
+    java.util.UUID itemId = java.util.UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeef");
+    inserirItemLegadoComVersaoNula(itemId, "uploads/itens/legado-ok.pdf");
+
+    assertEquals(1, itemRepository.initializeVersionIfNull(itemId));
+    assertEquals(Optional.of(0L), itemRepository.findVersionById(itemId));
+
+    Item item = itemRepository.findByIdComCriadorERoles(itemId).orElseThrow();
+    item.setVersion(0L);
+    item.setVerificado(true);
+
+    Item salvo = itemRepository.saveAndFlush(item);
+
+    assertTrue(salvo.isVerificado());
+    assertEquals(1L, salvo.getVersion());
+  }
+
+  @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  @DisplayName("Deve inicializar version nula de item legado sem transacao externa")
+  void deveInicializarVersionNulaDeItemLegadoSemTransacaoExterna() throws Exception {
+    java.util.UUID itemId = java.util.UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeee01");
+
+    try {
+      inserirItemLegadoComVersaoNula(itemId, "uploads/itens/legado-no-tx.pdf");
+
+      assertEquals(1, itemRepository.initializeVersionIfNull(itemId));
+      assertEquals(Optional.of(0L), itemRepository.findVersionById(itemId));
+    } finally {
+      deletarItemPorId(itemId);
+    }
   }
 
   @Test
@@ -295,4 +424,67 @@ class ItemRepositoryTest {
     arquivo.setCaminhoArquivoPdf(caminhoPdf);
     return arquivo;
   }
+
+  private List<String> ordenarColunas(List<IndexColumnInfo> columns) {
+    return columns.stream()
+        .sorted(Comparator.comparingInt(IndexColumnInfo::ordinalPosition))
+        .map(IndexColumnInfo::columnName)
+        .toList();
+  }
+
+  private void inserirItemLegadoComVersaoNula(java.util.UUID itemId, String caminhoArquivo)
+      throws Exception {
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                """
+                insert into itens (
+                  id,
+                  version,
+                  valor,
+                  data,
+                  horario_criacao,
+                  caminho_arquivo_pdf,
+                  descricao,
+                  tipo_documento,
+                  numero_documento,
+                  razao_social,
+                  cnpj_cpf,
+                  observacao,
+                  verificado,
+                  role_nome,
+                  tipo,
+                  criado_por_id
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """)) {
+      statement.setObject(1, itemId);
+      statement.setObject(2, null);
+      statement.setBigDecimal(3, new BigDecimal("100.00"));
+      statement.setObject(4, LocalDate.of(2026, 4, 28));
+      statement.setObject(5, LocalDateTime.of(2026, 4, 28, 0, 54));
+      statement.setString(6, caminhoArquivo);
+      statement.setString(7, "Hospedagem");
+      statement.setString(8, null);
+      statement.setString(9, null);
+      statement.setString(10, "HOTEL XPTO");
+      statement.setString(11, "21.039.861/0298-36");
+      statement.setString(12, null);
+      statement.setBoolean(13, false);
+      statement.setString(14, "ANDRE DO PRADO");
+      statement.setString(15, TipoItem.DESPESA.name());
+      statement.setObject(16, null);
+      statement.executeUpdate();
+    }
+  }
+
+  private void deletarItemPorId(java.util.UUID itemId) throws Exception {
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("delete from itens where id = ?")) {
+      statement.setObject(1, itemId);
+      statement.executeUpdate();
+    }
+  }
+
+  private record IndexColumnInfo(int ordinalPosition, String columnName) {}
 }

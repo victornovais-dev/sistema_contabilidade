@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BeanPropertyBindingResult;
@@ -206,6 +207,23 @@ class UsuarioExceptionHandlerTest {
 
     assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
     assertEquals("An unexpected error occurred", response.getBody().message());
+  }
+
+  @Test
+  @DisplayName("Deve mapear optimistic lock para 409")
+  void deveMapearOptimisticLockPara409() {
+    UsuarioExceptionHandler handler = new UsuarioExceptionHandler();
+    MockHttpServletRequest request = new MockHttpServletRequest("PATCH", "/api/v1/itens/1");
+
+    ResponseEntity<ErrorResponse> response =
+        handler.handleOptimisticLockingFailure(
+            new ObjectOptimisticLockingFailureException("Item", "1"),
+            new ServletWebRequest(request));
+
+    assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+    assertEquals(
+        "Registro alterado por outra operacao concorrente. Atualize os dados e tente novamente.",
+        response.getBody().message());
   }
 
   @Test

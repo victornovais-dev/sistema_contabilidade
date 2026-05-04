@@ -4,6 +4,7 @@
   const REFRESH_MARGIN_MS = 60_000;
   const TRANSIENT_REFRESH_RETRY_MS = 15_000;
   const ROUTES_ENDPOINT = "/api/v1/auth/routes";
+  const USER_ROLES_ENDPOINT = "/api/v1/auth/me/roles";
   const AUTH_API_PREFIX = "/api/v1/auth/";
   const AUTH_BOOTSTRAP_BYPASS_PATHS = new Set([
     "/api/v1/auth/csrf",
@@ -18,6 +19,14 @@
     csrfToken: null,
     bootstrapComplete: false,
     bootstrapPromise: null,
+    routeConfigLoaded:
+      Boolean(window.__SC_ROUTE_CONFIG) &&
+      typeof window.__SC_ROUTE_CONFIG === "object" &&
+      Object.keys(window.__SC_ROUTE_CONFIG).length > 0,
+    routeConfigPromise: null,
+    routeConfigScheduledPromise: null,
+    userRoles: null,
+    userRolesPromise: null,
     routeConfig:
       window.__SC_ROUTE_CONFIG && typeof window.__SC_ROUTE_CONFIG === "object"
         ? { ...window.__SC_ROUTE_CONFIG }
@@ -47,6 +56,11 @@
     }
   };
 
+  const normalizeUserRoles = (payload) =>
+    Array.isArray(payload)
+      ? payload.map((role) => String(role || "").trim().toUpperCase()).filter(Boolean)
+      : [];
+
   const currentStorageValue = () => {
     if (state.accessToken) return state.accessToken;
     if (!state.bootstrapComplete) return PLACEHOLDER_TOKEN;
@@ -58,6 +72,11 @@
       window.clearTimeout(state.refreshTimer);
       state.refreshTimer = null;
     }
+  };
+
+  const clearUserRolesCache = () => {
+    state.userRoles = null;
+    state.userRolesPromise = null;
   };
 
   const scheduleRefreshRetry = (delayMs = TRANSIENT_REFRESH_RETRY_MS) => {
@@ -74,6 +93,18 @@
     window.dispatchEvent(new CustomEvent(name, { detail }));
   };
 
+  const scheduleNonCriticalTask = (callback) => {
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(() => {
+        callback();
+      }, { timeout: 500 });
+      return;
+    }
+    window.setTimeout(() => {
+      callback();
+    }, 0);
+  };
+
   const hydrateRouteAnchors = () => {
     document.querySelectorAll("[data-route-key]").forEach((element) => {
       if (!(element instanceof HTMLAnchorElement)) return;
@@ -88,6 +119,7 @@
   const setRouteConfig = (routeConfig) => {
     state.routeConfig =
       routeConfig && typeof routeConfig === "object" ? { ...routeConfig } : {};
+    state.routeConfigLoaded = Object.keys(state.routeConfig).length > 0;
     window.__SC_ROUTE_CONFIG = { ...state.routeConfig };
     hydrateRouteAnchors();
     dispatchAuthEvent("sc:routes-updated", { routeConfig: { ...state.routeConfig } });
@@ -115,10 +147,13 @@
 
   const clearAuthState = (options = {}) => {
     clearRefreshTimer();
+    clearUserRolesCache();
     state.accessToken = null;
     state.tokenExpiryMs = null;
     state.csrfToken = null;
     state.bootstrapComplete = true;
+    state.routeConfigPromise = null;
+    state.routeConfigScheduledPromise = null;
     if (!options.keepRoutes) {
       setRouteConfig({});
       return;
@@ -171,28 +206,155 @@
     return state.csrfToken;
   };
 
-  const loadRouteConfig = async () => {
-    try {
-      const response = await nativeFetch(ROUTES_ENDPOINT, {
-        method: "GET",
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-          ...(state.accessToken ? { Authorization: `Bearer ${state.accessToken}` } : {}),
-        },
-      });
-      if (!response.ok) {
-        setRouteConfig({});
-        return {};
+  const loadRouteConfig = async (forceRefresh = false) => {
+    if (!state.accessToken) {
+      if (!forceRefresh) {
+        return { ...state.routeConfig };
       }
-      const payload = await response.json().catch(() => ({}));
-      setRouteConfig(payload);
-      return payload;
-    } catch (error) {
       setRouteConfig({});
       return {};
     }
+
+    if (!forceRefresh) {
+      if (state.routeConfigLoaded) {
+        return { ...state.routeConfig };
+      }
+      if (state.routeConfigPromise) {
+        return { ...(await state.routeConfigPromise) };
+      }
+    }
+
+    let requestPromise;
+    requestPromise = (async () => {
+      try {
+        const response = await nativeFetch(ROUTES_ENDPOINT, {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            Authorization: `Bearer ${state.accessToken}`,
+          },
+        });
+        if (!response.ok) {
+          setRouteConfig({});
+          return {};
+        }
+        const payload = await response.json().catch(() => ({}));
+        setRouteConfig(payload);
+        return payload;
+      } catch (error) {
+        setRouteConfig({});
+        return {};
+      } finally {
+        if (state.routeConfigPromise === requestPromise) {
+          state.routeConfigPromise = null;
+        }
+      }
+    })();
+
+    state.routeConfigPromise = requestPromise;
+    return { ...(await requestPromise) };
+  };
+
+  const preloadRouteConfig = (forceRefresh = false) => {
+    if (!state.accessToken) {
+      return Promise.resolve({});
+    }
+
+    if (!forceRefresh) {
+      if (state.routeConfigLoaded) {
+        return Promise.resolve({ ...state.routeConfig });
+      }
+      if (state.routeConfigPromise) {
+        return state.routeConfigPromise;
+      }
+      if (state.routeConfigScheduledPromise) {
+        return state.routeConfigScheduledPromise;
+      }
+    }
+
+    let scheduledPromise;
+    scheduledPromise = new Promise((resolve) => {
+      scheduleNonCriticalTask(() => {
+        if (state.routeConfigScheduledPromise === scheduledPromise) {
+          state.routeConfigScheduledPromise = null;
+        }
+        if (!state.accessToken) {
+          resolve({});
+          return;
+        }
+        void loadRouteConfig(forceRefresh)
+          .then((routeConfig) => {
+            resolve(routeConfig);
+          })
+          .catch(() => {
+            resolve({});
+          });
+      });
+    });
+
+    state.routeConfigScheduledPromise = scheduledPromise;
+    return scheduledPromise;
+  };
+
+  const loadUserRoles = async (forceRefresh = false) => {
+    if (!forceRefresh) {
+      if (Array.isArray(state.userRoles)) {
+        return [...state.userRoles];
+      }
+      if (state.userRolesPromise) {
+        return [...(await state.userRolesPromise)];
+      }
+    }
+
+    if (!state.bootstrapComplete && state.bootstrapPromise) {
+      try {
+        await state.bootstrapPromise;
+      } catch (error) {
+        // Se o bootstrap falhar, ainda tentamos seguir com o estado atual.
+      }
+    }
+
+    if (!state.accessToken) {
+      return [];
+    }
+
+    let requestPromise;
+    requestPromise = (async () => {
+      try {
+        const response = await nativeFetch(USER_ROLES_ENDPOINT, {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${state.accessToken}`,
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          clearUserRolesCache();
+          return [];
+        }
+        if (!response.ok) {
+          return [];
+        }
+
+        const roles = normalizeUserRoles(await response.json().catch(() => []));
+        state.userRoles = roles;
+        return roles;
+      } catch (error) {
+        return [];
+      } finally {
+        if (state.userRolesPromise === requestPromise) {
+          state.userRolesPromise = null;
+        }
+      }
+    })();
+
+    state.userRolesPromise = requestPromise;
+    return [...(await requestPromise)];
   };
 
   const refreshAccessToken = async () => {
@@ -236,7 +398,7 @@
     }
 
     setAccessToken(payload.accessToken);
-    await loadRouteConfig();
+    void preloadRouteConfig(true);
     return payload.accessToken;
   };
 
@@ -288,6 +450,7 @@
 
   storage.setItem = function setItem(key, value) {
     if (key === TOKEN_STORAGE_KEY) {
+      clearUserRolesCache();
       setAccessToken(value);
       return;
     }
@@ -382,13 +545,17 @@
     getAdminApiBasePath: () => state.routeConfig.adminApiBasePath || "/api/v1/admin",
     getAdminUserApiBasePath: () => state.routeConfig.adminUserApiBasePath || "/api/v1/usuarios",
     getRouteConfig: () => ({ ...state.routeConfig }),
+    getUserRoles: loadUserRoles,
     hydrateRouteAnchors,
     loadRouteConfig,
     logout,
+    preloadRouteConfig,
     refreshAccessToken,
     storeAccessToken: (token) => {
+      clearUserRolesCache();
       setAccessToken(token);
-      return loadRouteConfig();
+      void preloadRouteConfig(true);
+      return Promise.resolve({ ...state.routeConfig });
     },
     waitUntilReady: () => state.bootstrapPromise || Promise.resolve(Boolean(state.accessToken)),
   };

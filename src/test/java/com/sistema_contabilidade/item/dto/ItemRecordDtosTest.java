@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sistema_contabilidade.item.model.Item;
@@ -207,5 +208,33 @@ class ItemRecordDtosTest {
 
     assertArrayEquals(new byte[] {1, 2, 3}, request.arquivosPdf().get(0));
     assertEquals(List.of("arquivo.pdf"), request.nomesArquivos());
+  }
+
+  @Test
+  @DisplayName("Deve fazer copia defensiva em ItemListPageResponse")
+  void deveFazerCopiaDefensivaEmItemListPageResponse() {
+    ItemListResponse item =
+        new ItemListResponse(
+            UUID.fromString("22222222-2222-2222-2222-222222222222"),
+            new BigDecimal("12.34"),
+            LocalDate.of(2026, 4, 1),
+            LocalDateTime.of(2026, 4, 1, 9, 0),
+            "uploads/itens/pagina.pdf",
+            TipoItem.DESPESA,
+            "FINANCEIRO",
+            "SERVICOS",
+            "EMPRESA TESTE",
+            "123.456.789-00",
+            "Observacao",
+            false,
+            false);
+    List<ItemListResponse> items = new java.util.ArrayList<>(List.of(item));
+    ItemListPageResponse response = new ItemListPageResponse(items, 1, 10, 1, 1, false, false);
+
+    items.clear();
+    List<ItemListResponse> immutableItems = response.items();
+
+    assertEquals(1, immutableItems.size());
+    assertThrows(UnsupportedOperationException.class, () -> immutableItems.add(item));
   }
 }

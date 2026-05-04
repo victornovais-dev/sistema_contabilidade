@@ -7,10 +7,12 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -57,6 +59,21 @@ public class UsuarioExceptionHandler {
             request.getDescription(false),
             LocalDateTime.now());
     return new ResponseEntity<>(error, status);
+  }
+
+  @ExceptionHandler({
+    ObjectOptimisticLockingFailureException.class,
+    OptimisticLockingFailureException.class
+  })
+  public ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(
+      RuntimeException ex, WebRequest request) {
+    ErrorResponse error =
+        new ErrorResponse(
+            HttpStatus.CONFLICT.value(),
+            "Registro alterado por outra operacao concorrente. Atualize os dados e tente novamente.",
+            request.getDescription(false),
+            LocalDateTime.now());
+    return new ResponseEntity<>(error, HttpStatus.CONFLICT);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

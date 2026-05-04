@@ -1,8 +1,10 @@
 (() => {
   const root = document.documentElement;
   const navbarRoot = document.querySelector("#navbar-root,[data-navbar-root]");
-  const NAVBAR_VERSION = "20260421-notifications-admin-contabil-1";
+  const NAVBAR_VERSION = "20260502-startup-perf-1";
   const roleFilterStorageKey = "sc_home_selected_role";
+  let roleVisibilityRefreshScheduled = false;
+  let notificationRefreshScheduled = false;
 
   const readCookie = (name) => {
     const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -76,6 +78,10 @@
   };
 
   const getUserRoles = async () => {
+    if (window.SCAuth?.getUserRoles) {
+      return window.SCAuth.getUserRoles();
+    }
+
     const accessToken = getAccessToken();
     if (!accessToken) return [];
 
@@ -136,6 +142,18 @@
     root.dataset.theme = savedTheme === "dark" ? "dark" : "light";
     writeCookie("theme", root.dataset.theme);
     localStorage.setItem("theme", root.dataset.theme);
+  };
+
+  const scheduleNonCriticalTask = (callback) => {
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(() => {
+        callback();
+      }, { timeout: 500 });
+      return;
+    }
+    window.setTimeout(() => {
+      callback();
+    }, 0);
   };
 
   const bindNavbarEvents = () => {
@@ -231,13 +249,35 @@
     }
   };
 
-  const initRenderedNavbar = async () => {
+  const scheduleRoleVisibilityRefresh = () => {
+    if (roleVisibilityRefreshScheduled) return;
+    roleVisibilityRefreshScheduled = true;
+    scheduleNonCriticalTask(() => {
+      roleVisibilityRefreshScheduled = false;
+      void applyRoleVisibility();
+    });
+  };
+
+  const scheduleNotificationRefresh = () => {
+    if (notificationRefreshScheduled) return;
+    notificationRefreshScheduled = true;
+    scheduleNonCriticalTask(() => {
+      notificationRefreshScheduled = false;
+      void updateNotificationCount();
+    });
+  };
+
+  const scheduleNavbarDataRefresh = () => {
+    scheduleRoleVisibilityRefresh();
+    scheduleNotificationRefresh();
+  };
+
+  const initRenderedNavbar = () => {
     const navbar = document.querySelector(".navbar");
     if (!navbar) return false;
     bindNavbarEvents();
     setActiveLink();
-    await applyRoleVisibility();
-    await updateNotificationCount();
+    scheduleNavbarDataRefresh();
     window.dispatchEvent(new Event("navbar:ready"));
     return true;
   };
@@ -253,8 +293,7 @@
       navbarRoot.innerHTML = markup;
       bindNavbarEvents();
       setActiveLink();
-      await applyRoleVisibility();
-      await updateNotificationCount();
+      scheduleNavbarDataRefresh();
       window.dispatchEvent(new Event("navbar:ready"));
     } catch (error) {
       navbarRoot.innerHTML = "";
@@ -268,11 +307,11 @@
       setNotificationBadgeCount(pendingCount);
       return;
     }
-    void updateNotificationCount();
+    scheduleNotificationRefresh();
   });
 
   window.addEventListener("sc:home-role-change", () => {
-    void updateNotificationCount();
+    scheduleNotificationRefresh();
   });
 
   window.addEventListener("sc:routes-updated", () => {
@@ -280,9 +319,7 @@
   });
 
   initTheme();
-  void initRenderedNavbar().then((initialized) => {
-    if (!initialized) {
-      void renderNavbar();
-    }
-  });
+  if (!initRenderedNavbar()) {
+    void renderNavbar();
+  }
 })();

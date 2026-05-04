@@ -8,18 +8,22 @@ import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
+import com.sistema_contabilidade.relatorio.dto.RelatorioResumoItemRow;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
-public interface ItemRepository extends JpaRepository<Item, UUID> {
+public interface ItemRepository extends JpaRepository<Item, UUID>, JpaSpecificationExecutor<Item> {
 
   String ROLE_NAME_PARAM = "roleNome";
 
@@ -248,6 +252,42 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
 
   @Query(
       """
+      select new com.sistema_contabilidade.relatorio.dto.RelatorioResumoItemRow(
+        i.tipo,
+        i.valor,
+        i.descricao
+      )
+      from Item i
+      """)
+  List<RelatorioResumoItemRow> findAllRelatorioResumoItens();
+
+  @Query(
+      """
+      select new com.sistema_contabilidade.relatorio.dto.RelatorioResumoItemRow(
+        i.tipo,
+        i.valor,
+        i.descricao
+      )
+      from Item i
+      where i.roleNome in ?1
+      """)
+  List<RelatorioResumoItemRow> findRelatorioResumoItensByRoleNomes(Set<String> roleNomes);
+
+  @Query(
+      """
+      select new com.sistema_contabilidade.relatorio.dto.RelatorioResumoItemRow(
+        i.tipo,
+        i.valor,
+        i.descricao
+      )
+      from Item i
+      where i.roleNome = :roleNome
+      """)
+  List<RelatorioResumoItemRow> findRelatorioResumoItensByRoleNome(
+      @Param(ROLE_NAME_PARAM) String roleNome);
+
+  @Query(
+      """
       select new com.sistema_contabilidade.relatorio.dto.RelatorioItemDto(
         i.id,
         i.tipo,
@@ -322,6 +362,16 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
       where i.id = :id
       """)
   Optional<Item> findByIdComCriadorERoles(@Param("id") UUID id);
+
+  @Transactional
+  @Modifying
+  @Query(
+      value = "update itens set version = 0 where id = :id and version is null",
+      nativeQuery = true)
+  int initializeVersionIfNull(@Param("id") UUID id);
+
+  @Query("select i.version from Item i where i.id = :id")
+  Optional<Long> findVersionById(@Param("id") UUID id);
 
   List<Item> findByTipoAndRoleNome(TipoItem tipo, String roleNome);
 
