@@ -254,7 +254,8 @@ public class SecurityConfig {
             "X-CSRF-TOKEN",
             "X-Request-ID",
             "X-Requested-With"));
-    configuration.setExposedHeaders(List.of("X-Request-ID", "X-Query-Count"));
+    configuration.setExposedHeaders(
+        List.of("X-Request-ID", "X-Query-Count", "X-App-Time-Ms", "Server-Timing"));
     configuration.setAllowCredentials(true);
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", configuration);

@@ -9,6 +9,7 @@ import com.microsoft.playwright.options.Margin;
 import com.microsoft.playwright.options.WaitUntilState;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroPdfData;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Base64;
 import java.util.Map;
 import org.springframework.core.io.ClassPathResource;
@@ -87,7 +88,10 @@ public class PlaywrightPdfService {
   private String loadLogoDataUri() {
     try {
       ClassPathResource resource = new ClassPathResource(LOGO_RESOURCE_PATH);
-      byte[] bytes = resource.getInputStream().readAllBytes();
+      byte[] bytes;
+      try (InputStream inputStream = resource.getInputStream()) {
+        bytes = inputStream.readAllBytes();
+      }
       return "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
     } catch (IOException exception) {
       throw new IllegalStateException("Falha ao carregar logo do relatorio PDF", exception);
