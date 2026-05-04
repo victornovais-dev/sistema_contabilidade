@@ -36,3 +36,4 @@ logs/
 uploads/itens/*.pdf
 .tmp_sonar_coverage.json
 .tmp_sonar_issues.json
+.tmp_ui_ux_pro_max_skill/
