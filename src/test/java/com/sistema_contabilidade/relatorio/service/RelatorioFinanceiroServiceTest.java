@@ -14,7 +14,9 @@ import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroPdfData;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
+import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
+import com.sistema_contabilidade.relatorio.dto.RelatorioResumoItemRow;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.math.BigDecimal;
@@ -196,6 +198,52 @@ class RelatorioFinanceiroServiceTest {
     assertEquals(new BigDecimal("185.00"), response.totalReceitas());
     assertEquals(new BigDecimal("40.00"), response.totalDespesas());
     assertEquals(new BigDecimal("145.00"), response.saldoFinal());
+  }
+
+  @Test
+  @DisplayName("Deve gerar resumo financeiro com consulta leve e acumulacao unica")
+  void deveGerarResumoFinanceiroComConsultaLeveEAcumulacaoUnica() {
+    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    RelatorioFinanceiroService service =
+        new RelatorioFinanceiroService(
+            itemRepository,
+            Mockito.mock(RoleRepository.class),
+            Mockito.mock(UsuarioRepository.class),
+            Mockito.mock(PlaywrightPdfService.class));
+
+    when(itemRepository.findAllRelatorioResumoItens())
+        .thenReturn(
+            List.of(
+                new RelatorioResumoItemRow(
+                    TipoItem.RECEITA, new BigDecimal("100.00"), "CONTA FEFC"),
+                new RelatorioResumoItemRow(TipoItem.RECEITA, new BigDecimal("50.00"), "ESTIMÁVEL"),
+                new RelatorioResumoItemRow(
+                    TipoItem.DESPESA, new BigDecimal("20.00"), "SERVIÇOS ADVOCATÍCIOS"),
+                new RelatorioResumoItemRow(
+                    TipoItem.DESPESA, new BigDecimal("10.00"), "COMBUSTÍVEIS E LUBRIFICANTES"),
+                new RelatorioResumoItemRow(TipoItem.DESPESA, new BigDecimal("5.00"), "ALIMENTAÇÃO"),
+                new RelatorioResumoItemRow(
+                    TipoItem.DESPESA, new BigDecimal("15.00"), "ALUGUEL DE VEÍCULOS"),
+                new RelatorioResumoItemRow(TipoItem.DESPESA, new BigDecimal("25.00"), "INTERNET")));
+
+    RelatorioFinanceiroResumoResponse response = service.gerarResumo(adminAuth(), null);
+
+    verify(itemRepository).findAllRelatorioResumoItens();
+    assertEquals(new BigDecimal("100.00"), response.receitasFinanceiras());
+    assertEquals(new BigDecimal("50.00"), response.receitasEstimaveis());
+    assertEquals(new BigDecimal("150.00"), response.totalReceitas());
+    assertEquals(new BigDecimal("55.00"), response.despesasConsideradas());
+    assertEquals(new BigDecimal("20.00"), response.despesasAdvocaciaContabilidade());
+    assertEquals(new BigDecimal("75.00"), response.totalDespesas());
+    assertEquals(new BigDecimal("125.00"), response.despesasTotaisResumo());
+    assertEquals(new BigDecimal("10.00"), response.despesasCombustivel());
+    assertEquals(new BigDecimal("5.00"), response.despesasAlimentacao());
+    assertEquals(new BigDecimal("15.00"), response.despesasLocacaoVeiculos());
+    assertEquals(new BigDecimal("10.50"), response.tetoGastosCombustivel());
+    assertEquals(new BigDecimal("10.50"), response.tetoGastosAlimentacao());
+    assertEquals(new BigDecimal("21.00"), response.tetoGastosLocacaoVeiculos());
+    assertEquals(new BigDecimal("75.00"), response.saldoFinal());
+    assertEquals(new BigDecimal("0.5000"), response.utilizadoRatio());
   }
 
   @Test

@@ -1,12 +1,9 @@
-const state = {
+﻿const state = {
   relatorio: null,
   selectedRole: "",
 };
 
 const REFRESH_ANIMATION_MS = 180;
-const LIMITE_COMBUSTIVEL_RATIO = 0.1;
-const LIMITE_ALIMENTACAO_RATIO = 0.1;
-const LIMITE_LOCACAO_VEICULOS_RATIO = 0.2;
 
 const summaryLayout = document.getElementById("summary-layout");
 const summaryDespesasCard = document.getElementById("summary-despesas-card");
@@ -48,7 +45,7 @@ const roleDropdown =
             await loadRelatorio({ preserveVisibleContent: Boolean(state.relatorio) });
           } catch (error) {
             setRefreshing(false);
-            showState("Erro ao carregar relatórios. Tente novamente.", true);
+            showState("Erro ao carregar relatÃ³rios. Tente novamente.", true);
           }
         },
       })
@@ -159,52 +156,6 @@ const formatPercent = (ratio, fractionDigits = 0) => {
   });
 };
 
-const normalizeDescription = (value) =>
-  String(value || "")
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase();
-
-const isFinancialRevenue = (descricao) => {
-  const normalized = normalizeDescription(descricao);
-  return (
-    normalized === "CONTA FEFC" ||
-    normalized === "CONTA FEFEC" ||
-    normalized === "CONTA FP" ||
-    normalized === "CONTA DC"
-  );
-};
-
-const isEstimatedRevenue = (descricao) => normalizeDescription(descricao) === "ESTIMAVEL";
-
-const isAdvocaciaContabilidadeExpense = (descricao) => {
-  const normalized = normalizeDescription(descricao);
-  return normalized === "SERVICOS ADVOCATICIOS" || normalized === "SERVICOS CONTABEIS";
-};
-
-const isCombustivelExpense = (descricao) =>
-  normalizeDescription(descricao) === "COMBUSTIVEIS E LUBRIFICANTES";
-
-const isAlimentacaoExpense = (descricao) => normalizeDescription(descricao) === "ALIMENTACAO";
-
-const isLocacaoExpense = (descricao) => {
-  const normalized = normalizeDescription(descricao);
-  return normalized === "ALUGUEL DE VEICULOS";
-};
-
-const sumReceitasBy = (items, matcher) =>
-  (Array.isArray(items) ? items : []).reduce((total, item) => {
-    if (!matcher(item?.descricao)) return total;
-    return total + Number(item?.valor || 0);
-  }, 0);
-
-const sumDespesasBy = (items, matcher) =>
-  (Array.isArray(items) ? items : []).reduce((total, item) => {
-    if (!matcher(item?.descricao)) return total;
-    return total + Number(item?.valor || 0);
-  }, 0);
-
 const clamp01 = (value) => Math.min(1, Math.max(0, Number(value)));
 
 const utilizedHue = (ratio) => {
@@ -229,9 +180,9 @@ const formatDescricao = (value) => {
   const key = String(value || "").trim().toUpperCase();
   const labels = {
     ALUGUEL: "Aluguel",
-    ENERGIA: "Energia elétrica",
-    AGUA: "Água",
-    SERVICOS: "Serviços",
+    ENERGIA: "Energia elÃ©trica",
+    AGUA: "Ãgua",
+    SERVICOS: "ServiÃ§os",
     IMPOSTOS: "Impostos",
     MATERIAIS: "Materiais",
     OUTROS: "Outros",
@@ -348,7 +299,7 @@ const addExpenseLimitChart = (container, category) => {
   const row = document.createElement("article");
   row.className = "expense-limit-row";
   row.classList.toggle("is-over-limit", isOverLimit);
-  row.classList.toggle("is-long-title", category.label === "Locação de Veículos");
+  row.classList.toggle("is-long-title", category.label === "LocaÃ§Ã£o de VeÃ­culos");
 
   const header = document.createElement("div");
   header.className = "expense-limit-header";
@@ -387,41 +338,25 @@ const renderRelatorio = () => {
   clearSummaryCards();
 
   const relatorio = state.relatorio;
-  const receitas = Array.isArray(relatorio.receitas) ? relatorio.receitas : [];
-  const receitasFinanceiras =
-    relatorio.receitasFinanceiras != null
-      ? Number(relatorio.receitasFinanceiras)
-      : sumReceitasBy(receitas, isFinancialRevenue);
-  const receitasEstimaveis =
-    relatorio.receitasEstimaveis != null
-      ? Number(relatorio.receitasEstimaveis)
-      : sumReceitasBy(receitas, isEstimatedRevenue);
+  const receitasFinanceiras = Number(relatorio.receitasFinanceiras || 0);
+  const receitasEstimaveis = Number(relatorio.receitasEstimaveis || 0);
   const receitasTotais = Number(relatorio.totalReceitas || 0);
-  const despesas = Array.isArray(relatorio.despesas) ? relatorio.despesas : [];
   const despesasTotais = Number(relatorio.totalDespesas || 0);
-  const despesasAdvocaciaContabilidade =
-    relatorio.despesasAdvocaciaContabilidade != null
-      ? Number(relatorio.despesasAdvocaciaContabilidade)
-      : sumDespesasBy(despesas, isAdvocaciaContabilidadeExpense);
-  const despesasConsideradas =
-    relatorio.despesasConsideradas != null
-      ? Number(relatorio.despesasConsideradas)
-      : despesasTotais - despesasAdvocaciaContabilidade;
-  const despesasBaseLimites = despesasConsideradas + receitasEstimaveis;
-  const despesasTotaisResumo =
-    despesasConsideradas + receitasEstimaveis + despesasAdvocaciaContabilidade;
-  const despesasCombustivel = sumDespesasBy(despesas, isCombustivelExpense);
-  const despesasAlimentacao = sumDespesasBy(despesas, isAlimentacaoExpense);
-  const despesasLocacaoVeiculos = sumDespesasBy(despesas, isLocacaoExpense);
-  const tetoCombustivel = despesasBaseLimites * LIMITE_COMBUSTIVEL_RATIO;
-  const tetoAlimentacao = despesasBaseLimites * LIMITE_ALIMENTACAO_RATIO;
-  const tetoLocacaoVeiculos = despesasBaseLimites * LIMITE_LOCACAO_VEICULOS_RATIO;
-  const utilizadoRatio = receitasTotais > 0 ? despesasTotais / receitasTotais : 0;
+  const despesasAdvocaciaContabilidade = Number(relatorio.despesasAdvocaciaContabilidade || 0);
+  const despesasConsideradas = Number(relatorio.despesasConsideradas || 0);
+  const despesasTotaisResumo = Number(relatorio.despesasTotaisResumo || 0);
+  const despesasCombustivel = Number(relatorio.despesasCombustivel || 0);
+  const despesasAlimentacao = Number(relatorio.despesasAlimentacao || 0);
+  const despesasLocacaoVeiculos = Number(relatorio.despesasLocacaoVeiculos || 0);
+  const tetoCombustivel = Number(relatorio.tetoGastosCombustivel || 0);
+  const tetoAlimentacao = Number(relatorio.tetoGastosAlimentacao || 0);
+  const tetoLocacaoVeiculos = Number(relatorio.tetoGastosLocacaoVeiculos || 0);
+  const utilizadoRatio = Number(relatorio.utilizadoRatio || 0);
 
   addSummaryMetric(summaryOverviewCard, "Financeiras", formatCurrency(receitasFinanceiras), {
     variant: "positive",
   });
-  addSummaryMetric(summaryOverviewCard, "Estimáveis", formatCurrency(receitasEstimaveis), {
+  addSummaryMetric(summaryOverviewCard, "EstimÃ¡veis", formatCurrency(receitasEstimaveis), {
     variant: "positive",
   });
   addSummaryMetric(summaryOverviewCard, "Totais", formatCurrency(receitasTotais), {
@@ -457,19 +392,19 @@ const renderRelatorio = () => {
   });
 
   addExpenseLimitChart(summaryLimitesCard, {
-    label: "Combustível",
+    label: "CombustÃ­vel",
     spent: despesasCombustivel,
     ceiling: tetoCombustivel,
     limitText: "Limite 10%",
   });
   addExpenseLimitChart(summaryLimitesCard, {
-    label: "Alimentação",
+    label: "AlimentaÃ§Ã£o",
     spent: despesasAlimentacao,
     ceiling: tetoAlimentacao,
     limitText: "Limite 10%",
   });
   addExpenseLimitChart(summaryLimitesCard, {
-    label: "Locação de Veículos",
+    label: "LocaÃ§Ã£o de VeÃ­culos",
     spent: despesasLocacaoVeiculos,
     ceiling: tetoLocacaoVeiculos,
     limitText: "Limite 20%",
@@ -488,7 +423,7 @@ const loadRelatorio = async ({ preserveVisibleContent = false } = {}) => {
     setRefreshing(true);
     await wait(REFRESH_ANIMATION_MS);
   } else {
-    showState("Carregando relatórios...");
+    showState("Carregando relatÃ³rios...");
   }
   const response = await fetch(`/api/v1/relatorios/financeiro${buildRoleQuery()}`, {
     method: "GET",
@@ -502,10 +437,10 @@ const loadRelatorio = async ({ preserveVisibleContent = false } = {}) => {
     return;
   }
   if (response.status === 403) {
-    throw new Error("Acesso negado ao relatório para o candidato selecionado.");
+    throw new Error("Acesso negado ao relatÃ³rio para o candidato selecionado.");
   }
   if (!response.ok) {
-    throw new Error("Não foi possível carregar o relatório financeiro.");
+    throw new Error("NÃ£o foi possÃ­vel carregar o relatÃ³rio financeiro.");
   }
   state.relatorio = await response.json();
   renderRelatorio();
@@ -537,7 +472,7 @@ const downloadPdf = async () => {
     throw new Error("Acesso negado para gerar PDF do candidato selecionado.");
   }
   if (!response.ok) {
-    throw new Error("Não foi possível gerar o PDF.");
+    throw new Error("NÃ£o foi possÃ­vel gerar o PDF.");
   }
 
   const blob = await response.blob();
@@ -594,16 +529,49 @@ const bindEvents = () => {
 
 const init = async () => {
   bindEvents();
+  const initialStoredRole = getStoredSelectedRole();
+  if (initialStoredRole) {
+    state.selectedRole = initialStoredRole;
+  }
+
+  const tryLoadRelatorio = async (options = {}) => {
+    try {
+      await loadRelatorio(options);
+      return null;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  const initialReportPromise = initialStoredRole ? tryLoadRelatorio() : null;
+
   try {
     await loadRoleFilterOptions();
   } catch (error) {
     removeRoleFilterBox();
   }
-  try {
-    await loadRelatorio();
-  } catch (error) {
+
+  if (!initialStoredRole) {
+    const loadError = await tryLoadRelatorio();
+    if (loadError) {
+      showState("Erro ao carregar relatórios. Tente novamente.", true);
+    }
+    return;
+  }
+
+  const initialLoadError = initialReportPromise ? await initialReportPromise : null;
+  if (state.selectedRole !== initialStoredRole) {
+    const retryError = await tryLoadRelatorio({ preserveVisibleContent: Boolean(state.relatorio) });
+    if (retryError) {
+      showState("Erro ao carregar relatórios. Tente novamente.", true);
+    }
+    return;
+  }
+
+  if (initialLoadError) {
     showState("Erro ao carregar relatórios. Tente novamente.", true);
   }
 };
 
 init();
+

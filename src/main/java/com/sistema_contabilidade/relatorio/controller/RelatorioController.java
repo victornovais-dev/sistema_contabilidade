@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.relatorio.controller;
 
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
+import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.service.RelatorioFinanceiroService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -23,9 +24,9 @@ public class RelatorioController {
   private final RelatorioFinanceiroService relatorioFinanceiroService;
 
   @GetMapping("/financeiro")
-  public ResponseEntity<RelatorioFinanceiroResponse> obterRelatorioFinanceiro(
+  public ResponseEntity<RelatorioFinanceiroResumoResponse> obterRelatorioFinanceiro(
       Authentication authentication, @RequestParam(name = "role", required = false) String role) {
-    return ResponseEntity.ok(relatorioFinanceiroService.gerar(authentication, role));
+    return ResponseEntity.ok(relatorioFinanceiroService.gerarResumo(authentication, role));
   }
 
   @GetMapping(value = "/financeiro/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
