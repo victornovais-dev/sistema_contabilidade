@@ -16,19 +16,19 @@
 - MapStruct + Lombok
 - Playwright para PDF
 - AWS S3 SDK para storage remoto
-- Micrometer/Prometheus para metricas e auditoria de query count por rota
+- Micrometer/Prometheus para metricas, auditoria de query count por rota, timing HTTP e memoria JVM
 
 ## Modulos principais
 
 - `auth`: login, refresh, logout, sessao opaca, cookies, rotas do usuario autenticado
 - `usuario`: CRUD, perfil, paginas, navbar model advice
 - `rbac`: roles, permissoes e inicializacao
-- `item`: lancamentos, anexos, download, observacao, verificacao, descricoes e tipos de documento
+- `item`: lancamentos paginados, anexos, download, observacao, verificacao, descricoes e tipos de documento
 - `home`: dashboard inicial e cards
 - `relatorio`: resumo financeiro, PDF Playwright e mock executivo
 - `notificacao`: notificacoes derivadas de receitas
 - `security`: JWT/session filter, rate limit, headers, CORS, CSRF, rotas admin secretas
-- `monitoring`: contagem de queries por request e exportacao Micrometer
+- `monitoring`: contagem de queries por request, timing HTTP, memoria JVM e exportacao Micrometer
 - `common`: utilitarios compartilhados, como classificacao de receitas e filtro de roles tecnicas
 
 ## Arquitetura e convencoes
@@ -73,6 +73,8 @@ Arquivos centrais de UI:
 - `auth-session.js` centraliza bootstrap, refresh e logout do frontend autenticado
 - a sessao principal usa cookie opaco `SC_SESSION`
 - `SC_TOKEN` continua apenas como compatibilidade legada para alguns testes e fluxos antigos
+- `auth-session.js` tambem centraliza cache compartilhado de roles do usuario via `SCAuth.getUserRoles()`
+- `auth/routes` e chamadas auxiliares da navbar devem ficar fora do caminho critico da primeira renderizacao quando possivel
 - a navbar precisa ficar sincronizada entre:
   - `src/main/resources/templates/fragments/navbar.html`
   - `src/main/resources/static/partials/navbar.html`
@@ -126,6 +128,16 @@ Arquivos centrais de UI:
 
 - Pagina: `lista_comprovantes.html`
 - API principal: `GET /api/v1/itens`
+- A API principal usa paginacao server-side:
+  - entrada: `page`, `pageSize`, `role`, `tipo`, `dataInicio`, `dataFim`, `descricao`, `razao`
+  - saida: envelope `ItemListPageResponse` com `items`, `page`, `pageSize`, `totalItems`, `totalPages`, `hasNext`, `hasPrevious`
+  - ordenacao padrao: `horarioCriacao desc, id desc`
+  - `descricao` usa filtro exato
+  - `razao` usa filtro `like`
+- A consulta paginada passa por `ItemListService`, `ItemListSpecifications` e `ItemRepository.findAll(specification, pageable)`.
+- Indices atuais em `itens`:
+  - `idx_itens_horario_id (horario_criacao, id)`
+  - `idx_itens_role_horario_id (role_nome, horario_criacao, id)`
 - O card do item suporta:
   - observacao
   - download de arquivo unico ou ZIP
@@ -137,6 +149,7 @@ Arquivos centrais de UI:
   - `CONTABIL` nao pode excluir
   - `SUPPORT` pode marcar vermelho -> verde, mas nao pode voltar verde -> vermelho
   - `CANDIDATO` nao pode alterar verificacao
+  - `Item` usa optimistic locking com `@Version`; itens legados com `version = null` sao normalizados antes de alteracoes de verificacao
   - receitas marcadas como verificadas atualizam o badge da navbar, mas continuam aparecendo na pagina de notificacoes
   - o modal de anexos mostra card de erro por arquivo rejeitado
 
@@ -157,7 +170,10 @@ Arquivos centrais de UI:
 - Pagina: `relatorios.html`
 - API principal: `/api/v1/relatorios/financeiro`
 - PDF: `/api/v1/relatorios/financeiro/pdf`
-- O resumo vem do backend em `RelatorioFinanceiroService`; parte do layout/agrupamento continua sendo completada pelo frontend
+- O endpoint web retorna resumo leve em `RelatorioFinanceiroResumoResponse`, sem listas completas de receitas/despesas.
+- O resumo e consolidado em `RelatorioFinanceiroConsolidador`; o `RelatorioFinanceiroService` fica como orquestrador.
+- O PDF usa caminho detalhado separado em `RelatorioFinanceiroPdfDataFactory`.
+- Parte do layout/agrupamento visual continua sendo completada pelo frontend.
 - `PlaywrightPdfService` renderiza o template Thymeleaf do PDF e embute a logo como data URI
 - `relatorio-financeiro.html` e `PlaywrightPdfService` sao os arquivos centrais do PDF
 - O mock `relatorio-executivo-exemplo.html` existe como referencia visual separada
@@ -177,7 +193,8 @@ Arquivos centrais de UI:
 
 ## Relatorio financeiro e PDF
 
-- `RelatorioFinanceiroService` calcula:
+- `RelatorioFinanceiroService` orquestra o relatorio e delega consolidacao/factory para classes menores.
+- `RelatorioFinanceiroConsolidador` calcula:
   - receitas financeiras
   - receitas estimaveis
   - despesas consideradas
@@ -185,6 +202,7 @@ Arquivos centrais de UI:
   - total de despesas
   - percentuais de categorias limitadas
   - saldo final
+- `RelatorioFinanceiroPdfDataFactory` monta o payload detalhado do PDF.
 - o PDF usa:
   - `relatorio-financeiro.html`
   - `PlaywrightPdfService`
@@ -202,6 +220,7 @@ Arquivos centrais de UI:
   - limite de PDF: `20971520`
   - Redis local
   - `spring.thymeleaf.cache=false`
+- root `docker-compose.yml` sobe Redis local em `127.0.0.1:6379` com volume `redis-data`, AOF e healthcheck `redis-cli ping`
 - Cuidado:
   - `.env` pode sobrescrever storage, banco, cache e segredos
   - nao exponha valores de token, senha ou secret no chat
@@ -213,7 +232,9 @@ Arquivos centrais de UI:
   - `userDetails`
   - `itemDescricoes`
   - `itemTiposDocumento`
-- Redis continua configurado para cenarios que precisem cache distribuido
+- Redis continua configurado e pode rodar via Docker, mas nao acelera automaticamente a listagem principal de comprovantes enquanto `spring.cache.type=caffeine` e `SistemaContabilidadeApplication.cacheManager()` continuarem usando Caffeine.
+- Bons candidatos a cache sao dados auxiliares estaveis, como roles disponiveis, descricoes e tipos de documento.
+- A listagem `/api/v1/itens` muda com verificacao, observacao, upload e exclusao; cachear esse endpoint exige invalidacao cuidadosa.
 
 ## Observabilidade e query count
 
@@ -225,6 +246,17 @@ Arquivos centrais de UI:
   - ignora `/actuator`, assets e `favicon`
 - threshold operacional local continua configuravel por property
 - stack de observabilidade local fica em `observability/`
+
+## Timing HTTP e memoria
+
+- `RequestTimingFilter`:
+  - adiciona `X-App-Time-Ms`
+  - adiciona `Server-Timing`
+  - publica metrica Micrometer de duracao por rota
+  - registra log de request lenta acima do threshold configurado
+- `RequestMonitoringPathUtils` centraliza paths ignorados por filtros de monitoramento.
+- `MemoryMonitoringMetrics` expoe gauges de heap e metaspace.
+- `MemoryMonitoringService` registra snapshots/alertas de pressao de memoria quando habilitado.
 
 ## SonarQube e qualidade
 
@@ -247,17 +279,21 @@ Arquivos centrais de UI:
   - issues abertas `0`
   - hotspots `0`
   - quality gate `OK`
-  - new coverage `85.0%`
+  - coverage aproximado recente `83.6%`
+  - duplicated lines `0.0%`
 
 ## Testes
 
-- suite recente: `406` testes verdes
+- suite recente: `427` testes verdes
 - existem testes dedicados para:
   - auth/session/csrf
   - controllers WebMvc
   - storage local e S3
   - PDF Playwright
   - notificacoes
+  - paginacao server-side de itens
+  - optimistic locking e verificacao de item legado
+  - memory/request timing monitoring
   - query count audit
   - Prometheus
   - ArchUnit
