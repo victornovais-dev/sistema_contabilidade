@@ -45,7 +45,7 @@ const roleDropdown =
             await loadRelatorio({ preserveVisibleContent: Boolean(state.relatorio) });
           } catch (error) {
             setRefreshing(false);
-            showState("Erro ao carregar relatÃ³rios. Tente novamente.", true);
+            showState("Erro ao carregar relat\u00f3rios. Tente novamente.", true);
           }
         },
       })
@@ -180,9 +180,9 @@ const formatDescricao = (value) => {
   const key = String(value || "").trim().toUpperCase();
   const labels = {
     ALUGUEL: "Aluguel",
-    ENERGIA: "Energia elÃ©trica",
-    AGUA: "Ãgua",
-    SERVICOS: "ServiÃ§os",
+    ENERGIA: "Energia el\u00e9trica",
+    AGUA: "\u00c1gua",
+    SERVICOS: "Servi\u00e7os",
     IMPOSTOS: "Impostos",
     MATERIAIS: "Materiais",
     OUTROS: "Outros",
@@ -299,7 +299,7 @@ const addExpenseLimitChart = (container, category) => {
   const row = document.createElement("article");
   row.className = "expense-limit-row";
   row.classList.toggle("is-over-limit", isOverLimit);
-  row.classList.toggle("is-long-title", category.label === "LocaÃ§Ã£o de VeÃ­culos");
+  row.classList.toggle("is-long-title", category.label === "Loca\u00e7\u00e3o de Ve\u00edculos");
 
   const header = document.createElement("div");
   header.className = "expense-limit-header";
@@ -356,7 +356,7 @@ const renderRelatorio = () => {
   addSummaryMetric(summaryOverviewCard, "Financeiras", formatCurrency(receitasFinanceiras), {
     variant: "positive",
   });
-  addSummaryMetric(summaryOverviewCard, "EstimÃ¡veis", formatCurrency(receitasEstimaveis), {
+  addSummaryMetric(summaryOverviewCard, "Estim\u00e1veis", formatCurrency(receitasEstimaveis), {
     variant: "positive",
   });
   addSummaryMetric(summaryOverviewCard, "Totais", formatCurrency(receitasTotais), {
@@ -392,19 +392,19 @@ const renderRelatorio = () => {
   });
 
   addExpenseLimitChart(summaryLimitesCard, {
-    label: "CombustÃ­vel",
+    label: "Combust\u00edvel",
     spent: despesasCombustivel,
     ceiling: tetoCombustivel,
     limitText: "Limite 10%",
   });
   addExpenseLimitChart(summaryLimitesCard, {
-    label: "AlimentaÃ§Ã£o",
+    label: "Alimenta\u00e7\u00e3o",
     spent: despesasAlimentacao,
     ceiling: tetoAlimentacao,
     limitText: "Limite 10%",
   });
   addExpenseLimitChart(summaryLimitesCard, {
-    label: "LocaÃ§Ã£o de VeÃ­culos",
+    label: "Loca\u00e7\u00e3o de Ve\u00edculos",
     spent: despesasLocacaoVeiculos,
     ceiling: tetoLocacaoVeiculos,
     limitText: "Limite 20%",
@@ -423,7 +423,7 @@ const loadRelatorio = async ({ preserveVisibleContent = false } = {}) => {
     setRefreshing(true);
     await wait(REFRESH_ANIMATION_MS);
   } else {
-    showState("Carregando relatÃ³rios...");
+    showState("Carregando relat\u00f3rios...");
   }
   const response = await fetch(`/api/v1/relatorios/financeiro${buildRoleQuery()}`, {
     method: "GET",
@@ -437,10 +437,10 @@ const loadRelatorio = async ({ preserveVisibleContent = false } = {}) => {
     return;
   }
   if (response.status === 403) {
-    throw new Error("Acesso negado ao relatÃ³rio para o candidato selecionado.");
+    throw new Error("Acesso negado ao relat\u00f3rio para o candidato selecionado.");
   }
   if (!response.ok) {
-    throw new Error("NÃ£o foi possÃ­vel carregar o relatÃ³rio financeiro.");
+    throw new Error("N\u00e3o foi poss\u00edvel carregar o relat\u00f3rio financeiro.");
   }
   state.relatorio = await response.json();
   renderRelatorio();
@@ -472,7 +472,7 @@ const downloadPdf = async () => {
     throw new Error("Acesso negado para gerar PDF do candidato selecionado.");
   }
   if (!response.ok) {
-    throw new Error("NÃ£o foi possÃ­vel gerar o PDF.");
+    throw new Error("N\u00e3o foi poss\u00edvel gerar o PDF.");
   }
 
   const blob = await response.blob();
