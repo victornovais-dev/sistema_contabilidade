@@ -48,6 +48,20 @@ class RequestTimingFilterTest {
   }
 
   @Test
+  @DisplayName("Deve adicionar headers antes de resposta ser commitada")
+  void deveAdicionarHeadersAntesDeRespostaSerCommitada() throws Exception {
+    RequestTimingFilter filter = defaultFilter();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/home/dashboard");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    FilterChain chain = (servletRequest, servletResponse) -> servletResponse.flushBuffer();
+
+    filter.doFilter(request, response, chain);
+
+    assertNotNull(response.getHeader(RequestTimingFilter.APP_TIME_HEADER));
+    assertNotNull(response.getHeader(RequestTimingFilter.SERVER_TIMING_HEADER));
+  }
+
+  @Test
   @DisplayName("Deve ignorar assets estaticos")
   void deveIgnorarAssetsEstaticos() throws Exception {
     RequestTimingFilter filter = defaultFilter();

@@ -12,9 +12,10 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.ContentCachingResponseWrapper;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 1)
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @ConfigurationProperties(prefix = "app.request-timing")
 @Slf4j
 public class RequestTimingFilter extends OncePerRequestFilter {
@@ -40,19 +41,18 @@ public class RequestTimingFilter extends OncePerRequestFilter {
       jakarta.servlet.FilterChain filterChain)
       throws jakarta.servlet.ServletException, IOException {
     long startedAt = System.nanoTime();
+    ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
     try {
-      filterChain.doFilter(request, response);
+      filterChain.doFilter(request, responseWrapper);
     } finally {
       long durationNanos = System.nanoTime() - startedAt;
       long durationMs = Duration.ofNanos(durationNanos).toMillis();
 
-      if (addResponseHeaders) {
-        response.setHeader(APP_TIME_HEADER, Long.toString(durationMs));
-        response.setHeader(SERVER_TIMING_HEADER, "app;dur=" + durationMs);
-      }
+      writeTimingHeaders(responseWrapper, durationMs);
 
-      recordMetric(request, response, durationNanos);
-      logIfSlow(request, durationMs, response.getStatus());
+      recordMetric(request, responseWrapper, durationNanos);
+      logIfSlow(request, durationMs, responseWrapper.getStatus());
+      responseWrapper.copyBodyToResponse();
     }
   }
 
@@ -74,6 +74,15 @@ public class RequestTimingFilter extends OncePerRequestFilter {
             "status",
             Integer.toString(response.getStatus()))
         .record(Duration.ofNanos(durationNanos));
+  }
+
+  private void writeTimingHeaders(
+      jakarta.servlet.http.HttpServletResponse response, long durationMs) {
+    if (!addResponseHeaders) {
+      return;
+    }
+    response.setHeader(APP_TIME_HEADER, Long.toString(durationMs));
+    response.setHeader(SERVER_TIMING_HEADER, "app;dur=" + durationMs);
   }
 
   private void logIfSlow(

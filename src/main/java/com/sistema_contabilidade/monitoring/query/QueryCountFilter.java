@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.HIGHEST_PRECEDENCE + 1)
 @ConfigurationProperties(prefix = "app.query-monitor")
 @Slf4j
 public class QueryCountFilter extends OncePerRequestFilter {

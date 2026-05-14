@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.servlet.HandlerMapping;
+import org.springframework.web.util.ContentCachingResponseWrapper;
 
 @DisplayName("QueryCountFilter unit tests")
 class QueryCountFilterTest {
@@ -50,6 +51,25 @@ class QueryCountFilterTest {
     assertNotNull(summary);
     assertEquals(1, summary.count());
     assertEquals(2.0d, summary.totalAmount());
+  }
+
+  @Test
+  @DisplayName("Deve adicionar header antes de resposta ser commitada")
+  void deveAdicionarHeaderAntesDeRespostaSerCommitada() throws Exception {
+    QueryCountFilter filter = defaultFilter();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/itens");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
+    FilterChain chain =
+        (servletRequest, servletResponse) -> {
+          QueryCountContext.increment();
+          servletResponse.flushBuffer();
+        };
+
+    filter.doFilter(request, responseWrapper, chain);
+    responseWrapper.copyBodyToResponse();
+
+    assertEquals("1", response.getHeader(QueryCountFilter.QUERY_COUNT_HEADER));
   }
 
   @Test
