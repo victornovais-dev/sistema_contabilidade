@@ -237,4 +237,46 @@ class ItemRecordDtosTest {
     assertEquals(1, immutableItems.size());
     assertThrows(UnsupportedOperationException.class, () -> immutableItems.add(item));
   }
+
+  @Test
+  @DisplayName("Deve mapear Item para ItemListResponse e indicar se ha arquivo")
+  void deveMapearItemParaItemListResponseEIndicarSeHaArquivo() {
+    Item comArquivo = new Item();
+    comArquivo.setId(UUID.fromString("33333333-3333-3333-3333-333333333333"));
+    comArquivo.setValor(new BigDecimal("150.00"));
+    comArquivo.setData(LocalDate.of(2026, 4, 2));
+    comArquivo.setHorarioCriacao(LocalDateTime.of(2026, 4, 2, 8, 30));
+    comArquivo.setCaminhoArquivoPdf("uploads/itens/com-arquivo.pdf");
+    comArquivo.setTipo(TipoItem.DESPESA);
+    comArquivo.setRoleNome("FINANCEIRO");
+    comArquivo.setDescricao("AGUA");
+    comArquivo.setRazaoSocialNome("BONAFONTE");
+    comArquivo.setCnpjCpf("20.783.964/2307-84");
+    comArquivo.setObservacao("Pago");
+    comArquivo.setVerificado(true);
+
+    Item semArquivo = new Item();
+    semArquivo.setId(UUID.fromString("44444444-4444-4444-4444-444444444444"));
+    semArquivo.setValor(new BigDecimal("75.00"));
+    semArquivo.setData(LocalDate.of(2026, 4, 3));
+    semArquivo.setHorarioCriacao(LocalDateTime.of(2026, 4, 3, 9, 45));
+    semArquivo.setCaminhoArquivoPdf("   ");
+    semArquivo.setTipo(TipoItem.RECEITA);
+    semArquivo.setRoleNome("OPERADOR");
+    semArquivo.setDescricao("CONTA DC");
+    semArquivo.setRazaoSocialNome("GOV SP");
+    semArquivo.setCnpjCpf("10.237.681/0238-76");
+    semArquivo.setObservacao(null);
+    semArquivo.setVerificado(false);
+
+    ItemListResponse responseComArquivo = ItemListResponse.from(comArquivo);
+    ItemListResponse responseSemArquivo = ItemListResponse.from(semArquivo);
+
+    assertEquals(comArquivo.getId(), responseComArquivo.id());
+    assertEquals("BONAFONTE", responseComArquivo.razaoSocialNome());
+    assertTrue(responseComArquivo.temArquivos());
+    assertEquals(semArquivo.getId(), responseSemArquivo.id());
+    assertEquals("CONTA DC", responseSemArquivo.descricao());
+    assertEquals(false, responseSemArquivo.temArquivos());
+  }
 }

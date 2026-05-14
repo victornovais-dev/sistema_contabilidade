@@ -33,4 +33,27 @@ class ThymeleafTemplateRendererTest {
     assertEquals(data, contextCaptor.getValue().getVariable("report"));
     verify(templateEngine).process(eq("relatorio-financeiro"), Mockito.any(Context.class));
   }
+
+  @Test
+  @DisplayName("Deve renderizar template com variaveis extras")
+  void deveRenderizarTemplateComVariaveisExtras() {
+    TemplateEngine templateEngine = Mockito.mock(TemplateEngine.class);
+    ThymeleafTemplateRenderer renderer = new ThymeleafTemplateRenderer(templateEngine);
+    ArgumentCaptor<Context> contextCaptor = ArgumentCaptor.forClass(Context.class);
+
+    when(templateEngine.process(eq("relatorio-financeiro"), contextCaptor.capture()))
+        .thenReturn("<html>extra</html>");
+
+    String html =
+        renderer.render(
+            "relatorio-financeiro",
+            "report",
+            Map.of("empresa", "Sistema Contabilidade"),
+            Map.of("logoUrl", "/assets/logo.png", "geradoPor", "codex"));
+
+    assertEquals("<html>extra</html>", html);
+    assertEquals("/assets/logo.png", contextCaptor.getValue().getVariable("logoUrl"));
+    assertEquals("codex", contextCaptor.getValue().getVariable("geradoPor"));
+    verify(templateEngine).process(eq("relatorio-financeiro"), Mockito.any(Context.class));
+  }
 }
