@@ -61,6 +61,7 @@ class AuthServiceTest {
     assertEquals("jwt-token", response.response().accessToken());
     assertEquals("Bearer", response.response().tokenType());
     assertEquals("sessao-segura", response.sessionToken());
+    verify(customUserDetailsService).aquecerCacheUsuario(usuario);
     verify(sessaoUsuarioService).revogarSessoesAtivas(usuario.getId());
   }
 
@@ -85,7 +86,7 @@ class AuthServiceTest {
     assertEquals("jwt-token", response.response().accessToken());
     assertEquals("{argon2}hash-novo", usuario.getSenha());
     verify(usuarioRepository).save(usuario);
-    verify(customUserDetailsService).atualizarCacheUsuario(usuario.getId(), "ana@email.com");
+    verify(customUserDetailsService).aquecerCacheUsuario(usuario);
   }
 
   @Test

@@ -75,6 +75,21 @@ class CustomUserDetailsServiceTest {
   }
 
   @Test
+  @DisplayName("Deve aquecer cache com usuario ja carregado")
+  void deveAquecerCacheComUsuarioJaCarregado() {
+    Usuario usuario = criarUsuarioComRolePermissao();
+    CustomUserDetailsService service = new CustomUserDetailsService(usuarioRepository);
+
+    UserDetails userDetails = service.aquecerCacheUsuario(usuario);
+
+    assertEquals(usuario.getEmail(), userDetails.getUsername());
+    assertEquals(2, userDetails.getAuthorities().size());
+    assertTrue(
+        userDetails.getAuthorities().stream()
+            .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN")));
+  }
+
+  @Test
   @DisplayName("Deve remover cache sem falhar")
   void deveRemoverCacheSemFalhar() {
     CustomUserDetailsService service = new CustomUserDetailsService(usuarioRepository);

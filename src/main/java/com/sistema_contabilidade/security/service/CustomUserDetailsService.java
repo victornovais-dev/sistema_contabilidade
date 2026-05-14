@@ -43,8 +43,12 @@ public class CustomUserDetailsService implements UserDetailsService {
   @CachePut(value = USER_DETAILS_CACHE, key = "#p1")
   public UserDetails atualizarCacheUsuario(UUID usuarioId, String username) {
     Usuario usuario = buscarUsuarioPorEmail(username);
-    Collection<GrantedAuthority> authorities = authoritiesFromDb(usuario);
-    return new CachedUserDetails(usuario.getEmail(), usuario.getSenha(), authorities);
+    return buildUserDetails(usuario);
+  }
+
+  @CachePut(value = USER_DETAILS_CACHE, key = "#p0.email")
+  public UserDetails aquecerCacheUsuario(Usuario usuario) {
+    return buildUserDetails(usuario);
   }
 
   @CacheEvict(value = USER_DETAILS_CACHE, key = "#p1")
@@ -69,6 +73,11 @@ public class CustomUserDetailsService implements UserDetailsService {
         .findWithRolesById(userId)
         .orElseThrow(
             () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario nao encontrado"));
+  }
+
+  private UserDetails buildUserDetails(Usuario usuario) {
+    Collection<GrantedAuthority> authorities = authoritiesFromDb(usuario);
+    return new CachedUserDetails(usuario.getEmail(), usuario.getSenha(), authorities);
   }
 
   private Collection<GrantedAuthority> authoritiesFromDb(Usuario usuario) {

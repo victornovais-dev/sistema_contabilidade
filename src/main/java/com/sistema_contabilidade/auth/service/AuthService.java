@@ -57,7 +57,8 @@ public class AuthService {
     }
 
     Usuario usuario = usuarioOpt.orElseThrow(this::credenciaisInvalidas);
-    atualizarSenhaSeNecessario(usuario, request.senha());
+    usuario = atualizarSenhaSeNecessario(usuario, request.senha());
+    customUserDetailsService.aquecerCacheUsuario(usuario);
     sessaoUsuarioService.revogarSessoesAtivas(usuario.getId());
     String sessionToken = sessaoUsuarioService.criarSessao(usuario.getId());
 
@@ -121,15 +122,13 @@ public class AuthService {
     }
   }
 
-  private void atualizarSenhaSeNecessario(Usuario usuario, String senhaEmTextoPlano) {
+  private Usuario atualizarSenhaSeNecessario(Usuario usuario, String senhaEmTextoPlano) {
     if (!passwordEncoder.upgradeEncoding(usuario.getSenha())) {
-      return;
+      return usuario;
     }
 
     usuario.setSenha(passwordEncoder.encode(senhaEmTextoPlano));
-    Usuario usuarioAtualizado = usuarioRepository.save(usuario);
-    customUserDetailsService.atualizarCacheUsuario(
-        usuarioAtualizado.getId(), usuarioAtualizado.getEmail());
+    return usuarioRepository.save(usuario);
   }
 
   private void logDiagnostico(long t0, long t1, long t2, long t3) {
