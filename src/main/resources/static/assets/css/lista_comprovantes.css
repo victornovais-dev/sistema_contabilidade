@@ -1397,9 +1397,11 @@ html[data-theme="light"] .flatpickr-current-month .year-dropdown option {
 }
 
 .item-value {
+  display: block;
   font-weight: 600;
   font-size: 1rem;
-  line-height: 1.15;
+  line-height: 1.3;
+  padding-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
