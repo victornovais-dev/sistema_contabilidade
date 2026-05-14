@@ -6,7 +6,7 @@ import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
-import com.sistema_contabilidade.relatorio.dto.RelatorioResumoItemRow;
+import com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -121,17 +121,17 @@ public class RelatorioFinanceiroService {
         scope.roleNomesAutenticado());
   }
 
-  private List<RelatorioResumoItemRow> buscarResumoItens(RelatorioScope scope) {
+  private List<RelatorioResumoCategoriaRow> buscarResumoItens(RelatorioScope scope) {
     if (scope.roleFiltroNormalizada() != null) {
-      return itemRepository.findRelatorioResumoItensByRoleNome(scope.roleFiltroNormalizada());
+      return itemRepository.findRelatorioResumoCategoriasByRoleNome(scope.roleFiltroNormalizada());
     }
     if (scope.roleNomesAutenticado().contains(ADMIN_ROLE)) {
-      return itemRepository.findAllRelatorioResumoItens();
+      return itemRepository.findAllRelatorioResumoCategorias();
     }
     if (scope.roleNomesAutenticado().isEmpty()) {
       return List.of();
     }
-    return itemRepository.findRelatorioResumoItensByRoleNomes(scope.roleNomesAutenticado());
+    return itemRepository.findRelatorioResumoCategoriasByRoleNomes(scope.roleNomesAutenticado());
   }
 
   private Set<String> extrairRoleNomes(Authentication authentication) {

@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.server.ResponseStatusException;
 
 public final class ItemAccessUtils {
@@ -37,6 +38,22 @@ public final class ItemAccessUtils {
   public static Set<String> extrairRoleNomes(Usuario usuario) {
     return usuario.getRoles().stream()
         .map(role -> role.getNome())
+        .map(ItemAccessUtils::normalizarRole)
+        .filter(java.util.Objects::nonNull)
+        .collect(Collectors.toSet());
+  }
+
+  public static Set<String> extrairRoleNomes(Authentication authentication) {
+    if (authentication == null) {
+      return Set.of();
+    }
+    return authentication.getAuthorities().stream()
+        .map(GrantedAuthority::getAuthority)
+        .map(
+            authority ->
+                authority != null && authority.startsWith("ROLE_")
+                    ? authority.substring("ROLE_".length())
+                    : null)
         .map(ItemAccessUtils::normalizarRole)
         .filter(java.util.Objects::nonNull)
         .collect(Collectors.toSet());

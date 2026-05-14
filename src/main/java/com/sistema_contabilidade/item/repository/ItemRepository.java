@@ -8,7 +8,7 @@ import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
-import com.sistema_contabilidade.relatorio.dto.RelatorioResumoItemRow;
+import com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -23,7 +23,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
-public interface ItemRepository extends JpaRepository<Item, UUID>, JpaSpecificationExecutor<Item> {
+public interface ItemRepository
+    extends JpaRepository<Item, UUID>, JpaSpecificationExecutor<Item>, ItemListPageRepository {
 
   String ROLE_NAME_PARAM = "roleNome";
 
@@ -252,38 +253,44 @@ public interface ItemRepository extends JpaRepository<Item, UUID>, JpaSpecificat
 
   @Query(
       """
-      select new com.sistema_contabilidade.relatorio.dto.RelatorioResumoItemRow(
+      select new com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow(
         i.tipo,
-        i.valor,
+        coalesce(sum(i.valor), 0),
         i.descricao
       )
       from Item i
+      group by i.tipo, i.descricao
+      order by i.tipo, i.descricao
       """)
-  List<RelatorioResumoItemRow> findAllRelatorioResumoItens();
+  List<RelatorioResumoCategoriaRow> findAllRelatorioResumoCategorias();
 
   @Query(
       """
-      select new com.sistema_contabilidade.relatorio.dto.RelatorioResumoItemRow(
+      select new com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow(
         i.tipo,
-        i.valor,
+        coalesce(sum(i.valor), 0),
         i.descricao
       )
       from Item i
       where i.roleNome in ?1
+      group by i.tipo, i.descricao
+      order by i.tipo, i.descricao
       """)
-  List<RelatorioResumoItemRow> findRelatorioResumoItensByRoleNomes(Set<String> roleNomes);
+  List<RelatorioResumoCategoriaRow> findRelatorioResumoCategoriasByRoleNomes(Set<String> roleNomes);
 
   @Query(
       """
-      select new com.sistema_contabilidade.relatorio.dto.RelatorioResumoItemRow(
+      select new com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow(
         i.tipo,
-        i.valor,
+        coalesce(sum(i.valor), 0),
         i.descricao
       )
       from Item i
       where i.roleNome = :roleNome
+      group by i.tipo, i.descricao
+      order by i.tipo, i.descricao
       """)
-  List<RelatorioResumoItemRow> findRelatorioResumoItensByRoleNome(
+  List<RelatorioResumoCategoriaRow> findRelatorioResumoCategoriasByRoleNome(
       @Param(ROLE_NAME_PARAM) String roleNome);
 
   @Query(

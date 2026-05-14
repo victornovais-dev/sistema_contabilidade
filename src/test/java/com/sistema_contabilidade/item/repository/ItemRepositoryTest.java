@@ -14,6 +14,7 @@ import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
+import com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.math.BigDecimal;
@@ -172,15 +173,16 @@ class ItemRepositoryTest {
     itemRepository.save(itemDescricaoDiferente);
     itemRepository.save(itemRazaoDiferente);
 
-    Page<Item> page =
-        itemRepository.findAll(
-            ItemListSpecifications.forList(
+    Page<ItemListResponse> page =
+        itemRepository.findPageForList(
+            new ItemListPageQuery(
                 Set.of("FINANCEIRO"), TipoItem.DESPESA, null, null, "SERVICOS", "alpha"),
             PageRequest.of(
                 0, 10, Sort.by(Sort.Order.desc("horarioCriacao"), Sort.Order.desc("id"))));
 
     assertEquals(1L, page.getTotalElements());
-    assertEquals(itemElegivel.getId(), page.getContent().getFirst().getId());
+    assertEquals(itemElegivel.getId(), page.getContent().getFirst().id());
+    assertEquals("Fornecedor Alpha", page.getContent().getFirst().razaoSocialNome());
   }
 
   @Test
@@ -375,6 +377,50 @@ class ItemRepositoryTest {
 
     assertEquals(1, itens.size());
     assertEquals(TipoItem.RECEITA, itens.getFirst().tipo());
+  }
+
+  @Test
+  @DisplayName("Deve agregar resumo financeiro por tipo e descricao no banco")
+  void deveAgregarResumoFinanceiroPorTipoEDescricaoNoBanco() {
+    Usuario criador = criarUsuarioComRole("resumo-fin@email.com", "FINANCEIRO");
+
+    Item receitaUm =
+        novoItem(TipoItem.RECEITA, "uploads/itens/resumo-fin-1.pdf", criador, "FINANCEIRO");
+    receitaUm.setDescricao("CONTA FEFC");
+    receitaUm.setValor(new BigDecimal("100.00"));
+
+    Item receitaDois =
+        novoItem(TipoItem.RECEITA, "uploads/itens/resumo-fin-2.pdf", criador, "FINANCEIRO");
+    receitaDois.setDescricao("CONTA FEFC");
+    receitaDois.setValor(new BigDecimal("25.00"));
+
+    Item despesa =
+        novoItem(TipoItem.DESPESA, "uploads/itens/resumo-fin-3.pdf", criador, "FINANCEIRO");
+    despesa.setDescricao("INTERNET");
+    despesa.setValor(new BigDecimal("40.00"));
+
+    itemRepository.save(receitaUm);
+    itemRepository.save(receitaDois);
+    itemRepository.save(despesa);
+
+    List<RelatorioResumoCategoriaRow> rows =
+        itemRepository.findRelatorioResumoCategoriasByRoleNome("FINANCEIRO");
+
+    assertEquals(2, rows.size());
+    assertTrue(
+        rows.stream()
+            .anyMatch(
+                row ->
+                    row.tipo() == TipoItem.RECEITA
+                        && "CONTA FEFC".equals(row.descricao())
+                        && new BigDecimal("125.00").compareTo(row.total()) == 0));
+    assertTrue(
+        rows.stream()
+            .anyMatch(
+                row ->
+                    row.tipo() == TipoItem.DESPESA
+                        && "INTERNET".equals(row.descricao())
+                        && new BigDecimal("40.00").compareTo(row.total()) == 0));
   }
 
   private Usuario criarUsuarioComRole(String email, String roleNome) {

@@ -5,7 +5,7 @@ import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
-import com.sistema_contabilidade.relatorio.dto.RelatorioResumoItemRow;
+import com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.Normalizer;
@@ -52,10 +52,10 @@ final class RelatorioFinanceiroConsolidador {
   }
 
   static RelatorioFinanceiroResumoResponse buildSummaryResponse(
-      List<RelatorioResumoItemRow> itensVisiveis) {
+      List<RelatorioResumoCategoriaRow> itensVisiveis) {
     RelatorioFinanceiroConsolidador consolidador = new RelatorioFinanceiroConsolidador(false);
-    for (RelatorioResumoItemRow item : itensVisiveis) {
-      consolidador.accept(item.tipo(), item.valor(), item.descricao(), null);
+    for (RelatorioResumoCategoriaRow item : itensVisiveis) {
+      consolidador.accept(item.tipo(), item.total(), item.descricao(), null);
     }
     return consolidador.toResumoResponse();
   }

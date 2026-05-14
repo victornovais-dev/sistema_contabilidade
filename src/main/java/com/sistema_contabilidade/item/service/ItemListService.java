@@ -4,12 +4,10 @@ import com.sistema_contabilidade.common.util.CandidateRoleUtils;
 import com.sistema_contabilidade.item.dto.ItemListPageRequest;
 import com.sistema_contabilidade.item.dto.ItemListPageResponse;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
-import com.sistema_contabilidade.item.model.Item;
-import com.sistema_contabilidade.item.repository.ItemListSpecifications;
+import com.sistema_contabilidade.item.repository.ItemListPageQuery;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
-import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -18,7 +16,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -35,7 +32,6 @@ public class ItemListService {
       Sort.by(Sort.Order.desc("horarioCriacao"), Sort.Order.desc("id"));
 
   private final ItemRepository itemRepository;
-  private final UsuarioRepository usuarioRepository;
   private final RoleRepository roleRepository;
   private final InputSanitizer inputSanitizer;
 
@@ -58,8 +54,8 @@ public class ItemListService {
       return ItemListPageResponse.fromPage(Page.empty(pageable));
     }
 
-    Specification<Item> specification =
-        ItemListSpecifications.forList(
+    ItemListPageQuery query =
+        new ItemListPageQuery(
             roleNomesVisiveis,
             request == null ? null : request.getTipo(),
             dataInicio,
@@ -67,14 +63,14 @@ public class ItemListService {
             descricaoExata,
             razaoLike);
 
-    Page<Item> itemPage = itemRepository.findAll(specification, pageable);
+    Page<ItemListResponse> itemPage = itemRepository.findPageForList(query, pageable);
     if (page > DEFAULT_PAGE && itemPage.isEmpty() && itemPage.getTotalPages() > 0) {
       itemPage =
-          itemRepository.findAll(
-              specification, PageRequest.of(itemPage.getTotalPages() - 1, pageSize, DEFAULT_SORT));
+          itemRepository.findPageForList(
+              query, PageRequest.of(itemPage.getTotalPages() - 1, pageSize, DEFAULT_SORT));
     }
 
-    return ItemListPageResponse.fromPage(itemPage.map(ItemListResponse::from));
+    return ItemListPageResponse.fromPage(itemPage);
   }
 
   @Transactional(readOnly = true)
@@ -84,8 +80,7 @@ public class ItemListService {
     }
 
     return CandidateRoleUtils.filterCandidateRoles(
-        ItemAccessUtils.extrairRoleNomes(
-            ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository)));
+        ItemAccessUtils.extrairRoleNomes(authentication));
   }
 
   private Set<String> resolveRoleScope(
@@ -94,9 +89,7 @@ public class ItemListService {
       return roleFiltroNormalizada == null ? null : Set.of(roleFiltroNormalizada);
     }
 
-    Set<String> roleNomesUsuario =
-        ItemAccessUtils.extrairRoleNomes(
-            ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository));
+    Set<String> roleNomesUsuario = ItemAccessUtils.extrairRoleNomes(authentication);
     if (roleNomesUsuario.isEmpty()) {
       return Set.of();
     }
