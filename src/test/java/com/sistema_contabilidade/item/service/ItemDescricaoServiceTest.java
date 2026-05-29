@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.item.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -51,6 +52,32 @@ class ItemDescricaoServiceTest {
     List<String> descricoes = service.listarDescricoesPorTipo(TipoItem.RECEITA);
 
     assertEquals(List.of("CONTA DC", "CONTA FEFC", "CONTA FP", "ESTIMÁVEL"), descricoes);
+  }
+
+  @Test
+  @DisplayName("Deve retornar lista vazia quando tipo nao for informado")
+  void deveRetornarListaVaziaQuandoTipoNaoForInformado() {
+    ItemDescricaoRepository repository = mock(ItemDescricaoRepository.class);
+    ItemDescricaoService service = new ItemDescricaoService(repository);
+
+    List<String> descricoes = service.listarDescricoesPorTipo(null);
+
+    assertTrue(descricoes.isEmpty());
+  }
+
+  @Test
+  @DisplayName("Deve usar catalogo padrao quando repositorio falhar")
+  void deveUsarCatalogoPadraoQuandoRepositorioFalhar() {
+    ItemDescricaoRepository repository = mock(ItemDescricaoRepository.class);
+    when(repository.findByTipoOrderByOrdemAscNomeAsc(TipoItem.RECEITA))
+        .thenThrow(new IllegalStateException("falha simulada"));
+    ItemDescricaoService service = new ItemDescricaoService(repository);
+
+    List<String> descricoes = service.listarDescricoesPorTipo(TipoItem.RECEITA);
+
+    assertEquals(4, descricoes.size());
+    assertEquals(List.of("CONTA DC", "CONTA FEFC", "CONTA FP"), descricoes.subList(0, 3));
+    assertTrue(descricoes.get(3).contains("ESTIM"));
   }
 
   private ItemDescricao descricao(TipoItem tipo, String nome, int ordem) {

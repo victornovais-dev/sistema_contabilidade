@@ -3,6 +3,7 @@ package com.sistema_contabilidade.security.filter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -249,6 +250,49 @@ class JwtAuthFilterTest {
 
     assertNotNull(SecurityContextHolder.getContext().getAuthentication());
     verify(userDetailsService).loadUserById(usuarioId);
+  }
+
+  @Test
+  @DisplayName("Deve limpar cookie de sessao invalida")
+  void deveLimparCookieDeSessaoInvalida() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/home");
+    request.setCookies(new Cookie("SC_SESSION", "sessao-invalida"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+
+    when(sessaoUsuarioService.validarSessao("sessao-invalida"))
+        .thenThrow(
+            new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.UNAUTHORIZED, "Sessao invalida"));
+
+    filter.doFilter(request, response, chain);
+
+    assertNull(SecurityContextHolder.getContext().getAuthentication());
+    Cookie cookieLimpo = response.getCookie("SC_SESSION");
+    assertNotNull(cookieLimpo);
+    assertEquals(0, cookieLimpo.getMaxAge());
+    assertEquals("/", cookieLimpo.getPath());
+  }
+
+  @Test
+  @DisplayName("Deve marcar cookie legado como seguro quando request vier por proxy HTTPS")
+  void deveMarcarCookieLegadoComoSeguroQuandoRequestVierPorProxyHttps() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
+    request.addHeader("X-Forwarded-Proto", "https");
+    request.setCookies(new Cookie("SC_TOKEN", "token-expirado"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+
+    when(jwtService.extractUsername("token-expirado"))
+        .thenThrow(new ExpiredJwtException(null, null, "Token expirado"));
+
+    filter.doFilter(request, response, chain);
+
+    Cookie cookieLimpo = response.getCookie("SC_TOKEN");
+    assertNotNull(cookieLimpo);
+    assertTrue(cookieLimpo.getSecure());
   }
 
   private JwtAuthFilter novoFiltro() {

@@ -2,9 +2,11 @@ package com.sistema_contabilidade.item.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -147,6 +149,57 @@ class ItemListServiceTest {
 
     assertEquals(List.of("FINANCEIRO"), roles);
     verify(roleRepository).findAllRoleNamesOrdered();
+  }
+
+  @Test
+  @DisplayName("Deve retornar pagina vazia quando usuario nao possuir roles visiveis")
+  void deveRetornarPaginaVaziaQuandoUsuarioNaoPossuirRolesVisiveis() {
+    ItemListService service =
+        new ItemListService(itemRepository, roleRepository, new InputSanitizer());
+
+    ItemListPageResponse resultado =
+        service.listarItens(
+            new UsernamePasswordAuthenticationToken("sem-role@email.com", "n/a", List.of()),
+            new ItemListPageRequest());
+
+    assertTrue(resultado.items().isEmpty());
+    verify(itemRepository, never()).findPageForList(any(ItemListPageQuery.class), any());
+  }
+
+  @Test
+  @DisplayName(
+      "Deve reajustar pagina para ultima pagina valida quando pagina solicitada estiver vazia")
+  void deveReajustarPaginaParaUltimaPaginaValidaQuandoPaginaSolicitadaEstiverVazia() {
+    ItemListService service =
+        new ItemListService(itemRepository, roleRepository, new InputSanitizer());
+    ItemListPageRequest request = new ItemListPageRequest();
+    request.setPage(5);
+    request.setPageSize(10);
+    ItemListResponse item = novoResumo("ADMIN");
+    Sort sort = Sort.by(Sort.Order.desc("horarioCriacao"), Sort.Order.desc("id"));
+
+    when(itemRepository.findPageForList(any(ItemListPageQuery.class), any()))
+        .thenReturn(new PageImpl<>(List.of(), PageRequest.of(4, 10, sort), 11))
+        .thenReturn(new PageImpl<>(List.of(item), PageRequest.of(1, 10, sort), 11));
+
+    ItemListPageResponse resultado =
+        service.listarItens(autenticacao("admin@email.com", "ADMIN"), request);
+
+    assertEquals(1, resultado.items().size());
+    verify(itemRepository, times(2)).findPageForList(any(ItemListPageQuery.class), any());
+  }
+
+  @Test
+  @DisplayName("Deve listar roles do proprio usuario quando nao for admin")
+  void listarRolesDisponiveisParaUsuarioComumDeveVirDaAutenticacao() {
+    ItemListService service =
+        new ItemListService(itemRepository, roleRepository, new InputSanitizer());
+
+    List<String> roles =
+        service.listarRolesDisponiveis(autenticacao("operador@email.com", "OPERADOR", "SUPPORT"));
+
+    assertEquals(List.of("OPERADOR"), roles);
+    verify(roleRepository, never()).findAllRoleNamesOrdered();
   }
 
   private UsernamePasswordAuthenticationToken autenticacao(String email, String... roles) {

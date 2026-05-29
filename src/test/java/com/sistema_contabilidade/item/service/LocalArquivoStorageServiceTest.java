@@ -246,4 +246,30 @@ class LocalArquivoStorageServiceTest {
 
     assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
   }
+
+  @Test
+  @DisplayName("Deve remover arquivos ja salvos quando lote falhar")
+  void deveRemoverArquivosJaSalvosQuandoLoteFalhar() {
+    String pastaArquivos = tempDir.resolve("uploads").resolve("itens").toString();
+    LocalArquivoStorageService service = new LocalArquivoStorageService(pastaArquivos);
+    byte[] conteudoValido = pdfValido();
+    byte[] conteudoInvalido = "nao-pdf".getBytes();
+    List<byte[]> arquivos = List.of(conteudoValido, conteudoInvalido);
+    List<String> nomes = List.of("primeiro.pdf", "segundo.pdf");
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> service.salvarPdfs(arquivos, nomes));
+
+    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    assertTrue(
+        Files.notExists(tempDir.resolve("uploads").resolve("itens").resolve("_primeiro.pdf")));
+  }
+
+  @Test
+  @DisplayName("Deve retornar nome padrao quando caminho do arquivo estiver vazio")
+  void deveRetornarNomePadraoQuandoCaminhoDoArquivoEstiverVazio() {
+    LocalArquivoStorageService service = new LocalArquivoStorageService(tempDir.toString());
+
+    assertEquals("arquivo.pdf", service.resolverNomeArquivo(" "));
+  }
 }
