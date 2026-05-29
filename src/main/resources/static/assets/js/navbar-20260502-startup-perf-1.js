@@ -1,7 +1,6 @@
 (() => {
   const root = document.documentElement;
   const navbarRoot = document.querySelector("#navbar-root,[data-navbar-root]");
-  const NAVBAR_VERSION = "20260502-startup-perf-1";
   const roleFilterStorageKey = "sc_home_selected_role";
   let roleVisibilityRefreshScheduled = false;
   let notificationRefreshScheduled = false;
@@ -285,7 +284,7 @@
   const renderNavbar = async () => {
     if (!navbarRoot) return;
     try {
-      const response = await fetch(`/partials/navbar.html?v=${NAVBAR_VERSION}`, {
+      const response = await fetch("/partials/navbar.html", {
         credentials: "same-origin",
       });
       if (!response.ok) throw new Error("Falha ao carregar navbar.");
