@@ -107,6 +107,33 @@ class SecurityConfigCsrfTest {
   }
 
   @Test
+  @DisplayName("Deve redirecionar raiz para login sem autenticacao")
+  void deveRedirecionarRaizParaLoginSemAutenticacao() throws Exception {
+    mockMvc
+        .perform(get("/"))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/login"));
+  }
+
+  @Test
+  @DisplayName("Deve redirecionar raiz para home com usuario autenticado")
+  void deveRedirecionarRaizParaHomeComUsuarioAutenticado() throws Exception {
+    var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
+    when(jwtService.extractUsername("token_manager")).thenReturn("manager@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_manager"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(get("/").cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_manager")))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/home"));
+  }
+
+  @Test
   @DisplayName("Deve redirecionar para 404 ao acessar admin sem role admin")
   void deveRedirecionarPara404AoAcessarAdminSemRoleAdmin() throws Exception {
     var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();

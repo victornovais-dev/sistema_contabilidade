@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -13,6 +15,9 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
 
 @DisplayName("PaginaUsuarioController unit tests")
 class PaginaUsuarioControllerTest {
@@ -46,6 +51,32 @@ class PaginaUsuarioControllerTest {
     String response = invokeTemplatePageMethod(controller, methodName);
 
     assertEquals(templateName, response);
+  }
+
+  @Test
+  @DisplayName("Deve redirecionar raiz para login quando nao autenticado")
+  void deveRedirecionarRaizParaLoginQuandoNaoAutenticado() {
+    PaginaUsuarioController controller = new PaginaUsuarioController();
+    var anonymousAuthentication =
+        new AnonymousAuthenticationToken(
+            "key", "anonymousUser", AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS"));
+
+    String response = controller.rootPage(anonymousAuthentication);
+
+    assertEquals("redirect:/login", response);
+  }
+
+  @Test
+  @DisplayName("Deve redirecionar raiz para home quando autenticado")
+  void deveRedirecionarRaizParaHomeQuandoAutenticado() {
+    PaginaUsuarioController controller = new PaginaUsuarioController();
+    var authentication =
+        new TestingAuthenticationToken("admin@email.com", null, List.of(() -> "ROLE_ADMIN"));
+    authentication.setAuthenticated(true);
+
+    String response = controller.rootPage(authentication);
+
+    assertEquals("redirect:/home", response);
   }
 
   @ParameterizedTest(name = "Deve exigir usuario autenticado para {0}")

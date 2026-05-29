@@ -1,11 +1,14 @@
 package com.sistema_contabilidade.usuario.controller;
 
+import com.sistema_contabilidade.security.util.SecurityPaths;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
@@ -17,6 +20,13 @@ public class PaginaUsuarioController {
   private static final String NOTIFICATION_ROLE_EXPRESSION = "hasAnyRole('ADMIN','CONTABIL')";
   private static final String AUTHENTICATED_EXCEPT_CONTABIL_EXPRESSION =
       "isAuthenticated() and !hasRole('CONTABIL')";
+
+  @GetMapping(SecurityPaths.ROOT_PATH)
+  public String rootPage(Authentication authentication) {
+    return isAuthenticated(authentication)
+        ? "redirect:" + SecurityPaths.ROOT_PATH + "home"
+        : "redirect:" + SecurityPaths.LOGIN_PAGE;
+  }
 
   @GetMapping(value = "/login", produces = MediaType.TEXT_HTML_VALUE)
   public ResponseEntity<Resource> loginPage() {
@@ -84,5 +94,11 @@ public class PaginaUsuarioController {
   @PreAuthorize(ADMIN_ROLE_EXPRESSION)
   public String gerenciarRolesPage() {
     return "gerenciar_roles";
+  }
+
+  private boolean isAuthenticated(Authentication authentication) {
+    return authentication != null
+        && authentication.isAuthenticated()
+        && !(authentication instanceof AnonymousAuthenticationToken);
   }
 }
