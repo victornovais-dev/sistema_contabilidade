@@ -473,6 +473,56 @@ class RelatorioFinanceiroServiceTest {
     assertEquals("Despesa sem descricao", data.despesas().getFirst().categoria());
   }
 
+  @Test
+  @DisplayName("Deve retornar resumo vazio quando usuario nao possuir roles")
+  void deveRetornarResumoVazioQuandoUsuarioNaoPossuirRoles() {
+    RelatorioFinanceiroService service = service();
+
+    RelatorioFinanceiroResumoResponse response =
+        service.gerarResumo(
+            new UsernamePasswordAuthenticationToken("sem-role@email.com", "n/a"), null);
+
+    assertEquals(BigDecimal.ZERO, response.totalReceitas());
+    assertEquals(BigDecimal.ZERO, response.totalDespesas());
+    assertEquals(BigDecimal.ZERO, response.saldoFinal());
+  }
+
+  @Test
+  @DisplayName("Deve usar responsavel padrao ao gerar PDF sem autenticacao")
+  void deveUsarResponsavelPadraoAoGerarPdfSemAutenticacao() {
+    UsuarioRepository usuarioRepository = Mockito.mock(UsuarioRepository.class);
+    PlaywrightPdfService playwrightPdfService = Mockito.mock(PlaywrightPdfService.class);
+    RelatorioFinanceiroService service =
+        new RelatorioFinanceiroService(
+            Mockito.mock(ItemRepository.class),
+            Mockito.mock(RoleRepository.class),
+            usuarioRepository,
+            playwrightPdfService);
+    RelatorioFinanceiroResponse relatorio =
+        new RelatorioFinanceiroResponse(
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            List.of(),
+            List.of());
+    ArgumentCaptor<RelatorioFinanceiroPdfData> captor =
+        ArgumentCaptor.forClass(RelatorioFinanceiroPdfData.class);
+
+    when(playwrightPdfService.generateFinancialReportPdf(captor.capture()))
+        .thenReturn("pdf".getBytes(StandardCharsets.UTF_8));
+
+    service.gerarPdf(null, relatorio);
+
+    assertEquals("Usuario autenticado", captor.getValue().responsavel());
+  }
+
   private RelatorioFinanceiroService service() {
     return new RelatorioFinanceiroService(
         Mockito.mock(ItemRepository.class),

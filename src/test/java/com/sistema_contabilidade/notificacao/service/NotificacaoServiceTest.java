@@ -285,6 +285,27 @@ class NotificacaoServiceTest {
   }
 
   @Test
+  @DisplayName("Deve filtrar notificacoes pela role selecionada do admin")
+  void listarDeveFiltrarNotificacoesPelaRoleSelecionadaDoAdmin() {
+    NotificacaoService service =
+        new NotificacaoService(
+            itemRepository,
+            notificacaoRepository,
+            usuarioRepository,
+            roleRepository,
+            inputSanitizer);
+    when(itemRepository.findReceitasPorRoleNomeOrderByHorarioCriacaoDesc("FINANCEIRO"))
+        .thenReturn(List.of());
+    when(notificacaoRepository.findResumoByRoleNomeOrderByCriadoEmDesc("FINANCEIRO"))
+        .thenReturn(List.of());
+
+    service.listar(autenticacao("admin@email.com", "ADMIN"), "financeiro");
+
+    verify(itemRepository).findReceitasPorRoleNomeOrderByHorarioCriacaoDesc("FINANCEIRO");
+    verify(notificacaoRepository).findResumoByRoleNomeOrderByCriadoEmDesc("FINANCEIRO");
+  }
+
+  @Test
   @DisplayName("Deve retornar roles disponiveis para admin")
   void listarRolesDisponiveisDeveRetornarTodasParaAdmin() {
     NotificacaoService service =
@@ -355,6 +376,44 @@ class NotificacaoServiceTest {
 
     assertTrue(response.limpa());
     assertTrue(notificacao.isLimpa());
+  }
+
+  @Test
+  @DisplayName("Deve ignorar remocao quando itemId for nulo")
+  void removerPorItemIdDeveIgnorarQuandoItemIdForNulo() {
+    NotificacaoService service =
+        new NotificacaoService(
+            itemRepository,
+            notificacaoRepository,
+            usuarioRepository,
+            roleRepository,
+            inputSanitizer);
+
+    service.removerPorItemId(null);
+
+    verify(notificacaoRepository, never()).deleteByItemId(any());
+  }
+
+  @Test
+  @DisplayName("Deve retornar not found ao atualizar limpeza de notificacao inexistente")
+  void atualizarLimpezaDeveRetornarNotFoundQuandoNotificacaoNaoExistir() {
+    NotificacaoService service =
+        new NotificacaoService(
+            itemRepository,
+            notificacaoRepository,
+            usuarioRepository,
+            roleRepository,
+            inputSanitizer);
+    UUID id = UUID.fromString("ffffffff-1111-2222-3333-444444444444");
+
+    when(notificacaoRepository.findById(id)).thenReturn(Optional.empty());
+
+    org.springframework.web.server.ResponseStatusException exception =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            org.springframework.web.server.ResponseStatusException.class,
+            () -> service.atualizarLimpeza(autenticacao("manager@email.com", "MANAGER"), id, true));
+
+    assertEquals(404, exception.getStatusCode().value());
   }
 
   private UsernamePasswordAuthenticationToken autenticacao(String email, String... roles) {
