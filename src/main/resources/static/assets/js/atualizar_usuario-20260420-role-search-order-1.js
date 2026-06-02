@@ -111,6 +111,11 @@ const getAdminUserApiBasePath = () =>
   window.__SC_ROUTE_CONFIG?.adminUserApiBasePath ||
   "/api/v1/usuarios";
 
+const ensureAdminRouteConfig = async () => {
+  await window.SCAuth?.waitUntilReady?.();
+  await window.SCAuth?.loadRouteConfig?.();
+};
+
 if (!getAccessToken()) {
   window.location.href = "/login";
 }
@@ -462,7 +467,7 @@ form.addEventListener("submit", async (event) => {
 const init = async () => {
   renderSelectedRoles();
   try {
-    await window.SCAuth?.waitUntilReady?.();
+    await ensureAdminRouteConfig();
     await loadAvailableRoles();
   } catch (error) {
     showFeedback("error", "Nao foi possivel carregar as roles cadastradas.");

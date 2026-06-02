@@ -13,6 +13,7 @@ import com.sistema_contabilidade.usuario.dto.UsuarioSelfUpdateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -46,6 +48,7 @@ public class UsuarioService {
   private final RbacMapper rbacMapper;
   private final CustomUserDetailsService customUserDetailsService;
   private final InputSanitizer inputSanitizer;
+  private final ObjectProvider<EntityManager> entityManagerProvider;
 
   @Transactional
   public UsuarioDto save(UsuarioCreateRequest usuarioCreateRequest) {
@@ -67,7 +70,7 @@ public class UsuarioService {
   @Transactional
   public UsuarioDto update(UUID id, UsuarioDto usuarioDto) {
     Usuario usuarioAtualizado = usuarioMapper.toEntity(usuarioDto);
-    Usuario usuarioExistente = buscarPorId(id);
+    Usuario usuarioExistente = buscarPorIdParaAlteracao(id);
     String emailAnterior = usuarioExistente.getEmail();
     String nome = inputSanitizer.sanitizeInlineText(usuarioDto.getNome(), CAMPO_NOME, 120);
     String email = inputSanitizer.sanitizeEmail(usuarioDto.getEmail(), CAMPO_EMAIL);
@@ -87,7 +90,7 @@ public class UsuarioService {
 
   @Transactional
   public UsuarioDto updatePerfil(String emailAutenticado, UsuarioSelfUpdateRequest request) {
-    Usuario usuarioExistente = buscarPorEmail(emailAutenticado);
+    Usuario usuarioExistente = buscarPorEmailParaAlteracao(emailAutenticado);
     String emailAnterior = usuarioExistente.getEmail();
     String nome = inputSanitizer.sanitizeInlineText(request.nome(), CAMPO_NOME, 120);
     String email = inputSanitizer.sanitizeEmail(request.email(), CAMPO_EMAIL);
@@ -130,7 +133,7 @@ public class UsuarioService {
   @Transactional
   public UsuarioComRolesDto updateByEmail(UsuarioUpdateByEmailRequest request) {
     String email = inputSanitizer.sanitizeEmail(request.email(), CAMPO_EMAIL);
-    Usuario usuarioExistente = buscarPorEmail(email);
+    Usuario usuarioExistente = buscarPorEmailParaAlteracao(email);
     usuarioExistente.getRoles().clear();
     normalizarRoles(request.roles()).stream()
         .map(this::buscarRole)
@@ -175,6 +178,14 @@ public class UsuarioService {
         .findByEmail(emailNormalizado)
         .orElseThrow(
             () -> new ResponseStatusException(HttpStatus.NOT_FOUND, USUARIO_NAO_ENCONTRADO));
+  }
+
+  private Usuario buscarPorIdParaAlteracao(UUID id) {
+    return recarregarUsuarioComVersaoInicializadaSeNecessario(buscarPorId(id));
+  }
+
+  private Usuario buscarPorEmailParaAlteracao(String email) {
+    return recarregarUsuarioComVersaoInicializadaSeNecessario(buscarPorEmail(email));
   }
 
   private Role buscarRole(String roleNome) {
@@ -231,5 +242,34 @@ public class UsuarioService {
     } catch (DataIntegrityViolationException exception) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "Email ja cadastrado", exception);
     }
+  }
+
+  @SuppressWarnings("PMD.CloseResource")
+  private Usuario recarregarUsuarioComVersaoInicializadaSeNecessario(Usuario usuario) {
+    if (usuario.getId() == null || usuario.getVersion() != null) {
+      return usuario;
+    }
+
+    int linhasAtualizadas = usuarioRepository.initializeVersionIfNull(usuario.getId());
+    EntityManager entityManager = entityManagerProvider.getIfAvailable();
+    if (entityManager == null) {
+      if (linhasAtualizadas > 0) {
+        usuario.setVersion(0L);
+        return usuario;
+      }
+      Long versionAtual = usuarioRepository.findVersionById(usuario.getId()).orElse(0L);
+      usuario.setVersion(versionAtual);
+      return usuario;
+    }
+
+    if (linhasAtualizadas > 0 || usuarioRepository.findVersionById(usuario.getId()).isPresent()) {
+      entityManager.clear();
+      return usuarioRepository
+          .findWithRolesById(usuario.getId())
+          .orElseThrow(
+              () -> new ResponseStatusException(HttpStatus.NOT_FOUND, USUARIO_NAO_ENCONTRADO));
+    }
+
+    throw new ResponseStatusException(HttpStatus.NOT_FOUND, USUARIO_NAO_ENCONTRADO);
   }
 }

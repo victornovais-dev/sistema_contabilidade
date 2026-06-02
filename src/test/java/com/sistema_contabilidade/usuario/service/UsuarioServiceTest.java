@@ -22,6 +22,7 @@ import com.sistema_contabilidade.usuario.dto.UsuarioSelfUpdateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -33,6 +34,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -49,6 +51,7 @@ class UsuarioServiceTest {
   @Mock private UsuarioMapper usuarioMapper;
   @Mock private RbacMapper rbacMapper;
   @Mock private CustomUserDetailsService customUserDetailsService;
+  @Mock private ObjectProvider<EntityManager> entityManagerProvider;
   @Spy private InputSanitizer inputSanitizer = new InputSanitizer();
 
   @InjectMocks private UsuarioService usuarioService;
@@ -530,6 +533,34 @@ class UsuarioServiceTest {
     assertEquals(1, usuario.getRoles().size());
     assertEquals("MARCOS PONTES", usuario.getRoles().iterator().next().getNome());
     assertEquals(1, resultado.getRoles().size());
+    verify(customUserDetailsService).atualizarCacheUsuario(usuario.getId(), "sup@email.com");
+  }
+
+  @Test
+  @DisplayName("Deve normalizar versao nula ao atualizar roles por email")
+  void updateByEmailComVersaoNulaDeveInicializarVersaoLegada() {
+    Usuario usuario =
+        novoUsuario(
+            UUID.fromString("23232323-2323-2323-2323-232323232323"), "Suporte", "sup@email.com");
+    usuario.setVersion(null);
+    UsuarioUpdateByEmailRequest request =
+        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("ADMIN"));
+    UsuarioComRolesDto dto =
+        new UsuarioComRolesDto(
+            usuario.getId(), "Suporte", "sup@email.com", Set.of(new RoleResumoDto(null, "ADMIN")));
+
+    when(usuarioRepository.findByEmail("sup@email.com")).thenReturn(Optional.of(usuario));
+    when(usuarioRepository.initializeVersionIfNull(usuario.getId())).thenReturn(1);
+    when(entityManagerProvider.getIfAvailable()).thenReturn(null);
+    when(roleRepository.findByNomeIgnoreCase("ADMIN")).thenReturn(Optional.of(role("ADMIN")));
+    when(usuarioRepository.save(usuario)).thenReturn(usuario);
+    when(rbacMapper.toUsuarioComRolesDto(usuario)).thenReturn(dto);
+
+    UsuarioComRolesDto resultado = usuarioService.updateByEmail(request);
+
+    assertEquals(0L, usuario.getVersion());
+    assertEquals("sup@email.com", resultado.getEmail());
+    verify(usuarioRepository).initializeVersionIfNull(usuario.getId());
     verify(customUserDetailsService).atualizarCacheUsuario(usuario.getId(), "sup@email.com");
   }
 

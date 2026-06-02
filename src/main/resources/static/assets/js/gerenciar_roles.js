@@ -20,6 +20,11 @@
     window.__SC_ROUTE_CONFIG?.adminApiBasePath ||
     "/api/v1/admin";
 
+  const ensureAdminRouteConfig = async () => {
+    await window.SCAuth?.waitUntilReady?.();
+    await window.SCAuth?.loadRouteConfig?.();
+  };
+
   const showFeedback = (message, type = "") => {
     if (!feedback) return;
     feedback.hidden = false;
@@ -312,7 +317,7 @@
   });
 
   (async () => {
-    await window.SCAuth?.waitUntilReady?.();
+    await ensureAdminRouteConfig();
     await refresh();
   })().catch((error) => {
     showFeedback(
