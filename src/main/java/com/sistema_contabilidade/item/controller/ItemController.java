@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.item.controller;
 
+import com.sistema_contabilidade.common.util.RevenueClassificationUtils;
 import com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog;
 import com.sistema_contabilidade.item.dto.ItemArquivoResponse;
 import com.sistema_contabilidade.item.dto.ItemArquivosUploadRequest;
@@ -28,6 +29,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.validation.Valid;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -90,6 +92,8 @@ public class ItemController {
       "Usuarios CANDIDATO nao podem alterar verificacao de comprovantes.";
   private static final String ANEXO_OBRIGATORIO = "Anexe ao menos um comprovante em PDF.";
   private static final String CPF_DUPLICADO = "Ja existe um item cadastrado com este CPF.";
+  private static final String VALOR_OBRIGATORIO = "Valor e obrigatorio";
+  private static final String DATA_OBRIGATORIA = "Data e obrigatoria";
 
   private final ItemRepository itemRepository;
   private final ItemArquivoRepository itemArquivoRepository;
@@ -107,13 +111,16 @@ public class ItemController {
       Authentication authentication, @Valid @RequestBody ItemUpsertRequest request) {
     Usuario usuarioAutenticado =
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
+    boolean contaFinanceira = isContaFinanceira(request);
     Item item = new Item();
     List<String> arquivosSalvos = List.of();
-    String roleNomeItem = resolverRoleNomeItem(usuarioAutenticado, request.role(), null);
+    validarCamposObrigatorios(request, contaFinanceira);
+    String roleNomeItem =
+        resolverRoleNomeItem(usuarioAutenticado, request.role(), null, contaFinanceira);
     validarDescricaoDisponivel();
     validarAnexoObrigatorioNaCriacao(request);
     validarCpfUnico(request.cnpjCpf(), null);
-    aplicarCamposBase(item, request);
+    aplicarCamposBase(item, request, contaFinanceira);
     item.setCriadoPor(usuarioAutenticado);
     item.setRoleNome(roleNomeItem);
 
@@ -347,11 +354,14 @@ public class ItemController {
     List<String> arquivosNovos = List.of();
     Usuario usuarioAutenticado =
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
+    boolean contaFinanceira = isContaFinanceira(request);
+    validarCamposObrigatorios(request, contaFinanceira);
     String roleNomeItem =
-        resolverRoleNomeItem(usuarioAutenticado, request.role(), item.getRoleNome());
+        resolverRoleNomeItem(
+            usuarioAutenticado, request.role(), item.getRoleNome(), contaFinanceira);
     validarDescricaoDisponivel();
     validarCpfUnico(request.cnpjCpf(), item.getId());
-    aplicarCamposBase(item, request);
+    aplicarCamposBase(item, request, contaFinanceira);
     item.setRoleNome(roleNomeItem);
 
     try {
@@ -499,7 +509,10 @@ public class ItemController {
   }
 
   private String resolverRoleNomeItem(
-      Usuario usuarioAutenticado, String roleRequest, String roleAtualItem) {
+      Usuario usuarioAutenticado,
+      String roleRequest,
+      String roleAtualItem,
+      boolean contaFinanceira) {
     Set<String> roleNomesUsuario = ItemAccessUtils.extrairRoleNomes(usuarioAutenticado);
     boolean usuarioAdmin =
         roleNomesUsuario.contains("ADMIN") || roleNomesUsuario.contains("ROLE_ADMIN");
@@ -523,6 +536,13 @@ public class ItemController {
       return roleAtualNormalizada;
     }
 
+    if (contaFinanceira) {
+      if (usuarioAdmin) {
+        return null;
+      }
+      return roleNomesUsuario.stream().sorted().findFirst().orElse(null);
+    }
+
     if (roleNomesUsuario.size() == SINGLE_ROLE_COUNT) {
       return roleNomesUsuario.iterator().next();
     }
@@ -531,21 +551,45 @@ public class ItemController {
         HttpStatus.BAD_REQUEST, "Selecione a role responsavel por este comprovante.");
   }
 
-  private void aplicarCamposBase(Item item, ItemUpsertRequest request) {
-    item.setValor(request.valor());
-    item.setData(request.data());
+  private void aplicarCamposBase(Item item, ItemUpsertRequest request, boolean contaFinanceira) {
+    item.setValor(contaFinanceira ? BigDecimal.ZERO : request.valor());
+    item.setData(contaFinanceira ? request.horarioCriacao().toLocalDate() : request.data());
     item.setHorarioCriacao(request.horarioCriacao());
     item.setTipo(request.tipo());
     item.setDescricao(inputSanitizer.sanitizeInlineText(request.descricao(), "descricao", 120));
     item.setTipoDocumento(
-        inputSanitizer.sanitizeInlineText(request.tipoDocumento(), "tipoDocumento", 120));
+        contaFinanceira
+            ? null
+            : inputSanitizer.sanitizeInlineText(request.tipoDocumento(), "tipoDocumento", 120));
     item.setNumeroDocumento(
-        inputSanitizer.sanitizeInlineText(request.numeroDocumento(), "numeroDocumento", 50));
+        contaFinanceira
+            ? null
+            : inputSanitizer.sanitizeInlineText(request.numeroDocumento(), "numeroDocumento", 50));
     item.setRazaoSocialNome(
-        inputSanitizer.sanitizeInlineText(request.razaoSocialNome(), "razaoSocialNome", 150));
-    item.setCnpjCpf(inputSanitizer.sanitizeInlineText(request.cnpjCpf(), "cnpjCpf", 32));
+        contaFinanceira
+            ? null
+            : inputSanitizer.sanitizeInlineText(request.razaoSocialNome(), "razaoSocialNome", 150));
+    item.setCnpjCpf(
+        contaFinanceira
+            ? null
+            : inputSanitizer.sanitizeInlineText(request.cnpjCpf(), "cnpjCpf", 32));
     item.setObservacao(
         inputSanitizer.sanitizeMultilineText(request.observacao(), "observacao", 500));
+  }
+
+  private void validarCamposObrigatorios(ItemUpsertRequest request, boolean contaFinanceira) {
+    if (!contaFinanceira && request.valor() == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, VALOR_OBRIGATORIO);
+    }
+    if (!contaFinanceira && request.data() == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, DATA_OBRIGATORIA);
+    }
+  }
+
+  private boolean isContaFinanceira(ItemUpsertRequest request) {
+    return request != null
+        && request.tipo() == TipoItem.RECEITA
+        && RevenueClassificationUtils.isFinancialRevenue(request.descricao());
   }
 
   private void validarAnexoObrigatorioNaCriacao(ItemUpsertRequest request) {

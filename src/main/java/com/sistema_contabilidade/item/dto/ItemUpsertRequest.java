@@ -14,15 +14,14 @@ import java.util.List;
 import java.util.Objects;
 
 public record ItemUpsertRequest(
-    @NotNull(message = "Valor e obrigatorio")
-        @DecimalMin(value = "0.01", message = "Valor deve ser maior que zero")
+    @DecimalMin(value = "0.01", message = "Valor deve ser maior que zero")
         @DecimalMax(value = "10000000.00", message = "Valor nao pode ultrapassar 10 milhoes")
         @Digits(
             integer = 8,
             fraction = 2,
             message = "Valor deve ter no maximo 8 digitos inteiros e 2 decimais")
         BigDecimal valor,
-    @NotNull(message = "Data e obrigatoria") LocalDate data,
+    LocalDate data,
     @NotNull(message = "Horario de criacao e obrigatorio") LocalDateTime horarioCriacao,
     List<byte[]> arquivosPdf,
     List<String> nomesArquivos,

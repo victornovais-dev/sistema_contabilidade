@@ -32,10 +32,48 @@ let settingReceiptFilesProgrammatically = false;
 const descricaoOptionsCache = new Map();
 const EXTRATO_BANCARIO_TYPE = "EXTRATO_BANCARIO";
 const EXTRATO_BANCARIO_DESCRICOES = ["CONTA FEFC", "CONTA FP", "CONTA DC"];
+const BLOCKED_FIELD_MESSAGE = "* Bloqueado";
+const RECEITA_ESTIMAVEL_TIPO_DOCUMENTO_OPTIONS = [
+  "\u00c1gua",
+  "Alimenta\u00e7\u00e3o",
+  "Aluguel de im\u00f3veis",
+  "Aluguel de ve\u00edculos",
+  "Atividades de milit\u00e2ncia e mobiliza\u00e7\u00e3o de rua",
+  "Baixa de estim\u00e1veis em dinheiro",
+  "Combust\u00edveis e lubrificantes",
+  "Cria\u00e7\u00e3o e inclus\u00e3o de p\u00e1ginas na internet",
+  "Doa\u00e7\u00f5es a outros candidatos/partidos",
+  "Encargos financeiros",
+  "Energia el\u00e9trica",
+  "Hospedagem",
+  "Impulsionamento de conte\u00fado",
+  "Internet",
+  "Manuten\u00e7\u00e3o de sites",
+  "Material de campanha (n\u00e3o publicit\u00e1rio)",
+  "Material de expediente",
+  "Multas eleitorais",
+  "Organiza\u00e7\u00e3o de eventos",
+  "Produ\u00e7\u00e3o de jingles, vinhetas e slogans",
+  "Produ\u00e7\u00e3o de material gr\u00e1fico",
+  "Produ\u00e7\u00e3o de programas de r\u00e1dio, TV ou v\u00eddeo",
+  "Publicidade na internet",
+  "Publicidade por carro de som",
+  "Publicidade por materiais impressos",
+  "Remunera\u00e7\u00e3o de pessoal",
+  "Servi\u00e7os advocat\u00edcios",
+  "Servi\u00e7os cont\u00e1beis",
+  "Servi\u00e7os prestados por terceiros",
+  "Softwares e ferramentas digitais",
+  "Taxas banc\u00e1rias",
+  "Telefone",
+  "Transporte ou deslocamento",
+  "Outras despesas",
+];
 const DEFAULT_TIPO_DOCUMENTO_OPTIONS_BY_TIPO = {
   RECEITA: ["Pix", "Transfer\u00eancia", "Cheque", "Dinheiro"],
   DESPESA: ["Nota fiscal", "Fatura", "Boleto", "Outros"],
 };
+const TIPO_DOCUMENTO_SCROLL_THRESHOLD = 7;
 const MAX_VALOR_CENTS = 1000000000;
 const MAX_RAZAO_SOCIAL_LENGTH = 150;
 const MAX_NUMERO_DOCUMENTO_LENGTH = 50;
@@ -125,9 +163,31 @@ const sanitizeNumeroDocumento = (value) =>
 
 const normalizeTipoLancamento = (value) => String(value || "").trim().toUpperCase();
 
+const normalizeDescricaoValue = (value) =>
+  String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
 const resolveApiTipo = (value) => {
   const tipo = normalizeTipoLancamento(value);
   return tipo === EXTRATO_BANCARIO_TYPE ? "RECEITA" : tipo;
+};
+
+const resolveTipoDocumentoSourceTipo = (tipoValue, descricaoValue) => {
+  const tipo = normalizeTipoLancamento(tipoValue);
+  const descricao = normalizeDescricaoValue(descricaoValue);
+  if (tipo === "RECEITA" && descricao === "ESTIMAVEL") {
+    return "DESPESA";
+  }
+  return tipo;
+};
+
+const isReceitaEstimavelTipoDocumento = (tipoValue, descricaoValue) => {
+  const tipo = normalizeTipoLancamento(tipoValue);
+  const descricao = normalizeDescricaoValue(descricaoValue);
+  return tipo === "RECEITA" && (descricao === "ESTIMAVEL" || descricao === "ESTIMAVEIS");
 };
 
 const isSupportedTipoLancamento = (value) => {
@@ -356,6 +416,111 @@ const resetNativeSelect = (selectElement) => {
   selectElement.setCustomValidity("");
 };
 
+const getFieldTitleElement = (fieldElement) => {
+  if (!(fieldElement instanceof HTMLElement)) return null;
+  const titleElement = fieldElement.querySelector(":scope > span");
+  return titleElement instanceof HTMLElement ? titleElement : null;
+};
+
+const blockedFieldIndicators = new Map(
+  [
+    roleField,
+    moneyInput?.closest(".field"),
+    dateInput?.closest(".field"),
+    tipoDocumentoSelect?.closest(".field"),
+    numeroDocumentoInput?.closest(".field"),
+    razaoSocialNomeInput?.closest(".field"),
+    cnpjCpfInput?.closest(".field"),
+  ]
+    .filter((fieldElement) => fieldElement instanceof HTMLElement)
+    .map((fieldElement) => {
+      const indicator = document.createElement("span");
+      indicator.className = "field-blocked-indicator";
+      indicator.textContent = BLOCKED_FIELD_MESSAGE;
+      indicator.hidden = true;
+      getFieldTitleElement(fieldElement)?.appendChild(indicator);
+      return [fieldElement, indicator];
+    }),
+);
+
+const setFieldBlockedIndicatorVisible = (fieldElement, visible) => {
+  const indicator = blockedFieldIndicators.get(fieldElement);
+  if (!indicator) return;
+  indicator.hidden = !visible;
+};
+
+const getAvailableRoleOptions = () =>
+  roleSelect
+    ? Array.from(roleSelect.options)
+        .map((option) => String(option.value || "").trim())
+        .filter((value) => value.length > 0)
+    : [];
+
+const isExtratoBancarioSelected = () =>
+  normalizeTipoLancamento(typeSelect?.value) === EXTRATO_BANCARIO_TYPE;
+
+const setInputDisabled = (inputElement, disabled) => {
+  if (!(inputElement instanceof HTMLInputElement || inputElement instanceof HTMLTextAreaElement)) {
+    return;
+  }
+  inputElement.disabled = disabled;
+  inputElement.setCustomValidity("");
+  if (disabled) {
+    inputElement.value = "";
+  }
+};
+
+const syncRoleFieldAvailability = () => {
+  if (!roleSelect) return;
+  const wrapper = roleSelect.closest("[data-custom-select]");
+  const trigger = wrapper?.querySelector(".custom-select-trigger");
+  const roles = getAvailableRoleOptions();
+  const selectedRole = roles.includes(roleSelect.value) ? roleSelect.value : "";
+  const extratoSelecionado = isExtratoBancarioSelected();
+
+  if (roles.length <= 1) {
+    const singleRole = roles[0] || "";
+    roleSelect.value = singleRole;
+    roleSelect.disabled = true;
+    roleSelect.required = false;
+    if (trigger instanceof HTMLButtonElement) {
+      trigger.disabled = true;
+      trigger.textContent = singleRole || "Role unica";
+    }
+    if (roleField) {
+      roleField.hidden = true;
+    }
+    customRole?.syncFromSelect?.();
+    return;
+  }
+
+  if (extratoSelecionado) {
+    roleSelect.value = selectedRole || roles[0] || "";
+    roleSelect.disabled = true;
+    roleSelect.required = false;
+    if (trigger instanceof HTMLButtonElement) {
+      trigger.disabled = true;
+      trigger.classList.remove("is-invalid");
+    }
+    if (roleField) {
+      roleField.hidden = false;
+    }
+    customRole?.syncFromSelect?.();
+    return;
+  }
+
+  roleSelect.value = selectedRole;
+  roleSelect.disabled = false;
+  roleSelect.required = true;
+  if (trigger instanceof HTMLButtonElement) {
+    trigger.disabled = false;
+  }
+  if (roleField) {
+    roleField.hidden = false;
+  }
+  customRole?.syncFromSelect?.();
+};
+
 const renderRoleOptions = (roles) => {
   if (!roleSelect) return;
   const wrapper = roleSelect.closest("[data-custom-select]");
@@ -444,6 +609,7 @@ const loadRoleOptions = async () => {
 
   const roles = await response.json();
   renderRoleOptions(roles);
+  updateExtratoBancarioFieldState();
 };
 
 const renderDescricaoOptions = (descriptions) => {
@@ -512,6 +678,9 @@ const renderTipoDocumentoOptions = (documentTypes) => {
     menu.appendChild(button);
   });
 
+  menu.dataset.scrollLimit = String(TIPO_DOCUMENTO_SCROLL_THRESHOLD);
+  menu.classList.toggle("is-scroll", ordered.length > TIPO_DOCUMENTO_SCROLL_THRESHOLD);
+
   customTipoDocumento?.syncFromSelect?.();
   customTipoDocumento?.close?.();
 };
@@ -574,6 +743,29 @@ const setTipoDocumentoEnabled = (enabled) => {
   }
 };
 
+const updateExtratoBancarioFieldState = () => {
+  const extratoSelecionado = isExtratoBancarioSelected();
+
+  syncRoleFieldAvailability();
+  setInputDisabled(moneyInput, extratoSelecionado);
+  setInputDisabled(dateInput, extratoSelecionado);
+  setInputDisabled(numeroDocumentoInput, extratoSelecionado);
+  setInputDisabled(razaoSocialNomeInput, extratoSelecionado);
+  setInputDisabled(cnpjCpfInput, extratoSelecionado);
+
+  setFieldBlockedIndicatorVisible(roleField, extratoSelecionado && !roleField?.hidden);
+  setFieldBlockedIndicatorVisible(moneyInput?.closest(".field"), extratoSelecionado);
+  setFieldBlockedIndicatorVisible(dateInput?.closest(".field"), extratoSelecionado);
+  setFieldBlockedIndicatorVisible(tipoDocumentoSelect?.closest(".field"), extratoSelecionado);
+  setFieldBlockedIndicatorVisible(numeroDocumentoInput?.closest(".field"), extratoSelecionado);
+  setFieldBlockedIndicatorVisible(razaoSocialNomeInput?.closest(".field"), extratoSelecionado);
+  setFieldBlockedIndicatorVisible(cnpjCpfInput?.closest(".field"), extratoSelecionado);
+
+  if (extratoSelecionado) {
+    setTipoDocumentoEnabled(false);
+  }
+};
+
 const setTipoDocumentoLoadingState = (loading) => {
   if (!tipoDocumentoSelect) return;
   const wrapper = tipoDocumentoSelect.closest("[data-custom-select]");
@@ -629,10 +821,21 @@ const loadDescricaoOptions = async (tipo) => {
   return normalized;
 };
 
-const loadTipoDocumentoOptions = async (tipo) => {
-  const apiTipo = resolveApiTipo(tipo);
-  if (tipoDocumentoOptionsCache.has(tipo)) {
-    return tipoDocumentoOptionsCache.get(tipo);
+const loadTipoDocumentoOptions = async (tipo, descricaoValue) => {
+  const receitaEstimavel = isReceitaEstimavelTipoDocumento(tipo, descricaoValue);
+  const sourceTipo = resolveTipoDocumentoSourceTipo(tipo, descricaoValue);
+  const apiTipo = resolveApiTipo(sourceTipo);
+  const cacheKey = receitaEstimavel
+    ? "RECEITA::ESTIMAVEL"
+    : `${sourceTipo}::${normalizeDescricaoValue(descricaoValue)}`;
+  if (tipoDocumentoOptionsCache.has(cacheKey)) {
+    return tipoDocumentoOptionsCache.get(cacheKey);
+  }
+
+  if (receitaEstimavel) {
+    const normalized = [...RECEITA_ESTIMAVEL_TIPO_DOCUMENTO_OPTIONS];
+    tipoDocumentoOptionsCache.set(cacheKey, normalized);
+    return normalized;
   }
 
   const accessToken = await getAccessToken();
@@ -662,7 +865,7 @@ const loadTipoDocumentoOptions = async (tipo) => {
 
   const documentTypes = await response.json();
   const normalized = Array.isArray(documentTypes) ? documentTypes : [];
-  tipoDocumentoOptionsCache.set(tipo, normalized);
+  tipoDocumentoOptionsCache.set(cacheKey, normalized);
   return normalized;
 };
 
@@ -671,10 +874,18 @@ const initTipoDocumentoOptions = async () => {
   setTipoDocumentoEnabled(false);
 };
 
-const updateTipoDocumentoByTipo = async (tipoValue) => {
+const updateTipoDocumentoByTipo = async (tipoValue, descricaoValue = descricaoSelect?.value) => {
   const requestId = ++tipoDocumentoRequestSequence;
   const tipo = String(tipoValue || "").trim().toUpperCase();
-  const apiTipo = resolveApiTipo(tipo);
+  const receitaEstimavel = isReceitaEstimavelTipoDocumento(tipo, descricaoValue);
+  const sourceTipo = resolveTipoDocumentoSourceTipo(tipo, descricaoValue);
+  const apiTipo = resolveApiTipo(sourceTipo);
+
+  if (tipo === EXTRATO_BANCARIO_TYPE) {
+    renderTipoDocumentoOptions([]);
+    setTipoDocumentoEnabled(false);
+    return;
+  }
 
   if (apiTipo !== "RECEITA" && apiTipo !== "DESPESA") {
     renderTipoDocumentoOptions([]);
@@ -687,7 +898,7 @@ const updateTipoDocumentoByTipo = async (tipoValue) => {
   setTipoDocumentoLoadingState(true);
 
   try {
-    const documentTypes = await loadTipoDocumentoOptions(tipo);
+    const documentTypes = await loadTipoDocumentoOptions(tipo, descricaoValue);
     if (requestId !== tipoDocumentoRequestSequence) {
       return;
     }
@@ -699,7 +910,9 @@ const updateTipoDocumentoByTipo = async (tipoValue) => {
     if (requestId !== tipoDocumentoRequestSequence) {
       return;
     }
-    const fallback = DEFAULT_TIPO_DOCUMENTO_OPTIONS_BY_TIPO[apiTipo] || [];
+    const fallback = receitaEstimavel
+      ? RECEITA_ESTIMAVEL_TIPO_DOCUMENTO_OPTIONS
+      : DEFAULT_TIPO_DOCUMENTO_OPTIONS_BY_TIPO[apiTipo] || [];
     renderTipoDocumentoOptions(fallback);
     setTipoDocumentoEnabled(fallback.length > 0);
     resetNativeSelect(tipoDocumentoSelect);
@@ -764,12 +977,14 @@ if (typeSelect) {
     if (fileInput) {
       fileInput.setCustomValidity("");
     }
+    updateExtratoBancarioFieldState();
     void updateDescricaoByTipo(typeSelect.value);
-    void updateTipoDocumentoByTipo(typeSelect.value);
+    void updateTipoDocumentoByTipo(typeSelect.value, descricaoSelect?.value);
   });
   void preloadDescricaoOptions();
+  updateExtratoBancarioFieldState();
   void updateDescricaoByTipo(typeSelect.value);
-  void updateTipoDocumentoByTipo(typeSelect.value);
+  void updateTipoDocumentoByTipo(typeSelect.value, descricaoSelect?.value);
 }
 
 if (descricaoSelect) {
@@ -777,6 +992,7 @@ if (descricaoSelect) {
     if (fileInput) {
       fileInput.setCustomValidity("");
     }
+    void updateTipoDocumentoByTipo(typeSelect?.value, descricaoSelect.value);
   });
 }
 
@@ -1308,8 +1524,9 @@ if (form) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     let hasError = false;
+    const extratoSelecionado = isExtratoBancarioSelected();
 
-    if (moneyInput) {
+    if (moneyInput && !moneyInput.disabled) {
       moneyInput.setCustomValidity("");
       const normalized = moneyInput.value || "";
       if (!normalized.trim()) {
@@ -1327,7 +1544,7 @@ if (form) {
       }
     }
 
-    if (dateInput) {
+    if (dateInput && !dateInput.disabled) {
       dateInput.setCustomValidity("");
       const date = parseDate(dateInput.value);
 
@@ -1426,8 +1643,8 @@ if (form) {
     }
 
     if (hasError) {
-      if (moneyInput) moneyInput.reportValidity();
-      if (dateInput) dateInput.reportValidity();
+      if (moneyInput && !moneyInput.disabled) moneyInput.reportValidity();
+      if (dateInput && !dateInput.disabled) dateInput.reportValidity();
       if (fileInput) fileInput.reportValidity();
       if (razaoSocialNomeInput) razaoSocialNomeInput.reportValidity();
       if (numeroDocumentoInput) numeroDocumentoInput.reportValidity();
@@ -1438,7 +1655,7 @@ if (form) {
     }
 
     const files = fileInput.files ? Array.from(fileInput.files) : [];
-    const dataIso = toIsoLocalDate(dateInput.value);
+    const dataIso = extratoSelecionado ? null : toIsoLocalDate(dateInput.value);
     const tipoSelecionado = String(typeSelect?.value || "").trim().toUpperCase();
     if (!isSupportedTipoLancamento(tipoSelecionado)) {
       if (typeSelect) {
@@ -1472,7 +1689,7 @@ if (form) {
       const nomesArquivos = filesToNames(files);
 
       const payload = {
-        valor: moneyToDecimal(moneyInput.value),
+        valor: extratoSelecionado ? null : moneyToDecimal(moneyInput.value),
         data: dataIso,
         horarioCriacao: nowAsLocalDateTime(),
         arquivosPdf,
@@ -1480,10 +1697,10 @@ if (form) {
         tipo,
         role: roleSelecionada || null,
         descricao: descricaoSelect?.value || null,
-        tipoDocumento: tipoDocumentoSelect?.value || null,
-        numeroDocumento: numeroDocumentoInput?.value || null,
-        razaoSocialNome: razaoSocialNomeInput?.value || null,
-        cnpjCpf: cnpjCpfInput?.value || null,
+        tipoDocumento: extratoSelecionado ? null : tipoDocumentoSelect?.value || null,
+        numeroDocumento: extratoSelecionado ? null : numeroDocumentoInput?.value || null,
+        razaoSocialNome: extratoSelecionado ? null : razaoSocialNomeInput?.value || null,
+        cnpjCpf: extratoSelecionado ? null : cnpjCpfInput?.value || null,
         observacao: observacaoInput?.value || null,
       };
 

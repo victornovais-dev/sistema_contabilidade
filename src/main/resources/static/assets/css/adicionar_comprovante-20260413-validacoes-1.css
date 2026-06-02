@@ -326,6 +326,24 @@ html[data-theme="dark"] .theme-icon {
   font-size: 0.95rem;
 }
 
+.field > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.field-blocked-indicator {
+  color: #f0684a;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+html[data-theme="dark"] .field-blocked-indicator {
+  color: #f0684a;
+}
+
 .field-file {
   gap: 10px;
   align-content: start;
@@ -499,6 +517,10 @@ html[data-theme="light"] .date-input::-webkit-calendar-picker-indicator {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+
+.custom-select-menu[data-scroll-limit="7"].is-scroll {
+  max-height: 296px;
 }
 
 .custom-select-menu.is-scroll::-webkit-scrollbar {

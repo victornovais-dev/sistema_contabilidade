@@ -775,6 +775,99 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve permitir criar extrato bancario com campos bloqueados nulos")
+  void criarDevePermitirExtratoBancarioComCamposBloqueadosNulos() throws Exception {
+    UUID id = UUID.fromString("88888888-1234-1234-1234-123456789998");
+    when(usuarioRepository.findByEmail("operador@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("OPERADOR", "OPERATOR")));
+    when(itemRepository.save(any(Item.class)))
+        .thenAnswer(
+            invocation -> {
+              Item persisted = invocation.getArgument(0);
+              persisted.setId(id);
+              return persisted;
+            });
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens")
+                .with(authComRoles("operador@email.com", "OPERATOR"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":null,
+                      "data":null,
+                      "horarioCriacao":"2026-03-15T18:00:00",
+                      "arquivosPdf":["ZHVtbXk="],
+                      "nomesArquivos":["comprovante.pdf"],
+                      "tipo":"RECEITA",
+                      "descricao":"CONTA DC",
+                      "tipoDocumento":"Nota fiscal",
+                      "numeroDocumento":"12345",
+                      "razaoSocialNome":"FORNECEDOR TESTE",
+                      "cnpjCpf":"123.456.789-00",
+                      "observacao":"Extrato de teste"
+                    }
+                    """))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.tipo").value("RECEITA"))
+        .andExpect(jsonPath("$.descricao").value("CONTA DC"))
+        .andExpect(jsonPath("$.valor").value(0))
+        .andExpect(jsonPath("$.data").value("2026-03-15"))
+        .andExpect(jsonPath("$.observacao").value("Extrato de teste"));
+
+    verify(itemRepository)
+        .save(
+            argThat(
+                item ->
+                    new BigDecimal("0").compareTo(item.getValor()) == 0
+                        && LocalDate.of(2026, 3, 15).equals(item.getData())
+                        && "OPERATOR".equals(item.getRoleNome())
+                        && item.getTipoDocumento() == null
+                        && item.getNumeroDocumento() == null
+                        && item.getRazaoSocialNome() == null
+                        && item.getCnpjCpf() == null));
+  }
+
+  @Test
+  @DisplayName("Deve permitir criar extrato bancario sem role para admin")
+  void criarDevePermitirExtratoBancarioSemRoleParaAdmin() throws Exception {
+    UUID id = UUID.fromString("88888888-1234-1234-1234-123456789997");
+    when(usuarioRepository.findByEmail("admin@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("admin", "ADMIN")));
+    when(itemRepository.save(any(Item.class)))
+        .thenAnswer(
+            invocation -> {
+              Item persisted = invocation.getArgument(0);
+              persisted.setId(id);
+              return persisted;
+            });
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens")
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":null,
+                      "data":null,
+                      "horarioCriacao":"2026-03-15T18:00:00",
+                      "arquivosPdf":["ZHVtbXk="],
+                      "nomesArquivos":["comprovante.pdf"],
+                      "tipo":"RECEITA",
+                      "descricao":"CONTA FP"
+                    }
+                    """))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.descricao").value("CONTA FP"));
+
+    verify(itemRepository).save(argThat(item -> item.getRoleNome() == null));
+  }
+
+  @Test
   @DisplayName("Deve retornar 400 ao criar item sem anexo")
   void criarDeveRetornarBadRequestQuandoNaoHouverAnexo() throws Exception {
     when(usuarioRepository.findByEmail("operador@email.com"))

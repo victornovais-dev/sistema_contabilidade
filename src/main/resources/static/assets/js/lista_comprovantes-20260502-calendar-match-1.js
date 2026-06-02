@@ -111,7 +111,7 @@ let uploadErrorEntries = [];
 let razaoFilterDebounceTimer = null;
 let loadItemsRequestSequence = 0;
 
-const RECEITA_DESCRICOES = ["CONTA FEFEC", "CONTA FP", "CONTA DC"];
+const RECEITA_DESCRICOES = ["CONTA FEFEC", "CONTA FP", "CONTA DC", "ESTIMÁVEL"];
 
 const DESPESA_DESCRICOES = [
   "Publicidade por materiais impressos",
