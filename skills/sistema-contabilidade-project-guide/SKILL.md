@@ -20,8 +20,10 @@ Use this skill at the start of work in this repository to avoid rediscovering th
 
 - Treat `src/main/resources/templates` as the first-render server-side UI source of truth.
 - Keep `src/main/resources/static` aligned because the static pages/assets still drive the frontend behavior and fallback flows.
+- Treat `/` as an auth-aware redirect, not a standalone landing page: anonymous users go to `/login`; authenticated users go to `/home`.
 - Expect backend-driven selects and cards in several static pages; check the page JS before assuming hardcoded options.
 - Expect real auth to depend on `SC_SESSION`; `SC_TOKEN` is legacy compatibility, not the primary session path.
+- Expect production auth/CORS to depend on `APP_CORS_ALLOWED_ORIGINS`; missing production domains breaks `/api/v1/auth/refresh` and login with `Invalid CORS request`, even when ALB/DNS/certificate are fine.
 - Expect admin navigation to be hidden behind `AdminRouteService`; legacy `/admin`-style URLs may be intentionally blocked or redirected.
 - For debugging or larger changes, also use the local skills `codex-debug`, `pragmatic-programmer`, and `refactoring-patterns`.
 - For complexity/performance investigations, also consider `cyclomatic-complexity-spring` and `spring-query-monitor`.
@@ -31,6 +33,7 @@ Use this skill at the start of work in this repository to avoid rediscovering th
 - Current list/report performance work already moved key hot paths away from full-entity loading: `lista_comprovantes` uses the dedicated paginated projection path in `ItemListPageRepositoryImpl`, and `relatorios` web summaries aggregate by category in the database via `RelatorioResumoCategoriaRow`.
 - When touching auth caching, remember the runtime proxy gotcha already hit in this repo: SpEL cache keys on proxied methods should prefer positional parameters like `#p0.email` instead of relying on compiled parameter names such as `#usuario.email`.
 - Static asset delivery is currently a real performance concern in prod-like environments: `/assets/**` has been observed with `Cache-Control: no-store` and without HTTP compression, so treat HTML/session responses separately from versioned CSS/JS when investigating Lighthouse or first-paint regressions.
+- Versioned frontend assets now encode the version in the filename (`navbar-...css`, `auth-session-...js`, `lista_comprovantes-...css`) instead of `?v=` query params; keep template/static references synchronized when renaming.
 - The local observability stack lives under `observability/` with Prometheus, Grafana provisioning, dashboard JSON, and alert rules already versioned.
 - Report PDF generation is local to this repo: `relatorio-financeiro.html` + `PlaywrightPdfService` + `ThymeleafTemplateRenderer`.
 - Report web summaries are intentionally lighter than PDF details: the page endpoint returns `RelatorioFinanceiroResumoResponse`; the PDF path still uses the detailed factory.
@@ -48,15 +51,15 @@ Use this skill at the start of work in this repository to avoid rediscovering th
 - Read `src/main/java/com/sistema_contabilidade/monitoring/http/RequestTimingFilter.java` and `src/main/java/com/sistema_contabilidade/monitoring/RequestMonitoringPathUtils.java` when the task affects request timing headers, slow-request logs, or HTTP duration metrics.
 - Read `src/main/java/com/sistema_contabilidade/monitoring/memory/service/MemoryMonitoringService.java`, `src/main/java/com/sistema_contabilidade/monitoring/memory/MemoryMonitoringMetrics.java`, and `src/main/java/com/sistema_contabilidade/monitoring/memory/MemoryMonitoringProperties.java` when the task affects memory pressure diagnostics.
 - Read `src/test/java/com/sistema_contabilidade/monitoring/query/QueryCountAuditIntegrationTest.java` and `QueryCountPrometheusIntegrationTest.java` when the task touches critical endpoint budgets or `/actuator/prometheus`.
-- Read `src/main/java/com/sistema_contabilidade/usuario/controller/PaginaUsuarioController.java` when adding or changing static pages.
+- Read `src/main/java/com/sistema_contabilidade/usuario/controller/PaginaUsuarioController.java` when adding or changing static pages or the root redirect flow.
 - Read `src/main/resources/templates/fragments/navbar.html`, `src/main/resources/static/partials/navbar.html`, `assets/css/navbar.css`, and `assets/js/navbar.js` when changing navbar behavior.
 - Read `src/main/java/com/sistema_contabilidade/auth/controller/AuthController.java` and `src/main/resources/static/assets/js/auth-session.js` when changing login, logout, session bootstrap, refresh, cookies, or redirect behavior.
 - Read `src/main/java/com/sistema_contabilidade/security/service/CustomUserDetailsService.java` when touching login warmup, user-details cache population, or auth-related cache annotations.
 - Read `src/main/java/com/sistema_contabilidade/item/service/PdfUploadSecurityValidator.java` and storage services when the task affects upload, validation, file size, S3/local storage, or download headers.
 - Read `src/main/java/com/sistema_contabilidade/item/service/ItemListService.java`, `ItemListPageQuery.java`, `ItemListPageRepositoryImpl.java`, `ItemListSpecifications.java`, and `ItemRepository.java` when changing the comprovantes list, filters, pagination, or indexes.
 - Read `src/main/java/com/sistema_contabilidade/relatorio/service/RelatorioFinanceiroService.java`, `RelatorioFinanceiroConsolidador.java`, `RelatorioResumoCategoriaRow.java`, `RelatorioFinanceiroPdfDataFactory.java`, `PlaywrightPdfService.java`, and `src/main/resources/templates/relatorio-financeiro.html` when the task affects reports or PDF output.
-- Read `src/main/resources/application.properties`, `application-local.properties`, and `application-prod.properties` when behavior differs by environment, storage, cache, Redis, Actuator, Prometheus, or Docker/RDS.
-- Read static page heads plus `SecurityConfig.java` and any MVC resource config before changing cache/compression strategy for CSS/JS; the repo currently mixes versioned assets with security-driven no-store behavior.
+- Read `src/main/resources/application.properties`, `application-local.properties`, and `application-prod.properties` when behavior differs by environment, storage, cache, Redis, Actuator, Prometheus, Docker/RDS, or production CORS; `app.security.cors.allowed-origins` comes from `APP_CORS_ALLOWED_ORIGINS`.
+- Read static page heads plus `SecurityConfig.java` and any MVC resource config before changing cache/compression strategy for CSS/JS; the repo currently mixes versioned assets with security-driven no-store behavior and now uses filename-based asset versioning instead of query params.
 - Read root `docker-compose.yml` before changing local Redis/container behavior.
 - Read `observability/README.md`, `observability/docker-compose.yml`, and the Grafana/Prometheus provisioning files when the task mentions dashboards, alerts, scrape config, or local telemetry.
 - Read `scripts/sonar-precommit.ps1` and `sonar-project.properties` when the task mentions SonarQube; the script relies on env tokens and those values must stay masked in logs.

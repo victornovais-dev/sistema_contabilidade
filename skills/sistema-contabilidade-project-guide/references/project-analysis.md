@@ -44,6 +44,9 @@
 
 Rotas HTML servidas por `PaginaUsuarioController`:
 
+- `/` redireciona dinamicamente:
+  - anonimo -> `/login`
+  - autenticado -> `/home`
 - `/login`
 - `/criar_usuario`
 - `/atualizar_usuario`
@@ -74,6 +77,10 @@ Arquivos centrais de UI:
 - a sessao principal usa cookie opaco `SC_SESSION`
 - `SC_TOKEN` continua apenas como compatibilidade legada para alguns testes e fluxos antigos
 - `auth-session.js` tambem centraliza cache compartilhado de roles do usuario via `SCAuth.getUserRoles()`
+- assets versionados do frontend agora usam sufixo no nome do arquivo em vez de `?v=`:
+  - exemplo: `auth-session-20260502-startup-perf-1.js`
+  - exemplo: `navbar-20260420-navbar-notification-count-fix-3.css`
+  - exemplo: `lista_comprovantes-20260513-descender-fix-1.css`
 - `auth/routes` e chamadas auxiliares da navbar devem ficar fora do caminho critico da primeira renderizacao quando possivel
 - a navbar precisa ficar sincronizada entre:
   - `src/main/resources/templates/fragments/navbar.html`
@@ -94,6 +101,7 @@ Arquivos centrais de UI:
   - `RequestContextMdcFilter`
 - `PasswordEncoder` preferencial: Argon2, com compatibilidade para hashes antigos
 - `AuthController` limpa o cookie legado e trabalha com `SC_SESSION`
+- `app.security.cors.allowed-origins` vem de `APP_CORS_ALLOWED_ORIGINS`; em producao, dominio ausente nessa env quebra `/api/v1/auth/refresh` e login com `Invalid CORS request`
 - `AdminRouteService` calcula paths secretos a partir de `app.admin.route-secret`
 - `app.admin.route-secret` por padrao deriva de `ADMIN_ROUTE_SECRET` ou `SESSION_CRYPTO_SECRET`
 - ao tocar auth/admin, leia tambem:
@@ -213,6 +221,7 @@ Arquivos centrais de UI:
 
 - `application.properties` importa `.env`
 - profile default: `local`
+- `application.properties` le `app.security.cors.allowed-origins` de `APP_CORS_ALLOWED_ORIGINS`, com fallback local para `http://localhost:3000`
 - `application-local.properties` define:
   - MySQL local
   - `spring.jpa.hibernate.ddl-auto=update`
@@ -223,6 +232,7 @@ Arquivos centrais de UI:
 - root `docker-compose.yml` sobe Redis local em `127.0.0.1:6379` com volume `redis-data`, AOF e healthcheck `redis-cli ping`
 - Cuidado:
   - `.env` pode sobrescrever storage, banco, cache e segredos
+  - em deploy Docker com `docker run --env-file .env`, mudar a `.env` e dar apenas `restart` nao reaplica as variaveis; o container precisa ser recriado
   - nao exponha valores de token, senha ou secret no chat
 
 ## Cache e performance
@@ -233,6 +243,7 @@ Arquivos centrais de UI:
   - `itemDescricoes`
   - `itemTiposDocumento`
 - Redis continua configurado e pode rodar via Docker, mas nao acelera automaticamente a listagem principal de comprovantes enquanto `spring.cache.type=caffeine` e `SistemaContabilidadeApplication.cacheManager()` continuarem usando Caffeine.
+- os assets principais versionados ja migraram de `?v=` para nomes de arquivo versionados, o que simplifica cache de browser/CDN para `/assets/**`
 - Bons candidatos a cache sao dados auxiliares estaveis, como roles disponiveis, descricoes e tipos de documento.
 - A listagem `/api/v1/itens` muda com verificacao, observacao, upload e exclusao; cachear esse endpoint exige invalidacao cuidadosa.
 
