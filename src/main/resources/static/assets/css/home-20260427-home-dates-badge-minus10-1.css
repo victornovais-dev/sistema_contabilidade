@@ -566,6 +566,21 @@ html[data-theme="dark"] .panel-card {
   scrollbar-color: rgba(216, 75, 52, 0.45) transparent;
 }
 
+.important-date-group {
+  display: grid;
+  gap: 10px;
+}
+
+.important-date-group-title {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .important-dates-list::-webkit-scrollbar {
   width: 8px;
 }
@@ -665,6 +680,39 @@ html[data-theme="dark"] .important-date-badge {
   color: var(--muted-strong);
   font-size: 0.89rem;
   line-height: 1.42;
+  font-weight: 600;
+}
+
+.important-date-category {
+  margin: 0 0 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: rgba(216, 75, 52, 0.08);
+  color: #ff7a59;
+  font-size: 0.68rem;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.important-date-description {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.89rem;
+  line-height: 1.42;
+  font-weight: 600;
+}
+
+.important-dates-empty {
+  margin: 0;
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
   font-weight: 600;
 }
 
