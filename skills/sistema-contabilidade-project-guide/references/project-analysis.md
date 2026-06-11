@@ -5,7 +5,9 @@
 - Projeto principal: backend Spring Boot 4.0.3 com Java 25.
 - Build: Maven Wrapper (`.\mvnw`) com Spotless, Checkstyle, SpotBugs, PMD, Error Prone, JaCoCo e ArchUnit.
 - UI atual: primeiro render por Thymeleaf em `src/main/resources/templates`, com JS/CSS e fallbacks em `src/main/resources/static`.
+- Excecao importante: as paginas publicas `/login` e `/primeiro_acesso` sao servidas diretamente de `src/main/resources/static`, enquanto as paginas autenticadas continuam vindo de Thymeleaf.
 - O `frontend-angular/` existe, mas o fluxo principal ainda depende do backend server-side e dos assets estaticos.
+- Em producao, o auth agora e orientado a provider (`local|cognito`), com `application-prod.properties` defaultando para `cognito`.
 
 ## Dependencias relevantes
 
@@ -48,6 +50,7 @@ Rotas HTML servidas por `PaginaUsuarioController`:
   - anonimo -> `/login`
   - autenticado -> `/home`
 - `/login`
+- `/primeiro_acesso`
 - `/criar_usuario`
 - `/atualizar_usuario`
 - `/adicionar_comprovante`
@@ -76,7 +79,10 @@ Arquivos centrais de UI:
 - `auth-session.js` centraliza bootstrap, refresh e logout do frontend autenticado
 - a sessao principal usa cookie opaco `SC_SESSION`
 - `SC_TOKEN` continua apenas como compatibilidade legada para alguns testes e fluxos antigos
+- o primeiro acesso Cognito usa a pagina publica `/primeiro_acesso` e o endpoint `/api/v1/auth/complete-new-password`
+- o login pode responder `202 Accepted` quando o provider retorna `NEW_PASSWORD_REQUIRED`; nesse caso o frontend passa a depender do cookie `SC_LOGIN_CHALLENGE` antes da criacao da sessao normal
 - `auth-session.js` tambem centraliza cache compartilhado de roles do usuario via `SCAuth.getUserRoles()`
+- `GET /api/v1/auth/routes` continua restrito a admin em `SecurityConfig`; `403` no console para usuario nao admin pode ser apenas ruido de frontend e nao necessariamente a causa raiz de um problema de login
 - assets versionados do frontend agora usam sufixo no nome do arquivo em vez de `?v=`:
   - exemplo: `auth-session-20260502-startup-perf-1.js`
   - exemplo: `navbar-20260420-navbar-notification-count-fix-3.css`
@@ -85,8 +91,8 @@ Arquivos centrais de UI:
 - a navbar precisa ficar sincronizada entre:
   - `src/main/resources/templates/fragments/navbar.html`
   - `src/main/resources/static/partials/navbar.html`
-  - `static/assets/js/navbar.js`
-  - `static/assets/css/navbar.css`
+  - `static/assets/js/navbar-20260502-startup-perf-1.js`
+  - `static/assets/css/navbar-20260420-navbar-notification-count-fix-3.css`
 - o badge de notificacoes considera apenas notificacoes nao verificadas
 
 ## Seguranca
@@ -101,9 +107,13 @@ Arquivos centrais de UI:
   - `RequestContextMdcFilter`
 - `PasswordEncoder` preferencial: Argon2, com compatibilidade para hashes antigos
 - `AuthController` limpa o cookie legado e trabalha com `SC_SESSION`
+- `AuthController` tambem pode devolver challenge de primeiro acesso (`NEW_PASSWORD_REQUIRED`) e depende de cookie temporario de challenge ate a troca de senha ser concluida
 - `app.security.cors.allowed-origins` vem de `APP_CORS_ALLOWED_ORIGINS`; em producao, dominio ausente nessa env quebra `/api/v1/auth/refresh` e login com `Invalid CORS request`
 - `AdminRouteService` calcula paths secretos a partir de `app.admin.route-secret`
 - `app.admin.route-secret` por padrao deriva de `ADMIN_ROUTE_SECRET` ou `SESSION_CRYPTO_SECRET`
+- `AuthService` nao fala direto com local/Cognito; ele delega para `AuthProviderStrategyResolver`, que escolhe `LocalAuthProviderStrategy` ou `CognitoAuthProviderStrategy`
+- quando `app.auth.provider=cognito` no profile `prod`, o boot valida `AWS_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_APP_CLIENT_ID`, `SESSION_CRYPTO_SECRET`, `JWT_EC_PRIVATE_KEY` e `JWT_EC_PUBLIC_KEY`
+- `COGNITO_APP_CLIENT_SECRET` continua opcional; se vier configurado, `CognitoSecretHashService` adiciona `SECRET_HASH` nas chamadas ao Cognito
 - ao tocar auth/admin, leia tambem:
   - `SecurityPaths`
   - `AdminRouteService`
@@ -128,6 +138,8 @@ Arquivos centrais de UI:
   - `Extrato Bancario` existe na UI como tipo especial e limita descricao a `CONTA FEFC`, `CONTA FP` e `CONTA DC`
   - `CONTABIL` nao acessa a pagina
   - CPF deve ser unico; CNPJ pode repetir
+- Observacao operacional recente:
+  - o drag-and-drop usa uma area dedicada e nao deve mais consumir `drop` globalmente no documento; isso reduz navegacao acidental/crash ao arrastar arquivo vindo de fontes estranhas, inclusive preview dentro de `.zip`
 - Upload/PDF:
   - validacao binaria de PDF acontece em `PdfUploadSecurityValidator`
   - storage local e S3 usam nomes sanitizados e chave final com UUID
@@ -142,7 +154,9 @@ Arquivos centrais de UI:
   - ordenacao padrao: `horarioCriacao desc, id desc`
   - `descricao` usa filtro exato
   - `razao` usa filtro `like`
-- A consulta paginada passa por `ItemListService`, `ItemListSpecifications` e `ItemRepository.findAll(specification, pageable)`.
+- A consulta paginada passa por `ItemListService` e `ItemListPageRepositoryImpl`.
+- O hot path atual ja foi otimizado para `Slice` e evita `count(*)` por requisicao.
+- A busca textual de `razaoSocialNome` agora usa o campo derivado `razaoSocialBusca`, com tokens normalizados e busca por prefixo; em MySQL/MariaDB o projeto tenta subir para `FULLTEXT` quando o indice existe ou pode ser criado.
 - Indices atuais em `itens`:
   - `idx_itens_horario_id (horario_criacao, id)`
   - `idx_itens_role_horario_id (role_nome, horario_criacao, id)`
@@ -153,6 +167,7 @@ Arquivos centrais de UI:
   - exclusao
   - check de verificacao
 - Regras atuais:
+  - `CONTABIL` pode acessar detalhes e endpoints de leitura/atualizacao do item quando o escopo permitir
   - item verificado nao pode ser excluido
   - `CONTABIL` nao pode excluir
   - `SUPPORT` pode marcar vermelho -> verde, mas nao pode voltar verde -> vermelho
@@ -221,6 +236,8 @@ Arquivos centrais de UI:
 
 - `application.properties` importa `.env`
 - profile default: `local`
+- `application.properties` define `app.auth.provider=${APP_AUTH_PROVIDER:local}`
+- `application-prod.properties` define `app.auth.provider=${APP_AUTH_PROVIDER:cognito}`
 - `application.properties` le `app.security.cors.allowed-origins` de `APP_CORS_ALLOWED_ORIGINS`, com fallback local para `http://localhost:3000`
 - `application-local.properties` define:
   - MySQL local
@@ -233,7 +250,30 @@ Arquivos centrais de UI:
 - Cuidado:
   - `.env` pode sobrescrever storage, banco, cache e segredos
   - em deploy Docker com `docker run --env-file .env`, mudar a `.env` e dar apenas `restart` nao reaplica as variaveis; o container precisa ser recriado
+  - no provider Cognito, `AWS_REGION` ausente derruba o boot antes do app subir
   - nao exponha valores de token, senha ou secret no chat
+
+## Cognito, usuarios e roles
+
+- O login Cognito usa estrategia dedicada em `CognitoAuthProviderStrategy`.
+- O primeiro acesso (`NEW_PASSWORD_REQUIRED`) foi separado em pagina publica `/primeiro_acesso`.
+- O backend sincroniza identidade e memberships do Cognito para a projecao local por:
+  - `CognitoIdentitySyncService`
+  - `CognitoRoleSyncService`
+- `CognitoRoleSyncService` agora cria a `Role` local ausente a partir do grupo do Cognito normalizado, em vez de falhar quando o grupo ainda nao existe no banco.
+- A administracao de usuarios em modo Cognito usa `CognitoUserManagementService`.
+- A tela de criar/atualizar usuario nao deve mais depender apenas da lista local de roles:
+  - `GET /api/v1/admin/roles/disponiveis` mescla roles locais com grupos do Cognito
+  - isso passa por `RoleService.listarRolesDisponiveisParaUsuarios()`
+- O catalogo de candidatos agora e compartilhado:
+  - `CandidateRoleCatalogService` alimenta os filtros e listas de `item`, `notificacao` e `relatorio`
+  - em provider Cognito, ele deriva apenas os grupos com descricao `CANDIDATO`
+- O nome exibido na home pode vir do atributo `name` do Cognito quando o nome local estiver vazio ou igual ao email.
+- Em producao, alguns incidentes recentes nao foram do Cognito em si, mas de dados legados no banco:
+  - `usuarios.version` nulo
+  - `sessoes_usuario.atualizada_em` com zero date
+  - `refresh_token_cifrado` e `groups_snapshot` curtos demais para payload cifrado/snapshot
+- Para o backend listar grupos do Cognito na UI admin, a identidade AWS precisa de permissao `cognito-idp:ListGroups`.
 
 ## Cache e performance
 
@@ -242,10 +282,23 @@ Arquivos centrais de UI:
   - `userDetails`
   - `itemDescricoes`
   - `itemTiposDocumento`
+- `CustomUserDetailsService` aquece e invalida `userDetails` por email e por `id:<uuid>`; mudancas de grupo/role nao devem mais exigir restart do container para aparecerem em novos carregamentos de sessao.
 - Redis continua configurado e pode rodar via Docker, mas nao acelera automaticamente a listagem principal de comprovantes enquanto `spring.cache.type=caffeine` e `SistemaContabilidadeApplication.cacheManager()` continuarem usando Caffeine.
 - os assets principais versionados ja migraram de `?v=` para nomes de arquivo versionados, o que simplifica cache de browser/CDN para `/assets/**`
+- a aplicacao habilita `server.compression` para HTML/CSS/JS/JSON; se a compressao sumir em producao, o problema provavelmente esta no proxy/CDN e nao na configuracao base do Spring
 - Bons candidatos a cache sao dados auxiliares estaveis, como roles disponiveis, descricoes e tipos de documento.
 - A listagem `/api/v1/itens` muda com verificacao, observacao, upload e exclusao; cachear esse endpoint exige invalidacao cuidadosa.
+
+## CloudFront, ALB e DNS
+
+- O projeto ja rodou atras de CloudFront com origin no ALB.
+- Para `/assets/*`, um behavior separado pode precisar de `Origin request policy = Managed-AllViewer`; sem isso, os assets podem voltar `502` mesmo quando o HTML principal responde.
+- O dominio raiz e o `www` podem compartilhar a mesma distribuicao CloudFront.
+- O certificado ideal do CloudFront em `us-east-1` cobre:
+  - `sacsdigital.com.br`
+  - `*.sacsdigital.com.br`
+- So o certificado do CloudFront nao basta para `www`: se o listener do ALB continuar com certificado sem cobertura para `www.sacsdigital.com.br`, o CloudFront pode retornar `502` no hostname `www` ate o certificado da origem tambem ser corrigido.
+- `NS` adicional no Route 53 nao e a solucao para esse cenario; o ajuste real fica em aliases `A`, CloudFront, certificado e listener/origem.
 
 ## Observabilidade e query count
 
