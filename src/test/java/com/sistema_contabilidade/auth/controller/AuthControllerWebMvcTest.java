@@ -8,7 +8,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.sistema_contabilidade.auth.dto.AuthenticatedLoginResult;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
+import com.sistema_contabilidade.auth.service.AuthLoginChallenge;
 import com.sistema_contabilidade.auth.service.AuthService;
+import com.sistema_contabilidade.auth.service.LoginChallengeCookieService;
+import com.sistema_contabilidade.auth.service.LoginFlowResult;
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
@@ -37,14 +40,16 @@ class AuthControllerWebMvcTest {
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private AdminRouteService adminRouteService;
   @MockitoBean private RequestFingerprintService requestFingerprintService;
+  @MockitoBean private LoginChallengeCookieService loginChallengeCookieService;
 
   @Test
   @DisplayName("Deve autenticar no endpoint login")
   void loginDeveRetornarOk() throws Exception {
     when(authService.login(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
         .thenReturn(
-            new AuthenticatedLoginResult(
-                new JwtLoginResponse("token-jwt", "Bearer"), "sessao-token"));
+            LoginFlowResult.authenticated(
+                new AuthenticatedLoginResult(
+                    new JwtLoginResponse("token-jwt", "Bearer"), "sessao-token")));
 
     mockMvc
         .perform(
@@ -65,5 +70,40 @@ class AuthControllerWebMvcTest {
                 .string(
                     HttpHeaders.SET_COOKIE,
                     org.hamcrest.Matchers.containsString("SC_SESSION=sessao-token")));
+  }
+
+  @Test
+  @DisplayName("Deve responder challenge de nova senha no endpoint login")
+  void loginDeveRetornarChallengeDeNovaSenha() throws Exception {
+    AuthLoginChallenge challenge =
+        new AuthLoginChallenge(
+            com.sistema_contabilidade.auth.config.AuthProvider.COGNITO,
+            "NEW_PASSWORD_REQUIRED",
+            "ana@email.com",
+            "challenge-session",
+            "Primeiro acesso detectado. Defina uma nova senha para continuar.");
+    when(authService.login(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+        .thenReturn(LoginFlowResult.challenge(challenge));
+    when(loginChallengeCookieService.createToken(challenge)).thenReturn("challenge-cookie");
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email":"ana@email.com",
+                      "senha":"123456"
+                    }
+                    """))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.challengeRequired").value(true))
+        .andExpect(jsonPath("$.challengeName").value("NEW_PASSWORD_REQUIRED"))
+        .andExpect(
+            header()
+                .string(
+                    HttpHeaders.SET_COOKIE,
+                    org.hamcrest.Matchers.containsString("SC_LOGIN_CHALLENGE=challenge-cookie")));
   }
 }

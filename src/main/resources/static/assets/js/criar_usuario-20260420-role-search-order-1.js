@@ -20,7 +20,10 @@ const selectedRoles = new Set();
 const ROLE_SUPPORT = "SUPPORT";
 const ROLE_MANAGER = "MANAGER";
 const PRIORITY_ROLES = ["ADMIN", "MANAGER", "CONTABIL", "SUPPORT"];
+const ADMIN_ROUTE_CONFIG_ERROR_MESSAGE =
+  "Nao foi possivel carregar as rotas administrativas desta sessao.";
 let availableRoles = [];
+let adminRoutePaths = null;
 
 const readCookie = (name) => {
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -79,19 +82,21 @@ const bindThemeToggle = () => {
 bindThemeToggle();
 
 const getAccessToken = () => localStorage.getItem("sc_access_token");
-const getAdminApiBasePath = () =>
-  window.SCAuth?.getAdminApiBasePath?.() ||
-  window.__SC_ROUTE_CONFIG?.adminApiBasePath ||
-  "/api/v1/admin";
-const getAdminUserApiBasePath = () =>
-  window.SCAuth?.getAdminUserApiBasePath?.() ||
-  window.__SC_ROUTE_CONFIG?.adminUserApiBasePath ||
-  "/api/v1/usuarios";
+const resolveAdminRoutePaths = async (forceRefresh = false) => {
+  if (!forceRefresh && adminRoutePaths) {
+    return adminRoutePaths;
+  }
+  if (!window.SCAuth?.requireAdminRouteConfig) {
+    throw new Error(ADMIN_ROUTE_CONFIG_ERROR_MESSAGE);
+  }
 
-const ensureAdminRouteConfig = async () => {
-  await window.SCAuth?.waitUntilReady?.();
-  await window.SCAuth?.loadRouteConfig?.();
+  adminRoutePaths = await window.SCAuth.requireAdminRouteConfig(forceRefresh);
+  return adminRoutePaths;
 };
+
+window.addEventListener("sc:routes-updated", () => {
+  adminRoutePaths = null;
+});
 
 if (!getAccessToken()) {
   window.location.href = "/login";
@@ -192,7 +197,8 @@ const renderRoleLoadError = (message) => {
 };
 
 const loadAvailableRoles = async () => {
-  const response = await fetch(`${getAdminApiBasePath()}/roles`, {
+  const { adminApiBasePath } = await resolveAdminRoutePaths();
+  const response = await fetch(`${adminApiBasePath}/roles/disponiveis`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${getAccessToken()}`,
@@ -210,7 +216,7 @@ const loadAvailableRoles = async () => {
   }
 
   const data = await response.json().catch(() => []);
-  const roles = Array.isArray(data) ? data.map((item) => item?.nome).filter(Boolean) : [];
+  const roles = Array.isArray(data) ? data.map((item) => String(item || "").trim()).filter(Boolean) : [];
   renderRoleOptions(roles);
 };
 
@@ -367,7 +373,8 @@ form.addEventListener("submit", async (event) => {
     if (!csrfToken) {
       await carregarCsrfToken();
     }
-    const response = await fetch(getAdminUserApiBasePath(), {
+    const { adminUserApiBasePath } = await resolveAdminRoutePaths();
+    const response = await fetch(adminUserApiBasePath, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -401,9 +408,11 @@ renderSelectedRoles();
 
 void (async () => {
   try {
-    await ensureAdminRouteConfig();
+    await resolveAdminRoutePaths();
     await loadAvailableRoles();
   } catch (error) {
-    renderRoleLoadError("Nao foi possivel carregar as roles cadastradas.");
+    renderRoleLoadError(
+      error instanceof Error ? error.message : "Nao foi possivel carregar as roles cadastradas.",
+    );
   }
 })();

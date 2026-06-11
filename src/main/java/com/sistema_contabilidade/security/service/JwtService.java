@@ -27,6 +27,8 @@ public class JwtService {
 
   private static final String EXPECTED_ALGORITHM = "ES256";
   private static final String DEVICE_FINGERPRINT_CLAIM = "deviceFingerprint";
+  private static final String USER_ID_CLAIM = "userId";
+  private static final String COGNITO_SUB_CLAIM = "cognitoSub";
 
   @Value("${app.jwt.ec-private-key:}")
   private String ecPrivateKey;
@@ -66,6 +68,11 @@ public class JwtService {
   }
 
   public String generateToken(UserDetails userDetails, String deviceFingerprint) {
+    return generateToken(userDetails, null, null, deviceFingerprint);
+  }
+
+  public String generateToken(
+      UserDetails userDetails, java.util.UUID userId, String cognitoSub, String deviceFingerprint) {
     Instant now = Instant.now();
     var builder =
         Jwts.builder()
@@ -73,6 +80,12 @@ public class JwtService {
             .issuedAt(Date.from(now))
             .expiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
             .signWith(signingKey, Jwts.SIG.ES256);
+    if (userId != null) {
+      builder.claim(USER_ID_CLAIM, userId.toString());
+    }
+    if (cognitoSub != null && !cognitoSub.isBlank()) {
+      builder.claim(COGNITO_SUB_CLAIM, cognitoSub);
+    }
     if (deviceFingerprint != null && !deviceFingerprint.isBlank()) {
       builder.claim(DEVICE_FINGERPRINT_CLAIM, deviceFingerprint);
     }
@@ -99,6 +112,15 @@ public class JwtService {
 
   public String extractDeviceFingerprint(String token) {
     return extractClaims(token).getPayload().get(DEVICE_FINGERPRINT_CLAIM, String.class);
+  }
+
+  public java.util.UUID extractUserId(String token) {
+    String value = extractClaims(token).getPayload().get(USER_ID_CLAIM, String.class);
+    return value == null || value.isBlank() ? null : java.util.UUID.fromString(value);
+  }
+
+  public String extractCognitoSub(String token) {
+    return extractClaims(token).getPayload().get(COGNITO_SUB_CLAIM, String.class);
   }
 
   private Jws<Claims> extractClaims(String token) {

@@ -4,13 +4,16 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sistema_contabilidade.auth.dto.AuthenticatedLoginResult;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.service.AuthService;
+import com.sistema_contabilidade.auth.service.LoginFlowResult;
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
+import com.sistema_contabilidade.rbac.service.RoleService;
 import com.sistema_contabilidade.relatorio.service.RelatorioFinanceiroService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
@@ -19,6 +22,7 @@ import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import jakarta.servlet.http.Cookie;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,13 +50,67 @@ class SecurityConfigCsrfTest {
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private UsuarioService usuarioService;
+  @MockitoBean private RoleService roleService;
+
+  @Test
+  @DisplayName("Deve exigir autenticacao para descoberta de rotas admin")
+  void deveExigirAutenticacaoParaDescobertaDeRotasAdmin() throws Exception {
+    mockMvc.perform(get("/api/v1/auth/routes")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("Deve bloquear descoberta de rotas admin para perfil nao admin")
+  void deveBloquearDescobertaDeRotasAdminParaNaoAdmin() throws Exception {
+    var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
+    when(jwtService.extractUsername("token_manager")).thenReturn("manager@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_manager"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(
+            get("/api/v1/auth/routes")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_manager")))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("Deve retornar rotas secretas para admin autenticado")
+  void deveRetornarRotasSecretasParaAdminAutenticado() throws Exception {
+    var userDetails = User.withUsername("admin@email.com").password("x").roles("ADMIN").build();
+    when(jwtService.extractUsername("token_admin")).thenReturn("admin@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_admin"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(
+            get("/api/v1/auth/routes")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_admin")))
+        .andExpect(status().isOk())
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath(
+                    "$.adminPagePath")
+                .value(adminRouteService.adminPagePath()))
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath(
+                    "$.adminUserApiBasePath")
+                .value(adminRouteService.adminUserApiBasePath()));
+  }
 
   @Test
   @DisplayName("Deve bloquear login sem token CSRF")
   void deveBloquearLoginSemTokenCsrf() throws Exception {
     when(authService.login(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
         .thenReturn(
-            new AuthenticatedLoginResult(new JwtLoginResponse("token", "Bearer"), "sessao"));
+            LoginFlowResult.authenticated(
+                new AuthenticatedLoginResult(new JwtLoginResponse("token", "Bearer"), "sessao")));
 
     mockMvc
         .perform(
@@ -69,11 +127,187 @@ class SecurityConfigCsrfTest {
   }
 
   @Test
+  @DisplayName("Deve permitir listar roles disponiveis pela rota admin secreta")
+  void devePermitirListarRolesDisponiveisPelaRotaAdminSecreta() throws Exception {
+    var userDetails = User.withUsername("admin@email.com").password("x").roles("ADMIN").build();
+    when(jwtService.extractUsername("token_admin")).thenReturn("admin@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_admin"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
+    when(roleService.listarRolesDisponiveisParaUsuarios())
+        .thenReturn(java.util.List.of("ADMIN", "CONTABIL", "SUPPORT"));
+
+    mockMvc
+        .perform(
+            get(adminRouteService.adminApiBasePath() + "/roles/disponiveis")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_admin")))
+        .andExpect(status().isOk())
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[0]")
+                .value("ADMIN"))
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[2]")
+                .value("SUPPORT"));
+  }
+
+  @Test
+  @DisplayName("Deve buscar usuario por email pela rota secreta de usuarios admin")
+  void deveBuscarUsuarioPorEmailPelaRotaSecretaDeUsuariosAdmin() throws Exception {
+    var userDetails = User.withUsername("admin@email.com").password("x").roles("ADMIN").build();
+    when(jwtService.extractUsername("token_admin")).thenReturn("admin@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_admin"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
+
+    when(usuarioService.findComRolesByEmail("bia@email.com"))
+        .thenReturn(
+            new com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto(
+                UUID.fromString("88888888-8888-8888-8888-888888888888"),
+                "Bia",
+                "bia@email.com",
+                java.util.Set.of(
+                    new com.sistema_contabilidade.rbac.dto.RoleResumoDto(null, "ADMIN"))));
+
+    mockMvc
+        .perform(
+            get(adminRouteService.adminUserApiBasePath() + "/por-email")
+                .param("email", "bia@email.com")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_admin")))
+        .andExpect(status().isOk())
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.email")
+                .value("bia@email.com"))
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath(
+                    "$.roles[0].nome")
+                .value("ADMIN"));
+  }
+
+  @Test
+  @DisplayName("Deve criar usuario pela rota secreta preservando location secreto")
+  void deveCriarUsuarioPelaRotaSecretaPreservandoLocationSecreto() throws Exception {
+    var userDetails = User.withUsername("admin@email.com").password("x").roles("ADMIN").build();
+    when(jwtService.extractUsername("token_admin")).thenReturn("admin@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_admin"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
+
+    UUID usuarioId = UUID.fromString("77777777-7777-7777-7777-777777777777");
+    when(usuarioService.save(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(new UsuarioDto(usuarioId, "Bia", "bia@email.com", null));
+
+    MvcResult csrfResult =
+        mockMvc
+            .perform(
+                get("/api/v1/auth/csrf")
+                    .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_admin")))
+            .andExpect(status().isOk())
+            .andReturn();
+    JsonNode payload = new ObjectMapper().readTree(csrfResult.getResponse().getContentAsString());
+    String csrfToken = payload.required("token").asString();
+    Cookie csrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
+
+    mockMvc
+        .perform(
+            post(adminRouteService.adminUserApiBasePath())
+                .cookie(csrfCookie)
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_admin"))
+                .header("X-CSRF-TOKEN", csrfToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "nome":"Bia",
+                      "email":"bia@email.com",
+                      "senha":"123456",
+                      "roles":["ADMIN"]
+                    }
+                    """))
+        .andExpect(status().isCreated())
+        .andExpect(
+            header()
+                .string(
+                    "Location",
+                    Matchers.endsWith(adminRouteService.adminUserApiBasePath() + "/" + usuarioId)))
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.nome")
+                .value("Bia"));
+  }
+
+  @Test
+  @DisplayName("Deve atualizar usuario por email pela rota secreta de usuarios admin")
+  void deveAtualizarUsuarioPorEmailPelaRotaSecretaDeUsuariosAdmin() throws Exception {
+    var userDetails = User.withUsername("admin@email.com").password("x").roles("ADMIN").build();
+    when(jwtService.extractUsername("token_admin")).thenReturn("admin@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_admin"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
+
+    when(usuarioService.updateByEmail(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(
+            new com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto(
+                UUID.fromString("99999999-9999-9999-9999-999999999999"),
+                "Bia",
+                "bia@email.com",
+                java.util.Set.of(
+                    new com.sistema_contabilidade.rbac.dto.RoleResumoDto(null, "ADMIN"),
+                    new com.sistema_contabilidade.rbac.dto.RoleResumoDto(null, "SUPPORT"))));
+
+    MvcResult csrfResult =
+        mockMvc
+            .perform(
+                get("/api/v1/auth/csrf")
+                    .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_admin")))
+            .andExpect(status().isOk())
+            .andReturn();
+    JsonNode payload = new ObjectMapper().readTree(csrfResult.getResponse().getContentAsString());
+    String csrfToken = payload.required("token").asString();
+    Cookie csrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
+
+    mockMvc
+        .perform(
+            put(adminRouteService.adminUserApiBasePath() + "/por-email")
+                .cookie(csrfCookie)
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_admin"))
+                .header("X-CSRF-TOKEN", csrfToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email":"bia@email.com",
+                      "senha":"123456",
+                      "roles":["ADMIN","SUPPORT"]
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.email")
+                .value("bia@email.com"))
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath(
+                    "$.roles.length()")
+                .value(2));
+  }
+
+  @Test
   @DisplayName("Deve permitir login com token CSRF")
   void devePermitirLoginComTokenCsrf() throws Exception {
     when(authService.login(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
         .thenReturn(
-            new AuthenticatedLoginResult(new JwtLoginResponse("token", "Bearer"), "sessao"));
+            LoginFlowResult.authenticated(
+                new AuthenticatedLoginResult(new JwtLoginResponse("token", "Bearer"), "sessao")));
 
     MvcResult csrfResult =
         mockMvc.perform(get("/api/v1/auth/csrf")).andExpect(status().isOk()).andReturn();
@@ -113,6 +347,12 @@ class SecurityConfigCsrfTest {
         .perform(get("/"))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/login"));
+  }
+
+  @Test
+  @DisplayName("Deve permitir pagina de primeiro acesso sem autenticacao")
+  void devePermitirPaginaDePrimeiroAcessoSemAutenticacao() throws Exception {
+    mockMvc.perform(get("/primeiro_acesso")).andExpect(status().isOk());
   }
 
   @Test

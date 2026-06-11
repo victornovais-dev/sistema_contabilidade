@@ -48,6 +48,7 @@ public class AdminRouteFilter extends OncePerRequestFilter {
         sendNotFound(requestPath, response);
         return;
       }
+      request.setAttribute(SecurityPaths.ORIGINAL_REQUEST_URI_ATTRIBUTE, requestPath);
       filterChain.doFilter(new RewrittenPathRequestWrapper(request, internalPath.get()), response);
       return;
     }

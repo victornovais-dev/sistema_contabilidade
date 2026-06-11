@@ -168,6 +168,7 @@ public class SecurityConfig {
     auth.requestMatchers(
             SecurityPaths.ROOT_PATH,
             SecurityPaths.LOGIN_PAGE,
+            SecurityPaths.FIRST_ACCESS_PAGE,
             SecurityPaths.NOT_FOUND_PAGE,
             SecurityPaths.ERROR_PAGE,
             SecurityPaths.ERROR_PAGE + PATH_WILDCARD,
@@ -191,6 +192,8 @@ public class SecurityConfig {
         .hasRole(ADMIN_ROLE)
         .requestMatchers(STATIC_RESOURCES)
         .permitAll()
+        .requestMatchers(HttpMethod.GET, SecurityPaths.AUTH_ROUTES_API_PATH)
+        .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.AUTH_API_BASE + PATH_WILDCARD)
         .permitAll()
         .requestMatchers(SecurityPaths.USERS_ME_API_PATH)

@@ -3,9 +3,13 @@ package com.sistema_contabilidade.rbac.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.auth.config.AuthProvider;
+import com.sistema_contabilidade.auth.config.AuthProviderProperties;
+import com.sistema_contabilidade.auth.service.CognitoGroupCatalogService;
 import com.sistema_contabilidade.common.mapper.RbacMapper;
 import com.sistema_contabilidade.rbac.dto.PermissaoDto;
 import com.sistema_contabilidade.rbac.dto.RoleDto;
@@ -20,6 +24,7 @@ import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -29,6 +34,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -43,7 +49,10 @@ class RoleServiceTest {
   @Mock private UsuarioRepository usuarioRepository;
   @Mock private RbacMapper rbacMapper;
   @Mock private CustomUserDetailsService customUserDetailsService;
+  @Mock private ObjectProvider<CognitoGroupCatalogService> cognitoGroupCatalogServiceProvider;
+  @Mock private CognitoGroupCatalogService cognitoGroupCatalogService;
   @Spy private InputSanitizer inputSanitizer = new InputSanitizer();
+  @Spy private AuthProviderProperties authProviderProperties = new AuthProviderProperties();
 
   @Test
   @DisplayName("Deve criar role")
@@ -244,6 +253,63 @@ class RoleServiceTest {
     assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
   }
 
+  @Test
+  @DisplayName("Deve listar roles disponiveis mesclando banco local e grupos do Cognito")
+  void deveListarRolesDisponiveisMesclandoBancoECognito() {
+    authProviderProperties.setProvider(AuthProvider.COGNITO);
+    Role admin = new Role();
+    admin.setNome("ADMIN");
+    Role contabil = new Role();
+    contabil.setNome("CONTABIL");
+
+    when(roleRepository.findAll()).thenReturn(List.of(admin, contabil));
+    when(cognitoGroupCatalogServiceProvider.getIfAvailable())
+        .thenReturn(cognitoGroupCatalogService);
+    when(cognitoGroupCatalogService.listNormalizedGroups())
+        .thenReturn(List.of("ADMIN", "SUPPORT", "RAFAEL"));
+
+    List<String> resultado = novoRoleService().listarRolesDisponiveisParaUsuarios();
+
+    assertEquals(List.of("ADMIN", "CONTABIL", "RAFAEL", "SUPPORT"), resultado);
+  }
+
+  @Test
+  @DisplayName("Deve deduplicar roles equivalentes entre banco local e Cognito")
+  void deveDeduplicarRolesEquivalentesEntreBancoLocalECognito() {
+    authProviderProperties.setProvider(AuthProvider.COGNITO);
+    Role roleLocalComAcento = new Role();
+    roleLocalComAcento.setNome("ANDRÉ DO PRADO");
+    Role suporte = new Role();
+    suporte.setNome("SUPPORT");
+
+    when(roleRepository.findAll()).thenReturn(List.of(roleLocalComAcento, suporte));
+    when(cognitoGroupCatalogServiceProvider.getIfAvailable())
+        .thenReturn(cognitoGroupCatalogService);
+    when(cognitoGroupCatalogService.listNormalizedGroups())
+        .thenReturn(List.of("ANDRE DO PRADO", "SUPPORT"));
+
+    List<String> resultado = novoRoleService().listarRolesDisponiveisParaUsuarios();
+
+    assertEquals(List.of("ANDRE DO PRADO", "SUPPORT"), resultado);
+  }
+
+  @Test
+  @DisplayName("Deve listar roles disponiveis so do banco quando provider for local")
+  void deveListarRolesDisponiveisSoDoBancoQuandoProviderForLocal() {
+    authProviderProperties.setProvider(AuthProvider.LOCAL);
+    Role admin = new Role();
+    admin.setNome("ADMIN");
+    Role contabil = new Role();
+    contabil.setNome("CONTABIL");
+
+    when(roleRepository.findAll()).thenReturn(List.of(admin, contabil));
+
+    List<String> resultado = novoRoleService().listarRolesDisponiveisParaUsuarios();
+
+    assertEquals(List.of("ADMIN", "CONTABIL"), resultado);
+    verify(cognitoGroupCatalogServiceProvider, never()).getIfAvailable();
+  }
+
   private RoleService novoRoleService() {
     return new RoleService(
         roleRepository,
@@ -251,6 +317,8 @@ class RoleServiceTest {
         usuarioRepository,
         rbacMapper,
         customUserDetailsService,
-        inputSanitizer);
+        inputSanitizer,
+        authProviderProperties,
+        cognitoGroupCatalogServiceProvider);
   }
 }

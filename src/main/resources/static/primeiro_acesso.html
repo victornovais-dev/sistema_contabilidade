@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Primeiro acesso</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <script src="/assets/js/theme-init-20260414-notificacoes-1.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/css/login.css" />
+    <script src="/assets/js/auth-session-20260502-startup-perf-1.js"></script>
+  </head>
+  <body>
+    <div class="bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="page">
+      <section class="card">
+        <header class="card-header">
+          <span class="chip">Primeiro acesso</span>
+          <h1>Definir nova senha</h1>
+          <p>Finalize o primeiro login criando uma senha permanente.</p>
+        </header>
+
+        <div class="header-actions">
+          <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Alternar tema">
+            <span class="theme-icon" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <form id="first-access-form" class="form" action="#" method="post" accept-charset="UTF-8">
+          <label class="field">
+            <span>E-mail</span>
+            <input
+              id="first-access-email"
+              type="email"
+              name="email"
+              placeholder="voce@empresa.com"
+              autocomplete="username"
+              readonly
+            />
+          </label>
+
+          <label class="field">
+            <span>Nova senha</span>
+            <input
+              id="nova-senha"
+              type="password"
+              name="newPassword"
+              placeholder="Digite a nova senha"
+              autocomplete="new-password"
+              required
+            />
+          </label>
+
+          <label class="field">
+            <span>Confirmar nova senha</span>
+            <input
+              id="confirmar-nova-senha"
+              type="password"
+              name="confirmPassword"
+              placeholder="Repita a nova senha"
+              autocomplete="new-password"
+              required
+            />
+          </label>
+
+          <button id="first-access-submit" class="btn" type="submit">Salvar nova senha</button>
+        </form>
+
+        <p id="first-access-feedback" class="foot" style="margin-top: 12px"></p>
+        <p class="foot"><a class="link" href="/login">Voltar para login</a></p>
+      </section>
+    </main>
+
+    <script src="/assets/js/primeiro_acesso-20260605-cognito-new-password-page-1.js" defer></script>
+  </body>
+</html>

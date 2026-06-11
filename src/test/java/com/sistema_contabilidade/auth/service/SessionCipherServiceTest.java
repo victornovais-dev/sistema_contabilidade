@@ -42,4 +42,18 @@ class SessionCipherServiceTest {
     // Act / Assert
     assertThrows(ResponseStatusException.class, () -> service.decrypt("token-invalido"));
   }
+
+  @Test
+  @DisplayName("Deve criptografar e descriptografar texto arbitrario")
+  void deveCriptografarEDescriptografarTextoArbitrario() {
+    SessionCipherService service = new SessionCipherService();
+    ReflectionTestUtils.setField(service, "cryptoSecret", "0123456789ABCDEF0123456789ABCDEF");
+    ReflectionTestUtils.invokeMethod(service, "validateSecret");
+
+    String token = service.encryptString("refresh-token-seguro");
+    String decifrado = service.decryptString(token);
+
+    assertNotNull(token);
+    assertEquals("refresh-token-seguro", decifrado);
+  }
 }

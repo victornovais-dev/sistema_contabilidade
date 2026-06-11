@@ -1,16 +1,19 @@
 package com.sistema_contabilidade.auth.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.auth.config.AuthProvider;
 import com.sistema_contabilidade.auth.model.SessaoUsuario;
 import com.sistema_contabilidade.auth.repository.SessaoUsuarioRepository;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,6 +61,42 @@ class SessaoUsuarioServiceTest {
     ArgumentCaptor<SessaoUsuario> captor = ArgumentCaptor.forClass(SessaoUsuario.class);
     verify(sessaoUsuarioRepository).save(captor.capture());
     assertEquals(usuarioId, captor.getValue().getUsuarioId());
+  }
+
+  @Test
+  @DisplayName("Deve criar sessao Cognito com refresh token e grupos cifrados")
+  void deveCriarSessaoCognitoComRefreshTokenEGrupos() {
+    ReflectionTestUtils.setField(sessaoUsuarioService, "ttlMinutes", 30L);
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    UUID sessaoId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+
+    when(sessaoUsuarioRepository.save(any(SessaoUsuario.class)))
+        .thenAnswer(
+            invocation -> {
+              SessaoUsuario sessao = invocation.getArgument(0);
+              sessao.setId(sessaoId);
+              return sessao;
+            });
+    when(sessionCipherService.encrypt(sessaoId)).thenReturn("token-criptografado");
+    when(sessionCipherService.encryptString("refresh-token")).thenReturn("refresh-cifrado");
+    SessionCreationRequest request =
+        new SessionCreationRequest(
+            usuarioId,
+            AuthProvider.COGNITO,
+            "ana@email.com",
+            "sub-123",
+            "refresh-token",
+            Set.of("ADMIN", "SUPPORT"),
+            "hash");
+
+    String token = sessaoUsuarioService.criarSessao(request);
+
+    assertEquals("token-criptografado", token);
+    ArgumentCaptor<SessaoUsuario> captor = ArgumentCaptor.forClass(SessaoUsuario.class);
+    verify(sessaoUsuarioRepository).save(captor.capture());
+    assertEquals(AuthProvider.COGNITO, captor.getValue().getAuthProvider());
+    assertEquals("refresh-cifrado", captor.getValue().getRefreshTokenCiphertext());
+    assertEquals("hash", captor.getValue().getGroupsHash());
   }
 
   @Test
@@ -122,6 +161,7 @@ class SessaoUsuarioServiceTest {
     UUID sessaoId = UUID.fromString("22222222-2222-2222-2222-222222222222");
     SessaoUsuario sessao = new SessaoUsuario();
     sessao.setId(sessaoId);
+    sessao.setExpiraEm(LocalDateTime.now().plusMinutes(10));
     sessao.setRevogada(false);
 
     when(sessionCipherService.decrypt("token")).thenReturn(sessaoId);
@@ -146,5 +186,27 @@ class SessaoUsuarioServiceTest {
             ResponseStatusException.class, () -> sessaoUsuarioService.revogarSessao("token"));
 
     assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("Deve descriptografar refresh token da sessao")
+  void deveDescriptografarRefreshTokenDaSessao() {
+    SessaoUsuario sessao = new SessaoUsuario();
+    sessao.setRefreshTokenCiphertext("refresh-cifrado");
+    when(sessionCipherService.decryptString("refresh-cifrado")).thenReturn("refresh-token");
+
+    String refreshToken = sessaoUsuarioService.decryptRefreshToken(sessao);
+
+    assertEquals("refresh-token", refreshToken);
+  }
+
+  @Test
+  @DisplayName("Deve retornar nulo quando sessao nao possui refresh token")
+  void deveRetornarNuloQuandoSessaoNaoPossuiRefreshToken() {
+    SessaoUsuario sessao = new SessaoUsuario();
+
+    String refreshToken = sessaoUsuarioService.decryptRefreshToken(sessao);
+
+    assertNull(refreshToken);
   }
 }

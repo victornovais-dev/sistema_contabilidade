@@ -2,13 +2,19 @@ package com.sistema_contabilidade.usuario.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
@@ -90,6 +96,99 @@ class UsuarioExceptionHandlerTest {
 
     assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
     assertEquals("Email ja cadastrado", response.getBody().message());
+  }
+
+  @Test
+  @DisplayName("Deve registrar error com stacktrace para ResponseStatusException 4xx com causa")
+  void deveRegistrarErrorComStacktraceParaResponseStatusException4xxComCausa() {
+    UsuarioExceptionHandler handler = new UsuarioExceptionHandler();
+    MockHttpServletRequest request =
+        new MockHttpServletRequest("PUT", "/api/v1/usuarios/por-email");
+    ResponseStatusException exception =
+        new ResponseStatusException(
+            HttpStatus.NOT_FOUND,
+            "Usuario nao encontrado no Cognito",
+            new IllegalStateException("aws-cognito"));
+    ListAppender<ILoggingEvent> appender = attachAppender();
+
+    try {
+      ResponseEntity<ErrorResponse> response =
+          handler.handleResponseStatusException(exception, new ServletWebRequest(request));
+
+      assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+      assertEquals(1, appender.list.size());
+      assertEquals(Level.ERROR, appender.list.getFirst().getLevel());
+      assertTrue(
+          appender
+              .list
+              .getFirst()
+              .getFormattedMessage()
+              .contains("Usuario nao encontrado no Cognito"));
+      assertTrue(appender.list.getFirst().getFormattedMessage().contains("status=404"));
+      assertTrue(
+          appender
+              .list
+              .getFirst()
+              .getFormattedMessage()
+              .contains("path=uri=/api/v1/usuarios/por-email"));
+      assertTrue(
+          appender.list.getFirst().getFormattedMessage().contains("cause=IllegalStateException"));
+      assertNotNull(appender.list.getFirst().getThrowableProxy());
+    } finally {
+      detachAppender(appender);
+    }
+  }
+
+  @Test
+  @DisplayName("Deve registrar error com stacktrace para ResponseStatusException 5xx")
+  void deveRegistrarErrorComStacktraceParaResponseStatusException5xx() {
+    UsuarioExceptionHandler handler = new UsuarioExceptionHandler();
+    MockHttpServletRequest request =
+        new MockHttpServletRequest("PUT", "/api/v1/usuarios/por-email");
+    ResponseStatusException exception =
+        new ResponseStatusException(
+            HttpStatus.BAD_GATEWAY,
+            "Falha ao atualizar senha no Cognito",
+            new RuntimeException("downstream"));
+    ListAppender<ILoggingEvent> appender = attachAppender();
+
+    try {
+      ResponseEntity<ErrorResponse> response =
+          handler.handleResponseStatusException(exception, new ServletWebRequest(request));
+
+      assertEquals(HttpStatus.BAD_GATEWAY, response.getStatusCode());
+      assertEquals(1, appender.list.size());
+      assertEquals(Level.ERROR, appender.list.getFirst().getLevel());
+      assertTrue(
+          appender
+              .list
+              .getFirst()
+              .getFormattedMessage()
+              .contains("Falha ao atualizar senha no Cognito"));
+      assertTrue(appender.list.getFirst().getFormattedMessage().contains("status=502"));
+      assertNotNull(appender.list.getFirst().getThrowableProxy());
+    } finally {
+      detachAppender(appender);
+    }
+  }
+
+  @Test
+  @DisplayName("Nao deve registrar log para ResponseStatusException 4xx sem causa")
+  void naoDeveRegistrarLogParaResponseStatusException4xxSemCausa() {
+    UsuarioExceptionHandler handler = new UsuarioExceptionHandler();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
+    ResponseStatusException exception = new ResponseStatusException(HttpStatus.BAD_REQUEST);
+    ListAppender<ILoggingEvent> appender = attachAppender();
+
+    try {
+      ResponseEntity<ErrorResponse> response =
+          handler.handleResponseStatusException(exception, new ServletWebRequest(request));
+
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      assertTrue(appender.list.isEmpty());
+    } finally {
+      detachAppender(appender);
+    }
   }
 
   @Test
@@ -267,5 +366,19 @@ class UsuarioExceptionHandlerTest {
     void dummy(UsuarioCreateRequest request) {
       throw new UnsupportedOperationException("Nao deve ser chamado em teste");
     }
+  }
+
+  private ListAppender<ILoggingEvent> attachAppender() {
+    Logger logger = (Logger) LoggerFactory.getLogger(UsuarioExceptionHandler.class);
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    return appender;
+  }
+
+  private void detachAppender(ListAppender<ILoggingEvent> appender) {
+    Logger logger = (Logger) LoggerFactory.getLogger(UsuarioExceptionHandler.class);
+    logger.detachAppender(appender);
+    appender.stop();
   }
 }

@@ -1,9 +1,14 @@
 package com.sistema_contabilidade.auth.controller;
 
 import com.sistema_contabilidade.auth.dto.AuthenticatedLoginResult;
+import com.sistema_contabilidade.auth.dto.CompleteNewPasswordRequest;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
+import com.sistema_contabilidade.auth.dto.LoginApiResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
+import com.sistema_contabilidade.auth.service.AuthLoginChallenge;
 import com.sistema_contabilidade.auth.service.AuthService;
+import com.sistema_contabilidade.auth.service.LoginChallengeCookieService;
+import com.sistema_contabilidade.auth.service.LoginFlowResult;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.util.SecurityPaths;
 import jakarta.servlet.http.Cookie;
@@ -17,6 +22,7 @@ import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -36,10 +42,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
   private static final String LEGACY_AUTH_COOKIE_NAME = "SC_TOKEN";
+  private static final String CHALLENGE_COOKIE_NAME = "SC_LOGIN_CHALLENGE";
   private static final String COOKIE_SAME_SITE = "Strict";
 
   private final AuthService authService;
   private final AdminRouteService adminRouteService;
+  private final LoginChallengeCookieService loginChallengeCookieService;
 
   @Value("${app.session.cookie-name:SC_SESSION}")
   private String sessionCookieName = "SC_SESSION";
@@ -47,18 +55,59 @@ public class AuthController {
   @Value("${app.session.ttl-minutes:480}")
   private long sessionTtlMinutes = 480L;
 
+  @Value("${app.session.challenge-ttl-minutes:10}")
+  private long challengeTtlMinutes = 10L;
+
   @PostMapping("/login")
-  public ResponseEntity<JwtLoginResponse> login(
+  public ResponseEntity<LoginApiResponse> login(
       @Valid @RequestBody LoginRequest request,
       HttpServletRequest httpRequest,
       HttpServletResponse httpResponse) {
-    AuthenticatedLoginResult loginResult = authService.login(request, httpRequest);
+    LoginFlowResult loginResult = authService.login(request, httpRequest);
+    if (loginResult.challengeRequired()) {
+      httpResponse.addHeader(
+          HttpHeaders.SET_COOKIE,
+          buildChallengeCookie(
+                  loginChallengeCookieService.createToken(loginResult.challenge()), httpRequest)
+              .toString());
+      httpResponse.addHeader(
+          HttpHeaders.SET_COOKIE, clearSessionCookie(httpRequestIsSecure(httpRequest)).toString());
+      httpResponse.addHeader(
+          HttpHeaders.SET_COOKIE,
+          clearLegacyAuthCookie(httpRequestIsSecure(httpRequest)).toString());
+      return ResponseEntity.status(HttpStatus.ACCEPTED)
+          .body(
+              LoginApiResponse.challenge(
+                  loginResult.challenge().challengeName(), loginResult.challenge().message()));
+    }
+    AuthenticatedLoginResult authenticatedResult = loginResult.authenticatedResult();
+    httpResponse.addHeader(
+        HttpHeaders.SET_COOKIE,
+        buildSessionCookie(authenticatedResult.sessionToken(), httpRequest).toString());
+    httpResponse.addHeader(
+        HttpHeaders.SET_COOKIE, clearLegacyAuthCookie(httpRequestIsSecure(httpRequest)).toString());
+    httpResponse.addHeader(
+        HttpHeaders.SET_COOKIE, clearChallengeCookie(httpRequestIsSecure(httpRequest)).toString());
+    return ResponseEntity.ok(LoginApiResponse.authenticated(authenticatedResult.response()));
+  }
+
+  @PostMapping("/complete-new-password")
+  public ResponseEntity<LoginApiResponse> completeNewPassword(
+      @Valid @RequestBody CompleteNewPasswordRequest request,
+      HttpServletRequest httpRequest,
+      HttpServletResponse httpResponse) {
+    AuthLoginChallenge challenge =
+        loginChallengeCookieService.parseToken(resolveChallengeToken(httpRequest));
+    AuthenticatedLoginResult loginResult =
+        authService.completeNewPassword(challenge, request, httpRequest);
     httpResponse.addHeader(
         HttpHeaders.SET_COOKIE,
         buildSessionCookie(loginResult.sessionToken(), httpRequest).toString());
     httpResponse.addHeader(
         HttpHeaders.SET_COOKIE, clearLegacyAuthCookie(httpRequestIsSecure(httpRequest)).toString());
-    return ResponseEntity.ok(loginResult.response());
+    httpResponse.addHeader(
+        HttpHeaders.SET_COOKIE, clearChallengeCookie(httpRequestIsSecure(httpRequest)).toString());
+    return ResponseEntity.ok(LoginApiResponse.authenticated(loginResult.response()));
   }
 
   @PostMapping("/refresh")
@@ -73,6 +122,8 @@ public class AuthController {
         HttpHeaders.SET_COOKIE, clearSessionCookie(httpRequestIsSecure(request)).toString());
     httpResponse.addHeader(
         HttpHeaders.SET_COOKIE, clearLegacyAuthCookie(httpRequestIsSecure(request)).toString());
+    httpResponse.addHeader(
+        HttpHeaders.SET_COOKIE, clearChallengeCookie(httpRequestIsSecure(request)).toString());
     return ResponseEntity.noContent().build();
   }
 
@@ -105,22 +156,24 @@ public class AuthController {
 
   @GetMapping("/routes")
   public ResponseEntity<Map<String, String>> routes(Authentication authentication) {
-    if (authentication == null
-        || authentication.getAuthorities().stream()
-            .map(GrantedAuthority::getAuthority)
-            .noneMatch("ROLE_ADMIN"::equals)) {
-      return ResponseEntity.ok(Map.of());
-    }
     return ResponseEntity.ok(adminRouteService.routeConfig());
   }
 
   private String resolveSessionToken(HttpServletRequest request) {
+    return resolveCookieValue(request, sessionCookieName);
+  }
+
+  private String resolveChallengeToken(HttpServletRequest request) {
+    return resolveCookieValue(request, CHALLENGE_COOKIE_NAME);
+  }
+
+  private String resolveCookieValue(HttpServletRequest request, String cookieName) {
     Cookie[] cookies = request.getCookies();
     if (cookies == null) {
       return null;
     }
     for (Cookie cookie : cookies) {
-      if (sessionCookieName.equals(cookie.getName())) {
+      if (cookieName.equals(cookie.getName())) {
         return cookie.getValue();
       }
     }
@@ -137,12 +190,32 @@ public class AuthController {
         .build();
   }
 
+  private ResponseCookie buildChallengeCookie(String token, HttpServletRequest request) {
+    return ResponseCookie.from(CHALLENGE_COOKIE_NAME, token)
+        .httpOnly(true)
+        .secure(httpRequestIsSecure(request))
+        .sameSite(COOKIE_SAME_SITE)
+        .path(SecurityPaths.AUTH_API_BASE)
+        .maxAge(Duration.ofMinutes(challengeTtlMinutes))
+        .build();
+  }
+
   private ResponseCookie clearSessionCookie(boolean secure) {
     return ResponseCookie.from(sessionCookieName, "")
         .httpOnly(true)
         .secure(secure)
         .sameSite(COOKIE_SAME_SITE)
         .path(SecurityPaths.ROOT_PATH)
+        .maxAge(0)
+        .build();
+  }
+
+  private ResponseCookie clearChallengeCookie(boolean secure) {
+    return ResponseCookie.from(CHALLENGE_COOKIE_NAME, "")
+        .httpOnly(true)
+        .secure(secure)
+        .sameSite(COOKIE_SAME_SITE)
+        .path(SecurityPaths.AUTH_API_BASE)
         .maxAge(0)
         .build();
   }

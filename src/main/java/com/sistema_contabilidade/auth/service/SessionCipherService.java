@@ -4,7 +4,6 @@ import jakarta.annotation.PostConstruct;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.UUID;
 import javax.crypto.Cipher;
@@ -37,13 +36,17 @@ public class SessionCipherService {
   }
 
   public String encrypt(UUID sessionId) {
+    return encryptString(sessionId.toString());
+  }
+
+  public String encryptString(String value) {
     try {
       byte[] iv = new byte[IV_SIZE];
       secureRandom.nextBytes(iv);
 
       Cipher cipher = Cipher.getInstance(ALGORITHM);
       cipher.init(Cipher.ENCRYPT_MODE, keySpec(), new GCMParameterSpec(TAG_BITS, iv));
-      byte[] encrypted = cipher.doFinal(sessionId.toString().getBytes(StandardCharsets.UTF_8));
+      byte[] encrypted = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
 
       byte[] payload =
           ByteBuffer.allocate(iv.length + encrypted.length).put(iv).put(encrypted).array();
@@ -56,19 +59,22 @@ public class SessionCipherService {
   }
 
   public UUID decrypt(String token) {
+    return UUID.fromString(decryptString(token));
+  }
+
+  public String decryptString(String token) {
     try {
       byte[] payload = Base64.getUrlDecoder().decode(token);
       if (payload.length <= IV_SIZE) {
         throw new IllegalArgumentException("Token invalido");
       }
 
-      byte[] iv = Arrays.copyOfRange(payload, 0, IV_SIZE);
-      byte[] encrypted = Arrays.copyOfRange(payload, IV_SIZE, payload.length);
+      byte[] iv = java.util.Arrays.copyOfRange(payload, 0, IV_SIZE);
+      byte[] encrypted = java.util.Arrays.copyOfRange(payload, IV_SIZE, payload.length);
 
       Cipher cipher = Cipher.getInstance(ALGORITHM);
       cipher.init(Cipher.DECRYPT_MODE, keySpec(), new GCMParameterSpec(TAG_BITS, iv));
-      String decrypted = new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
-      return UUID.fromString(decrypted);
+      return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
     } catch (Exception ex) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessao invalida", ex);
     }

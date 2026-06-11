@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -40,18 +41,39 @@ public class CustomUserDetailsService implements UserDetailsService {
     return new CachedUserDetails(usuario.getEmail(), usuario.getSenha(), authorities);
   }
 
-  @CachePut(value = USER_DETAILS_CACHE, key = "#p1")
+  @Cacheable(value = USER_DETAILS_CACHE, key = "'cognitoSub:' + #p0")
+  public UserDetails loadUserByCognitoSub(String cognitoSub) {
+    Usuario usuario = buscarUsuarioPorCognitoSub(cognitoSub);
+    Collection<GrantedAuthority> authorities = authoritiesFromDb(usuario);
+    return new CachedUserDetails(usuario.getEmail(), usuario.getSenha(), authorities);
+  }
+
+  @Caching(
+      evict = @CacheEvict(value = USER_DETAILS_CACHE, allEntries = true, beforeInvocation = true),
+      put = {
+        @CachePut(value = USER_DETAILS_CACHE, key = "#p1"),
+        @CachePut(value = USER_DETAILS_CACHE, key = "'id:' + #p0")
+      })
   public UserDetails atualizarCacheUsuario(UUID usuarioId, String username) {
     Usuario usuario = buscarUsuarioPorEmail(username);
     return buildUserDetails(usuario);
   }
 
-  @CachePut(value = USER_DETAILS_CACHE, key = "#p0.email")
+  @Caching(
+      evict = @CacheEvict(value = USER_DETAILS_CACHE, allEntries = true, beforeInvocation = true),
+      put = {
+        @CachePut(value = USER_DETAILS_CACHE, key = "#p0.email"),
+        @CachePut(value = USER_DETAILS_CACHE, key = "'id:' + #p0.id")
+      })
   public UserDetails aquecerCacheUsuario(Usuario usuario) {
     return buildUserDetails(usuario);
   }
 
-  @CacheEvict(value = USER_DETAILS_CACHE, key = "#p1")
+  @Caching(
+      evict = {
+        @CacheEvict(value = USER_DETAILS_CACHE, key = "#p1"),
+        @CacheEvict(value = USER_DETAILS_CACHE, key = "'id:' + #p0")
+      })
   public void removerCacheUsuario(UUID usuarioId, String username) {
     // No-op intencional: apenas invalida a entrada do cache Caffeine via @CacheEvict.
   }
@@ -71,6 +93,13 @@ public class CustomUserDetailsService implements UserDetailsService {
   private Usuario buscarUsuarioPorId(UUID userId) {
     return usuarioRepository
         .findWithRolesById(userId)
+        .orElseThrow(
+            () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario nao encontrado"));
+  }
+
+  private Usuario buscarUsuarioPorCognitoSub(String cognitoSub) {
+    return usuarioRepository
+        .findByCognitoSub(cognitoSub)
         .orElseThrow(
             () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario nao encontrado"));
   }
@@ -105,7 +134,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     private CachedUserDetails(
         String username, String password, Collection<? extends GrantedAuthority> authorities) {
       this.username = username;
-      this.password = password;
+      this.password = password == null ? "" : password;
       this.authorities = List.copyOf(authorities);
     }
 

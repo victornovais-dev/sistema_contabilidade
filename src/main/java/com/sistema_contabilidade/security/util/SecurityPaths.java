@@ -4,9 +4,11 @@ package com.sistema_contabilidade.security.util;
 public final class SecurityPaths {
 
   public static final String HTML_SUFFIX = ".html";
+  public static final String ORIGINAL_REQUEST_URI_ATTRIBUTE = "sc.originalRequestUri";
   public static final String API_V1_PREFIX = "/api/v1";
   public static final String ROOT_PATH = "/";
   public static final String LOGIN_PAGE = "/login";
+  public static final String FIRST_ACCESS_PAGE = "/primeiro_acesso";
   public static final String NOT_FOUND_PAGE = "/404";
   public static final String ERROR_PAGE = "/error";
   public static final String FAVICON_PATH = "/favicon.ico";
@@ -24,6 +26,7 @@ public final class SecurityPaths {
   public static final String NOTIFICATIONS_PAGE = "/notificacoes";
   public static final String NOTIFICATIONS_PAGE_HTML = NOTIFICATIONS_PAGE + HTML_SUFFIX;
   public static final String AUTH_API_BASE = API_V1_PREFIX + "/auth";
+  public static final String AUTH_ROUTES_API_PATH = AUTH_API_BASE + "/routes";
   public static final String USERS_API_BASE = API_V1_PREFIX + "/usuarios";
   public static final String USERS_ME_API_PATH = USERS_API_BASE + "/me";
   public static final String ADMIN_API_BASE = API_V1_PREFIX + ADMIN_PAGE;

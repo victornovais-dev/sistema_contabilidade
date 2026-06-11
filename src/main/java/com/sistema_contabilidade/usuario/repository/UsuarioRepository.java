@@ -16,11 +16,20 @@ import org.springframework.transaction.annotation.Transactional;
 public interface UsuarioRepository
     extends JpaRepository<Usuario, UUID>, JpaSpecificationExecutor<Usuario> {
 
-  @EntityGraph(attributePaths = {"roles", "roles.permissoes"})
+  String ROLE_ATTRIBUTE = "roles";
+  String ROLE_PERMISSION_ATTRIBUTE = "roles.permissoes";
+
+  @EntityGraph(attributePaths = {ROLE_ATTRIBUTE, ROLE_PERMISSION_ATTRIBUTE})
   Optional<Usuario> findByEmail(String email);
 
-  @EntityGraph(attributePaths = {"roles", "roles.permissoes"})
+  @EntityGraph(attributePaths = {ROLE_ATTRIBUTE, ROLE_PERMISSION_ATTRIBUTE})
   Optional<Usuario> findWithRolesById(UUID id);
+
+  @EntityGraph(attributePaths = {ROLE_ATTRIBUTE, ROLE_PERMISSION_ATTRIBUTE})
+  Optional<Usuario> findByCognitoSub(String cognitoSub);
+
+  @EntityGraph(attributePaths = {ROLE_ATTRIBUTE, ROLE_PERMISSION_ATTRIBUTE})
+  Optional<Usuario> findByCognitoUsername(String cognitoUsername);
 
   @Transactional
   @Modifying
@@ -33,4 +42,6 @@ public interface UsuarioRepository
   Optional<Long> findVersionById(@Param("id") UUID id);
 
   boolean existsByEmail(String email);
+
+  boolean existsByCognitoSub(String cognitoSub);
 }

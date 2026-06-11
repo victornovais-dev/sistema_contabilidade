@@ -36,6 +36,12 @@ public class AdminController {
     return ResponseEntity.ok(roleService.listarRoles());
   }
 
+  @org.springframework.web.bind.annotation.GetMapping("/roles/disponiveis")
+  @PreAuthorize(ADMIN_ROLE)
+  public ResponseEntity<List<String>> listarRolesDisponiveisParaUsuarios() {
+    return ResponseEntity.ok(roleService.listarRolesDisponiveisParaUsuarios());
+  }
+
   @org.springframework.web.bind.annotation.GetMapping("/permissoes")
   @PreAuthorize(ADMIN_ROLE)
   public ResponseEntity<List<PermissaoDto>> listarPermissoes() {

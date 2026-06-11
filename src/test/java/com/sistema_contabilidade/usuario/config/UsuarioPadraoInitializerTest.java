@@ -7,6 +7,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.auth.config.AuthProvider;
+import com.sistema_contabilidade.auth.config.AuthProviderProperties;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.usuario.model.Usuario;
@@ -26,6 +28,7 @@ class UsuarioPadraoInitializerTest {
     UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
     RoleRepository roleRepository = mock(RoleRepository.class);
     PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+    AuthProviderProperties authProviderProperties = new AuthProviderProperties();
     Role roleAdmin = new Role();
     roleAdmin.setNome("ADMIN");
 
@@ -38,6 +41,7 @@ class UsuarioPadraoInitializerTest {
             usuarioRepository,
             roleRepository,
             passwordEncoder,
+            authProviderProperties,
             "Administrador Inicial",
             "admin@sistema.local",
             "senha-inicial-segura");
@@ -59,6 +63,7 @@ class UsuarioPadraoInitializerTest {
     UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
     RoleRepository roleRepository = mock(RoleRepository.class);
     PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+    AuthProviderProperties authProviderProperties = new AuthProviderProperties();
 
     when(usuarioRepository.count()).thenReturn(1L);
 
@@ -67,6 +72,7 @@ class UsuarioPadraoInitializerTest {
             usuarioRepository,
             roleRepository,
             passwordEncoder,
+            authProviderProperties,
             "Administrador Inicial",
             "admin@sistema.local",
             "senha-inicial-segura");
@@ -84,6 +90,7 @@ class UsuarioPadraoInitializerTest {
     UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
     RoleRepository roleRepository = mock(RoleRepository.class);
     PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+    AuthProviderProperties authProviderProperties = new AuthProviderProperties();
 
     when(usuarioRepository.count()).thenReturn(0L);
 
@@ -92,6 +99,7 @@ class UsuarioPadraoInitializerTest {
             usuarioRepository,
             roleRepository,
             passwordEncoder,
+            authProviderProperties,
             "Administrador",
             "admin@sistema.local",
             " ");
@@ -101,5 +109,30 @@ class UsuarioPadraoInitializerTest {
     verify(usuarioRepository, never()).save(org.mockito.ArgumentMatchers.any(Usuario.class));
     verify(roleRepository, never()).findByNome(org.mockito.ArgumentMatchers.anyString());
     verify(passwordEncoder, never()).encode(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  @DisplayName("Nao deve criar usuario padrao quando provider ativo for Cognito")
+  void naoDeveCriarUsuarioPadraoQuandoProviderForCognito() {
+    UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
+    RoleRepository roleRepository = mock(RoleRepository.class);
+    PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+    AuthProviderProperties authProviderProperties = new AuthProviderProperties();
+    authProviderProperties.setProvider(AuthProvider.COGNITO);
+
+    UsuarioPadraoInitializer initializer =
+        new UsuarioPadraoInitializer(
+            usuarioRepository,
+            roleRepository,
+            passwordEncoder,
+            authProviderProperties,
+            "Administrador",
+            "admin@sistema.local",
+            "senha-segura");
+
+    initializer.run();
+
+    verify(usuarioRepository, never()).count();
+    verify(usuarioRepository, never()).save(org.mockito.ArgumentMatchers.any(Usuario.class));
   }
 }

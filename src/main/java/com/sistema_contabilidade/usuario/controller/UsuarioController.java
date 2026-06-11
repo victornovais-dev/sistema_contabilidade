@@ -28,6 +28,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
@@ -45,11 +47,7 @@ public class UsuarioController {
   @PreAuthorize(ADMIN_EXPRESSION)
   public ResponseEntity<UsuarioDto> criar(@Valid @RequestBody UsuarioCreateRequest request) {
     UsuarioDto criado = usuarioService.save(request);
-    URI location =
-        ServletUriComponentsBuilder.fromCurrentRequest()
-            .path(ID_PATH)
-            .buildAndExpand(criado.getId())
-            .toUri();
+    URI location = buildCreateLocation(criado.getId());
     return ResponseEntity.created(location).body(criado);
   }
 
@@ -108,5 +106,29 @@ public class UsuarioController {
   public ResponseEntity<Void> deletar(@PathVariable("id") UUID id) {
     usuarioService.deletar(id);
     return ResponseEntity.noContent().build();
+  }
+
+  private URI buildCreateLocation(UUID usuarioId) {
+    ServletRequestAttributes requestAttributes =
+        (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+    if (requestAttributes == null) {
+      return URI.create(SecurityPaths.USERS_API_BASE + "/" + usuarioId);
+    }
+
+    Object originalRequestUriAttribute =
+        requestAttributes.getRequest().getAttribute(SecurityPaths.ORIGINAL_REQUEST_URI_ATTRIBUTE);
+    if (originalRequestUriAttribute instanceof String originalRequestUri
+        && !originalRequestUri.isBlank()) {
+      return ServletUriComponentsBuilder.fromCurrentContextPath()
+          .path(originalRequestUri)
+          .path(ID_PATH)
+          .buildAndExpand(usuarioId)
+          .toUri();
+    }
+
+    return ServletUriComponentsBuilder.fromCurrentRequest()
+        .path(ID_PATH)
+        .buildAndExpand(usuarioId)
+        .toUri();
   }
 }

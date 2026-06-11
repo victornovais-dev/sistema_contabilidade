@@ -17,6 +17,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.ObjectProvider;
 
 @DisplayName("PlaywrightPdfService unit tests")
 class PlaywrightPdfServiceTest {
@@ -28,7 +29,8 @@ class PlaywrightPdfServiceTest {
     BrowserContext browserContext = Mockito.mock(BrowserContext.class);
     Page page = Mockito.mock(Page.class);
     ThymeleafTemplateRenderer templateRenderer = Mockito.mock(ThymeleafTemplateRenderer.class);
-    PlaywrightPdfService service = new PlaywrightPdfService(browser, templateRenderer);
+    PlaywrightPdfService service =
+        new PlaywrightPdfService(browserProvider(browser), templateRenderer);
     RelatorioFinanceiroPdfData data = sampleData();
     byte[] pdf = "pdf".getBytes(StandardCharsets.UTF_8);
 
@@ -53,7 +55,8 @@ class PlaywrightPdfServiceTest {
   void deveEncapsularFalhaDoPlaywrightAoGerarPdf() {
     Browser browser = Mockito.mock(Browser.class);
     ThymeleafTemplateRenderer templateRenderer = Mockito.mock(ThymeleafTemplateRenderer.class);
-    PlaywrightPdfService service = new PlaywrightPdfService(browser, templateRenderer);
+    PlaywrightPdfService service =
+        new PlaywrightPdfService(browserProvider(browser), templateRenderer);
     RelatorioFinanceiroPdfData data = sampleData();
 
     when(templateRenderer.render(
@@ -83,5 +86,29 @@ class PlaywrightPdfServiceTest {
         List.of(),
         List.of(),
         List.of());
+  }
+
+  private ObjectProvider<Browser> browserProvider(Browser browser) {
+    return new ObjectProvider<>() {
+      @Override
+      public Browser getObject() {
+        return browser;
+      }
+
+      @Override
+      public Browser getObject(Object... args) {
+        return browser;
+      }
+
+      @Override
+      public Browser getIfAvailable() {
+        return browser;
+      }
+
+      @Override
+      public Browser getIfUnique() {
+        return browser;
+      }
+    };
   }
 }

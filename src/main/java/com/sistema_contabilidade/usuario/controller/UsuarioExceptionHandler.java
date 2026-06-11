@@ -52,6 +52,7 @@ public class UsuarioExceptionHandler {
   public ResponseEntity<ErrorResponse> handleResponseStatusException(
       ResponseStatusException ex, WebRequest request) {
     HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+    logResponseStatusException(ex, request, status);
     ErrorResponse error =
         new ErrorResponse(
             status.value(),
@@ -152,6 +153,33 @@ public class UsuarioExceptionHandler {
             request.getDescription(false),
             LocalDateTime.now());
     return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  private void logResponseStatusException(
+      ResponseStatusException ex, WebRequest request, HttpStatus status) {
+    if (!status.is5xxServerError() && ex.getCause() == null) {
+      return;
+    }
+    String reason = ex.getReason() == null ? "Erro na requisicao" : ex.getReason();
+    String path = request == null ? "desconhecido" : request.getDescription(false);
+    String causeName = resolveCauseName(ex);
+
+    if (log.isErrorEnabled()) {
+      log.error(
+          "ResponseStatusException interceptada | status={} reason={} path={} cause={}",
+          status.value(),
+          reason,
+          path,
+          causeName,
+          ex);
+    }
+  }
+
+  private String resolveCauseName(ResponseStatusException ex) {
+    if (ex.getCause() == null) {
+      return ex.getClass().getSimpleName();
+    }
+    return ex.getCause().getClass().getSimpleName();
   }
 }
 

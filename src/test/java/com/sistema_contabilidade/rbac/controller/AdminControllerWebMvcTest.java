@@ -46,6 +46,19 @@ class AdminControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve listar roles disponiveis para usuarios")
+  void listarRolesDisponiveisParaUsuariosDeveRetornarOk() {
+    when(roleService.listarRolesDisponiveisParaUsuarios())
+        .thenReturn(List.of("ADMIN", "CONTABIL", "SUPPORT"));
+
+    var response = adminController.listarRolesDisponiveisParaUsuarios();
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals(List.of("ADMIN", "CONTABIL", "SUPPORT"), response.getBody());
+    verify(roleService).listarRolesDisponiveisParaUsuarios();
+  }
+
+  @Test
   @DisplayName("Deve listar permissoes")
   void listarPermissoesDeveRetornarOk() {
     PermissaoDto permissaoDto = new PermissaoDto(UUID.randomUUID(), "USER_READ");

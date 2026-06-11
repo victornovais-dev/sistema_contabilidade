@@ -1,6 +1,10 @@
 package com.sistema_contabilidade.rbac.service;
 
+import com.sistema_contabilidade.auth.config.AuthProvider;
+import com.sistema_contabilidade.auth.config.AuthProviderProperties;
+import com.sistema_contabilidade.auth.service.CognitoGroupCatalogService;
 import com.sistema_contabilidade.common.mapper.RbacMapper;
+import com.sistema_contabilidade.common.util.SearchTextNormalizer;
 import com.sistema_contabilidade.rbac.dto.PermissaoDto;
 import com.sistema_contabilidade.rbac.dto.RoleDto;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
@@ -14,10 +18,13 @@ import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -32,6 +39,8 @@ public class RoleService {
   private final RbacMapper rbacMapper;
   private final CustomUserDetailsService customUserDetailsService;
   private final InputSanitizer inputSanitizer;
+  private final AuthProviderProperties authProviderProperties;
+  private final ObjectProvider<CognitoGroupCatalogService> cognitoGroupCatalogServiceProvider;
 
   @Transactional
   public RoleDto criarRole(String nome) {
@@ -114,6 +123,28 @@ public class RoleService {
   }
 
   @Transactional
+  public List<String> listarRolesDisponiveisParaUsuarios() {
+    Map<String, String> roleNamesByKey = new LinkedHashMap<>();
+    roleRepository.findAll().stream()
+        .map(Role::getNome)
+        .filter(nome -> nome != null && !nome.isBlank())
+        .forEach(nome -> roleNamesByKey.putIfAbsent(roleComparisonKey(nome), nome));
+
+    if (authProviderProperties.getProvider() == AuthProvider.COGNITO) {
+      CognitoGroupCatalogService cognitoGroupCatalogService =
+          cognitoGroupCatalogServiceProvider.getIfAvailable();
+      if (cognitoGroupCatalogService == null) {
+        throw new IllegalStateException("CognitoGroupCatalogService indisponivel");
+      }
+      cognitoGroupCatalogService
+          .listNormalizedGroups()
+          .forEach(nome -> roleNamesByKey.put(roleComparisonKey(nome), nome));
+    }
+
+    return roleNamesByKey.values().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
+  }
+
+  @Transactional
   public List<PermissaoDto> listarPermissoes() {
     return permissaoRepository.findAll().stream()
         .map(rbacMapper::toPermissaoDto)
@@ -135,5 +166,10 @@ public class RoleService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nome da permissao e obrigatorio");
     }
     return permissaoNome;
+  }
+
+  private String roleComparisonKey(String nome) {
+    String normalized = SearchTextNormalizer.normalizeForSearch(nome);
+    return normalized == null ? "" : normalized;
   }
 }

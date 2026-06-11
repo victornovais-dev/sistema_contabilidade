@@ -1,5 +1,12 @@
 package com.sistema_contabilidade.usuario.service;
 
+import com.sistema_contabilidade.auth.config.AuthProvider;
+import com.sistema_contabilidade.auth.config.AuthProviderProperties;
+import com.sistema_contabilidade.auth.service.CognitoIdentitySyncService;
+import com.sistema_contabilidade.auth.service.CognitoRoleSyncResult;
+import com.sistema_contabilidade.auth.service.CognitoRoleSyncService;
+import com.sistema_contabilidade.auth.service.CognitoUserManagementService;
+import com.sistema_contabilidade.auth.service.CognitoUserProfile;
 import com.sistema_contabilidade.common.mapper.RbacMapper;
 import com.sistema_contabilidade.common.mapper.UsuarioMapper;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
@@ -49,20 +56,30 @@ public class UsuarioService {
   private final CustomUserDetailsService customUserDetailsService;
   private final InputSanitizer inputSanitizer;
   private final ObjectProvider<EntityManager> entityManagerProvider;
+  private final AuthProviderProperties authProviderProperties;
+  private final ObjectProvider<CognitoUserManagementService> cognitoUserManagementServiceProvider;
+  private final ObjectProvider<CognitoIdentitySyncService> cognitoIdentitySyncServiceProvider;
+  private final ObjectProvider<CognitoRoleSyncService> cognitoRoleSyncServiceProvider;
 
   @Transactional
   public UsuarioDto save(UsuarioCreateRequest usuarioCreateRequest) {
     String nome = inputSanitizer.sanitizeInlineText(usuarioCreateRequest.nome(), CAMPO_NOME, 120);
     String email = inputSanitizer.sanitizeEmail(usuarioCreateRequest.email(), CAMPO_EMAIL);
+    Set<String> rolesSolicitadas = extrairRolesSolicitadas(usuarioCreateRequest);
+    if (isCognitoProvider()) {
+      CognitoUserProfile profile =
+          requireCognitoUserManagementService()
+              .createUser(nome, email, usuarioCreateRequest.senha(), rolesSolicitadas);
+      Usuario usuario = synchronizeCognitoProjection(profile);
+      return usuarioMapper.toDto(usuario);
+    }
     validarEmailDuplicado(email, null);
     Usuario usuario = new Usuario();
     usuario.setNome(nome);
     usuario.setEmail(email);
     usuario.setSenha(passwordEncoder.encode(usuarioCreateRequest.senha()));
     usuario.getRoles().clear();
-    extrairRolesSolicitadas(usuarioCreateRequest).stream()
-        .map(this::buscarRole)
-        .forEach(usuario.getRoles()::add);
+    rolesSolicitadas.stream().map(this::buscarRole).forEach(usuario.getRoles()::add);
     usuario = salvarUsuarioComTratamentoDeConcorrencia(usuario);
     return usuarioMapper.toDto(usuario);
   }
@@ -71,6 +88,18 @@ public class UsuarioService {
   public UsuarioDto update(UUID id, UsuarioDto usuarioDto) {
     Usuario usuarioAtualizado = usuarioMapper.toEntity(usuarioDto);
     Usuario usuarioExistente = buscarPorIdParaAlteracao(id);
+    if (isCognitoProvider()) {
+      CognitoUserProfile profile =
+          requireCognitoUserManagementService()
+              .updateUser(
+                  providerUsername(usuarioExistente),
+                  inputSanitizer.sanitizeInlineText(usuarioDto.getNome(), CAMPO_NOME, 120),
+                  inputSanitizer.sanitizeEmail(usuarioDto.getEmail(), CAMPO_EMAIL),
+                  usuarioAtualizado.getSenha(),
+                  rolesFromUser(usuarioExistente));
+      Usuario usuarioSincronizado = synchronizeCognitoProjection(profile);
+      return usuarioMapper.toDto(usuarioSincronizado);
+    }
     String emailAnterior = usuarioExistente.getEmail();
     String nome = inputSanitizer.sanitizeInlineText(usuarioDto.getNome(), CAMPO_NOME, 120);
     String email = inputSanitizer.sanitizeEmail(usuarioDto.getEmail(), CAMPO_EMAIL);
@@ -91,6 +120,18 @@ public class UsuarioService {
   @Transactional
   public UsuarioDto updatePerfil(String emailAutenticado, UsuarioSelfUpdateRequest request) {
     Usuario usuarioExistente = buscarPorEmailParaAlteracao(emailAutenticado);
+    if (isCognitoProvider()) {
+      CognitoUserProfile profile =
+          requireCognitoUserManagementService()
+              .updateUser(
+                  providerUsername(usuarioExistente),
+                  inputSanitizer.sanitizeInlineText(request.nome(), CAMPO_NOME, 120),
+                  inputSanitizer.sanitizeEmail(request.email(), CAMPO_EMAIL),
+                  request.senha(),
+                  rolesFromUser(usuarioExistente));
+      Usuario usuarioSincronizado = synchronizeCognitoProjection(profile);
+      return usuarioMapper.toDto(usuarioSincronizado);
+    }
     String emailAnterior = usuarioExistente.getEmail();
     String nome = inputSanitizer.sanitizeInlineText(request.nome(), CAMPO_NOME, 120);
     String email = inputSanitizer.sanitizeEmail(request.email(), CAMPO_EMAIL);
@@ -122,22 +163,45 @@ public class UsuarioService {
   }
 
   public UsuarioComRolesDto findComRolesByEmail(String email) {
-    return rbacMapper.toUsuarioComRolesDto(
-        buscarPorEmail(inputSanitizer.sanitizeEmail(email, CAMPO_EMAIL)));
+    String normalizedEmail = inputSanitizer.sanitizeEmail(email, CAMPO_EMAIL);
+    if (isCognitoProvider()) {
+      CognitoUserProfile profile =
+          requireCognitoUserManagementService().findProfile(normalizedEmail);
+      return rbacMapper.toUsuarioComRolesDto(synchronizeCognitoProjection(profile));
+    }
+    return rbacMapper.toUsuarioComRolesDto(buscarPorEmail(normalizedEmail));
   }
 
   public String findNomeByEmail(String email) {
-    return buscarPorEmail(inputSanitizer.sanitizeEmail(email, CAMPO_EMAIL)).getNome();
+    Usuario usuario = buscarPorEmail(inputSanitizer.sanitizeEmail(email, CAMPO_EMAIL));
+    if (isCognitoProvider() && shouldRefreshDisplayName(usuario)) {
+      CognitoUserProfile profile =
+          requireCognitoUserManagementService().findProfile(providerUsername(usuario));
+      usuario = synchronizeCognitoProjection(profile);
+    }
+    return usuario.getNome();
   }
 
   @Transactional
   public UsuarioComRolesDto updateByEmail(UsuarioUpdateByEmailRequest request) {
     String email = inputSanitizer.sanitizeEmail(request.email(), CAMPO_EMAIL);
+    Set<String> rolesNormalizadas = normalizarRoles(request.roles());
+    if (isCognitoProvider()) {
+      CognitoUserProfile currentProfile = requireCognitoUserManagementService().findProfile(email);
+      CognitoUserProfile updatedProfile =
+          requireCognitoUserManagementService()
+              .updateUser(
+                  currentProfile.providerUsername(),
+                  currentProfile.nome(),
+                  currentProfile.email(),
+                  request.senha(),
+                  rolesNormalizadas);
+      Usuario usuarioSincronizado = synchronizeCognitoProjection(updatedProfile);
+      return rbacMapper.toUsuarioComRolesDto(usuarioSincronizado);
+    }
     Usuario usuarioExistente = buscarPorEmailParaAlteracao(email);
     usuarioExistente.getRoles().clear();
-    normalizarRoles(request.roles()).stream()
-        .map(this::buscarRole)
-        .forEach(usuarioExistente.getRoles()::add);
+    rolesNormalizadas.stream().map(this::buscarRole).forEach(usuarioExistente.getRoles()::add);
     if (request.senha() != null && !request.senha().isBlank()) {
       usuarioExistente.setSenha(passwordEncoder.encode(request.senha()));
     }
@@ -155,6 +219,10 @@ public class UsuarioService {
 
   @Transactional
   public void deletar(UUID id) {
+    if (isCognitoProvider()) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Exclusao local nao e suportada com provider Cognito");
+    }
     Usuario usuario = buscarPorId(id);
     customUserDetailsService.removerCacheUsuario(usuario.getId(), usuario.getEmail());
     usuarioRepository.delete(usuario);
@@ -271,5 +339,66 @@ public class UsuarioService {
     }
 
     throw new ResponseStatusException(HttpStatus.NOT_FOUND, USUARIO_NAO_ENCONTRADO);
+  }
+
+  private boolean isCognitoProvider() {
+    return authProviderProperties.getProvider() == AuthProvider.COGNITO;
+  }
+
+  private CognitoUserManagementService requireCognitoUserManagementService() {
+    CognitoUserManagementService service = cognitoUserManagementServiceProvider.getIfAvailable();
+    if (service == null) {
+      throw new IllegalStateException("CognitoUserManagementService indisponivel");
+    }
+    return service;
+  }
+
+  private Usuario synchronizeCognitoProjection(CognitoUserProfile profile) {
+    CognitoIdentitySyncService identitySyncService =
+        cognitoIdentitySyncServiceProvider.getIfAvailable();
+    CognitoRoleSyncService roleSyncService = cognitoRoleSyncServiceProvider.getIfAvailable();
+    if (identitySyncService == null || roleSyncService == null) {
+      throw new IllegalStateException("Servicos de sincronizacao Cognito indisponiveis");
+    }
+    Usuario usuario =
+        identitySyncService.synchronizeRefreshIdentity(
+            new com.sistema_contabilidade.auth.service.AuthProviderRefreshResult(
+                AuthProvider.COGNITO,
+                profile.providerUsername(),
+                profile.email(),
+                profile.nome(),
+                profile.cognitoSub(),
+                profile.groups(),
+                null));
+    CognitoRoleSyncResult syncResult = roleSyncService.syncMemberships(usuario, profile.groups());
+    usuario = salvarUsuarioComTratamentoDeConcorrencia(usuario);
+    customUserDetailsService.atualizarCacheUsuario(usuario.getId(), usuario.getEmail());
+    usuario.setCognitoGroupsHash(syncResult.groupsHash());
+    return usuario;
+  }
+
+  private Set<String> rolesFromUser(Usuario usuario) {
+    return usuario.getRoles().stream()
+        .map(Role::getNome)
+        .collect(Collectors.toCollection(LinkedHashSet::new));
+  }
+
+  private String providerUsername(Usuario usuario) {
+    if (usuario.getCognitoUsername() != null && !usuario.getCognitoUsername().isBlank()) {
+      return usuario.getCognitoUsername();
+    }
+    return usuario.getEmail();
+  }
+
+  private boolean shouldRefreshDisplayName(Usuario usuario) {
+    if (usuario == null) {
+      return false;
+    }
+    String nome = usuario.getNome();
+    String email = usuario.getEmail();
+    if (nome == null || nome.isBlank()) {
+      return true;
+    }
+    return email != null && nome.trim().equalsIgnoreCase(email.trim());
   }
 }

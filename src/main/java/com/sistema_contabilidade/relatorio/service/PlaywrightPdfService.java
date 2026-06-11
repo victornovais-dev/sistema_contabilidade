@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Base64;
 import java.util.Map;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -54,11 +55,12 @@ public class PlaywrightPdfService {
       """;
   private static final String LOGO_RESOURCE_PATH = "static/assets/img/Sacs Contábil_logo_azul.png";
 
-  private final Browser browser;
+  private final ObjectProvider<Browser> browserProvider;
   private final ThymeleafTemplateRenderer templateRenderer;
 
-  public PlaywrightPdfService(Browser browser, ThymeleafTemplateRenderer templateRenderer) {
-    this.browser = browser;
+  public PlaywrightPdfService(
+      ObjectProvider<Browser> browserProvider, ThymeleafTemplateRenderer templateRenderer) {
+    this.browserProvider = browserProvider;
     this.templateRenderer = templateRenderer;
   }
 
@@ -67,6 +69,7 @@ public class PlaywrightPdfService {
     String html =
         templateRenderer.render(
             "relatorio-financeiro", "report", data, Map.of("logoDataUri", logoDataUri));
+    Browser browser = browserProvider.getObject();
     try (BrowserContext browserContext = browser.newContext();
         Page page = browserContext.newPage()) {
       page.setContent(html, new SetContentOptions().setWaitUntil(WaitUntilState.NETWORKIDLE));

@@ -20,8 +20,14 @@ const rolesConfirm = document.getElementById("roles-confirm");
 const selectedRolesContainer = document.getElementById("selected-roles");
 const rolesHidden = document.getElementById("roles-hidden");
 const selectedRoles = new Set();
+const ROLE_SUPPORT = "SUPPORT";
+const ROLE_MANAGER = "MANAGER";
 const PRIORITY_ROLES = ["ADMIN", "MANAGER", "CONTABIL", "SUPPORT"];
+const ADMIN_ROUTE_CONFIG_ERROR_MESSAGE =
+  "Nao foi possivel carregar as rotas administrativas desta sessao.";
 let availableRoles = [];
+let adminRoutePaths = null;
+let loadedUserEmail = null;
 
 const readCookie = (name) => {
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -48,6 +54,19 @@ const extractErrorMessage = async (response, fallbackMessage) => {
     // Keep fallback message when payload is not JSON.
   }
   return fallbackMessage;
+};
+
+const buildAdminUserErrorMessage = async (response, fallbackMessage) => {
+  if (response.status === 401) {
+    return "Sessao expirada. Faca login novamente.";
+  }
+  if (response.status === 403) {
+    return "Voce nao tem permissao para administrar usuarios nesta sessao.";
+  }
+  if (response.status === 404) {
+    return "Usuario nao encontrado para o email informado.";
+  }
+  return extractErrorMessage(response, fallbackMessage);
 };
 
 const carregarCsrfToken = async (forceRefresh = false) => {
@@ -102,19 +121,21 @@ const bindThemeToggle = () => {
 bindThemeToggle();
 
 const getAccessToken = () => localStorage.getItem("sc_access_token");
-const getAdminApiBasePath = () =>
-  window.SCAuth?.getAdminApiBasePath?.() ||
-  window.__SC_ROUTE_CONFIG?.adminApiBasePath ||
-  "/api/v1/admin";
-const getAdminUserApiBasePath = () =>
-  window.SCAuth?.getAdminUserApiBasePath?.() ||
-  window.__SC_ROUTE_CONFIG?.adminUserApiBasePath ||
-  "/api/v1/usuarios";
+const resolveAdminRoutePaths = async (forceRefresh = false) => {
+  if (!forceRefresh && adminRoutePaths) {
+    return adminRoutePaths;
+  }
+  if (!window.SCAuth?.requireAdminRouteConfig) {
+    throw new Error(ADMIN_ROUTE_CONFIG_ERROR_MESSAGE);
+  }
 
-const ensureAdminRouteConfig = async () => {
-  await window.SCAuth?.waitUntilReady?.();
-  await window.SCAuth?.loadRouteConfig?.();
+  adminRoutePaths = await window.SCAuth.requireAdminRouteConfig(forceRefresh);
+  return adminRoutePaths;
 };
+
+window.addEventListener("sc:routes-updated", () => {
+  adminRoutePaths = null;
+});
 
 if (!getAccessToken()) {
   window.location.href = "/login";
@@ -124,6 +145,13 @@ const syncRolesHidden = () => {
   const roles = Array.from(selectedRoles);
   rolesHidden.value = roles.join(",");
   rolesHidden.setCustomValidity(roles.length > 0 ? "" : "Selecione ao menos uma role.");
+};
+
+const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+
+const hasSupportManagerConflict = (roles) => {
+  const normalized = new Set((roles || []).map((role) => String(role || "").trim().toUpperCase()));
+  return normalized.has(ROLE_SUPPORT) && normalized.has(ROLE_MANAGER);
 };
 
 const normalizeRoleText = (value) =>
@@ -200,7 +228,8 @@ const renderRoleOptions = (roles) => {
 };
 
 const loadAvailableRoles = async () => {
-  const response = await fetch(`${getAdminApiBasePath()}/roles`, {
+  const { adminApiBasePath } = await resolveAdminRoutePaths();
+  const response = await fetch(`${adminApiBasePath}/roles/disponiveis`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${getAccessToken()}`,
@@ -218,7 +247,7 @@ const loadAvailableRoles = async () => {
     throw new Error("Falha ao carregar roles cadastradas.");
   }
 
-  const roles = Array.isArray(data) ? data.map((item) => item?.nome).filter(Boolean) : [];
+  const roles = Array.isArray(data) ? data.map((item) => String(item || "").trim()).filter(Boolean) : [];
   renderRoleOptions(roles);
 };
 
@@ -237,6 +266,25 @@ const setCheckedRoles = (roles) => {
   selectedRoles.clear();
   normalizedRoles.forEach((role) => selectedRoles.add(role));
   renderSelectedRoles();
+};
+
+const clearLoadedUserState = ({ keepEmail = true } = {}) => {
+  loadedUserEmail = null;
+  senhaInput.value = "";
+  selectedRoles.clear();
+  if (rolesOptions) {
+    rolesOptions.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
+      checkbox.checked = false;
+      checkbox.parentElement.hidden = false;
+    });
+  }
+  if (rolesSearch) {
+    rolesSearch.value = "";
+  }
+  renderSelectedRoles();
+  if (!keepEmail) {
+    emailInput.value = "";
+  }
 };
 
 const renderSelectedRoles = () => {
@@ -362,15 +410,27 @@ feedbackOkBtn.addEventListener("click", () => {
   confirmOverlay.setAttribute("aria-hidden", "true");
 });
 
+emailInput.addEventListener("input", () => {
+  if (!loadedUserEmail) {
+    return;
+  }
+  if (normalizeEmail(emailInput.value) === loadedUserEmail) {
+    return;
+  }
+  clearLoadedUserState();
+});
+
 const carregarUsuario = async () => {
-  const email = emailInput.value.trim();
+  const email = normalizeEmail(emailInput.value);
   if (!email) {
+    clearLoadedUserState();
     showFeedback("error", "Informe um email valido.");
     return;
   }
 
+  const { adminUserApiBasePath } = await resolveAdminRoutePaths();
   const response = await fetch(
-    `${getAdminUserApiBasePath()}/por-email?email=${encodeURIComponent(email)}`,
+    `${adminUserApiBasePath}/por-email?email=${encodeURIComponent(email)}`,
     {
       method: "GET",
       headers: {
@@ -381,11 +441,25 @@ const carregarUsuario = async () => {
   );
 
   const data = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    window.location.href = "/login";
+    return;
+  }
+  if (response.status === 403) {
+    clearLoadedUserState();
+    showFeedback("error", "Voce nao tem permissao para administrar usuarios nesta sessao.");
+    return;
+  }
   if (!response.ok) {
-    showFeedback("error", data.message || data.error || "Falha ao buscar usuario.");
+    clearLoadedUserState();
+    showFeedback(
+      "error",
+      data.message || data.error || "Usuario nao encontrado para o email informado.",
+    );
     return;
   }
 
+  loadedUserEmail = email;
   senhaInput.value = "";
   const roles = Array.isArray(data.roles) ? data.roles.map((item) => item.nome).filter(Boolean) : [];
   setCheckedRoles(roles);
@@ -395,7 +469,10 @@ loadUserButton.addEventListener("click", async () => {
   try {
     await carregarUsuario();
   } catch (error) {
-    showFeedback("error", "Erro de conexao com o servidor.");
+    showFeedback(
+      "error",
+      error instanceof Error ? error.message : "Erro de conexao com o servidor.",
+    );
   }
 });
 
@@ -412,6 +489,14 @@ form.addEventListener("submit", async (event) => {
     showFeedback("error", "Selecione ao menos uma role.");
     return;
   }
+  if (hasSupportManagerConflict(selectedRolesList)) {
+    showFeedback("error", "Usuario nao pode ter as roles SUPPORT e MANAGER ao mesmo tempo.");
+    return;
+  }
+  if (!loadedUserEmail || loadedUserEmail !== normalizeEmail(email)) {
+    showFeedback("error", "Carregue o usuario novamente antes de salvar as alteracoes.");
+    return;
+  }
 
   const payload = {
     email,
@@ -420,8 +505,9 @@ form.addEventListener("submit", async (event) => {
   };
 
   try {
+    const { adminUserApiBasePath } = await resolveAdminRoutePaths();
     const enviarAtualizacao = async (csrf) =>
-      fetch(`${getAdminUserApiBasePath()}/por-email`, {
+      fetch(`${adminUserApiBasePath}/por-email`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -444,33 +530,52 @@ form.addEventListener("submit", async (event) => {
       window.location.href = "/login";
       return;
     }
+    if (response.status === 403) {
+      showFeedback("error", await buildAdminUserErrorMessage(response, "Acesso negado."));
+      return;
+    }
+    if (response.status === 404) {
+      clearLoadedUserState();
+      showFeedback(
+        "error",
+        "Usuario nao encontrado para o email informado. Carregue o usuario novamente.",
+      );
+      return;
+    }
 
     if (!response.ok) {
       showFeedback(
         "error",
-        await extractErrorMessage(response, "Falha ao atualizar usuario."),
+        await buildAdminUserErrorMessage(response, "Falha ao atualizar usuario."),
       );
       return;
     }
 
     const data = await response.json().catch(() => ({}));
     const roles = Array.isArray(data.roles) ? data.roles.map((item) => item.nome).filter(Boolean) : [];
+    loadedUserEmail = normalizeEmail(data.email || email);
     setCheckedRoles(roles);
     senhaInput.value = "";
     csrfToken = null;
     showFeedback("success", "Usuario atualizado com sucesso.");
   } catch (error) {
-    showFeedback("error", "Erro de conexao com o servidor.");
+    showFeedback(
+      "error",
+      error instanceof Error ? error.message : "Erro de conexao com o servidor.",
+    );
   }
 });
 
 const init = async () => {
   renderSelectedRoles();
   try {
-    await ensureAdminRouteConfig();
+    await resolveAdminRoutePaths();
     await loadAvailableRoles();
   } catch (error) {
-    showFeedback("error", "Nao foi possivel carregar as roles cadastradas.");
+    showFeedback(
+      "error",
+      error instanceof Error ? error.message : "Nao foi possivel carregar as roles cadastradas.",
+    );
   }
 };
 

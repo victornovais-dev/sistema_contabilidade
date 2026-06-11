@@ -2,7 +2,12 @@ const root = document.documentElement;
 const toggle = document.querySelector(".theme-toggle");
 const loginForm = document.getElementById("login-form");
 const feedback = document.getElementById("login-feedback");
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("senha");
 let csrfToken = null;
+
+const FIRST_ACCESS_EMAIL_KEY = "sc_first_login_email";
+const FIRST_ACCESS_MESSAGE_KEY = "sc_first_login_message";
 
 const readCookie = (name) => {
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -40,6 +45,43 @@ const carregarCsrfToken = async () => {
   }
 };
 
+const setFeedback = (message, state = "") => {
+  feedback.textContent = message || "";
+  if (state) {
+    feedback.dataset.state = state;
+    return;
+  }
+  delete feedback.dataset.state;
+};
+
+const redirectToFirstAccess = (email, message) => {
+  sessionStorage.setItem(FIRST_ACCESS_EMAIL_KEY, email);
+  if (message) {
+    sessionStorage.setItem(FIRST_ACCESS_MESSAGE_KEY, message);
+  } else {
+    sessionStorage.removeItem(FIRST_ACCESS_MESSAGE_KEY);
+  }
+  window.location.href = "/primeiro_acesso";
+};
+
+const handleAuthenticatedResponse = async (data) => {
+  if (!data.accessToken) {
+    setFeedback("Resposta sem token de acesso", "error");
+    return;
+  }
+
+  sessionStorage.removeItem(FIRST_ACCESS_EMAIL_KEY);
+  sessionStorage.removeItem(FIRST_ACCESS_MESSAGE_KEY);
+
+  if (window.SCAuth?.storeAccessToken) {
+    await window.SCAuth.storeAccessToken(data.accessToken);
+  } else {
+    localStorage.setItem("sc_access_token", data.accessToken);
+  }
+  setFeedback("Login realizado com sucesso. Redirecionando...", "success");
+  window.location.href = "/home";
+};
+
 const updateLabel = () => {
   const isDark = root.dataset.theme === "dark";
   toggle.setAttribute("aria-pressed", isDark ? "true" : "false");
@@ -61,15 +103,16 @@ toggle.addEventListener("click", () => {
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  feedback.textContent = "Autenticando...";
+  setFeedback("Autenticando...");
 
-  const email = document.getElementById("email").value.trim();
-  const senha = document.getElementById("senha").value;
+  const email = emailInput.value.trim();
+  const senha = passwordInput.value;
 
   try {
     if (!csrfToken) {
       await carregarCsrfToken();
     }
+
     const response = await fetch("/api/v1/auth/login", {
       method: "POST",
       credentials: "same-origin",
@@ -81,25 +124,19 @@ loginForm.addEventListener("submit", async (event) => {
     });
     const data = await response.json().catch(() => ({}));
 
+    if (response.status === 202 && data.challengeRequired) {
+      redirectToFirstAccess(email, data.message);
+      return;
+    }
+
     if (!response.ok) {
-      feedback.textContent = data.message || data.error || "Falha no login";
+      setFeedback(data.message || data.error || "Falha no login", "error");
       return;
     }
 
-    if (!data.accessToken) {
-      feedback.textContent = "Resposta sem token de acesso";
-      return;
-    }
-
-    if (window.SCAuth?.storeAccessToken) {
-      await window.SCAuth.storeAccessToken(data.accessToken);
-    } else {
-      localStorage.setItem("sc_access_token", data.accessToken);
-    }
-    feedback.textContent = "Login realizado com sucesso. Redirecionando...";
-    window.location.href = "/home";
+    await handleAuthenticatedResponse(data);
   } catch (error) {
-    feedback.textContent = "Erro de conexao com o servidor";
+    setFeedback("Erro de conexao com o servidor", "error");
   }
 });
 

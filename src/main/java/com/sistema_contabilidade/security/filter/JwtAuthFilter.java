@@ -69,11 +69,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
   private boolean tryAuthenticateJwtToken(String token, HttpServletRequest request) {
     try {
-      String username = jwtService.extractUsername(token);
-      if (username == null) {
+      UserDetails userDetails = resolveUserDetails(token);
+      if (userDetails == null) {
         return false;
       }
-      UserDetails userDetails = userDetailsService.loadUserByUsername(username);
       String currentFingerprint = requestFingerprintService.generateFingerprint(request);
       if (!jwtService.isTokenValid(token, userDetails, currentFingerprint)) {
         return false;
@@ -85,6 +84,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
       SecurityContextHolder.clearContext();
       return false;
     }
+  }
+
+  private UserDetails resolveUserDetails(String token) {
+    UUID userId = jwtService.extractUserId(token);
+    if (userId != null) {
+      return userDetailsService.loadUserById(userId);
+    }
+
+    String username = jwtService.extractUsername(token);
+    if (username == null) {
+      return null;
+    }
+    return userDetailsService.loadUserByUsername(username);
   }
 
   private void authenticateComSessao(HttpServletRequest request, HttpServletResponse response) {

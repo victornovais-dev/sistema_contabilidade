@@ -134,6 +134,20 @@ class UsuarioControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve retornar 404 ao buscar usuario por email inexistente")
+  void buscarPorEmailDeveRetornarNotFoundQuandoUsuarioNaoExistir() throws Exception {
+    when(usuarioService.findComRolesByEmail("inexistente@email.com"))
+        .thenThrow(
+            new ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "Usuario nao encontrado"));
+
+    mockMvc
+        .perform(get("/api/v1/usuarios/por-email").param("email", "inexistente@email.com"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value("Usuario nao encontrado"));
+  }
+
+  @Test
   @DisplayName("Deve atualizar usuario")
   void atualizarDeveRetornarOk() throws Exception {
     UUID id = UUID.fromString("33333333-3333-3333-3333-333333333333");
@@ -188,6 +202,84 @@ class UsuarioControllerWebMvcTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.email").value("dani@email.com"))
         .andExpect(jsonPath("$.roles.length()").value(2));
+  }
+
+  @Test
+  @DisplayName("Deve retornar 404 ao atualizar usuario por email inexistente")
+  void atualizarPorEmailDeveRetornarNotFoundQuandoUsuarioNaoExistir() throws Exception {
+    when(usuarioService.updateByEmail(
+            org.mockito.ArgumentMatchers.any(UsuarioUpdateByEmailRequest.class)))
+        .thenThrow(
+            new ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "Usuario nao encontrado"));
+
+    mockMvc
+        .perform(
+            put("/api/v1/usuarios/por-email")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email":"inexistente@email.com",
+                      "senha":"123456",
+                      "roles":["ADMIN"]
+                    }
+                    """))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value("Usuario nao encontrado"));
+  }
+
+  @Test
+  @DisplayName(
+      "Deve retornar 404 ao atualizar usuario por email quando usuario nao existir no Cognito")
+  void atualizarPorEmailDeveRetornarNotFoundQuandoUsuarioNaoExistirNoCognito() throws Exception {
+    when(usuarioService.updateByEmail(
+            org.mockito.ArgumentMatchers.any(UsuarioUpdateByEmailRequest.class)))
+        .thenThrow(
+            new ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND,
+                "Usuario nao encontrado no Cognito"));
+
+    mockMvc
+        .perform(
+            put("/api/v1/usuarios/por-email")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email":"lucas@email.com",
+                      "roles":["CONTABIL"]
+                    }
+                    """))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value("Usuario nao encontrado no Cognito"));
+  }
+
+  @Test
+  @DisplayName("Deve retornar 400 ao atualizar usuario por email com roles invalidas")
+  void atualizarPorEmailDeveRetornarBadRequestQuandoRolesForemInvalidas() throws Exception {
+    when(usuarioService.updateByEmail(
+            org.mockito.ArgumentMatchers.any(UsuarioUpdateByEmailRequest.class)))
+        .thenThrow(
+            new ResponseStatusException(
+                org.springframework.http.HttpStatus.BAD_REQUEST,
+                "Usuario nao pode ter as roles SUPPORT e MANAGER ao mesmo tempo."));
+
+    mockMvc
+        .perform(
+            put("/api/v1/usuarios/por-email")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email":"dani@email.com",
+                      "roles":["SUPPORT","MANAGER"]
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.message")
+                .value("Usuario nao pode ter as roles SUPPORT e MANAGER ao mesmo tempo."));
   }
 
   @Test

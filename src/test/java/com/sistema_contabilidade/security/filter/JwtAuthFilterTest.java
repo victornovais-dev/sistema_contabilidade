@@ -80,6 +80,30 @@ class JwtAuthFilterTest {
   }
 
   @Test
+  @DisplayName("Deve autenticar usando userId do JWT quando claim estiver presente")
+  void deveAutenticarUsandoUserIdDoJwtQuandoClaimEstiverPresente() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/usuarios");
+    request.addHeader("Authorization", "Bearer token-valido");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+    var userDetails =
+        User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(requestFingerprintService.generateFingerprint(request)).thenReturn("fingerprint");
+    when(jwtService.extractUserId("token-valido")).thenReturn(usuarioId);
+    when(userDetailsService.loadUserById(usuarioId)).thenReturn(userDetails);
+    when(jwtService.isTokenValid("token-valido", userDetails, "fingerprint")).thenReturn(true);
+
+    filter.doFilter(request, response, chain);
+
+    assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    verify(userDetailsService).loadUserById(usuarioId);
+    verify(userDetailsService, never()).loadUserByUsername(anyString());
+  }
+
+  @Test
   @DisplayName("Nao deve autenticar quando token e invalido")
   void naoDeveAutenticarQuandoTokenEInvalido() throws Exception {
     JwtAuthFilter filter = novoFiltro();

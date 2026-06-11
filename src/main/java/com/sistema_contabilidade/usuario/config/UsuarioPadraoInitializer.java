@@ -1,5 +1,7 @@
 package com.sistema_contabilidade.usuario.config;
 
+import com.sistema_contabilidade.auth.config.AuthProvider;
+import com.sistema_contabilidade.auth.config.AuthProviderProperties;
 import com.sistema_contabilidade.rbac.model.RoleNivel;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
 import com.sistema_contabilidade.usuario.model.Usuario;
@@ -23,17 +25,20 @@ public class UsuarioPadraoInitializer implements CommandLineRunner {
   private final String nomePadrao;
   private final String emailPadrao;
   private final String senhaPadrao;
+  private final boolean cognitoProviderEnabled;
 
   public UsuarioPadraoInitializer(
       UsuarioRepository usuarioRepository,
       RoleRepository roleRepository,
       PasswordEncoder passwordEncoder,
+      AuthProviderProperties authProviderProperties,
       @Value("${app.default-admin.name:Administrador}") String nomePadrao,
       @Value("${app.default-admin.email:admin@sistema.local}") String emailPadrao,
       @Value("${app.default-admin.password:}") String senhaPadrao) {
     this.usuarioRepository = usuarioRepository;
     this.roleRepository = roleRepository;
     this.passwordEncoder = passwordEncoder;
+    this.cognitoProviderEnabled = authProviderProperties.getProvider() == AuthProvider.COGNITO;
     this.nomePadrao = nomePadrao;
     this.emailPadrao = emailPadrao;
     this.senhaPadrao = senhaPadrao;
@@ -42,6 +47,10 @@ public class UsuarioPadraoInitializer implements CommandLineRunner {
   @Override
   @Transactional
   public void run(String... args) {
+    if (cognitoProviderEnabled) {
+      log.info("Usuario padrao local ignorado porque o provider ativo e Cognito.");
+      return;
+    }
     if (usuarioRepository.count() > 0) {
       return;
     }

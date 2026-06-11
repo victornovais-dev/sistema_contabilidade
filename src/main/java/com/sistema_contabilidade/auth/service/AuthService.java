@@ -1,23 +1,24 @@
 package com.sistema_contabilidade.auth.service;
 
+import com.sistema_contabilidade.auth.config.AuthProvider;
 import com.sistema_contabilidade.auth.dto.AuthenticatedLoginResult;
+import com.sistema_contabilidade.auth.dto.CompleteNewPasswordRequest;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
+import com.sistema_contabilidade.auth.model.SessaoUsuario;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -26,56 +27,99 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class AuthService {
 
+  private static final String TOKEN_TYPE = "Bearer";
+
   private final JwtService jwtService;
   private final UsuarioRepository usuarioRepository;
-  private final PasswordEncoder passwordEncoder;
   private final CustomUserDetailsService customUserDetailsService;
   private final SessaoUsuarioService sessaoUsuarioService;
   private final RequestFingerprintService requestFingerprintService;
-
-  private static final String TOKEN_TYPE = "Bearer";
-  private static final String CREDENCIAIS_INVALIDAS = "Credenciais invalidas";
+  private final AuthProviderStrategyResolver authProviderStrategyResolver;
+  private final ObjectProvider<CognitoIdentitySyncService> cognitoIdentitySyncServiceProvider;
+  private final ObjectProvider<CognitoRoleSyncService> cognitoRoleSyncServiceProvider;
 
   @Value("${app.auth.login-diagnostics.enabled:false}")
   private boolean loginDiagnosticsEnabled;
 
-  private volatile String cachedTimingProtectionHash;
-
-  public AuthenticatedLoginResult login(LoginRequest request, HttpServletRequest httpRequest) {
+  public LoginFlowResult login(LoginRequest request, HttpServletRequest httpRequest) {
     long t0 = System.currentTimeMillis();
-    Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(request.email());
+    AuthProviderLoginResult authResult = authProviderStrategyResolver.current().login(request);
     long t1 = System.currentTimeMillis();
-
-    String hashParaComparar =
-        usuarioOpt.map(Usuario::getSenha).orElseGet(this::timingProtectionHash);
-    boolean senhaValida = passwordEncoder.matches(request.senha(), hashParaComparar);
-    long t2 = System.currentTimeMillis();
-
-    if (usuarioOpt.isEmpty() || !senhaValida) {
-      logDiagnostico(t0, t1, t2, t2);
-      throw credenciaisInvalidas();
+    if (authResult.challengeRequired()) {
+      return LoginFlowResult.challenge(authResult.challenge());
     }
+    return LoginFlowResult.authenticated(
+        completeAuthenticatedLogin(authResult, httpRequest, t0, t1));
+  }
 
-    Usuario usuario = usuarioOpt.orElseThrow(this::credenciaisInvalidas);
-    usuario = atualizarSenhaSeNecessario(usuario, request.senha());
+  public AuthenticatedLoginResult completeNewPassword(
+      AuthLoginChallenge challenge,
+      CompleteNewPasswordRequest request,
+      HttpServletRequest httpRequest) {
+    AuthProviderLoginResult authResult =
+        authProviderStrategyResolver
+            .resolve(challenge.provider())
+            .completeNewPassword(challenge, request);
+    if (authResult.challengeRequired()) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Cognito retornou challenge adicional nao suportado");
+    }
+    return completeAuthenticatedLogin(
+        authResult, httpRequest, System.currentTimeMillis(), System.currentTimeMillis());
+  }
+
+  private AuthenticatedLoginResult completeAuthenticatedLogin(
+      AuthProviderLoginResult authResult, HttpServletRequest httpRequest, long t0, long t1) {
+    ResolvedUserState resolvedUserState = resolveLoginUser(authResult);
+    Usuario usuario = resolvedUserState.usuario();
     customUserDetailsService.aquecerCacheUsuario(usuario);
     sessaoUsuarioService.revogarSessoesAtivas(usuario.getId());
-    String sessionToken = sessaoUsuarioService.criarSessao(usuario.getId());
+    String sessionToken =
+        sessaoUsuarioService.criarSessao(
+            new SessionCreationRequest(
+                usuario.getId(),
+                authResult.provider(),
+                authResult.providerUsername(),
+                authResult.cognitoSub(),
+                authResult.refreshToken(),
+                resolvedUserState.groups(),
+                resolvedUserState.groupsHash()));
+    long t2 = System.currentTimeMillis();
 
-    UserDetails userDetails = criarUserDetails(usuario);
+    UserDetails userDetails = customUserDetailsService.loadUserById(usuario.getId());
     String token =
         jwtService.generateToken(
-            userDetails, requestFingerprintService.generateFingerprint(httpRequest));
+            userDetails,
+            usuario.getId(),
+            usuario.getCognitoSub(),
+            requestFingerprintService.generateFingerprint(httpRequest));
     long t3 = System.currentTimeMillis();
     logDiagnostico(t0, t1, t2, t3);
     return new AuthenticatedLoginResult(new JwtLoginResponse(token, TOKEN_TYPE), sessionToken);
   }
 
   public JwtLoginResponse refresh(String sessionToken, HttpServletRequest httpRequest) {
-    Usuario usuario = usuarioAutenticadoDaSessao(sessionToken);
+    SessaoUsuario sessaoUsuario = sessaoUsuarioService.obterSessaoAtiva(sessionToken);
+    AuthProvider provider = sessaoUsuario.getAuthProvider();
+    AuthProviderRefreshResult refreshResult =
+        authProviderStrategyResolver.resolve(provider).refresh(sessaoUsuario);
+
+    ResolvedUserState resolvedUserState = resolveRefreshUser(sessaoUsuario, refreshResult);
+    Usuario usuario = resolvedUserState.usuario();
+    customUserDetailsService.aquecerCacheUsuario(usuario);
+
+    if (provider == AuthProvider.COGNITO) {
+      sessaoUsuarioService.atualizarSessao(
+          sessaoUsuario, refreshResult, resolvedUserState.groupsHash());
+    }
+
+    UserDetails userDetails = customUserDetailsService.loadUserById(usuario.getId());
     String token =
         jwtService.generateToken(
-            criarUserDetails(usuario), requestFingerprintService.generateFingerprint(httpRequest));
+            userDetails,
+            usuario.getId(),
+            usuario.getCognitoSub(),
+            requestFingerprintService.generateFingerprint(httpRequest));
     return new JwtLoginResponse(token, TOKEN_TYPE);
   }
 
@@ -84,6 +128,8 @@ public class AuthService {
       return;
     }
     try {
+      SessaoUsuario sessaoUsuario = sessaoUsuarioService.obterSessaoAtiva(sessionToken);
+      authProviderStrategyResolver.resolve(sessaoUsuario.getAuthProvider()).logout(sessaoUsuario);
       sessaoUsuarioService.revogarSessao(sessionToken);
     } catch (ResponseStatusException exception) {
       if (exception.getStatusCode().value() != HttpStatus.UNAUTHORIZED.value()) {
@@ -92,53 +138,68 @@ public class AuthService {
     }
   }
 
-  private ResponseStatusException credenciaisInvalidas() {
-    return new ResponseStatusException(HttpStatus.UNAUTHORIZED, CREDENCIAIS_INVALIDAS);
+  private ResolvedUserState resolveLoginUser(AuthProviderLoginResult authResult) {
+    if (authResult.provider() == AuthProvider.LOCAL) {
+      Usuario usuario = loadUserById(authResult.localUserId());
+      return new ResolvedUserState(usuario, Set.of(), null);
+    }
+
+    CognitoIdentitySyncService identitySyncService = requireCognitoIdentitySyncService();
+    CognitoRoleSyncService roleSyncService = requireCognitoRoleSyncService();
+    Usuario usuario = identitySyncService.synchronizeLoginIdentity(authResult);
+    CognitoRoleSyncResult syncResult =
+        roleSyncService.syncMemberships(usuario, authResult.groups());
+    usuario = usuarioRepository.save(usuario);
+    return new ResolvedUserState(usuario, syncResult.normalizedGroups(), syncResult.groupsHash());
   }
 
-  private Usuario usuarioAutenticadoDaSessao(String sessionToken) {
+  private ResolvedUserState resolveRefreshUser(
+      SessaoUsuario sessaoUsuario, AuthProviderRefreshResult refreshResult) {
+    if (sessaoUsuario.getAuthProvider() == AuthProvider.LOCAL) {
+      return new ResolvedUserState(loadUserById(sessaoUsuario.getUsuarioId()), Set.of(), null);
+    }
+
+    CognitoIdentitySyncService identitySyncService = requireCognitoIdentitySyncService();
+    CognitoRoleSyncService roleSyncService = requireCognitoRoleSyncService();
+    Usuario usuario = identitySyncService.synchronizeRefreshIdentity(refreshResult);
+    CognitoRoleSyncResult syncResult =
+        roleSyncService.syncMemberships(usuario, refreshResult.groups());
+    usuario = usuarioRepository.save(usuario);
+    return new ResolvedUserState(usuario, syncResult.normalizedGroups(), syncResult.groupsHash());
+  }
+
+  private Usuario loadUserById(java.util.UUID usuarioId) {
     return usuarioRepository
-        .findById(sessaoUsuarioService.validarSessao(sessionToken))
-        .orElseThrow(this::credenciaisInvalidas);
+        .findWithRolesById(usuarioId)
+        .orElseThrow(AuthFailureSupport::invalidCredentials);
   }
 
-  private UserDetails criarUserDetails(Usuario usuario) {
-    return User.withUsername(usuario.getEmail())
-        .password(usuario.getSenha())
-        .authorities("ROLE_AUTHENTICATED")
-        .build();
+  private CognitoIdentitySyncService requireCognitoIdentitySyncService() {
+    CognitoIdentitySyncService service = cognitoIdentitySyncServiceProvider.getIfAvailable();
+    if (service == null) {
+      throw new IllegalStateException("CognitoIdentitySyncService indisponivel");
+    }
+    return service;
   }
 
-  private String timingProtectionHash() {
-    String hash = cachedTimingProtectionHash;
-    if (hash != null) {
-      return hash;
+  private CognitoRoleSyncService requireCognitoRoleSyncService() {
+    CognitoRoleSyncService service = cognitoRoleSyncServiceProvider.getIfAvailable();
+    if (service == null) {
+      throw new IllegalStateException("CognitoRoleSyncService indisponivel");
     }
-    synchronized (this) {
-      if (cachedTimingProtectionHash == null) {
-        cachedTimingProtectionHash = passwordEncoder.encode(UUID.randomUUID().toString());
-      }
-      return cachedTimingProtectionHash;
-    }
-  }
-
-  private Usuario atualizarSenhaSeNecessario(Usuario usuario, String senhaEmTextoPlano) {
-    if (!passwordEncoder.upgradeEncoding(usuario.getSenha())) {
-      return usuario;
-    }
-
-    usuario.setSenha(passwordEncoder.encode(senhaEmTextoPlano));
-    return usuarioRepository.save(usuario);
+    return service;
   }
 
   private void logDiagnostico(long t0, long t1, long t2, long t3) {
     if (loginDiagnosticsEnabled && log.isInfoEnabled()) {
       log.info(
-          "DB={}ms | Argon2={}ms | JWT/Sessao={}ms | Total={}ms",
+          "Provider={}ms | Sync/Sessao={}ms | JWT={}ms | Total={}ms",
           (t1 - t0),
           (t2 - t1),
           (t3 - t2),
           (t3 - t0));
     }
   }
+
+  private record ResolvedUserState(Usuario usuario, Set<String> groups, String groupsHash) {}
 }

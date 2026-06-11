@@ -125,6 +125,7 @@ class PaginaUsuarioControllerTest {
   private static Stream<Arguments> resourcePageMethods() {
     return Stream.of(
         Arguments.of("login", "loginPage", HttpStatus.OK),
+        Arguments.of("primeiro acesso", "firstAccessPage", HttpStatus.OK),
         Arguments.of("404", "notFoundPage", HttpStatus.NOT_FOUND));
   }
 

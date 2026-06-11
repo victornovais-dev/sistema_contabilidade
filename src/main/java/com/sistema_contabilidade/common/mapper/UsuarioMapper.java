@@ -12,5 +12,9 @@ public interface UsuarioMapper {
 
   @Mapping(target = "roles", ignore = true)
   @Mapping(target = "version", ignore = true)
+  @Mapping(target = "cognitoSub", ignore = true)
+  @Mapping(target = "cognitoUsername", ignore = true)
+  @Mapping(target = "cognitoGroupsHash", ignore = true)
+  @Mapping(target = "cognitoSyncedAt", ignore = true)
   Usuario toEntity(UsuarioDto usuarioDto);
 }

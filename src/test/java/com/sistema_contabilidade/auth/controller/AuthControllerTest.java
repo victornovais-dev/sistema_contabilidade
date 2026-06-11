@@ -7,9 +7,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.auth.dto.AuthenticatedLoginResult;
+import com.sistema_contabilidade.auth.dto.CompleteNewPasswordRequest;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
+import com.sistema_contabilidade.auth.dto.LoginApiResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
+import com.sistema_contabilidade.auth.service.AuthLoginChallenge;
 import com.sistema_contabilidade.auth.service.AuthService;
+import com.sistema_contabilidade.auth.service.LoginChallengeCookieService;
+import com.sistema_contabilidade.auth.service.LoginFlowResult;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +41,7 @@ class AuthControllerTest {
 
   @Mock private AuthService authService;
   @Mock private AdminRouteService adminRouteService;
+  @Mock private LoginChallengeCookieService loginChallengeCookieService;
 
   @InjectMocks private AuthController authController;
 
@@ -49,9 +55,10 @@ class AuthControllerTest {
     MockHttpServletResponse httpResponse = new MockHttpServletResponse();
     ReflectionTestUtils.setField(authController, "sessionCookieName", "SC_SESSION");
     ReflectionTestUtils.setField(authController, "sessionTtlMinutes", 480L);
-    when(authService.login(request, httpRequest)).thenReturn(response);
+    when(authService.login(request, httpRequest))
+        .thenReturn(LoginFlowResult.authenticated(response));
 
-    ResponseEntity<JwtLoginResponse> result =
+    ResponseEntity<LoginApiResponse> result =
         authController.login(request, httpRequest, httpResponse);
 
     assertEquals(HttpStatus.OK, result.getStatusCode());
@@ -60,6 +67,65 @@ class AuthControllerTest {
         httpResponse.getHeaders(HttpHeaders.SET_COOKIE).stream()
             .anyMatch(h -> h.contains("SC_SESSION=sessao-token")));
     verify(authService).login(request, httpRequest);
+  }
+
+  @Test
+  @DisplayName("Deve responder challenge e anexar cookie temporario de login")
+  void loginDeveResponderChallengeDeNovaSenha() {
+    LoginRequest request = new LoginRequest("ana@email.com", "123456");
+    AuthLoginChallenge challenge =
+        new AuthLoginChallenge(
+            com.sistema_contabilidade.auth.config.AuthProvider.COGNITO,
+            "NEW_PASSWORD_REQUIRED",
+            "ana@email.com",
+            "challenge-session",
+            "Primeiro acesso detectado. Defina uma nova senha para continuar.");
+    MockHttpServletRequest httpRequest = new MockHttpServletRequest("POST", "/api/v1/auth/login");
+    MockHttpServletResponse httpResponse = new MockHttpServletResponse();
+    when(authService.login(request, httpRequest)).thenReturn(LoginFlowResult.challenge(challenge));
+    when(loginChallengeCookieService.createToken(challenge)).thenReturn("challenge-cookie");
+
+    ResponseEntity<LoginApiResponse> result =
+        authController.login(request, httpRequest, httpResponse);
+
+    assertEquals(HttpStatus.ACCEPTED, result.getStatusCode());
+    assertTrue(Boolean.TRUE.equals(result.getBody().challengeRequired()));
+    assertEquals("NEW_PASSWORD_REQUIRED", result.getBody().challengeName());
+    assertTrue(
+        httpResponse.getHeaders(HttpHeaders.SET_COOKIE).stream()
+            .anyMatch(h -> h.contains("SC_LOGIN_CHALLENGE=challenge-cookie")));
+  }
+
+  @Test
+  @DisplayName("Deve concluir troca inicial de senha usando cookie de challenge")
+  void completeNewPasswordDeveDelegarParaService() {
+    CompleteNewPasswordRequest request = new CompleteNewPasswordRequest("Nova@123");
+    AuthLoginChallenge challenge =
+        new AuthLoginChallenge(
+            com.sistema_contabilidade.auth.config.AuthProvider.COGNITO,
+            "NEW_PASSWORD_REQUIRED",
+            "ana@email.com",
+            "challenge-session",
+            "Primeiro acesso detectado. Defina uma nova senha para continuar.");
+    AuthenticatedLoginResult response =
+        new AuthenticatedLoginResult(new JwtLoginResponse("jwt-token", "Bearer"), "sessao-token");
+    MockHttpServletRequest httpRequest =
+        new MockHttpServletRequest("POST", "/api/v1/auth/complete-new-password");
+    httpRequest.setCookies(
+        new jakarta.servlet.http.Cookie("SC_LOGIN_CHALLENGE", "challenge-cookie"));
+    MockHttpServletResponse httpResponse = new MockHttpServletResponse();
+    ReflectionTestUtils.setField(authController, "sessionCookieName", "SC_SESSION");
+    when(loginChallengeCookieService.parseToken("challenge-cookie")).thenReturn(challenge);
+    when(authService.completeNewPassword(challenge, request, httpRequest)).thenReturn(response);
+
+    ResponseEntity<LoginApiResponse> result =
+        authController.completeNewPassword(request, httpRequest, httpResponse);
+
+    assertEquals(HttpStatus.OK, result.getStatusCode());
+    assertEquals("jwt-token", result.getBody().accessToken());
+    assertTrue(
+        httpResponse.getHeaders(HttpHeaders.SET_COOKIE).stream()
+            .anyMatch(h -> h.contains("SC_SESSION=sessao-token")));
   }
 
   @Test
@@ -139,9 +205,6 @@ class AuthControllerTest {
   @DisplayName("Deve retornar rotas admin somente para perfil admin")
   void routesDeveRetornarRotasAdmin() {
     Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
-    doReturn(List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))
-        .when(authentication)
-        .getAuthorities();
     when(adminRouteService.routeConfig()).thenReturn(Map.of("adminPagePath", "/segredo/admin"));
 
     ResponseEntity<Map<String, String>> result = authController.routes(authentication);

@@ -283,6 +283,12 @@ html[data-theme="dark"] .field input {
   box-shadow: 0 0 0 3px rgba(216, 75, 52, 0.16);
 }
 
+.field input:disabled,
+.field input[readonly] {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
 .row {
   display: flex;
   flex-direction: column;
@@ -363,6 +369,18 @@ html[data-theme="dark"] .field input {
   text-align: center;
   color: var(--muted);
   margin: 4px 0 0;
+}
+
+.foot[data-state="error"] {
+  color: #c43b2c;
+}
+
+.foot[data-state="info"] {
+  color: var(--accent);
+}
+
+.foot[data-state="success"] {
+  color: #2eb05e;
 }
 
 .file-input {

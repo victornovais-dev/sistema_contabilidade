@@ -6,6 +6,8 @@
   const ROUTES_ENDPOINT = "/api/v1/auth/routes";
   const USER_ROLES_ENDPOINT = "/api/v1/auth/me/roles";
   const AUTH_API_PREFIX = "/api/v1/auth/";
+  const ADMIN_ROUTE_CONFIG_ERROR_MESSAGE =
+    "Rotas administrativas indisponiveis para a sessao atual.";
   const AUTH_BOOTSTRAP_BYPASS_PATHS = new Set([
     "/api/v1/auth/csrf",
     "/api/v1/auth/login",
@@ -123,6 +125,30 @@
     window.__SC_ROUTE_CONFIG = { ...state.routeConfig };
     hydrateRouteAnchors();
     dispatchAuthEvent("sc:routes-updated", { routeConfig: { ...state.routeConfig } });
+  };
+
+  const getRequiredRouteValue = (routeKey) => {
+    const routeValue = state.routeConfig[routeKey];
+    if (typeof routeValue !== "string" || routeValue.trim() === "") {
+      throw new Error(ADMIN_ROUTE_CONFIG_ERROR_MESSAGE);
+    }
+    return routeValue;
+  };
+
+  const requireAdminRouteConfig = async (forceRefresh = false) => {
+    if (state.bootstrapPromise) {
+      try {
+        await state.bootstrapPromise;
+      } catch (error) {
+        // Mantemos a validacao explicita abaixo usando o estado final do bootstrap.
+      }
+    }
+
+    await loadRouteConfig(forceRefresh);
+    return {
+      adminApiBasePath: getRequiredRouteValue("adminApiBasePath"),
+      adminUserApiBasePath: getRequiredRouteValue("adminUserApiBasePath"),
+    };
   };
 
   const scheduleRefresh = () => {
@@ -542,8 +568,8 @@
     clearClientAuthState: () => clearAuthState({ keepRoutes: true }),
     ensureCsrfToken,
     getAccessToken: () => state.accessToken,
-    getAdminApiBasePath: () => state.routeConfig.adminApiBasePath || "/api/v1/admin",
-    getAdminUserApiBasePath: () => state.routeConfig.adminUserApiBasePath || "/api/v1/usuarios",
+    getAdminApiBasePath: () => getRequiredRouteValue("adminApiBasePath"),
+    getAdminUserApiBasePath: () => getRequiredRouteValue("adminUserApiBasePath"),
     getRouteConfig: () => ({ ...state.routeConfig }),
     getUserRoles: loadUserRoles,
     hydrateRouteAnchors,
@@ -551,6 +577,9 @@
     logout,
     preloadRouteConfig,
     refreshAccessToken,
+    requireAdminApiBasePath: () => getRequiredRouteValue("adminApiBasePath"),
+    requireAdminRouteConfig,
+    requireAdminUserApiBasePath: () => getRequiredRouteValue("adminUserApiBasePath"),
     storeAccessToken: (token) => {
       clearUserRolesCache();
       setAccessToken(token);

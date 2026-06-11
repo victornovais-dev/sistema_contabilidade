@@ -36,17 +36,20 @@ class CustomUserDetailsServiceCacheIntegrationTest {
   }
 
   @Test
-  @DisplayName("Deve aquecer cache por email no bean proxied")
-  void deveAquecerCachePorEmailNoBeanProxied() {
+  @DisplayName("Deve aquecer cache por email e id no bean proxied")
+  void deveAquecerCachePorEmailEIdNoBeanProxied() {
     Usuario usuario = criarUsuarioComRolePermissao();
 
     UserDetails userDetails = customUserDetailsService.aquecerCacheUsuario(usuario);
-    Cache.ValueWrapper cacheValue =
-        cacheManager.getCache(CustomUserDetailsService.USER_DETAILS_CACHE).get(usuario.getEmail());
+    Cache cache = cacheManager.getCache(CustomUserDetailsService.USER_DETAILS_CACHE);
+    Cache.ValueWrapper cacheByEmail = cache.get(usuario.getEmail());
+    Cache.ValueWrapper cacheById = cache.get("id:" + usuario.getId());
 
     assertEquals(usuario.getEmail(), userDetails.getUsername());
-    assertNotNull(cacheValue);
-    assertNotNull(cacheValue.get());
+    assertNotNull(cacheByEmail);
+    assertNotNull(cacheByEmail.get());
+    assertNotNull(cacheById);
+    assertNotNull(cacheById.get());
   }
 
   private Usuario criarUsuarioComRolePermissao() {

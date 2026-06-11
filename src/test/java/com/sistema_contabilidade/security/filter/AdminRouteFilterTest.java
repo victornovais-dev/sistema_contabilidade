@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.RequestFingerprintService;
+import com.sistema_contabilidade.security.util.SecurityPaths;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
@@ -53,6 +54,9 @@ class AdminRouteFilterTest {
     assertEquals("/admin", filterChain.request.getRequestURI());
     assertEquals("/admin", filterChain.request.getServletPath());
     assertTrue(filterChain.request.getRequestURL().toString().endsWith("/admin"));
+    assertEquals(
+        "/segredo/admin",
+        filterChain.request.getAttribute(SecurityPaths.ORIGINAL_REQUEST_URI_ATTRIBUTE));
   }
 
   @Test

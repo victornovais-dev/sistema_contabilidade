@@ -1,9 +1,11 @@
 package com.sistema_contabilidade.usuario.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.security.util.SecurityPaths;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.dto.UsuarioMeResponse;
@@ -51,6 +53,35 @@ class UsuarioControllerTest {
     // Assert
     assertEquals(HttpStatus.CREATED, resultado.getStatusCode());
     assertEquals(id, resultado.getBody().getId());
+    assertTrue(resultado.getHeaders().getLocation().toString().endsWith("/api/v1/usuarios/" + id));
+    verify(usuarioService).save(request);
+    RequestContextHolder.resetRequestAttributes();
+  }
+
+  @Test
+  @DisplayName("Deve preservar rota secreta no location ao criar usuario")
+  void criarDevePreservarRotaSecretaNoLocation() {
+    UUID id = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Bia", "bia@email.com", "123456", "ADMIN", null);
+    UsuarioDto response = new UsuarioDto(id, "Bia", "bia@email.com", null);
+    when(usuarioService.save(request)).thenReturn(response);
+
+    MockHttpServletRequest servletRequest = new MockHttpServletRequest();
+    servletRequest.setRequestURI("/api/v1/usuarios");
+    servletRequest.setAttribute(
+        SecurityPaths.ORIGINAL_REQUEST_URI_ATTRIBUTE, "/api/v1/segredo123/usuarios");
+    RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(servletRequest));
+
+    ResponseEntity<UsuarioDto> resultado = usuarioController.criar(request);
+
+    assertEquals(HttpStatus.CREATED, resultado.getStatusCode());
+    assertTrue(
+        resultado
+            .getHeaders()
+            .getLocation()
+            .toString()
+            .endsWith("/api/v1/segredo123/usuarios/" + id));
     verify(usuarioService).save(request);
     RequestContextHolder.resetRequestAttributes();
   }

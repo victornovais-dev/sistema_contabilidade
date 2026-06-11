@@ -34,6 +34,12 @@ public class PaginaUsuarioController {
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
   }
 
+  @GetMapping(value = SecurityPaths.FIRST_ACCESS_PAGE, produces = MediaType.TEXT_HTML_VALUE)
+  public ResponseEntity<Resource> firstAccessPage() {
+    Resource resource = new ClassPathResource("static/primeiro_acesso.html");
+    return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
+  }
+
   @GetMapping(value = "/404", produces = MediaType.TEXT_HTML_VALUE)
   public ResponseEntity<Resource> notFoundPage() {
     Resource resource = new ClassPathResource("static/404.html");

@@ -15,4 +15,7 @@ public interface SessaoUsuarioRepository
   Optional<SessaoUsuario> findByIdAndRevogadaFalse(UUID id);
 
   List<SessaoUsuario> findAllByUsuarioIdAndRevogadaFalse(UUID usuarioId);
+
+  List<SessaoUsuario> findAllByUsuarioIdAndRevogadaFalseAndAuthProvider(
+      UUID usuarioId, com.sistema_contabilidade.auth.config.AuthProvider authProvider);
 }

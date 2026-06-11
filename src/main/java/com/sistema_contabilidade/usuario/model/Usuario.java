@@ -26,7 +26,11 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(
     name = "usuarios",
-    indexes = {@Index(name = "idx_usuarios_email", columnList = "email", unique = true)})
+    indexes = {
+      @Index(name = "idx_usuarios_email", columnList = "email", unique = true),
+      @Index(name = "idx_usuarios_cognito_sub", columnList = "cognito_sub", unique = true),
+      @Index(name = "idx_usuarios_cognito_username", columnList = "cognito_username", unique = true)
+    })
 @Getter
 @Setter
 @NoArgsConstructor
@@ -51,6 +55,18 @@ public class Usuario {
   @NotBlank
   @Column(nullable = false)
   private String senha;
+
+  @Column(name = "cognito_sub", unique = true, length = 80)
+  private String cognitoSub;
+
+  @Column(name = "cognito_username", unique = true, length = 120)
+  private String cognitoUsername;
+
+  @Column(name = "cognito_groups_hash", length = 128)
+  private String cognitoGroupsHash;
+
+  @Column(name = "cognito_synced_at")
+  private java.time.LocalDateTime cognitoSyncedAt;
 
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(

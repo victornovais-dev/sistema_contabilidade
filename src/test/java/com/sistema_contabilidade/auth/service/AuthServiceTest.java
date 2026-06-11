@@ -8,25 +8,32 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.auth.config.AuthProvider;
 import com.sistema_contabilidade.auth.dto.AuthenticatedLoginResult;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
+import com.sistema_contabilidade.auth.model.SessaoUsuario;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
+import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,114 +42,279 @@ class AuthServiceTest {
 
   @Mock private JwtService jwtService;
   @Mock private UsuarioRepository usuarioRepository;
-  @Mock private PasswordEncoder passwordEncoder;
   @Mock private CustomUserDetailsService customUserDetailsService;
   @Mock private SessaoUsuarioService sessaoUsuarioService;
   @Mock private RequestFingerprintService requestFingerprintService;
+  @Mock private AuthProviderStrategyResolver authProviderStrategyResolver;
+  @Mock private AuthProviderStrategy localAuthProviderStrategy;
+  @Mock private AuthProviderStrategy cognitoAuthProviderStrategy;
+  @Mock private ObjectProvider<CognitoIdentitySyncService> cognitoIdentitySyncServiceProvider;
+  @Mock private ObjectProvider<CognitoRoleSyncService> cognitoRoleSyncServiceProvider;
+  @Mock private CognitoIdentitySyncService cognitoIdentitySyncService;
+  @Mock private CognitoRoleSyncService cognitoRoleSyncService;
 
-  @InjectMocks private AuthService authService;
+  private AuthService authService;
+
+  @BeforeEach
+  void setUp() {
+    authService =
+        new AuthService(
+            jwtService,
+            usuarioRepository,
+            customUserDetailsService,
+            sessaoUsuarioService,
+            requestFingerprintService,
+            authProviderStrategyResolver,
+            cognitoIdentitySyncServiceProvider,
+            cognitoRoleSyncServiceProvider);
+    ReflectionTestUtils.setField(authService, "loginDiagnosticsEnabled", false);
+  }
 
   @Test
-  @DisplayName("Deve autenticar e retornar access token com sessao opaca")
+  @DisplayName("Deve autenticar com provider local e retornar access token com sessao opaca")
   void loginDeveRetornarAccessTokenESessao() {
     LoginRequest request = new LoginRequest("ana@email.com", "123456");
     MockHttpServletRequest httpRequest = new MockHttpServletRequest();
     Usuario usuario = novoUsuario("ana@email.com", "{argon2}hash-atual");
+    UserDetails userDetails =
+        User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
 
-    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
-    when(passwordEncoder.matches("123456", "{argon2}hash-atual")).thenReturn(true);
-    when(passwordEncoder.upgradeEncoding("{argon2}hash-atual")).thenReturn(false);
-    when(sessaoUsuarioService.criarSessao(usuario.getId())).thenReturn("sessao-segura");
+    when(authProviderStrategyResolver.current()).thenReturn(localAuthProviderStrategy);
+    when(localAuthProviderStrategy.login(request))
+        .thenReturn(
+            new AuthProviderLoginResult(
+                AuthProvider.LOCAL,
+                usuario.getId(),
+                usuario.getEmail(),
+                usuario.getEmail(),
+                usuario.getNome(),
+                null,
+                Set.of(),
+                null,
+                null));
+    when(usuarioRepository.findWithRolesById(usuario.getId())).thenReturn(Optional.of(usuario));
+    when(sessaoUsuarioService.criarSessao(any(SessionCreationRequest.class)))
+        .thenReturn("sessao-segura");
+    when(customUserDetailsService.loadUserById(usuario.getId())).thenReturn(userDetails);
     when(requestFingerprintService.generateFingerprint(httpRequest)).thenReturn("fingerprint");
-    when(jwtService.generateToken(any(), any())).thenReturn("jwt-token");
+    when(jwtService.generateToken(userDetails, usuario.getId(), null, "fingerprint"))
+        .thenReturn("jwt-token");
 
-    AuthenticatedLoginResult response = authService.login(request, httpRequest);
+    LoginFlowResult response = authService.login(request, httpRequest);
 
-    assertEquals("jwt-token", response.response().accessToken());
-    assertEquals("Bearer", response.response().tokenType());
-    assertEquals("sessao-segura", response.sessionToken());
+    assertEquals("jwt-token", response.authenticatedResult().response().accessToken());
+    assertEquals("Bearer", response.authenticatedResult().response().tokenType());
+    assertEquals("sessao-segura", response.authenticatedResult().sessionToken());
     verify(customUserDetailsService).aquecerCacheUsuario(usuario);
     verify(sessaoUsuarioService).revogarSessoesAtivas(usuario.getId());
   }
 
   @Test
-  @DisplayName("Deve atualizar hash legado para Argon2id no login com sucesso")
-  void loginDeveAtualizarHashQuandoNecessario() {
+  @DisplayName("Deve autenticar com provider Cognito, sincronizar usuario e roles locais")
+  void loginCognitoDeveSincronizarUsuarioERoles() {
     LoginRequest request = new LoginRequest("ana@email.com", "123456");
     MockHttpServletRequest httpRequest = new MockHttpServletRequest();
-    Usuario usuario = novoUsuario("ana@email.com", "$d0801$hash-legado");
+    Usuario usuario = novoUsuario("ana@email.com", "{argon2}placeholder");
+    usuario.setCognitoSub("sub-123");
+    UserDetails userDetails =
+        User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    AuthProviderLoginResult loginResult =
+        new AuthProviderLoginResult(
+            AuthProvider.COGNITO,
+            null,
+            "ana@email.com",
+            "ana@email.com",
+            "Ana",
+            "sub-123",
+            Set.of("ADMIN"),
+            "refresh-token",
+            null);
 
-    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
-    when(passwordEncoder.matches("123456", "$d0801$hash-legado")).thenReturn(true);
-    when(passwordEncoder.upgradeEncoding("$d0801$hash-legado")).thenReturn(true);
-    when(passwordEncoder.encode("123456")).thenReturn("{argon2}hash-novo");
+    when(authProviderStrategyResolver.current()).thenReturn(cognitoAuthProviderStrategy);
+    when(cognitoAuthProviderStrategy.login(request)).thenReturn(loginResult);
+    when(cognitoIdentitySyncServiceProvider.getIfAvailable())
+        .thenReturn(cognitoIdentitySyncService);
+    when(cognitoRoleSyncServiceProvider.getIfAvailable()).thenReturn(cognitoRoleSyncService);
+    when(cognitoIdentitySyncService.synchronizeLoginIdentity(loginResult)).thenReturn(usuario);
+    when(cognitoRoleSyncService.syncMemberships(usuario, Set.of("ADMIN")))
+        .thenReturn(new CognitoRoleSyncResult(Set.of("ADMIN"), "hash-groups"));
     when(usuarioRepository.save(usuario)).thenReturn(usuario);
-    when(sessaoUsuarioService.criarSessao(usuario.getId())).thenReturn("sessao-segura");
+    when(sessaoUsuarioService.criarSessao(any(SessionCreationRequest.class)))
+        .thenReturn("sessao-cognito");
+    when(customUserDetailsService.loadUserById(usuario.getId())).thenReturn(userDetails);
     when(requestFingerprintService.generateFingerprint(httpRequest)).thenReturn("fingerprint");
-    when(jwtService.generateToken(any(), any())).thenReturn("jwt-token");
+    when(jwtService.generateToken(userDetails, usuario.getId(), "sub-123", "fingerprint"))
+        .thenReturn("jwt-cognito");
 
-    AuthenticatedLoginResult response = authService.login(request, httpRequest);
+    LoginFlowResult response = authService.login(request, httpRequest);
 
-    assertEquals("jwt-token", response.response().accessToken());
-    assertEquals("{argon2}hash-novo", usuario.getSenha());
-    verify(usuarioRepository).save(usuario);
-    verify(customUserDetailsService).aquecerCacheUsuario(usuario);
+    assertEquals("jwt-cognito", response.authenticatedResult().response().accessToken());
+    assertEquals("sessao-cognito", response.authenticatedResult().sessionToken());
+    verify(cognitoIdentitySyncService).synchronizeLoginIdentity(loginResult);
+    verify(cognitoRoleSyncService).syncMemberships(usuario, Set.of("ADMIN"));
   }
 
   @Test
-  @DisplayName("Deve retornar erro generico quando usuario nao existe")
-  void loginDeveRetornarErroGenericoQuandoUsuarioNaoExiste() {
-    LoginRequest request = new LoginRequest("ausente@email.com", "123456");
+  @DisplayName("Deve sinalizar challenge de troca inicial de senha quando Cognito exigir")
+  void loginCognitoDeveRetornarChallengeDeNovaSenha() {
+    LoginRequest request = new LoginRequest("ana@email.com", "123456");
     MockHttpServletRequest httpRequest = new MockHttpServletRequest();
+    AuthLoginChallenge challenge =
+        new AuthLoginChallenge(
+            AuthProvider.COGNITO,
+            "NEW_PASSWORD_REQUIRED",
+            "ana@email.com",
+            "challenge-session",
+            "Primeiro acesso detectado. Defina uma nova senha para continuar.");
 
-    when(usuarioRepository.findByEmail("ausente@email.com")).thenReturn(Optional.empty());
-    when(passwordEncoder.encode(any())).thenReturn("{argon2}dummy-hash");
-    when(passwordEncoder.matches("123456", "{argon2}dummy-hash")).thenReturn(false);
+    when(authProviderStrategyResolver.current()).thenReturn(cognitoAuthProviderStrategy);
+    when(cognitoAuthProviderStrategy.login(request))
+        .thenReturn(
+            new AuthProviderLoginResult(
+                AuthProvider.COGNITO,
+                null,
+                "ana@email.com",
+                "ana@email.com",
+                null,
+                null,
+                Set.of(),
+                null,
+                challenge));
 
-    ResponseStatusException exception =
-        assertThrows(ResponseStatusException.class, () -> authService.login(request, httpRequest));
+    LoginFlowResult response = authService.login(request, httpRequest);
 
-    assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
-    assertEquals("Credenciais invalidas", exception.getReason());
-    verify(jwtService, never()).generateToken(any(), any());
-    verify(sessaoUsuarioService, never()).criarSessao(any());
+    assertEquals("NEW_PASSWORD_REQUIRED", response.challenge().challengeName());
+    verify(sessaoUsuarioService, never()).criarSessao(any(SessionCreationRequest.class));
   }
 
   @Test
-  @DisplayName("Deve retornar erro generico quando senha for invalida")
-  void loginDeveRetornarErroGenericoQuandoSenhaForInvalida() {
-    LoginRequest request = new LoginRequest("ana@email.com", "senha-incorreta");
+  @DisplayName("Deve concluir troca inicial de senha e autenticar usuario Cognito")
+  void completeNewPasswordDeveAutenticarUsuario() {
     MockHttpServletRequest httpRequest = new MockHttpServletRequest();
-    Usuario usuario = novoUsuario("ana@email.com", "{argon2}hash");
+    Usuario usuario = novoUsuario("ana@email.com", "{argon2}placeholder");
+    usuario.setCognitoSub("sub-123");
+    UserDetails userDetails =
+        User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    AuthLoginChallenge challenge =
+        new AuthLoginChallenge(
+            AuthProvider.COGNITO,
+            "NEW_PASSWORD_REQUIRED",
+            "ana@email.com",
+            "challenge-session",
+            "Primeiro acesso detectado. Defina uma nova senha para continuar.");
+    AuthProviderLoginResult loginResult =
+        new AuthProviderLoginResult(
+            AuthProvider.COGNITO,
+            null,
+            "ana@email.com",
+            "ana@email.com",
+            "Ana",
+            "sub-123",
+            Set.of("ADMIN"),
+            "refresh-token",
+            null);
 
-    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
-    when(passwordEncoder.matches("senha-incorreta", "{argon2}hash")).thenReturn(false);
+    when(authProviderStrategyResolver.resolve(AuthProvider.COGNITO))
+        .thenReturn(cognitoAuthProviderStrategy);
+    when(cognitoAuthProviderStrategy.completeNewPassword(
+            challenge,
+            new com.sistema_contabilidade.auth.dto.CompleteNewPasswordRequest("Nova@123")))
+        .thenReturn(loginResult);
+    when(cognitoIdentitySyncServiceProvider.getIfAvailable())
+        .thenReturn(cognitoIdentitySyncService);
+    when(cognitoRoleSyncServiceProvider.getIfAvailable()).thenReturn(cognitoRoleSyncService);
+    when(cognitoIdentitySyncService.synchronizeLoginIdentity(loginResult)).thenReturn(usuario);
+    when(cognitoRoleSyncService.syncMemberships(usuario, Set.of("ADMIN")))
+        .thenReturn(new CognitoRoleSyncResult(Set.of("ADMIN"), "hash-groups"));
+    when(usuarioRepository.save(usuario)).thenReturn(usuario);
+    when(sessaoUsuarioService.criarSessao(any(SessionCreationRequest.class)))
+        .thenReturn("sessao-cognito");
+    when(customUserDetailsService.loadUserById(usuario.getId())).thenReturn(userDetails);
+    when(requestFingerprintService.generateFingerprint(httpRequest)).thenReturn("fingerprint");
+    when(jwtService.generateToken(userDetails, usuario.getId(), "sub-123", "fingerprint"))
+        .thenReturn("jwt-cognito");
 
-    ResponseStatusException exception =
-        assertThrows(ResponseStatusException.class, () -> authService.login(request, httpRequest));
+    AuthenticatedLoginResult response =
+        authService.completeNewPassword(
+            challenge,
+            new com.sistema_contabilidade.auth.dto.CompleteNewPasswordRequest("Nova@123"),
+            httpRequest);
 
-    assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
-    assertEquals("Credenciais invalidas", exception.getReason());
-    verify(jwtService, never()).generateToken(any(), any());
-    verify(sessaoUsuarioService, never()).criarSessao(any());
+    assertEquals("jwt-cognito", response.response().accessToken());
+    assertEquals("sessao-cognito", response.sessionToken());
   }
 
   @Test
-  @DisplayName("Deve emitir novo access token ao renovar sessao valida")
+  @DisplayName("Deve emitir novo access token ao renovar sessao local valida")
   void refreshDeveEmitirNovoAccessToken() {
     UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
     MockHttpServletRequest httpRequest = new MockHttpServletRequest();
     Usuario usuario = novoUsuario("ana@email.com", "{argon2}hash");
+    UserDetails userDetails =
+        User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    SessaoUsuario sessaoUsuario = sessaoLocal(usuarioId);
 
-    when(sessaoUsuarioService.validarSessao("sessao-segura")).thenReturn(usuarioId);
-    when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.of(usuario));
+    when(sessaoUsuarioService.obterSessaoAtiva("sessao-segura")).thenReturn(sessaoUsuario);
+    when(authProviderStrategyResolver.resolve(AuthProvider.LOCAL))
+        .thenReturn(localAuthProviderStrategy);
+    when(localAuthProviderStrategy.refresh(sessaoUsuario))
+        .thenReturn(
+            new AuthProviderRefreshResult(
+                AuthProvider.LOCAL, "ana@email.com", "ana@email.com", "Ana", null, Set.of(), null));
+    when(usuarioRepository.findWithRolesById(usuarioId)).thenReturn(Optional.of(usuario));
+    when(customUserDetailsService.loadUserById(usuarioId)).thenReturn(userDetails);
     when(requestFingerprintService.generateFingerprint(httpRequest)).thenReturn("fingerprint");
-    when(jwtService.generateToken(any(), any())).thenReturn("novo-jwt");
+    when(jwtService.generateToken(userDetails, usuarioId, null, "fingerprint"))
+        .thenReturn("novo-jwt");
 
     JwtLoginResponse response = authService.refresh("sessao-segura", httpRequest);
 
     assertEquals("novo-jwt", response.accessToken());
     assertEquals("Bearer", response.tokenType());
+  }
+
+  @Test
+  @DisplayName("Deve atualizar sessao Cognito ao renovar token")
+  void refreshCognitoDeveAtualizarSessao() {
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    MockHttpServletRequest httpRequest = new MockHttpServletRequest();
+    Usuario usuario = novoUsuario("ana@email.com", "{argon2}hash");
+    usuario.setCognitoSub("sub-123");
+    UserDetails userDetails =
+        User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    SessaoUsuario sessaoUsuario = sessaoCognito(usuarioId);
+    AuthProviderRefreshResult refreshResult =
+        new AuthProviderRefreshResult(
+            AuthProvider.COGNITO,
+            "ana@email.com",
+            "ana@email.com",
+            "Ana",
+            "sub-123",
+            Set.of("ADMIN"),
+            null);
+
+    when(sessaoUsuarioService.obterSessaoAtiva("sessao-cognito")).thenReturn(sessaoUsuario);
+    when(authProviderStrategyResolver.resolve(AuthProvider.COGNITO))
+        .thenReturn(cognitoAuthProviderStrategy);
+    when(cognitoAuthProviderStrategy.refresh(sessaoUsuario)).thenReturn(refreshResult);
+    when(cognitoIdentitySyncServiceProvider.getIfAvailable())
+        .thenReturn(cognitoIdentitySyncService);
+    when(cognitoRoleSyncServiceProvider.getIfAvailable()).thenReturn(cognitoRoleSyncService);
+    when(cognitoIdentitySyncService.synchronizeRefreshIdentity(refreshResult)).thenReturn(usuario);
+    when(cognitoRoleSyncService.syncMemberships(usuario, Set.of("ADMIN")))
+        .thenReturn(new CognitoRoleSyncResult(Set.of("ADMIN"), "hash-groups"));
+    when(usuarioRepository.save(usuario)).thenReturn(usuario);
+    when(sessaoUsuarioService.atualizarSessao(sessaoUsuario, refreshResult, "hash-groups"))
+        .thenReturn(sessaoUsuario);
+    when(customUserDetailsService.loadUserById(usuarioId)).thenReturn(userDetails);
+    when(requestFingerprintService.generateFingerprint(httpRequest)).thenReturn("fingerprint");
+    when(jwtService.generateToken(userDetails, usuarioId, "sub-123", "fingerprint"))
+        .thenReturn("novo-jwt");
+
+    JwtLoginResponse response = authService.refresh("sessao-cognito", httpRequest);
+
+    assertEquals("novo-jwt", response.accessToken());
+    verify(sessaoUsuarioService).atualizarSessao(sessaoUsuario, refreshResult, "hash-groups");
   }
 
   @Test
@@ -158,11 +330,11 @@ class AuthServiceTest {
   void logoutDeveIgnorarSessaoJaRevogada() {
     doThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessao invalida"))
         .when(sessaoUsuarioService)
-        .revogarSessao("sessao-expirada");
+        .obterSessaoAtiva("sessao-expirada");
 
     authService.logout("sessao-expirada");
 
-    verify(sessaoUsuarioService).revogarSessao("sessao-expirada");
+    verify(sessaoUsuarioService).obterSessaoAtiva("sessao-expirada");
   }
 
   @Test
@@ -170,7 +342,7 @@ class AuthServiceTest {
   void logoutDevePropagarErroInesperado() {
     doThrow(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Falha"))
         .when(sessaoUsuarioService)
-        .revogarSessao("sessao-falhou");
+        .obterSessaoAtiva("sessao-falhou");
 
     ResponseStatusException exception =
         assertThrows(ResponseStatusException.class, () -> authService.logout("sessao-falhou"));
@@ -178,28 +350,31 @@ class AuthServiceTest {
     assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatusCode());
   }
 
-  @Test
-  @DisplayName("Deve falhar ao renovar sessao quando usuario nao for encontrado")
-  void refreshDeveFalharQuandoUsuarioNaoForEncontrado() {
-    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
-    MockHttpServletRequest httpRequest = new MockHttpServletRequest();
-
-    when(sessaoUsuarioService.validarSessao("sessao-segura")).thenReturn(usuarioId);
-    when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.empty());
-
-    ResponseStatusException exception =
-        assertThrows(
-            ResponseStatusException.class, () -> authService.refresh("sessao-segura", httpRequest));
-
-    assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
-    verify(requestFingerprintService, never()).generateFingerprint(httpRequest);
-  }
-
   private static Usuario novoUsuario(String email, String senha) {
     Usuario usuario = new Usuario();
     usuario.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
+    usuario.setNome("Ana");
     usuario.setEmail(email);
     usuario.setSenha(senha);
     return usuario;
+  }
+
+  private SessaoUsuario sessaoLocal(UUID usuarioId) {
+    SessaoUsuario sessaoUsuario = new SessaoUsuario();
+    sessaoUsuario.setId(UUID.fromString("22222222-2222-2222-2222-222222222222"));
+    sessaoUsuario.setUsuarioId(usuarioId);
+    sessaoUsuario.setAuthProvider(AuthProvider.LOCAL);
+    sessaoUsuario.setAuthUsername("ana@email.com");
+    sessaoUsuario.setCriadaEm(LocalDateTime.now());
+    sessaoUsuario.setAtualizadaEm(LocalDateTime.now());
+    sessaoUsuario.setExpiraEm(LocalDateTime.now().plusMinutes(30));
+    return sessaoUsuario;
+  }
+
+  private SessaoUsuario sessaoCognito(UUID usuarioId) {
+    SessaoUsuario sessaoUsuario = sessaoLocal(usuarioId);
+    sessaoUsuario.setAuthProvider(AuthProvider.COGNITO);
+    sessaoUsuario.setCognitoSub("sub-123");
+    return sessaoUsuario;
   }
 }

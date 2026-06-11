@@ -42,11 +42,18 @@
           </label>
 
           <label class="field">
-            <span>Senha</span>
-            <input id="senha" type="password" name="password" placeholder="********" required />
+            <span id="senha-label">Senha</span>
+            <input
+              id="senha"
+              type="password"
+              name="password"
+              placeholder="********"
+              autocomplete="current-password"
+              required
+            />
           </label>
 
-          <button class="btn" type="submit">Entrar</button>
+          <button id="submit-button" class="btn" type="submit">Entrar</button>
         </form>
 
         <p id="login-feedback" class="foot" style="margin-top: 12px"></p>
