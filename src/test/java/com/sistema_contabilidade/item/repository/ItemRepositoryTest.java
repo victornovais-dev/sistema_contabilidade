@@ -31,14 +31,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -147,20 +148,20 @@ class ItemRepositoryTest {
   }
 
   @Test
-  @DisplayName("Deve paginar lista filtrando descricao exata e razao like")
-  void devePaginarListaFiltrandoDescricaoExataERazaoLike() {
+  @DisplayName("Deve paginar lista filtrando descricao exata e razao normalizada")
+  void devePaginarListaFiltrandoDescricaoExataERazaoNormalizada() {
     Usuario criador = criarUsuarioComRole("pagina@email.com", "FINANCEIRO");
 
     Item itemElegivel =
         novoItem(TipoItem.DESPESA, "uploads/itens/pag-1.pdf", criador, "FINANCEIRO");
     itemElegivel.setDescricao("SERVICOS");
-    itemElegivel.setRazaoSocialNome("Fornecedor Alpha");
+    itemElegivel.setRazaoSocialNome("Fornecedor Alpha & Filhos");
     itemElegivel.setHorarioCriacao(LocalDateTime.of(2026, 4, 10, 12, 0));
 
     Item itemDescricaoDiferente =
         novoItem(TipoItem.DESPESA, "uploads/itens/pag-2.pdf", criador, "FINANCEIRO");
     itemDescricaoDiferente.setDescricao("OUTROS");
-    itemDescricaoDiferente.setRazaoSocialNome("Fornecedor Alpha");
+    itemDescricaoDiferente.setRazaoSocialNome("Fornecedor Alpha & Filhos");
     itemDescricaoDiferente.setHorarioCriacao(LocalDateTime.of(2026, 4, 9, 12, 0));
 
     Item itemRazaoDiferente =
@@ -173,16 +174,33 @@ class ItemRepositoryTest {
     itemRepository.save(itemDescricaoDiferente);
     itemRepository.save(itemRazaoDiferente);
 
-    Page<ItemListResponse> page =
+    Slice<ItemListResponse> page =
         itemRepository.findPageForList(
             new ItemListPageQuery(
-                Set.of("FINANCEIRO"), TipoItem.DESPESA, null, null, "SERVICOS", "alpha"),
+                Set.of("FINANCEIRO"), TipoItem.DESPESA, null, null, "SERVICOS", "alpha filhos"),
             PageRequest.of(
                 0, 10, Sort.by(Sort.Order.desc("horarioCriacao"), Sort.Order.desc("id"))));
 
-    assertEquals(1L, page.getTotalElements());
     assertEquals(itemElegivel.getId(), page.getContent().getFirst().id());
-    assertEquals("Fornecedor Alpha", page.getContent().getFirst().razaoSocialNome());
+    assertEquals("Fornecedor Alpha & Filhos", page.getContent().getFirst().razaoSocialNome());
+    assertTrue(page.getContent().size() == 1);
+    assertTrue(!page.hasNext());
+  }
+
+  @Test
+  @DisplayName("Deve localizar ids com razao social busca pendente para backfill")
+  void deveLocalizarIdsComRazaoSocialBuscaPendenteParaBackfill() throws Exception {
+    UUID itemId = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeee02");
+    inserirItemLegadoComVersaoNula(itemId, "uploads/itens/backfill.pdf");
+
+    try {
+      List<UUID> ids =
+          itemRepository.findIdsWithMissingRazaoSocialBusca(PageRequest.of(0, 10, Sort.by("id")));
+
+      assertTrue(ids.contains(itemId));
+    } finally {
+      deletarItemPorId(itemId);
+    }
   }
 
   @Test

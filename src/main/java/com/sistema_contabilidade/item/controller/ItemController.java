@@ -457,10 +457,16 @@ public class ItemController {
             .findByIdComCriadorERoles(id)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, ITEM_NAO_ENCONTRADO));
-    if (!isAdmin(authentication) && !temAcessoPorRole(authentication, item)) {
+    if (!podeAcessarItemPorEscopo(authentication, item)) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ITEM_NAO_ENCONTRADO);
     }
     return recarregarItemComVersaoInicializadaSeNecessario(item);
+  }
+
+  private boolean podeAcessarItemPorEscopo(Authentication authentication, Item item) {
+    return isAdmin(authentication)
+        || temAuthority(authentication, CONTABIL_AUTHORITY)
+        || temAcessoPorRole(authentication, item);
   }
 
   @SuppressWarnings("PMD.CloseResource")
@@ -589,7 +595,9 @@ public class ItemController {
   private boolean isContaFinanceira(ItemUpsertRequest request) {
     return request != null
         && request.tipo() == TipoItem.RECEITA
-        && RevenueClassificationUtils.isFinancialRevenue(request.descricao());
+        && RevenueClassificationUtils.isFinancialRevenue(request.descricao())
+        && request.valor() == null
+        && request.data() == null;
   }
 
   private void validarAnexoObrigatorioNaCriacao(ItemUpsertRequest request) {

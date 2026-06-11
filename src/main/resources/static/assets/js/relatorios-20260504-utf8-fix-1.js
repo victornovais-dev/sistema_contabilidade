@@ -14,7 +14,6 @@ const summaryLimitesTitle = summaryLimitesCard?.querySelector(".summary-card-tit
 const summaryOverviewTitle = summaryOverviewCard?.querySelector(".summary-card-title") || null;
 const reportState = document.getElementById("report-state");
 const downloadReportButton = document.getElementById("download-report-btn");
-const technicalRoles = new Set(["ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO"]);
 const roleFilterStorageKey = "sc_home_selected_role";
 const getStoredSelectedRole = () => String(localStorage.getItem(roleFilterStorageKey) || "").trim();
 const setSelectedRole = (role) => {
@@ -80,9 +79,7 @@ const orderRoles = (roles) => {
   const normalizedRoles = Array.isArray(roles)
     ? [
         ...new Set(
-          roles
-            .map((role) => String(role || "").trim())
-            .filter((role) => role && !technicalRoles.has(role.toUpperCase())),
+          roles.map((role) => String(role || "").trim()).filter((role) => role),
         ),
       ].sort((a, b) => a.localeCompare(b, "pt-BR"))
     : [];

@@ -16,7 +16,7 @@ import com.sistema_contabilidade.notificacao.dto.NotificacaoListResponse;
 import com.sistema_contabilidade.notificacao.model.Notificacao;
 import com.sistema_contabilidade.notificacao.repository.NotificacaoRepository;
 import com.sistema_contabilidade.rbac.model.Role;
-import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
@@ -42,7 +42,7 @@ class NotificacaoServiceTest {
   @Mock private ItemRepository itemRepository;
   @Mock private NotificacaoRepository notificacaoRepository;
   @Mock private UsuarioRepository usuarioRepository;
-  @Mock private RoleRepository roleRepository;
+  @Mock private CandidateRoleCatalogService candidateRoleCatalogService;
   @Spy private InputSanitizer inputSanitizer = new InputSanitizer();
 
   @Test
@@ -53,7 +53,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     Item item = new Item();
     item.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
@@ -83,7 +83,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     Item item = new Item();
     item.setId(UUID.fromString("99999999-1111-1111-1111-111111111111"));
@@ -103,7 +103,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     Item item = new Item();
     item.setId(UUID.fromString("91919191-1111-1111-1111-111111111111"));
@@ -124,7 +124,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     UUID itemId = UUID.fromString("12121212-3434-5656-7878-909090909090");
     Item item = new Item();
@@ -162,7 +162,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     UUID itemId = UUID.fromString("13131313-3434-5656-7878-909090909090");
     Item item = new Item();
@@ -190,7 +190,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     UUID itemId = UUID.fromString("45454545-6666-7777-8888-999999999999");
 
@@ -207,7 +207,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     when(itemRepository.findReceitasOrderByHorarioCriacaoDesc()).thenReturn(List.of());
     when(notificacaoRepository.findAllResumoOrderByCriadoEmDesc())
@@ -239,7 +239,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     Item item = new Item();
     item.setId(UUID.fromString("67676767-1111-2222-3333-444444444444"));
@@ -269,7 +269,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     when(usuarioRepository.findByEmail("operador@email.com"))
         .thenReturn(Optional.of(usuarioComRole("operador@email.com", "OPERADOR")));
@@ -292,7 +292,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     when(itemRepository.findReceitasPorRoleNomeOrderByHorarioCriacaoDesc("FINANCEIRO"))
         .thenReturn(List.of());
@@ -313,14 +313,13 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
-    when(roleRepository.findAllRoleNamesOrdered())
-        .thenReturn(List.of("ADMIN", "CANDIDATO", "CONTABIL", "FINANCEIRO", "MANAGER", "SUPPORT"));
+    when(candidateRoleCatalogService.listAvailableRolesForAdmin()).thenReturn(List.of("ANDRE"));
 
     List<String> roles = service.listarRolesDisponiveis(autenticacao("admin@email.com", "ADMIN"));
 
-    assertEquals(List.of("FINANCEIRO"), roles);
+    assertEquals(List.of("ANDRE"), roles);
   }
 
   @Test
@@ -331,10 +330,13 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     when(usuarioRepository.findByEmail("manager@email.com"))
         .thenReturn(Optional.of(usuarioComRole("manager@email.com", "MANAGER", "FINANCEIRO")));
+    when(candidateRoleCatalogService.filterAvailableRoles(
+            java.util.Set.of("MANAGER", "FINANCEIRO")))
+        .thenReturn(List.of("FINANCEIRO"));
 
     List<String> roles =
         service.listarRolesDisponiveis(autenticacao("manager@email.com", "MANAGER"));
@@ -351,7 +353,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     Notificacao notificacao = new Notificacao();
     UUID id = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
@@ -386,7 +388,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
 
     service.removerPorItemId(null);
@@ -402,7 +404,7 @@ class NotificacaoServiceTest {
             itemRepository,
             notificacaoRepository,
             usuarioRepository,
-            roleRepository,
+            candidateRoleCatalogService,
             inputSanitizer);
     UUID id = UUID.fromString("ffffffff-1111-2222-3333-444444444444");
 

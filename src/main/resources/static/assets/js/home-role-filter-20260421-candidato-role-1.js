@@ -1,6 +1,5 @@
 (() => {
   const storageKey = "sc_home_selected_role";
-  const technicalRoles = new Set(["ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO"]);
   const roleFilterBox = document.getElementById("home-role-filter-box");
   const roleFilterSelect = document.getElementById("home-role-filter-select");
   const roleDropdown =
@@ -36,9 +35,7 @@
     const normalizedRoles = Array.isArray(roles)
       ? [
           ...new Set(
-            roles
-              .map((role) => String(role || "").trim())
-              .filter((role) => role && !technicalRoles.has(role.toUpperCase())),
+            roles.map((role) => String(role || "").trim()).filter((role) => role),
           ),
         ].sort((a, b) => a.localeCompare(b, "pt-BR"))
       : [];

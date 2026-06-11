@@ -1,8 +1,10 @@
 package com.sistema_contabilidade.item.repository;
 
+import com.sistema_contabilidade.common.util.SearchTextNormalizer;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -88,14 +90,24 @@ public final class ItemListSpecifications {
   }
 
   private static Specification<Item> withRazaoSocialLike(String razao) {
-    if (razao == null || razao.isBlank()) {
+    List<String> tokens = SearchTextNormalizer.tokenize(razao);
+    if (tokens.isEmpty()) {
       return null;
     }
 
-    String escaped = escapeLikePattern(razao.trim().toUpperCase(Locale.ROOT));
     return (root, query, criteriaBuilder) ->
-        criteriaBuilder.like(
-            criteriaBuilder.upper(root.get("razaoSocialNome")), "%" + escaped + "%", '\\');
+        criteriaBuilder.and(
+            tokens.stream()
+                .map(
+                    token ->
+                        criteriaBuilder.or(
+                            criteriaBuilder.like(
+                                root.get("razaoSocialBusca"), escapeLikePattern(token) + "%", '\\'),
+                            criteriaBuilder.like(
+                                root.get("razaoSocialBusca"),
+                                "% " + escapeLikePattern(token) + "%",
+                                '\\')))
+                .toArray(jakarta.persistence.criteria.Predicate[]::new));
   }
 
   private static String escapeLikePattern(String input) {

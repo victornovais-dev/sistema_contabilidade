@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.item.model;
 
+import com.sistema_contabilidade.common.util.SearchTextNormalizer;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -13,6 +14,8 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
@@ -69,6 +72,9 @@ public class Item {
   @Column(name = "razao_social", length = 150)
   private String razaoSocialNome;
 
+  @Column(name = "razao_social_busca", length = 200)
+  private String razaoSocialBusca;
+
   @Column(name = "cnpj_cpf", length = 20)
   private String cnpjCpf;
 
@@ -91,4 +97,15 @@ public class Item {
   @ManyToOne
   @JoinColumn(name = "criado_por_id")
   private Usuario criadoPor;
+
+  @SuppressWarnings("PMD.UnusedPrivateMethod")
+  @PrePersist
+  @PreUpdate
+  private void synchronizeDerivedFields() {
+    synchronizeSearchFields();
+  }
+
+  public void synchronizeSearchFields() {
+    this.razaoSocialBusca = SearchTextNormalizer.normalizeForSearch(razaoSocialNome);
+  }
 }

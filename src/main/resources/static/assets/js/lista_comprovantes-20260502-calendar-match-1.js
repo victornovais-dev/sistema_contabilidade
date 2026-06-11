@@ -2589,26 +2589,18 @@ const init = async () => {
   state.selectedRole = getStoredSelectedRole();
 
   const initialSelectedRole = state.selectedRole;
-  const shouldAwaitRoleFilterBeforeFirstLoad =
-    !initialSelectedRole && Boolean(roleFilterBox) && Boolean(roleFilterSelect);
   const userRolesPromise = loadAndApplyCurrentUserRoles();
   const roleFilterPromise = loadInitialRoleFilterOptions(initialSelectedRole);
 
-  if (shouldAwaitRoleFilterBeforeFirstLoad) {
-    await roleFilterPromise;
-  }
-
   await loadItemsSafely("Erro ao carregar comprovantes. Tente novamente.");
 
-  if (!shouldAwaitRoleFilterBeforeFirstLoad) {
-    void roleFilterPromise.then((selectedRoleChanged) => {
-      if (!selectedRoleChanged) {
-        return;
-      }
-      resetPagination();
-      void loadItemsSafely("Erro ao carregar comprovantes do candidato selecionado.");
-    });
-  }
+  void roleFilterPromise.then((selectedRoleChanged) => {
+    if (!selectedRoleChanged) {
+      return;
+    }
+    resetPagination();
+    void loadItemsSafely("Erro ao carregar comprovantes do candidato selecionado.");
+  });
 
   await userRolesPromise;
 };

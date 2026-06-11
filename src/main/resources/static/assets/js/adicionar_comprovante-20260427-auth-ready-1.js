@@ -18,6 +18,7 @@ const cnpjCpfInput = document.querySelector("input[name=\"cnpj_cpf\"]");
 const observacaoInput = document.querySelector("textarea[name=\"observacao\"]");
 const form = document.querySelector(".form");
 const receiptSelected = document.getElementById("receipt-selected");
+const receiptDropTarget = document.querySelector("[data-receipt-drop]");
 const confirmOverlay = document.querySelector(".confirm-overlay");
 const confirmClose = document.querySelector(".confirm-close");
 const confirmTitle = document.querySelector(".confirm-card h2");
@@ -83,6 +84,11 @@ const REQUIRED_ATTACHMENT_MESSAGE = "Anexe ao menos um comprovante em PDF.";
 const tipoDocumentoOptionsCache = new Map();
 let descricaoRequestSequence = 0;
 let tipoDocumentoRequestSequence = 0;
+
+const isFileDragEvent = (event) => {
+  const types = event?.dataTransfer?.types;
+  return Boolean(types) && Array.from(types).includes("Files");
+};
 
 const waitForAuthReady = async () => {
   if (window.SCAuth?.waitUntilReady) {
@@ -1118,37 +1124,91 @@ if (fileInput) {
   };
 
   let dragDepth = 0;
-
-  document.addEventListener("dragenter", (event) => {
+  const showDropOverlay = () => {
+    if (dropOverlay) dropOverlay.classList.add("is-visible");
+  };
+  const hideDropOverlay = () => {
+    if (dropOverlay) dropOverlay.classList.remove("is-visible");
+  };
+  const markCopyDropEffect = (event) => {
+    if (event?.dataTransfer) {
+      event.dataTransfer.dropEffect = "copy";
+    }
+  };
+  const handleGlobalDragEnter = (event) => {
+    if (!isFileDragEvent(event)) return;
     event.preventDefault();
     dragDepth += 1;
-    if (dropOverlay) dropOverlay.classList.add("is-visible");
-  });
-
-  document.addEventListener("dragover", (event) => {
+    markCopyDropEffect(event);
+    showDropOverlay();
+  };
+  const handleGlobalDragOver = (event) => {
+    if (!isFileDragEvent(event)) return;
     event.preventDefault();
-    if (dropOverlay) dropOverlay.classList.add("is-visible");
-  });
-
-  document.addEventListener("drop", (event) => {
-    event.preventDefault();
-    dragDepth = 0;
-    if (dropOverlay) dropOverlay.classList.remove("is-visible");
-    const files = event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : null;
-    setDroppedFiles(files);
-  });
-
-  document.addEventListener("dragleave", (event) => {
+    markCopyDropEffect(event);
+    showDropOverlay();
+  };
+  const handleGlobalDragLeave = (event) => {
+    if (!isFileDragEvent(event)) return;
     dragDepth = Math.max(0, dragDepth - 1);
-    if (dragDepth === 0 && dropOverlay) {
-      dropOverlay.classList.remove("is-visible");
+    if (dragDepth === 0) {
+      hideDropOverlay();
     }
+  };
+  const handleGlobalDrop = (event) => {
+    if (!isFileDragEvent(event)) return;
+    event.preventDefault();
+    dragDepth = 0;
+    hideDropOverlay();
+  };
+  const handleDropTargetDragOver = (event) => {
+    if (!isFileDragEvent(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    markCopyDropEffect(event);
+    showDropOverlay();
+  };
+  const handleDropTargetDrop = (event) => {
+    if (!isFileDragEvent(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth = 0;
+    hideDropOverlay();
+    setDroppedFiles(event.dataTransfer?.files);
+  };
+
+  window.addEventListener("dragenter", handleGlobalDragEnter);
+  window.addEventListener("dragover", handleGlobalDragOver);
+  window.addEventListener("dragleave", handleGlobalDragLeave);
+  window.addEventListener("drop", handleGlobalDrop);
+  window.addEventListener("dragend", () => {
+    dragDepth = 0;
+    hideDropOverlay();
   });
 
-  document.addEventListener("dragend", () => {
-    dragDepth = 0;
-    if (dropOverlay) dropOverlay.classList.remove("is-visible");
-  });
+  if (receiptDropTarget) {
+    receiptDropTarget.addEventListener("dragenter", handleDropTargetDragOver);
+    receiptDropTarget.addEventListener("dragover", handleDropTargetDragOver);
+    receiptDropTarget.addEventListener("dragleave", (event) => {
+      if (!isFileDragEvent(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      hideDropOverlay();
+    });
+    receiptDropTarget.addEventListener("drop", handleDropTargetDrop);
+  }
+
+  if (dropOverlay) {
+    dropOverlay.addEventListener("dragenter", handleDropTargetDragOver);
+    dropOverlay.addEventListener("dragover", handleDropTargetDragOver);
+    dropOverlay.addEventListener("dragleave", (event) => {
+      if (!isFileDragEvent(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      hideDropOverlay();
+    });
+    dropOverlay.addEventListener("drop", handleDropTargetDrop);
+  }
 }
 
 if (moneyInput) {

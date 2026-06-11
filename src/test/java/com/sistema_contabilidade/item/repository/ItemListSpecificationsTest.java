@@ -107,21 +107,21 @@ class ItemListSpecificationsTest {
   }
 
   @Test
-  @DisplayName("Deve escapar curinga no filtro de razao social")
-  void deveEscaparCuringaNoFiltroDeRazaoSocial() {
+  @DisplayName("Deve normalizar acentos e pontuacao no filtro de razao social")
+  void deveNormalizarAcentosEPontuacaoNoFiltroDeRazaoSocial() {
     Usuario criador = criarUsuarioComRole("curinga@email.com", "FINANCEIRO");
 
     Item comLiteral =
-        novoItem(criador, "FINANCEIRO", TipoItem.DESPESA, "SERVICOS", "Fornecedor_100%\\A");
+        novoItem(criador, "FINANCEIRO", TipoItem.DESPESA, "SERVICOS", "Fornecedor_100%\\Acao Ltda");
     Item semLiteral =
-        novoItem(criador, "FINANCEIRO", TipoItem.DESPESA, "SERVICOS", "FornecedorX100ZA");
+        novoItem(criador, "FINANCEIRO", TipoItem.DESPESA, "SERVICOS", "Fornecedor Beta Ltda");
 
     itemRepository.saveAll(List.of(comLiteral, semLiteral));
 
     List<Item> itens =
         itemRepository.findAll(
             ItemListSpecifications.forList(
-                Set.of("FINANCEIRO"), null, null, null, null, "fornecedor_100%\\a"));
+                Set.of("FINANCEIRO"), null, null, null, null, " fornecedor 100 acao "));
 
     assertEquals(1, itens.size());
     assertEquals(comLiteral.getId(), itens.getFirst().getId());

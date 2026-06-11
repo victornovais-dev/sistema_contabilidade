@@ -16,7 +16,7 @@ import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemListPageQuery;
 import com.sistema_contabilidade.item.repository.ItemRepository;
-import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,8 +28,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -40,21 +40,21 @@ import org.springframework.web.server.ResponseStatusException;
 class ItemListServiceTest {
 
   @Mock private ItemRepository itemRepository;
-  @Mock private RoleRepository roleRepository;
+  @Mock private CandidateRoleCatalogService candidateRoleCatalogService;
 
   @Test
   @DisplayName("Deve listar pagina de itens para admin sem restringir role")
   void listarParaAdminSemFiltroDeveRetornarPagina() {
     ItemListService service =
-        new ItemListService(itemRepository, roleRepository, new InputSanitizer());
+        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
     ItemListResponse item = novoResumo("ADMIN");
     when(itemRepository.findPageForList(any(ItemListPageQuery.class), any()))
         .thenReturn(
-            new PageImpl<>(
+            new SliceImpl<>(
                 List.of(item),
                 PageRequest.of(
                     0, 10, Sort.by(Sort.Order.desc("horarioCriacao"), Sort.Order.desc("id"))),
-                1));
+                false));
 
     ItemListPageResponse resultado =
         service.listarItens(autenticacao("admin@email.com", "ADMIN"), new ItemListPageRequest());
@@ -80,11 +80,11 @@ class ItemListServiceTest {
   @DisplayName("Deve listar pagina filtrada pela role selecionada do usuario")
   void listarComRoleSelecionadaDeveFiltrarPorRole() {
     ItemListService service =
-        new ItemListService(itemRepository, roleRepository, new InputSanitizer());
+        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
     ItemListPageRequest request = new ItemListPageRequest();
     request.setRole("financeiro");
     when(itemRepository.findPageForList(any(ItemListPageQuery.class), any()))
-        .thenReturn(new PageImpl<>(List.of()));
+        .thenReturn(new SliceImpl<>(List.of()));
 
     service.listarItens(autenticacao("operador@email.com", "OPERADOR", "FINANCEIRO"), request);
 
@@ -106,7 +106,7 @@ class ItemListServiceTest {
   @DisplayName("Deve retornar forbidden quando usuario filtrar por role que nao possui")
   void listarComRoleInvalidaDeveRetornarForbidden() {
     ItemListService service =
-        new ItemListService(itemRepository, roleRepository, new InputSanitizer());
+        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
     ItemListPageRequest request = new ItemListPageRequest();
     request.setRole("financeiro");
     UsernamePasswordAuthenticationToken authentication =
@@ -124,7 +124,7 @@ class ItemListServiceTest {
   @DisplayName("Deve retornar bad request quando intervalo de datas for invalido")
   void listarComIntervaloInvalidoDeveRetornarBadRequest() {
     ItemListService service =
-        new ItemListService(itemRepository, roleRepository, new InputSanitizer());
+        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
     ItemListPageRequest request = new ItemListPageRequest();
     request.setDataInicio(LocalDate.of(2026, 5, 10));
     request.setDataFim(LocalDate.of(2026, 5, 1));
@@ -141,21 +141,20 @@ class ItemListServiceTest {
   @DisplayName("Deve listar roles disponiveis para admin usando nomes do banco")
   void listarRolesDisponiveisParaAdminDeveVirDoBanco() {
     ItemListService service =
-        new ItemListService(itemRepository, roleRepository, new InputSanitizer());
-    when(roleRepository.findAllRoleNamesOrdered())
-        .thenReturn(List.of("ADMIN", "CANDIDATO", "CONTABIL", "FINANCEIRO", "MANAGER", "SUPPORT"));
+        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
+    when(candidateRoleCatalogService.listAvailableRolesForAdmin()).thenReturn(List.of("ANDRE"));
 
     List<String> roles = service.listarRolesDisponiveis(autenticacao("admin@email.com", "ADMIN"));
 
-    assertEquals(List.of("FINANCEIRO"), roles);
-    verify(roleRepository).findAllRoleNamesOrdered();
+    assertEquals(List.of("ANDRE"), roles);
+    verify(candidateRoleCatalogService).listAvailableRolesForAdmin();
   }
 
   @Test
   @DisplayName("Deve retornar pagina vazia quando usuario nao possuir roles visiveis")
   void deveRetornarPaginaVaziaQuandoUsuarioNaoPossuirRolesVisiveis() {
     ItemListService service =
-        new ItemListService(itemRepository, roleRepository, new InputSanitizer());
+        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
 
     ItemListPageResponse resultado =
         service.listarItens(
@@ -171,7 +170,7 @@ class ItemListServiceTest {
       "Deve reajustar pagina para ultima pagina valida quando pagina solicitada estiver vazia")
   void deveReajustarPaginaParaUltimaPaginaValidaQuandoPaginaSolicitadaEstiverVazia() {
     ItemListService service =
-        new ItemListService(itemRepository, roleRepository, new InputSanitizer());
+        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
     ItemListPageRequest request = new ItemListPageRequest();
     request.setPage(5);
     request.setPageSize(10);
@@ -179,8 +178,8 @@ class ItemListServiceTest {
     Sort sort = Sort.by(Sort.Order.desc("horarioCriacao"), Sort.Order.desc("id"));
 
     when(itemRepository.findPageForList(any(ItemListPageQuery.class), any()))
-        .thenReturn(new PageImpl<>(List.of(), PageRequest.of(4, 10, sort), 11))
-        .thenReturn(new PageImpl<>(List.of(item), PageRequest.of(1, 10, sort), 11));
+        .thenReturn(new SliceImpl<>(List.of(), PageRequest.of(4, 10, sort), false))
+        .thenReturn(new SliceImpl<>(List.of(item), PageRequest.of(3, 10, sort), false));
 
     ItemListPageResponse resultado =
         service.listarItens(autenticacao("admin@email.com", "ADMIN"), request);
@@ -193,13 +192,16 @@ class ItemListServiceTest {
   @DisplayName("Deve listar roles do proprio usuario quando nao for admin")
   void listarRolesDisponiveisParaUsuarioComumDeveVirDaAutenticacao() {
     ItemListService service =
-        new ItemListService(itemRepository, roleRepository, new InputSanitizer());
+        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
+    when(candidateRoleCatalogService.filterAvailableRoles(java.util.Set.of("OPERADOR", "SUPPORT")))
+        .thenReturn(List.of("OPERADOR"));
 
     List<String> roles =
         service.listarRolesDisponiveis(autenticacao("operador@email.com", "OPERADOR", "SUPPORT"));
 
     assertEquals(List.of("OPERADOR"), roles);
-    verify(roleRepository, never()).findAllRoleNamesOrdered();
+    verify(candidateRoleCatalogService)
+        .filterAvailableRoles(java.util.Set.of("OPERADOR", "SUPPORT"));
   }
 
   private UsernamePasswordAuthenticationToken autenticacao(String email, String... roles) {

@@ -439,6 +439,10 @@ class ItemControllerWebMvcTest {
     item.setCaminhoArquivoPdf("uploads/itens/receita.pdf");
     item.setTipo(TipoItem.RECEITA);
     item.setDescricao("CONTA DC");
+    item.setTipoDocumento("Nota fiscal");
+    item.setNumeroDocumento("12345");
+    item.setRazaoSocialNome("FORNECEDOR TESTE");
+    item.setCnpjCpf("12.345.678/0001-99");
     ItemArquivo arquivoCriado = new ItemArquivo();
     arquivoCriado.setCaminhoArquivoPdf("uploads/itens/receita.pdf");
     arquivoCriado.setItem(item);
@@ -465,13 +469,32 @@ class ItemControllerWebMvcTest {
                       "nomesArquivos":["receita.pdf"],
                       "tipo":"RECEITA",
                       "descricao":"CONTA DC",
+                      "tipoDocumento":"Nota fiscal",
+                      "numeroDocumento":"12345",
+                      "razaoSocialNome":"FORNECEDOR TESTE",
+                      "cnpjCpf":"12.345.678/0001-99",
                       "role":"MANAGER"
                     }
                     """))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.tipo").value("RECEITA"))
-        .andExpect(jsonPath("$.descricao").value("CONTA DC"));
+        .andExpect(jsonPath("$.descricao").value("CONTA DC"))
+        .andExpect(jsonPath("$.valor").value(100000.00))
+        .andExpect(jsonPath("$.tipoDocumento").value("Nota fiscal"))
+        .andExpect(jsonPath("$.numeroDocumento").value("12345"))
+        .andExpect(jsonPath("$.razaoSocialNome").value("FORNECEDOR TESTE"))
+        .andExpect(jsonPath("$.cnpjCpf").value("12.345.678/0001-99"));
 
+    verify(itemRepository)
+        .save(
+            argThat(
+                savedItem ->
+                    new BigDecimal("100000.00").compareTo(savedItem.getValor()) == 0
+                        && LocalDate.of(2026, 4, 14).equals(savedItem.getData())
+                        && "Nota fiscal".equals(savedItem.getTipoDocumento())
+                        && "12345".equals(savedItem.getNumeroDocumento())
+                        && "FORNECEDOR TESTE".equals(savedItem.getRazaoSocialNome())
+                        && "12.345.678/0001-99".equals(savedItem.getCnpjCpf())));
     verify(notificacaoService).registrarReceitaLancada(any(Item.class));
   }
 
@@ -994,6 +1017,22 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve permitir CONTABIL buscar item mesmo sem intersecao de roles")
+  void buscarPorIdDevePermitirContabilMesmoSemIntersecaoDeRoles() throws Exception {
+    UUID id = UUID.fromString("99999999-1111-2222-3333-444444444445");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("CANDIDATO_TESTE");
+    item.setTipo(TipoItem.RECEITA);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(get("/api/v1/itens/{id}", id).with(authComRoles("contabil@email.com", "CONTABIL")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tipo").value("RECEITA"));
+  }
+
+  @Test
   @DisplayName("Deve baixar arquivo PDF do item")
   void baixarArquivoDeveRetornarPdf() throws Exception {
     UUID id = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -1029,6 +1068,30 @@ class ItemControllerWebMvcTest {
             header().string("Content-Disposition", "attachment; filename=\"comprovante-1.pdf\""))
         .andExpect(header().string("Cache-Control", "no-store, no-cache, must-revalidate"))
         .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+        .andExpect(content().bytes(conteudoPdf));
+  }
+
+  @Test
+  @DisplayName("Deve permitir CONTABIL baixar anexo de item visivel")
+  void baixarArquivoDevePermitirContabilParaItemDeOutraRole() throws Exception {
+    UUID id = UUID.fromString("22222222-2222-2222-2222-222222222223");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("CANDIDATO_TESTE");
+    item.setCaminhoArquivoPdf("uploads/itens/comprovante-contabil.pdf");
+    byte[] conteudoPdf = "pdf-contabil".getBytes();
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemArquivoStorageService.carregarPdf("uploads/itens/comprovante-contabil.pdf"))
+        .thenReturn(conteudoPdf);
+    when(itemArquivoStorageService.resolverNomeArquivo("uploads/itens/comprovante-contabil.pdf"))
+        .thenReturn("comprovante-contabil.pdf");
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens/{id}/arquivo", id)
+                .with(authComRoles("contabil@email.com", "CONTABIL")))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_PDF))
         .andExpect(content().bytes(conteudoPdf));
   }
 
@@ -1183,6 +1246,53 @@ class ItemControllerWebMvcTest {
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.caminhoArquivoPdf").value("uploads/itens/novo.pdf"));
+  }
+
+  @Test
+  @DisplayName("Deve permitir CONTABIL atualizar item de outra role sem liberar exclusao")
+  void atualizarDevePermitirContabilAtualizarItemDeOutraRole() throws Exception {
+    UUID id = UUID.fromString("55555555-5555-5555-5555-555555555556");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("CANDIDATO_TESTE");
+    item.setTipo(TipoItem.RECEITA);
+    item.setCaminhoArquivoPdf("uploads/itens/original.pdf");
+    ItemArquivo arquivoOriginal = new ItemArquivo();
+    arquivoOriginal.setCaminhoArquivoPdf("uploads/itens/original.pdf");
+    arquivoOriginal.setItem(item);
+    item.getArquivos().add(arquivoOriginal);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemArquivoStorageService.salvarPdfs(
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList()))
+        .thenReturn(List.of("uploads/itens/contabil-novo.pdf"));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(usuarioRepository.findByEmail("contabil@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("contabil", "CONTABIL")));
+
+    mockMvc
+        .perform(
+            put("/api/v1/itens/{id}", id)
+                .with(authComRoles("contabil@email.com", "CONTABIL"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":250.10,
+                      "data":"2026-03-16",
+                      "horarioCriacao":"2026-03-16T11:10:00",
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["contabil-novo.pdf"],
+                      "tipo":"DESPESA",
+                      "descricao":"OUTROS",
+                      "razaoSocialNome":"EMPRESA CONTABIL",
+                      "cnpjCpf":"12.345.678/0001-99",
+                      "observacao":"Atualizado pelo contabil"
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.descricao").value("OUTROS"))
+        .andExpect(jsonPath("$.role").value("CANDIDATO_TESTE"));
   }
 
   @Test
@@ -1517,6 +1627,28 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve permitir CONTABIL listar arquivos de item visivel")
+  void listarArquivosDevePermitirContabilParaItemDeOutraRole() throws Exception {
+    UUID id = UUID.fromString("99999999-2222-3333-4444-555555555556");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("CANDIDATO_TESTE");
+    ItemArquivo arquivo = new ItemArquivo();
+    arquivo.setId(UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab"));
+    arquivo.setCaminhoArquivoPdf("uploads/itens/extra-contabil.pdf");
+    arquivo.setItem(item);
+    item.getArquivos().add(arquivo);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens/{id}/arquivos", id)
+                .with(authComRoles("contabil@email.com", "CONTABIL")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].caminhoArquivoPdf").value("uploads/itens/extra-contabil.pdf"));
+  }
+
+  @Test
   @DisplayName("Deve adicionar arquivos ao item")
   void adicionarArquivosDeveRetornarOk() throws Exception {
     UUID id = UUID.fromString("99999999-aaaa-bbbb-cccc-111111111111");
@@ -1542,6 +1674,37 @@ class ItemControllerWebMvcTest {
                     }
                     """))
         .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("Deve permitir CONTABIL adicionar arquivos em item de outra role")
+  void adicionarArquivosDevePermitirContabilParaItemDeOutraRole() throws Exception {
+    UUID id = UUID.fromString("99999999-aaaa-bbbb-cccc-111111111112");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("CANDIDATO_TESTE");
+    item.setTipo(TipoItem.RECEITA);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemArquivoStorageService.salvarPdfs(
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList()))
+        .thenReturn(List.of("uploads/itens/contabil-extra.pdf"));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens/{id}/arquivos", id)
+                .with(authComRoles("contabil@email.com", "CONTABIL"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["contabil-extra.pdf"]
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].caminhoArquivoPdf").value("uploads/itens/contabil-extra.pdf"));
   }
 
   @Test
@@ -1577,6 +1740,31 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve permitir CONTABIL atualizar observacao de item visivel")
+  void atualizarObservacaoDevePermitirContabilParaItemDeOutraRole() throws Exception {
+    UUID id = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeef");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("CANDIDATO_TESTE");
+    item.setObservacao("Antes");
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/observacao", id)
+                .with(authComRoles("contabil@email.com", "CONTABIL"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"observacao":"Observacao do contabil"}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.observacao").value("Observacao do contabil"));
+  }
+
+  @Test
   @DisplayName("Deve atualizar verificacao via PATCH")
   void atualizarVerificacaoDeveRetornarOk() throws Exception {
     UUID id = UUID.fromString("abababab-bbbb-cccc-dddd-eeeeeeeeeeee");
@@ -1602,6 +1790,34 @@ class ItemControllerWebMvcTest {
 
     assertTrue(item.isVerificado());
     verify(notificacaoService).sincronizarComItem(item);
+  }
+
+  @Test
+  @DisplayName("Deve permitir CONTABIL atualizar verificacao de item visivel")
+  void atualizarVerificacaoDevePermitirContabilParaItemDeOutraRole() throws Exception {
+    UUID id = UUID.fromString("abababab-bbbb-cccc-dddd-eeeeeeeeeeea");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("CANDIDATO_TESTE");
+    item.setTipo(TipoItem.RECEITA);
+    item.setVerificado(false);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/verificacao", id)
+                .with(authComRoles("contabil@email.com", "CONTABIL"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"verificado":true}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.verificado").value(true));
+
+    assertTrue(item.isVerificado());
   }
 
   @Test
@@ -1795,6 +2011,36 @@ class ItemControllerWebMvcTest {
         .perform(
             delete("/api/v1/itens/{id}/arquivos/{arquivoId}", itemId, arquivoId)
                 .with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isNoContent());
+
+    assertTrue(item.getArquivos().isEmpty());
+    assertNull(item.getCaminhoArquivoPdf());
+  }
+
+  @Test
+  @DisplayName("Deve permitir CONTABIL remover arquivo de item visivel")
+  void deletarArquivoDevePermitirContabilParaItemDeOutraRole() throws Exception {
+    UUID itemId = UUID.fromString("22222222-3333-4444-5555-666666666667");
+    UUID arquivoId = UUID.fromString("99999999-8888-7777-6666-555555555556");
+    Item item = new Item();
+    item.setId(itemId);
+    item.setRoleNome("CANDIDATO_TESTE");
+    item.setTipo(TipoItem.RECEITA);
+    item.setCaminhoArquivoPdf("uploads/itens/contabil-keep.pdf");
+    ItemArquivo arquivo = new ItemArquivo();
+    arquivo.setId(arquivoId);
+    arquivo.setCaminhoArquivoPdf("uploads/itens/contabil-keep.pdf");
+    arquivo.setItem(item);
+    item.getArquivos().add(arquivo);
+
+    when(itemRepository.findByIdComCriadorERoles(itemId)).thenReturn(Optional.of(item));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            delete("/api/v1/itens/{id}/arquivos/{arquivoId}", itemId, arquivoId)
+                .with(authComRoles("contabil@email.com", "CONTABIL")))
         .andExpect(status().isNoContent());
 
     assertTrue(item.getArquivos().isEmpty());

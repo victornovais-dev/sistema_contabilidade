@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemRepository;
-import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroPdfData;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
@@ -39,12 +39,14 @@ class RelatorioFinanceiroServiceTest {
   @DisplayName("Deve incluir descricao do item no DTO do relatorio")
   void deveIncluirDescricaoNoDto() {
     ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
-    RoleRepository roleRepository = Mockito.mock(RoleRepository.class);
     UsuarioRepository usuarioRepository = Mockito.mock(UsuarioRepository.class);
     PlaywrightPdfService playwrightPdfService = Mockito.mock(PlaywrightPdfService.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
-            itemRepository, roleRepository, usuarioRepository, playwrightPdfService);
+            itemRepository,
+            Mockito.mock(CandidateRoleCatalogService.class),
+            usuarioRepository,
+            playwrightPdfService);
 
     RelatorioItemDto item =
         dto("ENERGIA", TipoItem.RECEITA, "10.00", LocalDate.of(2026, 3, 31), 10, 0);
@@ -73,7 +75,7 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
-            Mockito.mock(RoleRepository.class),
+            Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
             Mockito.mock(PlaywrightPdfService.class));
     RelatorioItemDto receita =
@@ -111,26 +113,36 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve listar roles disponiveis para admin ordenadas")
   void deveListarRolesDisponiveisParaAdminOrdenadas() {
-    RoleRepository roleRepository = Mockito.mock(RoleRepository.class);
+    CandidateRoleCatalogService candidateRoleCatalogService =
+        Mockito.mock(CandidateRoleCatalogService.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             Mockito.mock(ItemRepository.class),
-            roleRepository,
+            candidateRoleCatalogService,
             Mockito.mock(UsuarioRepository.class),
             Mockito.mock(PlaywrightPdfService.class));
 
-    when(roleRepository.findAllRoleNamesOrdered())
-        .thenReturn(List.of("ADMIN", "CANDIDATO", "CONTABIL", "FINANCEIRO", "MANAGER", "SUPPORT"));
+    when(candidateRoleCatalogService.listAvailableRolesForAdmin()).thenReturn(List.of("ANDRE"));
 
     List<String> roles = service.listarRolesDisponiveis(adminAuth());
 
-    assertEquals(List.of("FINANCEIRO"), roles);
+    assertEquals(List.of("ANDRE"), roles);
   }
 
   @Test
   @DisplayName("Deve listar roles do proprio usuario quando nao for admin")
   void deveListarRolesDoProprioUsuarioQuandoNaoForAdmin() {
-    RelatorioFinanceiroService service = service();
+    CandidateRoleCatalogService candidateRoleCatalogService =
+        Mockito.mock(CandidateRoleCatalogService.class);
+    RelatorioFinanceiroService service =
+        new RelatorioFinanceiroService(
+            Mockito.mock(ItemRepository.class),
+            candidateRoleCatalogService,
+            Mockito.mock(UsuarioRepository.class),
+            Mockito.mock(PlaywrightPdfService.class));
+    when(candidateRoleCatalogService.filterAvailableRoles(
+            java.util.Set.of("OPERADOR", "FINANCEIRO", "SUPPORT")))
+        .thenReturn(List.of("FINANCEIRO", "OPERADOR"));
     UsernamePasswordAuthenticationToken authentication =
         authentication("user@email.com", "ROLE_OPERADOR", "ROLE_FINANCEIRO", "ROLE_SUPPORT");
 
@@ -146,7 +158,7 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
-            Mockito.mock(RoleRepository.class),
+            Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
             Mockito.mock(PlaywrightPdfService.class));
     RelatorioItemDto receita =
@@ -173,7 +185,7 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
-            Mockito.mock(RoleRepository.class),
+            Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
             Mockito.mock(PlaywrightPdfService.class));
 
@@ -202,7 +214,7 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
-            Mockito.mock(RoleRepository.class),
+            Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
             Mockito.mock(PlaywrightPdfService.class));
 
@@ -251,7 +263,7 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
-            Mockito.mock(RoleRepository.class),
+            Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
             Mockito.mock(PlaywrightPdfService.class));
 
@@ -289,7 +301,7 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
-            Mockito.mock(RoleRepository.class),
+            Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
             Mockito.mock(PlaywrightPdfService.class));
 
@@ -332,12 +344,14 @@ class RelatorioFinanceiroServiceTest {
   @DisplayName("Deve montar dados do PDF com categorias ordenadas e cores estaveis")
   void deveMontarDadosDoPdfComCategoriasOrdenadasECoresEstaveis() {
     ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
-    RoleRepository roleRepository = Mockito.mock(RoleRepository.class);
     UsuarioRepository usuarioRepository = Mockito.mock(UsuarioRepository.class);
     PlaywrightPdfService playwrightPdfService = Mockito.mock(PlaywrightPdfService.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
-            itemRepository, roleRepository, usuarioRepository, playwrightPdfService);
+            itemRepository,
+            Mockito.mock(CandidateRoleCatalogService.class),
+            usuarioRepository,
+            playwrightPdfService);
     RelatorioFinanceiroResponse relatorio =
         new RelatorioFinanceiroResponse(
             new BigDecimal("1000.00"),
@@ -396,7 +410,7 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             Mockito.mock(ItemRepository.class),
-            Mockito.mock(RoleRepository.class),
+            Mockito.mock(CandidateRoleCatalogService.class),
             usuarioRepository,
             playwrightPdfService);
     RelatorioFinanceiroResponse relatorio =
@@ -441,7 +455,7 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             Mockito.mock(ItemRepository.class),
-            Mockito.mock(RoleRepository.class),
+            Mockito.mock(CandidateRoleCatalogService.class),
             usuarioRepository,
             playwrightPdfService);
     RelatorioFinanceiroResponse relatorio =
@@ -495,7 +509,7 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             Mockito.mock(ItemRepository.class),
-            Mockito.mock(RoleRepository.class),
+            Mockito.mock(CandidateRoleCatalogService.class),
             usuarioRepository,
             playwrightPdfService);
     RelatorioFinanceiroResponse relatorio =
@@ -526,7 +540,7 @@ class RelatorioFinanceiroServiceTest {
   private RelatorioFinanceiroService service() {
     return new RelatorioFinanceiroService(
         Mockito.mock(ItemRepository.class),
-        Mockito.mock(RoleRepository.class),
+        Mockito.mock(CandidateRoleCatalogService.class),
         Mockito.mock(UsuarioRepository.class),
         Mockito.mock(PlaywrightPdfService.class));
   }

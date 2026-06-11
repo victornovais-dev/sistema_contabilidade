@@ -98,7 +98,6 @@ class RoleNivelInitializerTest {
     when(roleRepository.findByNome("SUPPORT")).thenReturn(Optional.empty());
     when(roleRepository.findByNome("CONTABIL")).thenReturn(Optional.empty());
     when(roleRepository.findByNome("CANDIDATO")).thenReturn(Optional.empty());
-    when(roleRepository.findByNome("TARCISIO")).thenReturn(Optional.empty());
     when(usuarioRepository.findAll()).thenReturn(List.of(usuario));
 
     RoleNivelInitializer initializer = new RoleNivelInitializer(roleRepository, usuarioRepository);

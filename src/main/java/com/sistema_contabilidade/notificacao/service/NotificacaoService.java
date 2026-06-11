@@ -1,6 +1,5 @@
 package com.sistema_contabilidade.notificacao.service;
 
-import com.sistema_contabilidade.common.util.CandidateRoleUtils;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemRepository;
@@ -8,7 +7,7 @@ import com.sistema_contabilidade.item.service.ItemAccessUtils;
 import com.sistema_contabilidade.notificacao.dto.NotificacaoListResponse;
 import com.sistema_contabilidade.notificacao.model.Notificacao;
 import com.sistema_contabilidade.notificacao.repository.NotificacaoRepository;
-import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.time.LocalDateTime;
@@ -31,7 +30,7 @@ public class NotificacaoService {
   private final ItemRepository itemRepository;
   private final NotificacaoRepository notificacaoRepository;
   private final UsuarioRepository usuarioRepository;
-  private final RoleRepository roleRepository;
+  private final CandidateRoleCatalogService candidateRoleCatalogService;
   private final InputSanitizer inputSanitizer;
 
   @Transactional
@@ -143,10 +142,10 @@ public class NotificacaoService {
   @Transactional(readOnly = true)
   public List<String> listarRolesDisponiveis(Authentication authentication) {
     if (ItemAccessUtils.isAdmin(authentication)) {
-      return CandidateRoleUtils.filterCandidateRoles(roleRepository.findAllRoleNamesOrdered());
+      return candidateRoleCatalogService.listAvailableRolesForAdmin();
     }
 
-    return CandidateRoleUtils.filterCandidateRoles(
+    return candidateRoleCatalogService.filterAvailableRoles(
         ItemAccessUtils.extrairRoleNomes(
             ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository)));
   }

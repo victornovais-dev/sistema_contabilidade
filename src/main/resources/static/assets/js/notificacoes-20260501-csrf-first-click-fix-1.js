@@ -22,7 +22,6 @@ const uploadSave = document.querySelector(".upload-save");
 const uploadEdit = document.querySelector(".upload-edit");
 const uploadDrop = document.querySelector("[data-upload-drop]");
 const uploadSelected = document.getElementById("upload-selected");
-const technicalRoles = new Set(["ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO"]);
 const roleFilterStorageKey = "sc_home_selected_role";
 const MAX_RECEIPT_SIZE_BYTES = 20 * 1024 * 1024;
 const PDF_ONLY_MESSAGE = "Envie somente arquivos PDF.";
@@ -134,9 +133,7 @@ const orderRoles = (roles) => {
   const normalizedRoles = Array.isArray(roles)
     ? [
         ...new Set(
-          roles
-            .map((role) => String(role || "").trim())
-            .filter((role) => role && !technicalRoles.has(role.toUpperCase())),
+          roles.map((role) => String(role || "").trim()).filter((role) => role),
         ),
       ].sort((a, b) => a.localeCompare(b, "pt-BR"))
     : [];

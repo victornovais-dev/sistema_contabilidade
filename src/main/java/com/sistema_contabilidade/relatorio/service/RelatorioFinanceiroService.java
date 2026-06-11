@@ -1,8 +1,7 @@
 package com.sistema_contabilidade.relatorio.service;
 
-import com.sistema_contabilidade.common.util.CandidateRoleUtils;
 import com.sistema_contabilidade.item.repository.ItemRepository;
-import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
@@ -27,7 +26,7 @@ public class RelatorioFinanceiroService {
   private static final String ADMIN_ROLE = "ADMIN";
 
   private final ItemRepository itemRepository;
-  private final RoleRepository roleRepository;
+  private final CandidateRoleCatalogService candidateRoleCatalogService;
   private final UsuarioRepository usuarioRepository;
   private final PlaywrightPdfService playwrightPdfService;
   private final RelatorioFinanceiroPdfDataFactory pdfDataFactory =
@@ -57,9 +56,9 @@ public class RelatorioFinanceiroService {
   public List<String> listarRolesDisponiveis(Authentication authentication) {
     Set<String> roleNomesAutenticado = extrairRoleNomes(authentication);
     if (roleNomesAutenticado.contains(ADMIN_ROLE)) {
-      return CandidateRoleUtils.filterCandidateRoles(roleRepository.findAllRoleNamesOrdered());
+      return candidateRoleCatalogService.listAvailableRolesForAdmin();
     }
-    return CandidateRoleUtils.filterCandidateRoles(roleNomesAutenticado);
+    return candidateRoleCatalogService.filterAvailableRoles(roleNomesAutenticado);
   }
 
   public byte[] gerarPdf(Authentication authentication, RelatorioFinanceiroResponse relatorio) {

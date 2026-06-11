@@ -1,20 +1,19 @@
 package com.sistema_contabilidade.item.service;
 
-import com.sistema_contabilidade.common.util.CandidateRoleUtils;
 import com.sistema_contabilidade.item.dto.ItemListPageRequest;
 import com.sistema_contabilidade.item.dto.ItemListPageResponse;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.repository.ItemListPageQuery;
 import com.sistema_contabilidade.item.repository.ItemRepository;
-import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -32,7 +31,7 @@ public class ItemListService {
       Sort.by(Sort.Order.desc("horarioCriacao"), Sort.Order.desc("id"));
 
   private final ItemRepository itemRepository;
-  private final RoleRepository roleRepository;
+  private final CandidateRoleCatalogService candidateRoleCatalogService;
   private final InputSanitizer inputSanitizer;
 
   @Transactional(readOnly = true)
@@ -51,7 +50,7 @@ public class ItemListService {
     Pageable pageable = PageRequest.of(page - 1, pageSize, DEFAULT_SORT);
     Set<String> roleNomesVisiveis = resolveRoleScope(authentication, roleFiltroNormalizada);
     if (roleNomesVisiveis != null && roleNomesVisiveis.isEmpty()) {
-      return ItemListPageResponse.fromPage(Page.empty(pageable));
+      return ItemListPageResponse.empty(pageable);
     }
 
     ItemListPageQuery query =
@@ -63,23 +62,24 @@ public class ItemListService {
             descricaoExata,
             razaoLike);
 
-    Page<ItemListResponse> itemPage = itemRepository.findPageForList(query, pageable);
-    if (page > DEFAULT_PAGE && itemPage.isEmpty() && itemPage.getTotalPages() > 0) {
+    Slice<ItemListResponse> itemPage = itemRepository.findPageForList(query, pageable);
+    if (page > DEFAULT_PAGE && itemPage.isEmpty()) {
       itemPage =
           itemRepository.findPageForList(
-              query, PageRequest.of(itemPage.getTotalPages() - 1, pageSize, DEFAULT_SORT));
+              query,
+              PageRequest.of(Math.max(pageable.getPageNumber() - 1, 0), pageSize, DEFAULT_SORT));
     }
 
-    return ItemListPageResponse.fromPage(itemPage);
+    return ItemListPageResponse.fromSlice(itemPage);
   }
 
   @Transactional(readOnly = true)
   public List<String> listarRolesDisponiveis(Authentication authentication) {
     if (ItemAccessUtils.isAdmin(authentication)) {
-      return CandidateRoleUtils.filterCandidateRoles(roleRepository.findAllRoleNamesOrdered());
+      return candidateRoleCatalogService.listAvailableRolesForAdmin();
     }
 
-    return CandidateRoleUtils.filterCandidateRoles(
+    return candidateRoleCatalogService.filterAvailableRoles(
         ItemAccessUtils.extrairRoleNomes(authentication));
   }
 

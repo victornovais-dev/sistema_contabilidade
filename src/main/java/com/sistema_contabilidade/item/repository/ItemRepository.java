@@ -380,6 +380,16 @@ public interface ItemRepository
   @Query("select i.version from Item i where i.id = :id")
   Optional<Long> findVersionById(@Param("id") UUID id);
 
+  @Query(
+      """
+      select i.id
+      from Item i
+      where coalesce(trim(i.razaoSocialNome), '') <> ''
+        and coalesce(trim(i.razaoSocialBusca), '') = ''
+      order by i.id
+      """)
+  List<UUID> findIdsWithMissingRazaoSocialBusca(Pageable pageable);
+
   List<Item> findByTipoAndRoleNome(TipoItem tipo, String roleNome);
 
   List<Item> findByTipoAndRoleNomeAndIdNot(TipoItem tipo, String roleNome, UUID id);
