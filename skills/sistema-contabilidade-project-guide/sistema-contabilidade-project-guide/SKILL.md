@@ -26,15 +26,15 @@ This is a router skill. Its job is to choose the right specialized skill, not to
 
 | Task mentions | Read this skill |
 |---|---|
-| Login, logout, refresh, Cognito, roles, admin routes, CORS, CSRF, session cookies | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-auth-security/SKILL.md` |
-| Thymeleaf pages, static HTML, navbar, CSS/JS assets, frontend route behavior | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-ui-pages/SKILL.md` |
-| Comprovantes, item list, upload/download, PDF validation, verification rules | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-items/SKILL.md` |
-| Financial reports, PDF report generation, notifications, navbar badge | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-reports-notifications/SKILL.md` |
-| Query count, N+1, Prometheus, Grafana, Actuator, timing, memory, cache | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-observability/SKILL.md` |
-| `.env`, profiles, Docker, Redis, CloudFront, ALB, DNS, S3, production config | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-deploy-config/SKILL.md` |
-| Maven quality workflow, tests, SonarQube, ArchUnit, precommit checks | `skills/sistema-contabilidade-quality/SKILL.md` |
-| Convert plan/PRD/spec into implementation issues | `skills/to-issues/SKILL.md` |
-| Prepare context for another session or agent | `skills/handoff/SKILL.md` |
+| login, logout, refresh, session, cookie, Cognito, role, permission, admin, CORS, CSRF, security headers, JWT | `skills/sistema-contabilidade-auth-security/SKILL.md` |
+| Thymeleaf, static page, navbar, frontend asset, JS, CSS, page flow, browser route, template | `skills/sistema-contabilidade-ui-pages/SKILL.md` |
+| comprovante, item, upload, download, PDF attachment, listagem, filtro, paginacao, verificacao, observacao, razao social | `skills/sistema-contabilidade-items/SKILL.md` |
+| relatorio, PDF financeiro, Playwright, notificacao, badge, receitas, despesas, resumo financeiro | `skills/sistema-contabilidade-reports-notifications/SKILL.md` |
+| query count, N+1, performance, Prometheus, Grafana, Actuator, metrics, timing, memory, cache | `skills/sistema-contabilidade-observability/SKILL.md` |
+| `.env`, profile, Docker, Redis, S3, CloudFront, ALB, DNS, certificate, production, CORS env | `skills/sistema-contabilidade-deploy-config/SKILL.md` |
+| Maven, Java 25, tests, Sonar, quality gate, ArchUnit, Checkstyle, SpotBugs, PMD, dependency check | `skills/sistema-contabilidade-quality/SKILL.md` |
+| issue plan, PRD to issues, roadmap, implementation tickets | `skills/to-issues/SKILL.md` |
+| next session, context handoff, continue in another agent, summarize progress | `skills/productivity/handoff/SKILL.md` |
 
 ## Discovery Policy
 
