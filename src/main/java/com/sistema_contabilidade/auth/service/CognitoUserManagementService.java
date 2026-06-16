@@ -146,9 +146,8 @@ public class CognitoUserManagementService {
               .username(providerUsername)
               .userAttributes(userAttributes(nome, email))
               .build());
-    } catch (ResponseStatusException exception) {
-      throw exception;
-    } catch (UserNotFoundException
+    } catch (ResponseStatusException
+        | UserNotFoundException
         | InvalidPasswordException
         | InvalidParameterException
         | TooManyRequestsException exception) {
@@ -177,9 +176,8 @@ public class CognitoUserManagementService {
               .password(senha)
               .permanent(true)
               .build());
-    } catch (ResponseStatusException exception) {
-      throw exception;
-    } catch (UserNotFoundException
+    } catch (ResponseStatusException
+        | UserNotFoundException
         | InvalidPasswordException
         | InvalidParameterException
         | TooManyRequestsException exception) {
@@ -200,9 +198,8 @@ public class CognitoUserManagementService {
     }
     try {
       syncGroups(providerUsername, normalizedRoles);
-    } catch (ResponseStatusException exception) {
-      throw exception;
-    } catch (UserNotFoundException
+    } catch (ResponseStatusException
+        | UserNotFoundException
         | InvalidPasswordException
         | InvalidParameterException
         | TooManyRequestsException exception) {
@@ -221,9 +218,8 @@ public class CognitoUserManagementService {
   private CognitoUserProfile refreshUpdatedProfile(String providerUsername) {
     try {
       return cognitoAuthProviderStrategy.loadProfile(providerUsername);
-    } catch (ResponseStatusException exception) {
-      throw exception;
-    } catch (UserNotFoundException
+    } catch (ResponseStatusException
+        | UserNotFoundException
         | InvalidPasswordException
         | InvalidParameterException
         | TooManyRequestsException exception) {

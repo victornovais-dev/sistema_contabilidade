@@ -24,6 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class CustomUserDetailsService implements UserDetailsService {
 
   public static final String USER_DETAILS_CACHE = "userDetails";
+  private static final String USUARIO_NAO_ENCONTRADO = "Usuario nao encontrado";
   private final UsuarioRepository usuarioRepository;
 
   @Cacheable(value = USER_DETAILS_CACHE, key = "#p0")
@@ -87,21 +88,21 @@ public class CustomUserDetailsService implements UserDetailsService {
     return usuarioRepository
         .findByEmail(username)
         .orElseThrow(
-            () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario nao encontrado"));
+            () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, USUARIO_NAO_ENCONTRADO));
   }
 
   private Usuario buscarUsuarioPorId(UUID userId) {
     return usuarioRepository
         .findWithRolesById(userId)
         .orElseThrow(
-            () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario nao encontrado"));
+            () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, USUARIO_NAO_ENCONTRADO));
   }
 
   private Usuario buscarUsuarioPorCognitoSub(String cognitoSub) {
     return usuarioRepository
         .findByCognitoSub(cognitoSub)
         .orElseThrow(
-            () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario nao encontrado"));
+            () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, USUARIO_NAO_ENCONTRADO));
   }
 
   private UserDetails buildUserDetails(Usuario usuario) {

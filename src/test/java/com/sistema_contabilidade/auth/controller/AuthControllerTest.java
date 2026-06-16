@@ -89,7 +89,7 @@ class AuthControllerTest {
         authController.login(request, httpRequest, httpResponse);
 
     assertEquals(HttpStatus.ACCEPTED, result.getStatusCode());
-    assertTrue(Boolean.TRUE.equals(result.getBody().challengeRequired()));
+    assertEquals(Boolean.TRUE, result.getBody().challengeRequired());
     assertEquals("NEW_PASSWORD_REQUIRED", result.getBody().challengeName());
     assertTrue(
         httpResponse.getHeaders(HttpHeaders.SET_COOKIE).stream()

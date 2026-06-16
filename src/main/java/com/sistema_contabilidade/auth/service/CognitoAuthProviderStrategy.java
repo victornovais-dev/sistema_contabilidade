@@ -44,6 +44,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.UserNotFoun
 @ConditionalOnProperty(name = "app.auth.provider", havingValue = "cognito")
 public class CognitoAuthProviderStrategy implements AuthProviderStrategy {
 
+  private static final String USERNAME_PARAMETER = "USERNAME";
   private final CognitoIdentityProviderClient cognitoIdentityProviderClient;
   private final CognitoProperties cognitoProperties;
   private final CognitoSecretHashService cognitoSecretHashService;
@@ -53,7 +54,7 @@ public class CognitoAuthProviderStrategy implements AuthProviderStrategy {
   public AuthProviderLoginResult login(LoginRequest request) {
     try {
       Map<String, String> params = new HashMap<>();
-      params.put("USERNAME", request.email());
+      params.put(USERNAME_PARAMETER, request.email());
       params.put("PASSWORD", request.senha());
       cognitoSecretHashService.addSecretHashIfNeeded(params, request.email());
 
@@ -93,7 +94,7 @@ public class CognitoAuthProviderStrategy implements AuthProviderStrategy {
     }
     try {
       Map<String, String> params = new HashMap<>();
-      params.put("USERNAME", challenge.providerUsername());
+      params.put(USERNAME_PARAMETER, challenge.providerUsername());
       params.put("NEW_PASSWORD", request.novaSenha());
       cognitoSecretHashService.addSecretHashIfNeeded(params, challenge.providerUsername());
 
@@ -301,6 +302,8 @@ public class CognitoAuthProviderStrategy implements AuthProviderStrategy {
       return fallback;
     }
     return firstNonBlank(
-        challengeParameters.get("USERNAME"), challengeParameters.get("USER_ID_FOR_SRP"), fallback);
+        challengeParameters.get(USERNAME_PARAMETER),
+        challengeParameters.get("USER_ID_FOR_SRP"),
+        fallback);
   }
 }

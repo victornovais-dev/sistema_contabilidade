@@ -12,6 +12,7 @@ import com.sistema_contabilidade.auth.config.AuthProvider;
 import com.sistema_contabilidade.auth.model.SessaoUsuario;
 import com.sistema_contabilidade.auth.repository.SessaoUsuarioRepository;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -208,5 +209,61 @@ class SessaoUsuarioServiceTest {
     String refreshToken = sessaoUsuarioService.decryptRefreshToken(sessao);
 
     assertNull(refreshToken);
+  }
+
+  @Test
+  @DisplayName("Deve atualizar sessao com novo refresh token e grupos")
+  void deveAtualizarSessaoComNovoRefreshTokenEGrupos() {
+    SessaoUsuario sessao = new SessaoUsuario();
+    sessao.setRefreshTokenCiphertext("refresh-antigo");
+    when(sessionCipherService.encryptString("refresh-novo")).thenReturn("refresh-cifrado");
+    when(sessaoUsuarioRepository.save(sessao)).thenReturn(sessao);
+
+    SessaoUsuario atualizada =
+        sessaoUsuarioService.atualizarSessao(
+            sessao,
+            new AuthProviderRefreshResult(
+                AuthProvider.COGNITO,
+                "ana@email.com",
+                "ana@email.com",
+                "Ana",
+                "sub-123",
+                Set.of("ADMIN", "SUPPORT"),
+                "refresh-novo"),
+            "groups-hash");
+
+    assertEquals(sessao, atualizada);
+    assertEquals("ana@email.com", sessao.getAuthUsername());
+    assertEquals("sub-123", sessao.getCognitoSub());
+    assertEquals("refresh-cifrado", sessao.getRefreshTokenCiphertext());
+    assertEquals("groups-hash", sessao.getGroupsHash());
+    assertTrue(sessao.getGroupsSnapshot().contains("ADMIN"));
+  }
+
+  @Test
+  @DisplayName("Deve revogar todas as sessoes ativas do usuario")
+  void deveRevogarTodasAsSessoesAtivasDoUsuario() {
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    SessaoUsuario primeira = new SessaoUsuario();
+    SessaoUsuario segunda = new SessaoUsuario();
+    when(sessaoUsuarioRepository.findAllByUsuarioIdAndRevogadaFalse(usuarioId))
+        .thenReturn(List.of(primeira, segunda));
+
+    sessaoUsuarioService.revogarSessoesAtivas(usuarioId);
+
+    assertTrue(primeira.isRevogada());
+    assertTrue(segunda.isRevogada());
+    verify(sessaoUsuarioRepository).saveAll(List.of(primeira, segunda));
+  }
+
+  @Test
+  @DisplayName("Deve reconstruir snapshot de grupos sem vazios")
+  void deveReconstruirSnapshotDeGruposSemVazios() {
+    SessaoUsuario sessao = new SessaoUsuario();
+    sessao.setGroupsSnapshot("ADMIN\n \nSUPPORT\nADMIN");
+
+    Set<String> groups = sessaoUsuarioService.groupsSnapshot(sessao);
+
+    assertEquals(Set.of("ADMIN", "SUPPORT"), groups);
   }
 }
