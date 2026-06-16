@@ -45,16 +45,18 @@ public class ItemRazaoSocialSearchInitializer implements CommandLineRunner {
         return totalAtualizado;
       }
 
-      Integer atualizadosNoLote =
-          transactionTemplate.execute(
-              status -> {
-                List<Item> itens = itemRepository.findAllById(ids);
-                itens.forEach(this::prepareItemForBackfill);
-                itemRepository.saveAll(itens);
-                itemRepository.flush();
-                return itens.size();
-              });
-      totalAtualizado += atualizadosNoLote == null ? 0 : atualizadosNoLote;
+      int atualizadosNoLote =
+          java.util.Objects.requireNonNullElse(
+              transactionTemplate.execute(
+                  status -> {
+                    List<Item> itens = itemRepository.findAllById(ids);
+                    itens.forEach(this::prepareItemForBackfill);
+                    itemRepository.saveAll(itens);
+                    itemRepository.flush();
+                    return itens.size();
+                  }),
+              0);
+      totalAtualizado += atualizadosNoLote;
 
       if (ids.size() < BATCH_SIZE) {
         return totalAtualizado;

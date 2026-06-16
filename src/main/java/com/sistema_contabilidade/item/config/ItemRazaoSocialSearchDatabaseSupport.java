@@ -66,9 +66,7 @@ public class ItemRazaoSocialSearchDatabaseSupport {
     try (Connection connection = dataSource.getConnection()) {
       DatabaseMetaData metadata = connection.getMetaData();
       String productName = metadata.getDatabaseProductName();
-      boolean compatible =
-          productName != null
-              && productName.toLowerCase(Locale.ROOT).matches(".*(mysql|mariadb).*");
+      boolean compatible = isMysqlFamilyProduct(productName);
       mysqlCompatible = compatible;
       return compatible;
     } catch (SQLException exception) {
@@ -99,5 +97,13 @@ public class ItemRazaoSocialSearchDatabaseSupport {
           exception);
       return false;
     }
+  }
+
+  private boolean isMysqlFamilyProduct(String productName) {
+    if (productName == null) {
+      return false;
+    }
+    String normalizedProductName = productName.toLowerCase(Locale.ROOT);
+    return normalizedProductName.contains("mysql") || normalizedProductName.contains("mariadb");
   }
 }

@@ -183,8 +183,8 @@ class ItemRepositoryTest {
 
     assertEquals(itemElegivel.getId(), page.getContent().getFirst().id());
     assertEquals("Fornecedor Alpha & Filhos", page.getContent().getFirst().razaoSocialNome());
-    assertTrue(page.getContent().size() == 1);
-    assertTrue(!page.hasNext());
+    assertEquals(1, page.getContent().size());
+    assertEquals(false, page.hasNext());
   }
 
   @Test
