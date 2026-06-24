@@ -87,7 +87,12 @@ For debugging or larger refactors, also use these local skills when they exist:
 - `skills/pragmatic-programmer/SKILL.md`
 - `skills/refactoring-patterns/SKILL.md`
 - `skills/cyclomatic-complexity-spring/SKILL.md`
-- `skills/spring-query-monitor/SKILL.md`
+
+
+## Testing skills
+
+- `skills/spring-boot-engineer/references/testing.md`
+- `skills/springboot-security-tests/SKILL.md`
 
 ## Caveman Mode
 

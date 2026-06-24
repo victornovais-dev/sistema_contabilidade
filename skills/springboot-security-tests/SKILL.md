@@ -27,10 +27,7 @@ description: >
 | `tests-auth-jwt.md` | Layer 1 + 6 | JWT, Argon2, refresh token, admin invisível |
 | `tests-ratelimit-honeypot.md` | Layer 2 + 3 + 7 | Rate limiting, lockout, honeypots backend/frontend |
 | `tests-input-validation.md` | Layer 4 | SQLi, XSS, IDOR, mass assignment, CSRF |
-| `tests-file-upload.md` | Layer 5 | Magic bytes, polyglot, ZIP bomb, path traversal |
-| `tests-ssrf-traversal.md` | Layer 8 | SSRF, DNS rebinding, path traversal |
 | `tests-audit-rendering.md` | Layer 10 + 11 | Logs de auditoria, PDF/Markdown, SSTI |
-| `tests-database.md` | Layer 9 + 12 | CSRF, MySQL hardening, privilege escalation |
 | `tests-jacoco-config.md` | Todas | Configuração JaCoCo, thresholds, relatórios |
 
 ---
@@ -41,10 +38,7 @@ description: >
 Testar login/logout/JWT?              → tests-auth-jwt.md
 Testar rate limiting/brute force?     → tests-ratelimit-honeypot.md
 Testar input suspeito/SQLi/XSS?       → tests-input-validation.md
-Testar upload de arquivo?             → tests-file-upload.md
-Testar SSRF/URL externa?              → tests-ssrf-traversal.md
 Testar logs de segurança?             → tests-audit-rendering.md
-Testar CSRF/banco de dados?           → tests-database.md
 Configurar JaCoCo/cobertura?          → tests-jacoco-config.md
 Testes para um projeto do zero?       → ler TODOS os arquivos
 ```
@@ -236,3 +230,4 @@ Overall instruction        → 80%
 ```
 
 Leia `tests-jacoco-config.md` para a configuração completa.
+
