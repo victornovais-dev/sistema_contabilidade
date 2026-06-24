@@ -110,8 +110,10 @@ let settingUploadFilesProgrammatically = false;
 let uploadErrorEntries = [];
 let razaoFilterDebounceTimer = null;
 let loadItemsRequestSequence = 0;
+let descricaoOptionsRenderSequence = 0;
+const descricaoOptionsCache = new Map();
 
-const RECEITA_DESCRICOES = ["CONTA FEFEC", "CONTA FP", "CONTA DC", "ESTIMÁVEL"];
+const RECEITA_DESCRICOES = ["CONTA DC", "CONTA FEFC", "CONTA FP", "ESTIMÁVEL"];
 
 const DESPESA_DESCRICOES = [
   "Publicidade por materiais impressos",
@@ -438,7 +440,7 @@ const closeFilterDescricaoMenu = () => {
   filterDescricaoTrigger.setAttribute("aria-expanded", "false");
 };
 
-const getDescricaoOptionsByTipo = (tipoValue) => {
+const getFallbackDescricaoOptionsByTipo = (tipoValue) => {
   const tipo = String(tipoValue || "").trim().toLowerCase();
   if (tipo === "receita") {
     return [...RECEITA_DESCRICOES];
@@ -451,10 +453,71 @@ const getDescricaoOptionsByTipo = (tipoValue) => {
   );
 };
 
-const renderFilterDescricaoOptions = (tipoValue) => {
+const normalizeDescricaoOptions = (options) =>
+  [
+    ...new Set(
+      (Array.isArray(options) ? options : [])
+        .map((option) => String(option || "").trim())
+        .filter(Boolean),
+    ),
+  ].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+
+const getDescricaoApiTipo = (tipoValue) => {
+  const tipo = String(tipoValue || "").trim().toLowerCase();
+  if (tipo === "receita") {
+    return "RECEITA";
+  }
+  if (tipo === "despesa") {
+    return "DESPESA";
+  }
+  return "";
+};
+
+const fetchDescricaoOptionsByApiTipo = async (apiTipo) => {
+  if (!apiTipo) {
+    return [];
+  }
+
+  if (descricaoOptionsCache.has(apiTipo)) {
+    return descricaoOptionsCache.get(apiTipo);
+  }
+
+  const response = await fetch(`/api/v1/itens/descricoes?tipo=${encodeURIComponent(apiTipo)}`, {
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Falha ao carregar descrições do filtro.");
+  }
+
+  const payload = await response.json();
+  const normalized = normalizeDescricaoOptions(payload);
+  descricaoOptionsCache.set(apiTipo, normalized);
+  return normalized;
+};
+
+const resolveDescricaoOptionsByTipo = async (tipoValue) => {
+  const apiTipo = getDescricaoApiTipo(tipoValue);
+  if (apiTipo) {
+    return fetchDescricaoOptionsByApiTipo(apiTipo);
+  }
+
+  const [receita, despesa] = await Promise.all([
+    fetchDescricaoOptionsByApiTipo("RECEITA"),
+    fetchDescricaoOptionsByApiTipo("DESPESA"),
+  ]);
+  return normalizeDescricaoOptions([...receita, ...despesa]);
+};
+
+const renderFilterDescricaoOptions = (
+  tipoValue,
+  options = getFallbackDescricaoOptionsByTipo(tipoValue),
+) => {
   if (!filterDescricaoMenu || !filterDescricaoTrigger) return;
 
-  const options = getDescricaoOptionsByTipo(tipoValue);
   const shouldKeepSelection = options.some((option) => option === filterDescricaoValue);
   if (!shouldKeepSelection) {
     filterDescricaoValue = "";
@@ -480,6 +543,25 @@ const renderFilterDescricaoOptions = (tipoValue) => {
   });
 
   filterDescricaoTrigger.textContent = filterDescricaoValue || "Todas";
+};
+
+const syncFilterDescricaoOptions = async (tipoValue) => {
+  const requestedTipo = String(tipoValue || "").trim().toLowerCase();
+  const renderSequence = ++descricaoOptionsRenderSequence;
+  renderFilterDescricaoOptions(tipoValue);
+
+  try {
+    const options = await resolveDescricaoOptionsByTipo(tipoValue);
+    if (renderSequence !== descricaoOptionsRenderSequence) {
+      return;
+    }
+    if (String(filterTypeValue || "").trim().toLowerCase() !== requestedTipo) {
+      return;
+    }
+    renderFilterDescricaoOptions(tipoValue, options);
+  } catch (error) {
+    console.warn("Nao foi possivel sincronizar descricoes do filtro.", error);
+  }
 };
 
 const formatText = (value) => (value ? String(value) : "-");
@@ -2374,7 +2456,7 @@ const bindEvents = () => {
         filterTypeTrigger.textContent = option.textContent || "Todos";
         filterTypeOptions.forEach((node) => node.classList.remove("is-active"));
         option.classList.add("is-active");
-        renderFilterDescricaoOptions(filterTypeValue);
+        void syncFilterDescricaoOptions(filterTypeValue);
         closeMenu();
         void applyFilters();
       });
@@ -2410,7 +2492,7 @@ const bindEvents = () => {
       if (filterTypeTrigger) filterTypeTrigger.textContent = "Todos";
       filterTypeOptions.forEach((node) => node.classList.remove("is-active"));
       if (filterTypeOptions[0]) filterTypeOptions[0].classList.add("is-active");
-      renderFilterDescricaoOptions(filterTypeValue);
+      void syncFilterDescricaoOptions(filterTypeValue);
       void applyFilters();
     });
   }
@@ -2424,13 +2506,13 @@ const bindEvents = () => {
         if (filterRazaoInput) filterRazaoInput.value = "";
         filterDescricaoValue = "";
         if (filterDescricaoTrigger) filterDescricaoTrigger.textContent = "Todas";
-        renderFilterDescricaoOptions(filterTypeValue);
+        void syncFilterDescricaoOptions(filterTypeValue);
         void applyFilters();
       }
     });
   }
 
-  renderFilterDescricaoOptions(filterTypeValue);
+  void syncFilterDescricaoOptions(filterTypeValue);
 
   if (itemsList) {
     itemsList.addEventListener("click", async (event) => {
