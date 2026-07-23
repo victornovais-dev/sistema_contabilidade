@@ -11,7 +11,7 @@ Use this skill when the task touches login, logout, refresh, session cookies, Co
 
 1. Read `references/auth-security.md`.
 2. Then inspect only the files relevant to the task.
-3. If the task is also frontend-related, read `skills/sistema-contabilidade-ui-pages/SKILL.md`.
+3. If the task is also frontend-related, read `skills/sistema-contabilidade-project-guide/sistema-contabilidade-ui-pages/SKILL.md`.
 
 ## Main Files
 

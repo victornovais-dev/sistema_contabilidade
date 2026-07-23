@@ -59,10 +59,4 @@ Legacy admin pages exist as internal routes, but real browser access uses secret
   - `.\mvnw test`
   - `.\mvnw -DskipTests compile checkstyle:check spotbugs:check pmd:check`
   - `.\mvnw verify`
-- Recent project state recorded in analysis:
-  - test suite: 427 green tests
-  - SonarQube quality gate: OK
-  - open issues: 0
-  - hotspots: 0
-  - approximate recent coverage: 83.6%
-  - duplicated lines: 0.0%
+- Run the configured gates instead of relying on historical test or Sonar snapshots.

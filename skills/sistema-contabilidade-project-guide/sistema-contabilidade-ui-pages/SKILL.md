@@ -12,7 +12,7 @@ Use this skill when the task touches HTML pages, Thymeleaf templates, static aut
 1. Read `references/ui-pages.md`.
 2. Identify whether the page is Thymeleaf, static HTML, or both.
 3. Inspect the matching template, static fallback, JS and CSS.
-4. If auth/session behavior is involved, also read `skills/sistema-contabilidade-auth-security/SKILL.md`.
+4. If auth/session behavior is involved, also read `skills/sistema-contabilidade-project-guide/sistema-contabilidade-auth-security/SKILL.md`.
 
 ## Main Files
 
@@ -21,6 +21,10 @@ Use this skill when the task touches HTML pages, Thymeleaf templates, static aut
 - `src/main/resources/static/partials/navbar.html`
 - `src/main/resources/static/assets/js/navbar-20260502-startup-perf-1.js`
 - `src/main/resources/static/assets/css/navbar-20260420-navbar-notification-count-fix-3.css`
+- `src/main/resources/templates/lista_comprovantes.html`
+- `src/main/resources/static/lista_comprovantes.html`
+- `src/main/resources/static/assets/js/lista_comprovantes-20260502-calendar-match-1.js`
+- `src/main/resources/static/assets/css/lista_comprovantes-20260513-descender-fix-1.css`
 - `src/main/resources/static/assets/js/auth-session-20260502-startup-perf-1.js`
 - `src/main/resources/static/primeiro_acesso.html`
 - `src/main/resources/static/assets/js/primeiro_acesso-20260605-cognito-new-password-page-1.js`
@@ -34,8 +38,9 @@ Use this skill when the task touches HTML pages, Thymeleaf templates, static aut
 3. Keep Thymeleaf navbar and static navbar synchronized.
 4. Keep versioned asset filenames synchronized with template/static references.
 5. Do not assume hardcoded select/card values; check page JS and backend-driven endpoints.
-6. Validate browser behavior with auth/session bootstrap in mind.
-7. If changing cache/compression strategy, inspect page heads, `SecurityConfig` and resource config.
+6. Keep payment modal template/static shell, JavaScript and CSS synchronized.
+7. Validate browser behavior with auth/session bootstrap in mind.
+8. If changing cache/compression strategy, inspect page heads, `SecurityConfig` and resource config.
 
 ## Validation
 

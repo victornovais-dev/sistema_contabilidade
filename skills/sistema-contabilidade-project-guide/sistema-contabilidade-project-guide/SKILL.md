@@ -26,15 +26,15 @@ This is a router skill. Its job is to choose the right specialized skill, not to
 
 | Task mentions | Read this skill |
 |---|---|
-| login, logout, refresh, session, cookie, Cognito, role, permission, admin, CORS, CSRF, security headers, JWT | `skills/sistema-contabilidade-auth-security/SKILL.md` |
-| Thymeleaf, static page, navbar, frontend asset, JS, CSS, page flow, browser route, template | `skills/sistema-contabilidade-ui-pages/SKILL.md` |
-| comprovante, item, upload, download, PDF attachment, listagem, filtro, paginacao, verificacao, observacao, razao social | `skills/sistema-contabilidade-items/SKILL.md` |
-| relatorio, PDF financeiro, Playwright, notificacao, badge, receitas, despesas, resumo financeiro | `skills/sistema-contabilidade-reports-notifications/SKILL.md` |
-| query count, N+1, performance, Prometheus, Grafana, Actuator, metrics, timing, memory, cache | `skills/sistema-contabilidade-observability/SKILL.md` |
-| `.env`, profile, Docker, Redis, S3, CloudFront, ALB, DNS, certificate, production, CORS env | `skills/sistema-contabilidade-deploy-config/SKILL.md` |
-| Maven, Java 25, tests, Sonar, quality gate, ArchUnit, Checkstyle, SpotBugs, PMD, dependency check | `skills/sistema-contabilidade-quality/SKILL.md` |
+| login, logout, refresh, session, cookie, Cognito, role, permission, admin, CORS, CSRF, security headers, JWT | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-auth-security/SKILL.md` |
+| Thymeleaf, static page, navbar, frontend asset, JS, CSS, page flow, browser route, template | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-ui-pages/SKILL.md` |
+| comprovante, item, upload, download, PDF attachment, listagem, filtro, paginacao, verificacao, observacao, razao social | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-items/SKILL.md` |
+| relatorio, PDF financeiro, Playwright, notificacao, badge, receitas, despesas, resumo financeiro | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-reports-notifications/SKILL.md` |
+| query count, N+1, performance, Prometheus, Grafana, Actuator, metrics, timing, memory, cache | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-observability/SKILL.md` |
+| `.env`, profile, Docker, Redis, S3, CloudFront, ALB, DNS, certificate, production, CORS env | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-deploy-config/SKILL.md` |
+| Maven, Java 25, tests, Sonar, quality gate, ArchUnit, Checkstyle, SpotBugs, PMD, dependency check | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-quality/SKILL.md` |
 | issue plan, PRD to issues, roadmap, implementation tickets | `skills/to-issues/SKILL.md` |
-| next session, context handoff, continue in another agent, summarize progress | `skills/productivity/handoff/SKILL.md` |
+| next session, context handoff, continue in another agent, summarize progress | `skills/handoff/SKILL.md` |
 
 ## Discovery Policy
 
@@ -61,5 +61,6 @@ Broad discovery is allowed only when:
 - Production auth defaults to Cognito through `application-prod.properties`.
 - Real session auth depends on `SC_SESSION`; `SC_TOKEN` is legacy compatibility.
 - Hidden/admin routes are controlled by `AdminRouteService`.
+- This worktree has no chat module, `/mensagens` page, WebSocket endpoint or chat configuration. Do not implement against legacy chat references without first restoring the source.
 - Static assets use filename-based versioning, not `?v=`.
 - Never expose secrets from `.env`.

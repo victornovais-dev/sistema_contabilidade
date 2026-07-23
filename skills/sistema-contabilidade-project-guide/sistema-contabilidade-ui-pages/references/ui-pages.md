@@ -32,6 +32,10 @@ Keep these synchronized:
 - `src/main/resources/static/partials/navbar.html`
 - `static/assets/js/navbar-20260502-startup-perf-1.js`
 - `static/assets/css/navbar-20260420-navbar-notification-count-fix-3.css`
+- `templates/lista_comprovantes.html`
+- `static/lista_comprovantes.html`
+- `static/assets/js/lista_comprovantes-20260502-calendar-match-1.js`
+- `static/assets/css/lista_comprovantes-20260513-descender-fix-1.css`
 
 Rules:
 
@@ -49,3 +53,16 @@ Rules:
   - `lista_comprovantes-20260513-descender-fix-1.css`
 - Do not revert to `?v=` query params unless explicitly intended.
 - Static asset caching/compression can be affected by CDN/proxy layers.
+
+## Payment Modal
+
+- The list page keeps template and static fallback aligned.
+- `AVISTA` hides the installment-count control; `PARCELADO` exposes 2-4 installments.
+- Installment amount inputs remain editable in `PARCELADO` and the modal total follows checked installments.
+- Values use a cent-based Brazilian currency mask and cap at R$ 5,000,000.00, including direct manual input.
+- PDF thumbnails use `assets/img/pdf-thumbnail-20260723-1.png`; filename and pending-remove control appear on hover.
+- An installment accepts multiple PDFs; remove actions are pending until the user clicks save.
+- Every paid installment requires source-account selection: `CONTA DC`, `CONTA FEFC` or `CONTA FP`; the account control is the dark custom dropdown in both payment forms.
+- A saved form with a checked installment or attached PDF locks the other form. After the current form is saved clean, the user can reopen the modal and change it.
+- On an unsaved form change, clear payment checkboxes, accounts and PDFs from the draft; never present one payment as both immediate and installment payment.
+- After a successful save, refresh the modal from the returned item, show its success card, and keep the payment modal open when that card closes.

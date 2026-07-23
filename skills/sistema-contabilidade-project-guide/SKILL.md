@@ -32,7 +32,7 @@ This is a router skill. Its job is to choose the right specialized skill, not to
 | Financial reports, PDF report generation, notifications, navbar badge | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-reports-notifications/SKILL.md` |
 | Query count, N+1, Prometheus, Grafana, Actuator, timing, memory, cache | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-observability/SKILL.md` |
 | `.env`, profiles, Docker, Redis, CloudFront, ALB, DNS, S3, production config | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-deploy-config/SKILL.md` |
-| Maven quality workflow, tests, SonarQube, ArchUnit, precommit checks | `skills/sistema-contabilidade-quality/SKILL.md` |
+| Maven quality workflow, tests, SonarQube, ArchUnit, precommit checks | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-quality/SKILL.md` |
 | Convert plan/PRD/spec into implementation issues | `skills/to-issues/SKILL.md` |
 | Prepare context for another session or agent | `skills/handoff/SKILL.md` |
 
@@ -61,5 +61,6 @@ Broad discovery is allowed only when:
 - Production auth defaults to Cognito through `application-prod.properties`.
 - Real session auth depends on `SC_SESSION`; `SC_TOKEN` is legacy compatibility.
 - Hidden/admin routes are controlled by `AdminRouteService`.
+- This worktree has no chat module, `/mensagens` page, WebSocket endpoint or chat configuration. Do not implement against legacy chat references without first restoring the source.
 - Static assets use filename-based versioning, not `?v=`.
 - Never expose secrets from `.env`.

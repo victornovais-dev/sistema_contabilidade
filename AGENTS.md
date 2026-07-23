@@ -72,10 +72,11 @@ Use these local skills:
 | Login, logout, refresh, Cognito, roles, admin routes, CORS, CSRF, session cookies | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-auth-security/SKILL.md` |
 | Thymeleaf pages, static HTML, navbar, CSS/JS assets, frontend route behavior | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-ui-pages/SKILL.md` |
 | Comprovantes, item list, upload/download, PDF validation, verification rules | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-items/SKILL.md` |
+| Chat, conversas, mensagens, `/mensagens`, unread badge, WebSocket, SockJS, STOMP, outbox, RabbitMQ relay, auditoria | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-chat/SKILL.md` |
 | Financial reports, PDF report generation, notifications, navbar badge | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-reports-notifications/SKILL.md` |
 | Query count, N+1, Prometheus, Grafana, Actuator, timing, memory, cache | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-observability/SKILL.md` |
 | `.env`, profiles, Docker, Redis, CloudFront, ALB, DNS, S3, production config | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-deploy-config/SKILL.md` |
-| Maven quality workflow, tests, SonarQube, ArchUnit, precommit checks | `skills/sistema-contabilidade-quality/SKILL.md` |
+| Maven quality workflow, tests, SonarQube, ArchUnit, precommit checks | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-quality/SKILL.md` |
 | Convert plan/PRD/spec into implementation issues | `skills/to-issues/SKILL.md` |
 | Prepare context for another session or agent | `skills/handoff/SKILL.md` |
 

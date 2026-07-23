@@ -11,14 +11,14 @@ Use this skill for reports, financial summaries, PDF generation, Playwright rend
 
 1. Read `references/reports-notifications.md`.
 2. Inspect service/factory/template files relevant to the task.
-3. If the task includes item verification or receita sync, also read `skills/sistema-contabilidade-items/SKILL.md`.
-4. If the task includes visual/page changes, also read `skills/sistema-contabilidade-ui-pages/SKILL.md`.
+3. If the task includes item verification or receita sync, also read `skills/sistema-contabilidade-project-guide/sistema-contabilidade-items/SKILL.md`.
+4. If the task includes visual/page changes, also read `skills/sistema-contabilidade-project-guide/sistema-contabilidade-ui-pages/SKILL.md`.
 
 ## Main Files
 
 - `src/main/java/com/sistema_contabilidade/relatorio/service/RelatorioFinanceiroService.java`
 - `src/main/java/com/sistema_contabilidade/relatorio/service/RelatorioFinanceiroConsolidador.java`
-- `src/main/java/com/sistema_contabilidade/relatorio/repository/RelatorioResumoCategoriaRow.java`
+- `src/main/java/com/sistema_contabilidade/relatorio/dto/RelatorioResumoCategoriaRow.java`
 - `src/main/java/com/sistema_contabilidade/relatorio/service/RelatorioFinanceiroPdfDataFactory.java`
 - `src/main/java/com/sistema_contabilidade/relatorio/service/PlaywrightPdfService.java`
 - `src/main/resources/templates/relatorio-financeiro.html`
@@ -33,6 +33,7 @@ Use this skill for reports, financial summaries, PDF generation, Playwright rend
 2. Preserve lightweight web summary response.
 3. Keep aggregation in the database when currently optimized.
 4. Check frontend layout only after backend contract is clear.
+5. Preserve the `Despesas Executadas` card followed by `Resumo Financeiro`.
 
 ### PDF report
 

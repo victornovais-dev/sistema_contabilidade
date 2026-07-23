@@ -85,3 +85,18 @@ Authorization/rules:
 - legacy items with `version = null` are normalized before verification changes.
 - verified receitas update navbar badge but remain visible on notification page.
 - attachment modal shows a per-file error card for rejected files.
+
+## Payment
+
+- API: `PATCH /api/v1/itens/{id}/pagamento`.
+- Forms: `AVISTA` and `PARCELADO`; installment count is limited to 1-4.
+- `ItemPagamentoParcelaUpdateRequest.valorParcela` is editable for installments.
+- Installment values use Brazilian currency formatting and cannot exceed R$ 5,000,000.00.
+- An installment can contain multiple PDF files through `arquivosPdf` and `nomesArquivos`.
+- Every paid installment records source account: `CONTA_DC`, `CONTA_FEFC` or `CONTA_FP`.
+- A paid installment requires a positive value, source account and at least one PDF; frontend and backend validate all three.
+- A payment has exactly one form. A saved form can change only after all its installments are unchecked and have no PDFs; the API enforces this rule.
+- Payment applies only to expenses; unchecking an installment clears its source account and schedules its PDFs for removal on the next successful save.
+- Changing an unsaved form resets its draft installments, preventing payment flags, accounts or PDFs from carrying between `AVISTA` and `PARCELADO`.
+- `arquivosRemovidos` and `removerArquivoLegado` are applied only when the save request succeeds.
+- `ItemResponse` exposes payment data and the total paid is the sum of installments marked `paga`; the list merges the returned item locally after a successful save.

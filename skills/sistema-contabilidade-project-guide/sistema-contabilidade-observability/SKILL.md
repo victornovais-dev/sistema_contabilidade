@@ -11,8 +11,8 @@ Use this skill when the task mentions query count, N+1, Prometheus, Grafana, Act
 
 1. Read `references/observability.md`.
 2. Inspect only the affected monitoring/cache files.
-3. If the task touches item list performance, also read `skills/sistema-contabilidade-items/SKILL.md`.
-4. If it touches deployment/Redis config, also read `skills/sistema-contabilidade-deploy-config/SKILL.md`.
+3. If the task touches item list performance, also read `skills/sistema-contabilidade-project-guide/sistema-contabilidade-items/SKILL.md`.
+4. If it touches deployment/Redis config, also read `skills/sistema-contabilidade-project-guide/sistema-contabilidade-deploy-config/SKILL.md`.
 
 ## Main Files
 

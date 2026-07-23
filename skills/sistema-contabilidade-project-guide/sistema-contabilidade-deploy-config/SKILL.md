@@ -11,8 +11,8 @@ Use this skill when the task touches `.env`, Spring profiles, Docker, Redis, S3/
 
 1. Read `references/deploy-config.md`.
 2. Inspect the specific config files involved.
-3. If the task is auth production, also read `skills/sistema-contabilidade-auth-security/SKILL.md`.
-4. If the task is static assets/CDN, also read `skills/sistema-contabilidade-ui-pages/SKILL.md`.
+3. If the task is auth production, also read `skills/sistema-contabilidade-project-guide/sistema-contabilidade-auth-security/SKILL.md`.
+4. If the task is static assets/CDN, also read `skills/sistema-contabilidade-project-guide/sistema-contabilidade-ui-pages/SKILL.md`.
 
 ## Main Files
 

@@ -14,6 +14,8 @@
 - Executive visual mock exists: `relatorio-executivo-exemplo.html`.
 - `Despesas por categoria` uses circular chart and fixed palette.
 - Download from report page should download directly, without `about:blank` or `file://`.
+- `relatorios.html` renders `Despesas Executadas` and then `Resumo Financeiro`.
+- The web and PDF endpoints apply the same report scope: admins can select an available candidate role; other users only receive their authorized roles.
 
 ## Financial Consolidation
 
@@ -26,6 +28,10 @@
 - total despesas
 - limited category percentages
 - final balance
+- paid accounts from paid expense installments
+- accounts payable: `despesasConsideradas + despesasAdvocaciaContabilidade - contasPagas`
+- account balances: revenue from `CONTA DC`, `CONTA FEFC` and `CONTA FP` less paid installments from each source account
+- The report page shows `Contas pagas`, `Contas a pagar` and a separate balance card for `CONTA DC`, `CONTA FEFC` and `CONTA FP`.
 
 ## Notificacoes
 

@@ -51,4 +51,4 @@ Changing `.env` and only restarting the container does not reapply environment v
 ## Security
 
 - `.env` can silently override storage, database, cache and secrets.
-- Do not expose values of tokens, passwords or secrets in logs/chat.
+- Do not expose values of tokens, passwords or secrets in logs or task updates.

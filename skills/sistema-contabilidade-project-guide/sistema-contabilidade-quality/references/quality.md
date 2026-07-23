@@ -49,22 +49,9 @@ Environment variables:
 - `SONAR_TOKEN` or `SONARQUBE_TOKEN`
 - `SONAR_PROJECT_KEY`
 
-Recent local instance:
-
-- SonarQube Community `26.4.0.121862`
-- dashboard: `http://localhost:9000`
-
-Recent recorded state:
-
-- open issues: `0`
-- hotspots: `0`
-- quality gate: `OK`
-- approximate coverage: `83.6%`
-- duplicated lines: `0.0%`
+- Project metrics require `SONAR_TOKEN` or `SONARQUBE_TOKEN`; query the configured instance instead of recording volatile snapshots.
 
 ## Tests
-
-Recent suite: `427` green tests.
 
 Dedicated test areas include:
 
