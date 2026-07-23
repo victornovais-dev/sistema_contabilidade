@@ -20,6 +20,7 @@ import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,8 +58,8 @@ class HomeDashboardControllerWebMvcTest {
                 List.of(new HomeDashboardMonthResponse("Abr", 100.0d, 40.0d, true)),
                 List.of(
                     new HomeLatestLaunchResponse(
-                        LocalDateTime.of(2026, 4, 8, 10, 0),
-                        LocalDate.of(2026, 4, 8),
+                        LocalDateTime.of(2026, Month.APRIL, 8, 10, 0),
+                        LocalDate.of(2026, Month.APRIL, 8),
                         new BigDecimal("40.00"),
                         TipoItem.DESPESA,
                         "SERVICOS",

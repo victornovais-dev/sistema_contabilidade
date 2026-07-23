@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -165,8 +166,8 @@ class QueryCountAuditIntegrationTest {
   private Item novoItem(Usuario usuario, TipoItem tipo, String descricao, BigDecimal valor) {
     Item item = new Item();
     item.setValor(valor);
-    item.setData(LocalDate.of(2026, 4, 22));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 4, 22, 10, 0));
+    item.setData(LocalDate.of(2026, Month.APRIL, 22));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 22, 10, 0));
     item.setCaminhoArquivoPdf("uploads/itens/query-audit.pdf");
     item.setTipo(tipo);
     item.setDescricao(descricao);

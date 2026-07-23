@@ -13,6 +13,7 @@ import com.sistema_contabilidade.item.repository.ItemRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -109,8 +110,8 @@ class ItemExpenseLimitServiceTest {
   private ItemUpsertRequest request(String descricao, String valor) {
     return new ItemUpsertRequest(
         new BigDecimal(valor),
-        LocalDate.of(2026, 4, 15),
-        LocalDateTime.of(2026, 4, 15, 10, 0),
+        LocalDate.of(2026, Month.APRIL, 15),
+        LocalDateTime.of(2026, Month.APRIL, 15, 10, 0),
         List.of(),
         List.of(),
         TipoItem.DESPESA,

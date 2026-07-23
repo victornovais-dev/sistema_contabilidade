@@ -22,6 +22,7 @@ import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -62,7 +63,7 @@ class NotificacaoServiceTest {
     item.setDescricao("CONTA DC");
     item.setRazaoSocialNome("GOV SP");
     item.setValor(new BigDecimal("100000.00"));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 4, 14, 10, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 14, 10, 15));
     when(notificacaoRepository.findFirstByItemId(item.getId())).thenReturn(Optional.empty());
 
     service.registrarReceitaLancada(item);
@@ -134,7 +135,7 @@ class NotificacaoServiceTest {
     item.setDescricao("CONTA FEFC");
     item.setRazaoSocialNome("GOV BR");
     item.setValor(new BigDecimal("4200.50"));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 4, 15, 9, 45));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 15, 9, 45));
 
     Notificacao existente = new Notificacao();
     existente.setId(UUID.fromString("aaaaaaaa-1111-2222-3333-cccccccccccc"));
@@ -172,7 +173,7 @@ class NotificacaoServiceTest {
     item.setDescricao("CONTA FP");
     item.setRazaoSocialNome("Fornecedor Teste");
     item.setValor(new BigDecimal("1500.00"));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 4, 27, 22, 0));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 27, 22, 0));
     item.setVerificado(true);
     when(notificacaoRepository.findFirstByItemId(itemId)).thenReturn(Optional.empty());
 
@@ -220,7 +221,7 @@ class NotificacaoServiceTest {
                     "CONTA FP",
                     "Fornecedor",
                     new BigDecimal("5000.00"),
-                    LocalDateTime.of(2026, 4, 14, 12, 0),
+                    LocalDateTime.of(2026, Month.APRIL, 14, 12, 0),
                     false)));
 
     List<NotificacaoListResponse> response =
@@ -248,7 +249,7 @@ class NotificacaoServiceTest {
     item.setDescricao("CONTA FP");
     item.setRazaoSocialNome("Fornecedor Teste");
     item.setValor(new BigDecimal("3500.00"));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 4, 15, 13, 0));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 15, 13, 0));
 
     when(itemRepository.findReceitasOrderByHorarioCriacaoDesc()).thenReturn(List.of(item));
     when(notificacaoRepository.findFirstByItemId(item.getId())).thenReturn(Optional.empty());
@@ -363,7 +364,7 @@ class NotificacaoServiceTest {
     notificacao.setDescricao("CONTA DC");
     notificacao.setRazaoSocialNome("GOV SP");
     notificacao.setValor(new BigDecimal("1000.00"));
-    notificacao.setCriadoEm(LocalDateTime.of(2026, 4, 14, 10, 15));
+    notificacao.setCriadoEm(LocalDateTime.of(2026, Month.APRIL, 14, 10, 15));
     notificacao.setLimpa(false);
 
     when(notificacaoRepository.findById(id)).thenReturn(Optional.of(notificacao));

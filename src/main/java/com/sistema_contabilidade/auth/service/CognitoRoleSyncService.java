@@ -7,6 +7,7 @@ import com.sistema_contabilidade.usuario.model.Usuario;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.LinkedHashSet;
@@ -40,7 +41,7 @@ public class CognitoRoleSyncService {
 
     String groupsHash = hashGroups(normalizedGroups);
     usuario.setCognitoGroupsHash(groupsHash);
-    usuario.setCognitoSyncedAt(LocalDateTime.now());
+    usuario.setCognitoSyncedAt(LocalDateTime.now(ZoneId.systemDefault()));
     return new CognitoRoleSyncResult(normalizedGroups, groupsHash);
   }
 

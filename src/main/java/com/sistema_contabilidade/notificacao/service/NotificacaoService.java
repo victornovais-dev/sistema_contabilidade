@@ -11,6 +11,7 @@ import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -56,7 +57,9 @@ public class NotificacaoService {
     Notificacao notificacao =
         notificacaoRepository.findFirstByItemId(item.getId()).orElseGet(Notificacao::new);
     LocalDateTime criadoEm =
-        item.getHorarioCriacao() == null ? LocalDateTime.now() : item.getHorarioCriacao();
+        item.getHorarioCriacao() == null
+            ? LocalDateTime.now(ZoneId.systemDefault())
+            : item.getHorarioCriacao();
     String roleNome = ItemAccessUtils.normalizarRole(item.getRoleNome());
     if (roleNome == null) {
       if (log.isWarnEnabled()) {

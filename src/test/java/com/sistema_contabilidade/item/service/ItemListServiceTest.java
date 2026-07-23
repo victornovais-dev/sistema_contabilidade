@@ -21,6 +21,7 @@ import com.sistema_contabilidade.security.validation.InputSanitizer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -126,8 +127,8 @@ class ItemListServiceTest {
     ItemListService service =
         new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
     ItemListPageRequest request = new ItemListPageRequest();
-    request.setDataInicio(LocalDate.of(2026, 5, 10));
-    request.setDataFim(LocalDate.of(2026, 5, 1));
+    request.setDataInicio(LocalDate.of(2026, Month.MAY, 10));
+    request.setDataFim(LocalDate.of(2026, Month.MAY, 1));
     UsernamePasswordAuthenticationToken authentication = autenticacao("admin@email.com", "ADMIN");
 
     ResponseStatusException ex =
@@ -217,8 +218,8 @@ class ItemListServiceTest {
     return new ItemListResponse(
         UUID.fromString("11111111-1111-1111-1111-111111111111"),
         new BigDecimal("120.50"),
-        LocalDate.of(2026, 4, 8),
-        LocalDateTime.of(2026, 4, 8, 10, 30),
+        LocalDate.of(2026, Month.APRIL, 8),
+        LocalDateTime.of(2026, Month.APRIL, 8, 10, 30),
         "uploads/itens/admin.pdf",
         TipoItem.DESPESA,
         roleNome,

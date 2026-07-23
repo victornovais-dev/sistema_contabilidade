@@ -19,6 +19,7 @@ import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -68,7 +69,7 @@ class NotificacaoControllerWebMvcTest {
                     "CONTA DC",
                     "GOV SP",
                     new BigDecimal("100000.00"),
-                    LocalDateTime.of(2026, 4, 14, 10, 45),
+                    LocalDateTime.of(2026, Month.APRIL, 14, 10, 45),
                     false)));
 
     mockMvc
@@ -103,7 +104,7 @@ class NotificacaoControllerWebMvcTest {
                 "CONTA DC",
                 "GOV SP",
                 new BigDecimal("100000.00"),
-                LocalDateTime.of(2026, 4, 14, 10, 45),
+                LocalDateTime.of(2026, Month.APRIL, 14, 10, 45),
                 true));
 
     mockMvc

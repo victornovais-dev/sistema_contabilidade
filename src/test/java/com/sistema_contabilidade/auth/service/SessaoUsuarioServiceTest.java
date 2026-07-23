@@ -12,6 +12,7 @@ import com.sistema_contabilidade.auth.config.AuthProvider;
 import com.sistema_contabilidade.auth.model.SessaoUsuario;
 import com.sistema_contabilidade.auth.repository.SessaoUsuarioRepository;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -30,6 +31,11 @@ import org.springframework.web.server.ResponseStatusException;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SessaoUsuarioService unit tests")
 class SessaoUsuarioServiceTest {
+
+  private static final LocalDateTime DATA_HORA_FUTURA =
+      LocalDateTime.of(2099, Month.JANUARY, 1, 10, 0);
+  private static final LocalDateTime DATA_HORA_PASSADA =
+      LocalDateTime.of(2000, Month.JANUARY, 1, 10, 0);
 
   @Mock private SessaoUsuarioRepository sessaoUsuarioRepository;
 
@@ -109,7 +115,7 @@ class SessaoUsuarioServiceTest {
     SessaoUsuario sessao = new SessaoUsuario();
     sessao.setId(sessaoId);
     sessao.setUsuarioId(usuarioId);
-    sessao.setExpiraEm(LocalDateTime.now().plusMinutes(10));
+    sessao.setExpiraEm(DATA_HORA_FUTURA.plusMinutes(10));
     sessao.setRevogada(false);
 
     when(sessionCipherService.decrypt("token")).thenReturn(sessaoId);
@@ -131,7 +137,7 @@ class SessaoUsuarioServiceTest {
     SessaoUsuario sessao = new SessaoUsuario();
     sessao.setId(sessaoId);
     sessao.setUsuarioId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
-    sessao.setExpiraEm(LocalDateTime.now().minusMinutes(1));
+    sessao.setExpiraEm(DATA_HORA_PASSADA.minusMinutes(1));
     sessao.setRevogada(false);
 
     when(sessionCipherService.decrypt("token")).thenReturn(sessaoId);
@@ -162,7 +168,7 @@ class SessaoUsuarioServiceTest {
     UUID sessaoId = UUID.fromString("22222222-2222-2222-2222-222222222222");
     SessaoUsuario sessao = new SessaoUsuario();
     sessao.setId(sessaoId);
-    sessao.setExpiraEm(LocalDateTime.now().plusMinutes(10));
+    sessao.setExpiraEm(DATA_HORA_FUTURA.plusMinutes(10));
     sessao.setRevogada(false);
 
     when(sessionCipherService.decrypt("token")).thenReturn(sessaoId);

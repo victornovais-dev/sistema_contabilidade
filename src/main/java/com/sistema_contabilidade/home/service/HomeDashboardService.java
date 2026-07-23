@@ -14,6 +14,7 @@ import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -55,7 +56,8 @@ public class HomeDashboardService {
     BigDecimal totalDespesas = sumByType(totals, TipoItem.DESPESA);
     BigDecimal saldoFinal = totalReceitas.subtract(totalDespesas);
 
-    LocalDate startDate = YearMonth.now().minusMonths(CHART_MONTHS - 1L).atDay(1);
+    LocalDate startDate =
+        YearMonth.now(ZoneId.systemDefault()).minusMonths(CHART_MONTHS - 1L).atDay(1);
     List<HomeMonthlyBalanceRow> monthlyRows = loadMonthlyRows(scope, startDate);
     List<HomeLatestLaunchResponse> latestLaunches = loadLatestLaunches(scope);
 
@@ -137,7 +139,7 @@ public class HomeDashboardService {
   }
 
   private List<HomeDashboardMonthResponse> buildMonthlyChart(List<HomeMonthlyBalanceRow> rows) {
-    YearMonth currentMonth = YearMonth.now();
+    YearMonth currentMonth = YearMonth.now(ZoneId.systemDefault());
     List<YearMonth> months =
         new ArrayList<>(
             java.util.stream.IntStream.range(0, CHART_MONTHS)

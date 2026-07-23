@@ -12,6 +12,7 @@ import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -54,28 +55,28 @@ class ItemListSpecificationsTest {
 
     Item elegivel =
         novoItem(criador, "FINANCEIRO", TipoItem.DESPESA, "SERVICOS", "Fornecedor Alpha");
-    elegivel.setData(LocalDate.of(2026, 4, 10));
-    elegivel.setHorarioCriacao(LocalDateTime.of(2026, 4, 10, 12, 0));
+    elegivel.setData(LocalDate.of(2026, Month.APRIL, 10));
+    elegivel.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 10, 12, 0));
 
     Item descricaoDiferente =
         novoItem(criador, "FINANCEIRO", TipoItem.DESPESA, "OUTROS", "Fornecedor Alpha");
-    descricaoDiferente.setData(LocalDate.of(2026, 4, 10));
+    descricaoDiferente.setData(LocalDate.of(2026, Month.APRIL, 10));
 
     Item roleDiferente =
         novoItem(criador, "OPERADOR", TipoItem.DESPESA, "SERVICOS", "Fornecedor Alpha");
-    roleDiferente.setData(LocalDate.of(2026, 4, 10));
+    roleDiferente.setData(LocalDate.of(2026, Month.APRIL, 10));
 
     Item tipoDiferente =
         novoItem(criador, "FINANCEIRO", TipoItem.RECEITA, "SERVICOS", "Fornecedor Alpha");
-    tipoDiferente.setData(LocalDate.of(2026, 4, 10));
+    tipoDiferente.setData(LocalDate.of(2026, Month.APRIL, 10));
 
     Item dataDiferente =
         novoItem(criador, "FINANCEIRO", TipoItem.DESPESA, "SERVICOS", "Fornecedor Alpha");
-    dataDiferente.setData(LocalDate.of(2026, 5, 1));
+    dataDiferente.setData(LocalDate.of(2026, Month.MAY, 1));
 
     Item razaoDiferente =
         novoItem(criador, "FINANCEIRO", TipoItem.DESPESA, "SERVICOS", "Fornecedor Beta");
-    razaoDiferente.setData(LocalDate.of(2026, 4, 10));
+    razaoDiferente.setData(LocalDate.of(2026, Month.APRIL, 10));
 
     itemRepository.saveAll(
         List.of(
@@ -96,8 +97,8 @@ class ItemListSpecificationsTest {
             ItemListSpecifications.forList(
                 roleNomes,
                 TipoItem.DESPESA,
-                LocalDate.of(2026, 4, 1),
-                LocalDate.of(2026, 4, 30),
+                LocalDate.of(2026, Month.APRIL, 1),
+                LocalDate.of(2026, Month.APRIL, 30),
                 " servicos ",
                 " fornecedor alpha "),
             Sort.by(Sort.Order.desc("horarioCriacao"), Sort.Order.desc("id")));
@@ -149,8 +150,8 @@ class ItemListSpecificationsTest {
       Usuario criadoPor, String roleNome, TipoItem tipo, String descricao, String razaoSocialNome) {
     Item item = new Item();
     item.setValor(new BigDecimal("50.00"));
-    item.setData(LocalDate.of(2026, 4, 10));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 4, 10, 9, 0));
+    item.setData(LocalDate.of(2026, Month.APRIL, 10));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 10, 9, 0));
     item.setCaminhoArquivoPdf("uploads/itens/teste.pdf");
     item.setTipo(tipo);
     item.setDescricao(descricao);

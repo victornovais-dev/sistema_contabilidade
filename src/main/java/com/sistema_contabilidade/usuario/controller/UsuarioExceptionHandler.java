@@ -2,6 +2,7 @@ package com.sistema_contabilidade.usuario.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +45,7 @@ public class UsuarioExceptionHandler {
             HttpStatus.UNAUTHORIZED.value(),
             ex.getMessage() == null ? "Falha na autenticacao" : ex.getMessage(),
             request.getDescription(false),
-            LocalDateTime.now());
+            LocalDateTime.now(ZoneId.systemDefault()));
     return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
   }
 
@@ -58,7 +59,7 @@ public class UsuarioExceptionHandler {
             status.value(),
             ex.getReason() == null ? "Erro na requisicao" : ex.getReason(),
             request.getDescription(false),
-            LocalDateTime.now());
+            LocalDateTime.now(ZoneId.systemDefault()));
     return new ResponseEntity<>(error, status);
   }
 
@@ -73,7 +74,7 @@ public class UsuarioExceptionHandler {
             HttpStatus.CONFLICT.value(),
             "Registro alterado por outra operacao concorrente. Atualize os dados e tente novamente.",
             request.getDescription(false),
-            LocalDateTime.now());
+            LocalDateTime.now(ZoneId.systemDefault()));
     return new ResponseEntity<>(error, HttpStatus.CONFLICT);
   }
 
@@ -93,7 +94,10 @@ public class UsuarioExceptionHandler {
 
     ValidationErrorResponse response =
         new ValidationErrorResponse(
-            HttpStatus.BAD_REQUEST.value(), "Validation failed", errors, LocalDateTime.now());
+            HttpStatus.BAD_REQUEST.value(),
+            "Validation failed",
+            errors,
+            LocalDateTime.now(ZoneId.systemDefault()));
     return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
   }
 
@@ -116,7 +120,7 @@ public class UsuarioExceptionHandler {
             HttpStatus.BAD_REQUEST.value(),
             message,
             request.getDescription(false),
-            LocalDateTime.now());
+            LocalDateTime.now(ZoneId.systemDefault()));
     return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
   }
 
@@ -139,7 +143,7 @@ public class UsuarioExceptionHandler {
             HttpStatus.NOT_FOUND.value(),
             "Recurso nao encontrado",
             webRequest.getDescription(false),
-            LocalDateTime.now());
+            LocalDateTime.now(ZoneId.systemDefault()));
     return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
   }
 
@@ -151,7 +155,7 @@ public class UsuarioExceptionHandler {
             HttpStatus.INTERNAL_SERVER_ERROR.value(),
             "An unexpected error occurred",
             request.getDescription(false),
-            LocalDateTime.now());
+            LocalDateTime.now(ZoneId.systemDefault()));
     return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 

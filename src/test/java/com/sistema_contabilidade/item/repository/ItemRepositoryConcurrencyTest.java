@@ -12,6 +12,7 @@ import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -191,8 +192,8 @@ class ItemRepositoryConcurrencyTest {
   private Item novoItem(Usuario criadoPor) {
     Item item = new Item();
     item.setValor(new BigDecimal("50.00"));
-    item.setData(LocalDate.of(2026, 4, 28));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 4, 28, 10, 30, 0));
+    item.setData(LocalDate.of(2026, Month.APRIL, 28));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 28, 10, 30, 0));
     item.setCaminhoArquivoPdf("uploads/itens/concorrencia.pdf");
     item.setTipo(TipoItem.RECEITA);
     item.setDescricao("SERVICOS");

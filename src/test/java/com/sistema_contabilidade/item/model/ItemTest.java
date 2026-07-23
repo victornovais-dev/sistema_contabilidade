@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -16,8 +17,8 @@ class ItemTest {
   void deveArmazenarDadosDeItemComTipoReceita() {
     Item item = new Item();
     BigDecimal valor = new BigDecimal("123.45");
-    LocalDate data = LocalDate.of(2026, 3, 15);
-    LocalDateTime horarioCriacao = LocalDateTime.of(2026, 3, 15, 18, 0, 0);
+    LocalDate data = LocalDate.of(2026, Month.MARCH, 15);
+    LocalDateTime horarioCriacao = LocalDateTime.of(2026, Month.MARCH, 15, 18, 0, 0);
     String caminhoArquivoPdf = "uploads/itens/item-123.pdf";
 
     item.setValor(valor);

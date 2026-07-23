@@ -4,6 +4,7 @@ import com.sistema_contabilidade.auth.model.SessaoUsuario;
 import com.sistema_contabilidade.auth.repository.SessaoUsuarioRepository;
 import jakarta.transaction.Transactional;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -41,9 +42,9 @@ public class SessaoUsuarioService {
   public String criarSessao(SessionCreationRequest request) {
     SessaoUsuario sessao = new SessaoUsuario();
     sessao.setUsuarioId(request.usuarioId());
-    sessao.setCriadaEm(LocalDateTime.now());
-    sessao.setAtualizadaEm(LocalDateTime.now());
-    sessao.setExpiraEm(LocalDateTime.now().plusMinutes(ttlMinutes));
+    sessao.setCriadaEm(LocalDateTime.now(ZoneId.systemDefault()));
+    sessao.setAtualizadaEm(LocalDateTime.now(ZoneId.systemDefault()));
+    sessao.setExpiraEm(LocalDateTime.now(ZoneId.systemDefault()).plusMinutes(ttlMinutes));
     sessao.setRevogada(false);
     sessao.setAuthProvider(request.authProvider());
     sessao.setAuthUsername(request.authUsername());
@@ -69,7 +70,7 @@ public class SessaoUsuarioService {
                 () ->
                     new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessao nao encontrada"));
 
-    if (sessao.getExpiraEm().isBefore(LocalDateTime.now())) {
+    if (sessao.getExpiraEm().isBefore(LocalDateTime.now(ZoneId.systemDefault()))) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessao expirada");
     }
 
@@ -80,8 +81,8 @@ public class SessaoUsuarioService {
   public void revogarSessao(String tokenCriptografado) {
     SessaoUsuario sessao = obterSessaoAtiva(tokenCriptografado);
     sessao.setRevogada(true);
-    sessao.setRevogadaEm(LocalDateTime.now());
-    sessao.setAtualizadaEm(LocalDateTime.now());
+    sessao.setRevogadaEm(LocalDateTime.now(ZoneId.systemDefault()));
+    sessao.setAtualizadaEm(LocalDateTime.now(ZoneId.systemDefault()));
     sessaoUsuarioRepository.save(sessao);
   }
 
@@ -91,8 +92,8 @@ public class SessaoUsuarioService {
         sessaoUsuarioRepository.findAllByUsuarioIdAndRevogadaFalse(usuarioId);
     for (SessaoUsuario sessao : sessoesAtivas) {
       sessao.setRevogada(true);
-      sessao.setRevogadaEm(LocalDateTime.now());
-      sessao.setAtualizadaEm(LocalDateTime.now());
+      sessao.setRevogadaEm(LocalDateTime.now(ZoneId.systemDefault()));
+      sessao.setAtualizadaEm(LocalDateTime.now(ZoneId.systemDefault()));
     }
     sessaoUsuarioRepository.saveAll(sessoesAtivas);
   }
@@ -100,7 +101,7 @@ public class SessaoUsuarioService {
   @Transactional
   public SessaoUsuario atualizarSessao(
       SessaoUsuario sessaoUsuario, AuthProviderRefreshResult refreshResult, String groupsHash) {
-    sessaoUsuario.setAtualizadaEm(LocalDateTime.now());
+    sessaoUsuario.setAtualizadaEm(LocalDateTime.now(ZoneId.systemDefault()));
     sessaoUsuario.setAuthUsername(refreshResult.providerUsername());
     sessaoUsuario.setCognitoSub(refreshResult.cognitoSub());
     if (refreshResult.refreshToken() != null && !refreshResult.refreshToken().isBlank()) {

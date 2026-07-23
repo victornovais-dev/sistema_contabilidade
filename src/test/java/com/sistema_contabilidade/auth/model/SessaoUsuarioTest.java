@@ -3,6 +3,7 @@ package com.sistema_contabilidade.auth.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,7 +17,7 @@ class SessaoUsuarioTest {
     SessaoUsuario sessao = new SessaoUsuario();
     UUID id = UUID.fromString("77777777-7777-7777-7777-777777777777");
     UUID usuarioId = UUID.fromString("88888888-8888-8888-8888-888888888888");
-    LocalDateTime criada = LocalDateTime.of(2026, 3, 29, 10, 0);
+    LocalDateTime criada = LocalDateTime.of(2026, Month.MARCH, 29, 10, 0);
     LocalDateTime expira = criada.plusHours(8);
 
     sessao.setId(id);

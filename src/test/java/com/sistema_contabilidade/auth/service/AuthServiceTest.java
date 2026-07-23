@@ -19,6 +19,7 @@ import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -39,6 +40,9 @@ import org.springframework.web.server.ResponseStatusException;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AuthService unit tests")
 class AuthServiceTest {
+
+  private static final LocalDateTime DATA_HORA_FIXA =
+      LocalDateTime.of(2026, Month.JANUARY, 1, 10, 0);
 
   @Mock private JwtService jwtService;
   @Mock private UsuarioRepository usuarioRepository;
@@ -365,9 +369,9 @@ class AuthServiceTest {
     sessaoUsuario.setUsuarioId(usuarioId);
     sessaoUsuario.setAuthProvider(AuthProvider.LOCAL);
     sessaoUsuario.setAuthUsername("ana@email.com");
-    sessaoUsuario.setCriadaEm(LocalDateTime.now());
-    sessaoUsuario.setAtualizadaEm(LocalDateTime.now());
-    sessaoUsuario.setExpiraEm(LocalDateTime.now().plusMinutes(30));
+    sessaoUsuario.setCriadaEm(DATA_HORA_FIXA);
+    sessaoUsuario.setAtualizadaEm(DATA_HORA_FIXA);
+    sessaoUsuario.setExpiraEm(DATA_HORA_FIXA.plusMinutes(30));
     return sessaoUsuario;
   }
 

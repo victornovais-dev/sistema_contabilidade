@@ -14,6 +14,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -134,8 +135,8 @@ class ItemVerificacaoLegacyIntegrationTest {
       statement.setObject(1, itemId);
       statement.setObject(2, null);
       statement.setBigDecimal(3, new BigDecimal("100.00"));
-      statement.setObject(4, LocalDate.of(2026, 4, 28));
-      statement.setObject(5, LocalDateTime.of(2026, 4, 28, 0, 54));
+      statement.setObject(4, LocalDate.of(2026, Month.APRIL, 28));
+      statement.setObject(5, LocalDateTime.of(2026, Month.APRIL, 28, 0, 54));
       statement.setString(6, "uploads/itens/legado-toggle.pdf");
       statement.setString(7, "Hospedagem");
       statement.setString(8, null);

@@ -18,6 +18,7 @@ import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -57,8 +58,8 @@ class HomeDashboardServiceTest {
         .thenReturn(
             List.of(
                 new HomeLatestLaunchResponse(
-                    LocalDateTime.of(2026, 4, 8, 10, 0),
-                    LocalDate.of(2026, 4, 8),
+                    LocalDateTime.of(2026, Month.APRIL, 8, 10, 0),
+                    LocalDate.of(2026, Month.APRIL, 8),
                     new BigDecimal("40.00"),
                     TipoItem.DESPESA,
                     "SERVICOS",
