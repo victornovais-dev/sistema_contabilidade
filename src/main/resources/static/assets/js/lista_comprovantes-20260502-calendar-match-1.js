@@ -1,4 +1,4 @@
-﻿const state = {
+const state = {
   items: [],
   itemChecks: new Map(),
   pendingDeleteId: null,
@@ -89,11 +89,31 @@ const observacaoClose = document.querySelector(".observacao-close");
 const observacaoContent = document.getElementById("observacao-content");
 const observacaoEdit = document.querySelector(".observacao-edit");
 const observacaoSave = document.querySelector(".observacao-save");
+const pagamentoOverlay = document.querySelector(".pagamento-overlay");
+const pagamentoClose = document.querySelector(".pagamento-close");
+const pagamentoTitle = document.getElementById("pagamento-title");
+const pagamentoSubtitle = document.getElementById("pagamento-subtitle");
+const pagamentoQuantidade = document.getElementById("pagamento-quantidade");
+const pagamentoParcelas = document.getElementById("pagamento-parcelas");
+const pagamentoTotalPago = document.getElementById("pagamento-total-pago");
+const pagamentoValidation = document.getElementById("pagamento-validation");
+const pagamentoSave = document.querySelector(".pagamento-save");
+const pagamentoFormaInputs = document.querySelectorAll('input[name="pagamento-forma"]');
+const pagamentoSuccessOverlay = document.querySelector(".pagamento-success-overlay");
+const pagamentoSuccessClose = document.querySelector(".pagamento-success-close");
 const MAX_RECEIPT_SIZE_BYTES = 20 * 1024 * 1024;
+const MAX_INSTALLMENT_VALUE = 5_000_000;
+const PAGAMENTO_CONTAS_ORIGEM = new Set(["CONTA_DC", "CONTA_FEFC", "CONTA_FP"]);
+const PAGAMENTO_CONTAS_ORIGEM_LABELS = {
+  CONTA_DC: "CONTA DC",
+  CONTA_FEFC: "CONTA FEFC",
+  CONTA_FP: "CONTA FP",
+};
 const PDF_ONLY_MESSAGE = "Envie somente arquivos PDF.";
 const MAX_RECEIPT_SIZE_MESSAGE = "Cada comprovante deve ter no maximo 20 MB.";
 let pendingUploadItemId = null;
 let pendingObservacaoItemId = null;
+let pendingPagamentoItemId = null;
 let uploadIsEditing = false;
 let pendingDeleteArquivoIds = new Set();
 let filterDatePicker = null;
@@ -111,6 +131,7 @@ let uploadErrorEntries = [];
 let razaoFilterDebounceTimer = null;
 let loadItemsRequestSequence = 0;
 let descricaoOptionsRenderSequence = 0;
+let pagamentoState = null;
 const descricaoOptionsCache = new Map();
 
 const RECEITA_DESCRICOES = ["CONTA DC", "CONTA FEFC", "CONTA FP", "ESTIMÁVEL"];
@@ -396,6 +417,23 @@ const formatCurrency = (value) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+const toInstallmentCents = (value) => Math.round(Number(value || 0) * 100);
+
+const calculateInstallmentValues = (value, count) => {
+  const quantidade = Math.max(Number(count || 1), 1);
+  const totalCents = toInstallmentCents(value);
+  const base = Math.trunc(totalCents / quantidade);
+  const remainder = totalCents % quantidade;
+  return Array.from({ length: quantidade }, (_, index) => (base + (index < remainder ? 1 : 0)) / 100);
+};
+
+const extractDisplayFileName = (value) => {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const parts = text.split(/[\\/]/);
+  return parts[parts.length - 1] || text;
+};
 
 const formatDate = (isoDate) => {
   const date = new Date(`${isoDate}T00:00:00`);
@@ -1206,6 +1244,10 @@ const createItemCard = (item) => {
     setDeleteButtonLocked(deleteButton, isItemChecked(item.id));
   }
 
+  if (item.tipo !== "DESPESA") {
+    node.querySelector(".item-pagamento")?.remove();
+  }
+
   return node;
 };
 
@@ -1622,6 +1664,508 @@ const saveObservacao = async () => {
     // Guarantee UI consistency even if something else toggled `hidden`.
     if (!observacaoIsEditing) {
       setObservacaoSaveVisible(false);
+    }
+  }
+};
+
+const fetchItemById = async (id) => {
+  const accessToken = getAccessToken();
+  if (!accessToken) {
+    window.location.href = "/login";
+    return null;
+  }
+  const response = await fetch(`/api/v1/itens/${id}`, {
+    method: "GET",
+    credentials: "same-origin",
+    redirect: "manual",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const isRedirect =
+    response.type === "opaqueredirect" ||
+    (typeof response.status === "number" && response.status >= 300 && response.status < 400) ||
+    response.redirected;
+  if (isRedirect || response.status === 401) {
+    window.location.href = "/login";
+    throw new Error("Sessão expirada. Faça login novamente.");
+  }
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response, "Falha ao carregar dados do pagamento."));
+  }
+  return response.json();
+};
+
+const buildPagamentoParcelas = (item, formaPagamento, quantidadeParcelas, parcelasSalvas = []) => {
+  const savedByNumber = new Map(
+    Array.isArray(parcelasSalvas)
+      ? parcelasSalvas.map((parcela) => [Number(parcela?.numero || 0), parcela])
+      : [],
+  );
+  const valores = calculateInstallmentValues(item?.valor, quantidadeParcelas);
+  return valores.map((valorParcela, index) => {
+    const numero = index + 1;
+    const parcelaSalva = savedByNumber.get(numero);
+    const arquivosSalvos = Array.isArray(parcelaSalva?.arquivosComprovantes)
+      ? parcelaSalva.arquivosComprovantes
+      : [];
+    const arquivos = arquivosSalvos.length
+      ? arquivosSalvos.map((arquivo) => ({
+          id: arquivo?.id || null,
+          name: extractDisplayFileName(arquivo?.nomeArquivo),
+          file: null,
+          legacy: !arquivo?.id,
+        }))
+      : parcelaSalva?.nomeArquivoComprovante
+        ? [
+            {
+              id: null,
+              name: extractDisplayFileName(parcelaSalva.nomeArquivoComprovante),
+              file: null,
+              legacy: true,
+            },
+          ]
+        : [];
+    return {
+      numero,
+      valorParcela: Number(parcelaSalva?.valorParcela ?? valorParcela),
+      paga: Boolean(parcelaSalva?.paga),
+      contaOrigemPagamento: parcelaSalva?.contaOrigemPagamento || "",
+      arquivos,
+      arquivosRemovidos: [],
+      removerArquivoLegado: false,
+    };
+  });
+};
+
+const normalizePagamentoState = (item) => {
+  const savedPagamento = item?.pagamento;
+  const savedCount = Math.min(Math.max(Number(savedPagamento?.quantidadeParcelas || 1), 1), 4);
+  const formaPagamento =
+    savedPagamento?.formaPagamento === "PARCELADO" && savedCount > 1 ? "PARCELADO" : "AVISTA";
+  const quantidadeParcelas = formaPagamento === "PARCELADO" ? Math.max(savedCount, 2) : 1;
+  return {
+    itemId: item?.id || null,
+    valor: Number(item?.valor || 0),
+    razaoSocialNome: formatText(item?.razaoSocialNome),
+    hasSavedPaymentData:
+      Array.isArray(savedPagamento?.parcelas) &&
+      savedPagamento.parcelas.some(
+        (parcela) =>
+          parcela?.paga === true ||
+          Boolean(parcela?.nomeArquivoComprovante) ||
+          (Array.isArray(parcela?.arquivosComprovantes) && parcela.arquivosComprovantes.length > 0),
+      ),
+    formaPagamento,
+    quantidadeParcelas,
+    parcelas: buildPagamentoParcelas(
+      item,
+      formaPagamento,
+      quantidadeParcelas,
+      savedPagamento?.parcelas,
+    ),
+  };
+};
+
+const recalculatePagamentoParcelas = (nextCount) => {
+  if (!pagamentoState) return;
+  const previousByNumber = new Map(
+    pagamentoState.parcelas.map((parcela) => [Number(parcela.numero), parcela]),
+  );
+  const valores = calculateInstallmentValues(pagamentoState.valor, nextCount);
+  pagamentoState.quantidadeParcelas = nextCount;
+  pagamentoState.parcelas = valores.map((valorParcela, index) => {
+    const numero = index + 1;
+    const previous = previousByNumber.get(numero);
+    return {
+      numero,
+      valorParcela,
+      paga: previous?.paga === true,
+      contaOrigemPagamento: previous?.contaOrigemPagamento || "",
+      arquivos: previous?.arquivos || [],
+      arquivosRemovidos: previous?.arquivosRemovidos || [],
+      removerArquivoLegado: previous?.removerArquivoLegado === true,
+    };
+  });
+};
+
+const resetPagamentoParcelas = (nextCount) => {
+  if (!pagamentoState) return;
+  const valores = calculateInstallmentValues(pagamentoState.valor, nextCount);
+  pagamentoState.quantidadeParcelas = nextCount;
+  pagamentoState.parcelas = valores.map((valorParcela, index) => ({
+    numero: index + 1,
+    valorParcela,
+    paga: false,
+    contaOrigemPagamento: "",
+    arquivos: [],
+    arquivosRemovidos: [],
+    removerArquivoLegado: false,
+  }));
+};
+
+const updatePagamentoTotalPago = () => {
+  if (!pagamentoTotalPago || !pagamentoState) return;
+  const total = pagamentoState.parcelas
+    .filter((parcela) => parcela.paga)
+    .reduce((sum, parcela) => sum + Number(parcela.valorParcela || 0), 0);
+  pagamentoTotalPago.value = formatCurrency(total);
+};
+
+const setPagamentoValidation = (message = "") => {
+  if (!pagamentoValidation) return;
+  pagamentoValidation.textContent = message;
+  pagamentoValidation.hidden = !message;
+};
+
+const getPagamentoParcelaLabel = (parcela) =>
+  pagamentoState?.formaPagamento === "AVISTA" ? "pagamento à vista" : `${parcela.numero}ª parcela`;
+
+const getPagamentoContaOrigemLabel = (contaOrigemPagamento) =>
+  PAGAMENTO_CONTAS_ORIGEM_LABELS[contaOrigemPagamento] || "Conta de origem";
+
+const validatePagamentoBeforeSave = () => {
+  if (!pagamentoState) return "Não foi possível validar o pagamento.";
+  for (const parcela of pagamentoState.parcelas) {
+    if (!parcela.paga) continue;
+    const parcelaLabel = getPagamentoParcelaLabel(parcela);
+    if (!Array.isArray(parcela.arquivos) || parcela.arquivos.length === 0) {
+      return `Anexe ao menos um PDF no ${parcelaLabel}.`;
+    }
+    if (!PAGAMENTO_CONTAS_ORIGEM.has(parcela.contaOrigemPagamento)) {
+      return `Selecione a conta de origem do ${parcelaLabel}.`;
+    }
+    if (!Number.isFinite(Number(parcela.valorParcela)) || Number(parcela.valorParcela) <= 0) {
+      return `Informe valor maior que zero no ${parcelaLabel}.`;
+    }
+  }
+  return "";
+};
+
+const formatInstallmentValue = (value) =>
+  Number(value || 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+const parseInstallmentValue = (value) => {
+  const digits = String(value || "").replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  if (!digits) return 0;
+  if (digits.length > 9) return MAX_INSTALLMENT_VALUE;
+  return Math.min(Number(digits) / 100, MAX_INSTALLMENT_VALUE);
+};
+
+const applyInstallmentValueMask = (input) => {
+  if (!pagamentoState || pagamentoState.formaPagamento !== "PARCELADO") return;
+  const numero = Number(input.dataset.parcela || 0);
+  const parcela = pagamentoState.parcelas.find((entry) => entry.numero === numero);
+  if (!parcela) return;
+  const valor = parseInstallmentValue(input.value);
+  parcela.valorParcela = valor;
+  input.value = formatInstallmentValue(valor);
+  updatePagamentoTotalPago();
+};
+
+const renderPagamentoParcelas = () => {
+  if (!pagamentoParcelas || !pagamentoState) return;
+  pagamentoParcelas.innerHTML = "";
+  pagamentoParcelas.classList.toggle("is-scrollable", pagamentoState.parcelas.length >= 4);
+  pagamentoState.parcelas.forEach((parcela) => {
+    const row = document.createElement("article");
+    row.className = "pagamento-row";
+    row.dataset.parcela = String(parcela.numero);
+    row.innerHTML = `
+      <div class="pagamento-row-main">
+        <label class="pagamento-row-check">
+          <input type="checkbox" class="pagamento-check" data-parcela="${parcela.numero}" ${
+            parcela.paga ? "checked" : ""
+          } />
+          <span>Paga</span>
+        </label>
+        <div class="pagamento-row-meta">
+          <h3 class="pagamento-row-title">${
+            pagamentoState.formaPagamento === "AVISTA" ? "Pagamento à vista" : `${parcela.numero}ª parcela`
+          }</h3>
+          <p class="pagamento-row-hint">${
+            parcela.paga ? "Comprovantes em PDF podem ser anexados." : "Marque como paga para anexar PDFs."
+          }</p>
+          <div class="pagamento-pdf-list" data-parcela="${parcela.numero}"></div>
+        </div>
+      </div>
+      <div class="pagamento-row-actions">
+        <label class="pagamento-row-value">
+          <span class="pagamento-value-prefix">R$</span>
+          <input
+            class="pagamento-valor-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            data-parcela="${parcela.numero}"
+            value="${formatInstallmentValue(parcela.valorParcela)}"
+            ${pagamentoState.formaPagamento === "PARCELADO" ? "" : "readonly"}
+          />
+        </label>
+        <div class="pagamento-origin-select" data-parcela="${parcela.numero}">
+          <button
+            class="pagamento-origin-trigger"
+            type="button"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+            aria-label="Conta de origem da ${parcela.numero}ª parcela"
+            ${parcela.paga ? "" : "disabled"}
+          >${getPagamentoContaOrigemLabel(parcela.contaOrigemPagamento)}</button>
+          <div class="pagamento-origin-menu" role="listbox" hidden>
+            <button class="pagamento-origin-option" type="button" role="option" data-value="CONTA_DC">CONTA DC</button>
+            <button class="pagamento-origin-option" type="button" role="option" data-value="CONTA_FEFC">CONTA FEFC</button>
+            <button class="pagamento-origin-option" type="button" role="option" data-value="CONTA_FP">CONTA FP</button>
+          </div>
+        </div>
+        <button
+          class="btn btn-secondary pagamento-anexo-btn"
+          type="button"
+          data-parcela="${parcela.numero}"
+          ${parcela.paga ? "" : "disabled"}
+        >Anexar PDFs</button>
+        <input
+          class="pagamento-anexo-input"
+          type="file"
+          data-parcela="${parcela.numero}"
+          accept=".pdf,application/pdf"
+          multiple
+          hidden
+        />
+      </div>
+    `;
+    const pdfList = row.querySelector(".pagamento-pdf-list");
+    if (pdfList instanceof HTMLElement) {
+      parcela.arquivos.forEach((arquivo, index) => {
+        const thumbnail = document.createElement("div");
+        thumbnail.className = "pagamento-pdf-thumb";
+        thumbnail.title = arquivo.name || "PDF";
+        thumbnail.innerHTML = `
+          <img src="/assets/img/pdf-thumbnail-20260723-1.png" alt="" aria-hidden="true" />
+          <button
+            class="pagamento-pdf-remove"
+            type="button"
+            data-parcela="${parcela.numero}"
+            data-arquivo-index="${index}"
+            aria-label="Remover PDF"
+            title="Remover após salvar"
+          >×</button>
+        `;
+        pdfList.appendChild(thumbnail);
+      });
+      if (parcela.arquivos.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "pagamento-row-file";
+        empty.textContent = "Nenhum PDF anexado.";
+        pdfList.appendChild(empty);
+      }
+    }
+    pagamentoParcelas.appendChild(row);
+  });
+  updatePagamentoTotalPago();
+};
+
+const syncPagamentoToolbar = () => {
+  if (!pagamentoState) return;
+  pagamentoFormaInputs.forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    input.checked = input.value === pagamentoState.formaPagamento;
+    const isLocked = pagamentoState.hasSavedPaymentData && !input.checked;
+    input.disabled = isLocked;
+    const option = input.closest(".pagamento-mode-option");
+    if (option instanceof HTMLElement) {
+      option.title = isLocked
+        ? "Desmarque pagamentos, exclua os PDFs e salve antes de trocar a modalidade."
+        : "";
+    }
+  });
+  if (pagamentoQuantidade) {
+    pagamentoQuantidade.disabled = pagamentoState.formaPagamento !== "PARCELADO";
+    const quantidadeCampo = pagamentoQuantidade.closest(".pagamento-count-field");
+    if (quantidadeCampo instanceof HTMLElement) {
+      quantidadeCampo.hidden = pagamentoState.formaPagamento !== "PARCELADO";
+    }
+    pagamentoQuantidade.value = String(
+      pagamentoState.formaPagamento === "PARCELADO" ? pagamentoState.quantidadeParcelas : 2,
+    );
+  }
+};
+
+const renderPagamentoModal = () => {
+  if (!pagamentoState) return;
+  if (pagamentoTitle) {
+    pagamentoTitle.textContent = pagamentoState.razaoSocialNome;
+  }
+  if (pagamentoSubtitle) {
+    pagamentoSubtitle.textContent = `Valor do item: ${formatCurrency(pagamentoState.valor)}`;
+  }
+  syncPagamentoToolbar();
+  renderPagamentoParcelas();
+};
+
+const closePagamentoModal = () => {
+  pendingPagamentoItemId = null;
+  pagamentoState = null;
+  setPagamentoValidation();
+  if (!pagamentoOverlay) return;
+  pagamentoOverlay.classList.remove("is-visible");
+  pagamentoOverlay.setAttribute("aria-hidden", "true");
+  if (pagamentoTitle) pagamentoTitle.textContent = "Razão social / Nome";
+  if (pagamentoSubtitle) pagamentoSubtitle.textContent = "Valor do item";
+  if (pagamentoParcelas) {
+    pagamentoParcelas.innerHTML = "";
+    pagamentoParcelas.classList.remove("is-scrollable");
+  }
+  if (pagamentoTotalPago) pagamentoTotalPago.value = formatCurrency(0);
+  if (pagamentoSave) {
+    pagamentoSave.disabled = false;
+    pagamentoSave.textContent = "Salvar";
+  }
+};
+
+const showPagamentoSuccess = () => {
+  if (!pagamentoSuccessOverlay) return;
+  pagamentoSuccessOverlay.classList.add("is-visible");
+  pagamentoSuccessOverlay.setAttribute("aria-hidden", "false");
+};
+
+const closePagamentoSuccess = () => {
+  if (!pagamentoSuccessOverlay) return;
+  pagamentoSuccessOverlay.classList.remove("is-visible");
+  pagamentoSuccessOverlay.setAttribute("aria-hidden", "true");
+};
+
+const closePagamentoOriginMenus = () => {
+  if (!pagamentoParcelas) return;
+  pagamentoParcelas.querySelectorAll(".pagamento-origin-select").forEach((select) => {
+    const trigger = select.querySelector(".pagamento-origin-trigger");
+    const menu = select.querySelector(".pagamento-origin-menu");
+    select.classList.remove("is-open");
+    if (trigger instanceof HTMLButtonElement) trigger.setAttribute("aria-expanded", "false");
+    if (menu instanceof HTMLElement) menu.hidden = true;
+  });
+};
+
+const openPagamentoModal = async (id) => {
+  pendingPagamentoItemId = id;
+  hideListState();
+  if (!pagamentoOverlay) return;
+  pagamentoOverlay.classList.add("is-visible");
+  pagamentoOverlay.setAttribute("aria-hidden", "false");
+  if (pagamentoTitle) pagamentoTitle.textContent = "Razão social / Nome";
+  if (pagamentoSubtitle) pagamentoSubtitle.textContent = "Carregando pagamento...";
+  if (pagamentoParcelas) {
+    pagamentoParcelas.innerHTML =
+      '<article class="pagamento-row"><div class="pagamento-row-main"><div class="pagamento-row-meta"><h3 class="pagamento-row-title">Carregando...</h3></div></div></article>';
+  }
+  try {
+    const item = await fetchItemById(id);
+    if (pendingPagamentoItemId !== id) return;
+    pagamentoState = normalizePagamentoState(item);
+    renderPagamentoModal();
+  } catch (error) {
+    closePagamentoModal();
+    showListState(error instanceof Error ? error.message : "Falha ao carregar pagamento.");
+  }
+};
+
+const patchPagamento = async (id, payload) => {
+  const accessToken = getAccessToken();
+  if (!accessToken) {
+    window.location.href = "/login";
+    return null;
+  }
+  const csrfToken = await ensureCsrfToken(true);
+  const response = await fetch(`/api/v1/itens/${id}/pagamento`, {
+    method: "PATCH",
+    credentials: "same-origin",
+    redirect: "manual",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Accept: "application/json",
+      "X-CSRF-TOKEN": csrfToken,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const isRedirect =
+    response.type === "opaqueredirect" ||
+    (typeof response.status === "number" && response.status >= 300 && response.status < 400) ||
+    response.redirected;
+  if (isRedirect || response.status === 401) {
+    window.location.href = "/login";
+    throw new Error("Sessão expirada. Faça login novamente.");
+  }
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response, "Falha ao salvar pagamento."));
+  }
+  return response.json();
+};
+
+const buildPagamentoPayload = async () => {
+  if (!pagamentoState) return null;
+  const parcelas = [];
+  for (const parcela of pagamentoState.parcelas) {
+    const arquivosPdf = [];
+    const nomesArquivos = [];
+    for (const arquivo of parcela.arquivos.filter((entry) => entry.file instanceof File)) {
+      const picked = validateUploadFilesOrThrow([arquivo.file]);
+      const buffer = await picked[0].arrayBuffer();
+      arquivosPdf.push(Array.from(new Uint8Array(buffer)));
+      nomesArquivos.push(picked[0].name);
+    }
+    parcelas.push({
+      numero: parcela.numero,
+      paga: parcela.paga === true,
+      contaOrigemPagamento: parcela.paga ? parcela.contaOrigemPagamento || null : null,
+      valorParcela:
+        pagamentoState.formaPagamento === "PARCELADO" ? Number(parcela.valorParcela || 0) : null,
+      arquivosPdf,
+      nomesArquivos,
+      arquivosRemovidos: parcela.arquivosRemovidos,
+      removerArquivoLegado: parcela.removerArquivoLegado === true,
+    });
+  }
+  return {
+    formaPagamento: pagamentoState.formaPagamento,
+    quantidadeParcelas:
+      pagamentoState.formaPagamento === "PARCELADO" ? pagamentoState.quantidadeParcelas : 1,
+    parcelas,
+  };
+};
+
+const savePagamento = async () => {
+  if (!pendingPagamentoItemId || !pagamentoState) return;
+  const validationMessage = validatePagamentoBeforeSave();
+  if (validationMessage) {
+    setPagamentoValidation(validationMessage);
+    return;
+  }
+  setPagamentoValidation();
+  try {
+    if (pagamentoSave) {
+      pagamentoSave.disabled = true;
+      pagamentoSave.textContent = "Salvando...";
+    }
+    const payload = await buildPagamentoPayload();
+    const updated = await patchPagamento(pendingPagamentoItemId, payload);
+    pagamentoState = normalizePagamentoState(updated);
+    const idx = state.items.findIndex((entry) => entry.id === pendingPagamentoItemId);
+    if (idx >= 0) {
+      state.items[idx] = { ...state.items[idx], ...updated };
+    }
+    renderPagamentoModal();
+    showPagamentoSuccess();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha ao salvar pagamento.";
+    showListState(message);
+  } finally {
+    if (pagamentoSave) {
+      pagamentoSave.disabled = false;
+      pagamentoSave.textContent = "Salvar";
     }
   }
 };
@@ -2304,10 +2848,12 @@ const deletePendingItem = async () => {
   }
 
   const executeDelete = async (csrfToken) =>
-    fetch(`/api/v1/itens/${state.pendingDeleteId}`, {
+    fetch(`/api/v1/itens/${pendingDeleteId}`, {
       method: "DELETE",
       credentials: "same-origin",
+      redirect: "manual",
       headers: {
+        Accept: "application/json",
         Authorization: `Bearer ${accessToken}`,
         "X-CSRF-TOKEN": csrfToken,
       },
@@ -2320,7 +2866,11 @@ const deletePendingItem = async () => {
     response = await executeDelete(csrfToken);
   }
 
-  if (response.status === 401) {
+  const isRedirect =
+    response.type === "opaqueredirect" ||
+    (typeof response.status === "number" && response.status >= 300 && response.status < 400) ||
+    response.redirected;
+  if (isRedirect || response.status === 401) {
     window.location.href = "/login";
     return;
   }
@@ -2534,6 +3084,14 @@ const bindEvents = () => {
         }
         return;
       }
+      const pagamentoButton = target.closest(".item-pagamento");
+      if (pagamentoButton) {
+        const card = pagamentoButton.closest(".item-card");
+        if (card?.dataset.id) {
+          void openPagamentoModal(card.dataset.id);
+        }
+        return;
+      }
       const checkButton = target.closest(".item-check-toggle");
       if (checkButton instanceof HTMLButtonElement) {
         const card = checkButton.closest(".item-card");
@@ -2620,6 +3178,21 @@ const bindEvents = () => {
   if (observacaoClose) {
     observacaoClose.addEventListener("click", closeObservacaoModal);
   }
+  if (pagamentoClose) {
+    pagamentoClose.addEventListener("click", closePagamentoModal);
+  }
+  if (pagamentoSuccessClose) {
+    pagamentoSuccessClose.addEventListener("click", closePagamentoSuccess);
+  }
+  document.addEventListener(
+    "mousedown",
+    (event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".pagamento-origin-select")) return;
+      closePagamentoOriginMenus();
+    },
+    { capture: true },
+  );
   if (observacaoEdit) {
     observacaoEdit.addEventListener("click", () => {
       if (!pendingObservacaoItemId || !observacaoContent) return;
@@ -2630,6 +3203,146 @@ const bindEvents = () => {
   }
   if (observacaoSave) {
     observacaoSave.addEventListener("click", saveObservacao);
+  }
+  pagamentoFormaInputs.forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    input.addEventListener("change", () => {
+      if (!pagamentoState || !input.checked) return;
+      setPagamentoValidation();
+      pagamentoState.formaPagamento = input.value === "PARCELADO" ? "PARCELADO" : "AVISTA";
+      const nextCount =
+        pagamentoState.formaPagamento === "PARCELADO"
+          ? Math.min(Math.max(Number(pagamentoQuantidade?.value || pagamentoState.quantidadeParcelas || 2), 2), 4)
+          : 1;
+      resetPagamentoParcelas(nextCount);
+      renderPagamentoModal();
+    });
+  });
+  if (pagamentoQuantidade) {
+    pagamentoQuantidade.addEventListener("change", () => {
+      if (!pagamentoState || pagamentoState.formaPagamento !== "PARCELADO") return;
+      setPagamentoValidation();
+      const nextCount = Math.min(Math.max(Number(pagamentoQuantidade.value || 2), 2), 4);
+      recalculatePagamentoParcelas(nextCount);
+      renderPagamentoModal();
+    });
+  }
+  if (pagamentoParcelas) {
+    pagamentoParcelas.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element) || !pagamentoState) return;
+      const removeButton = target.closest(".pagamento-pdf-remove");
+      if (removeButton instanceof HTMLButtonElement) {
+        const numero = Number(removeButton.dataset.parcela || 0);
+        const arquivoIndex = Number(removeButton.dataset.arquivoIndex || -1);
+        const parcela = pagamentoState.parcelas.find((entry) => entry.numero === numero);
+        const arquivo = parcela?.arquivos?.[arquivoIndex];
+        if (!parcela || !arquivo) return;
+        setPagamentoValidation();
+        if (arquivo.legacy) {
+          parcela.removerArquivoLegado = true;
+        } else if (arquivo.id) {
+          parcela.arquivosRemovidos.push(arquivo.id);
+        }
+        parcela.arquivos.splice(arquivoIndex, 1);
+        renderPagamentoModal();
+        return;
+      }
+      const originOption = target.closest(".pagamento-origin-option");
+      if (originOption instanceof HTMLButtonElement) {
+        const select = originOption.closest(".pagamento-origin-select");
+        const numero = Number(select?.dataset.parcela || 0);
+        const parcela = pagamentoState.parcelas.find((entry) => entry.numero === numero);
+        if (!parcela || !PAGAMENTO_CONTAS_ORIGEM.has(originOption.dataset.value)) return;
+        setPagamentoValidation();
+        parcela.contaOrigemPagamento = originOption.dataset.value;
+        renderPagamentoModal();
+        return;
+      }
+      const originTrigger = target.closest(".pagamento-origin-trigger");
+      if (originTrigger instanceof HTMLButtonElement) {
+        const select = originTrigger.closest(".pagamento-origin-select");
+        const menu = select?.querySelector(".pagamento-origin-menu");
+        if (!(select instanceof HTMLElement) || !(menu instanceof HTMLElement)) return;
+        const shouldOpen = menu.hidden;
+        closePagamentoOriginMenus();
+        if (shouldOpen) {
+          select.classList.add("is-open");
+          menu.hidden = false;
+          originTrigger.setAttribute("aria-expanded", "true");
+        }
+        return;
+      }
+      const attachButton = target.closest(".pagamento-anexo-btn");
+      if (!(attachButton instanceof HTMLButtonElement)) return;
+      const numero = Number(attachButton.dataset.parcela || 0);
+      const input = pagamentoParcelas.querySelector(`.pagamento-anexo-input[data-parcela="${numero}"]`);
+      if (input instanceof HTMLInputElement) {
+        input.click();
+      }
+    });
+    pagamentoParcelas.addEventListener("change", async (event) => {
+      const target = event.target;
+      if (!(target instanceof Element) || !pagamentoState) return;
+      if (target.matches(".pagamento-check")) {
+        const checkbox = target;
+        if (!(checkbox instanceof HTMLInputElement)) return;
+        const numero = Number(checkbox.dataset.parcela || 0);
+        const parcela = pagamentoState.parcelas.find((entry) => entry.numero === numero);
+        if (!parcela) return;
+        setPagamentoValidation();
+        parcela.paga = checkbox.checked;
+        if (!parcela.paga) {
+          parcela.contaOrigemPagamento = "";
+          parcela.arquivos.forEach((arquivo) => {
+            if (arquivo.legacy) {
+              parcela.removerArquivoLegado = true;
+            } else if (arquivo.id && !parcela.arquivosRemovidos.includes(arquivo.id)) {
+              parcela.arquivosRemovidos.push(arquivo.id);
+            }
+          });
+          parcela.arquivos = [];
+        }
+        renderPagamentoModal();
+        return;
+      }
+      if (target.matches(".pagamento-anexo-input")) {
+        const input = target;
+        if (!(input instanceof HTMLInputElement)) return;
+        const numero = Number(input.dataset.parcela || 0);
+        const parcela = pagamentoState.parcelas.find((entry) => entry.numero === numero);
+        if (!parcela) return;
+        setPagamentoValidation();
+        const picked = input.files ? Array.from(input.files) : [];
+        try {
+          const valid = validateUploadFilesOrThrow(picked);
+          parcela.arquivos.push(
+            ...valid.map((file) => ({ id: null, name: file.name, file, legacy: false })),
+          );
+          renderPagamentoModal();
+        } catch (error) {
+          showListState(error instanceof Error ? error.message : PDF_ONLY_MESSAGE);
+        }
+      }
+    });
+    pagamentoParcelas.addEventListener("input", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement) || !pagamentoState) return;
+      if (!target.matches(".pagamento-valor-input")) return;
+      setPagamentoValidation();
+      applyInstallmentValueMask(target);
+    });
+    pagamentoParcelas.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement) || !target.matches(".pagamento-valor-input")) return;
+      setPagamentoValidation();
+      applyInstallmentValueMask(target);
+    });
+  }
+  if (pagamentoSave) {
+    pagamentoSave.addEventListener("click", () => {
+      void savePagamento();
+    });
   }
 
   if (uploadSave) {

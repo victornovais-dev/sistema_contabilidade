@@ -1,4 +1,4 @@
-﻿@charset "UTF-8";
+@charset "UTF-8";
 
 *,
 *::before,
@@ -1450,7 +1450,9 @@ html[data-theme="light"] .flatpickr-current-month .year-dropdown option {
   color: #2b1407;
 }
 
-.item-upload {
+.item-observacao,
+.item-upload,
+.item-pagamento {
   width: 44px;
   height: 44px;
   padding: 0;
@@ -1541,7 +1543,20 @@ html[data-theme="light"] .flatpickr-current-month .year-dropdown option {
   justify-content: center;
 }
 
+.icon-payment {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .icon-upload svg {
+  width: 100%;
+  height: 100%;
+}
+
+.icon-payment svg {
   width: 100%;
   height: 100%;
 }
@@ -2159,6 +2174,613 @@ html[data-theme="dark"] .observacao-content {
 .observacao-input:focus-visible {
   border-color: rgba(255, 122, 89, 0.55);
   box-shadow: 0 0 0 3px rgba(255, 122, 89, 0.18);
+}
+
+.pagamento-overlay {
+  position: fixed;
+  inset: 0;
+  padding: 16px;
+  background: rgba(10, 11, 15, 0.55);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+  z-index: 12;
+}
+
+.pagamento-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pagamento-card {
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(92dvh, 780px);
+  overflow: hidden;
+  background: #e6e6e6;
+  border: 1px solid var(--stroke);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.pagamento-card:has(.pagamento-origin-select.is-open) {
+  overflow: visible;
+}
+
+html[data-theme="dark"] .pagamento-card {
+  background: #15171c;
+}
+
+.pagamento-header,
+.pagamento-toolbar,
+.pagamento-row,
+.pagamento-row-main,
+.pagamento-row-actions {
+  display: flex;
+  align-items: center;
+}
+
+.pagamento-header {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pagamento-header h2 {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
+}
+
+.pagamento-header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.pagamento-actions {
+  display: inline-flex;
+  gap: 10px;
+}
+
+.pagamento-body {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+  min-height: 0;
+  overflow: visible;
+}
+
+.pagamento-toolbar {
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pagamento-mode-group {
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.pagamento-mode-group legend,
+.pagamento-count-field > span,
+.pagamento-total-field > span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pagamento-mode-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pagamento-mode-option {
+  position: relative;
+}
+
+.pagamento-mode-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pagamento-mode-option span,
+.pagamento-count-field select,
+.pagamento-total-field input,
+.pagamento-row-value {
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  border-radius: 14px;
+}
+
+.pagamento-mode-option span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+html[data-theme="dark"] .pagamento-mode-option span,
+html[data-theme="dark"] .pagamento-count-field select,
+html[data-theme="dark"] .pagamento-total-field input,
+html[data-theme="dark"] .pagamento-row-value {
+  background: rgba(20, 20, 24, 0.6);
+}
+
+.pagamento-mode-option input:checked + span {
+  border-color: rgba(255, 122, 89, 0.55);
+  box-shadow: 0 0 0 3px rgba(255, 122, 89, 0.18);
+}
+
+.pagamento-mode-option input:disabled + span {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.pagamento-count-field,
+.pagamento-total-field {
+  display: grid;
+  gap: 0;
+}
+
+.pagamento-count-field[hidden] {
+  display: none;
+}
+
+.pagamento-count-field select,
+.pagamento-total-field input,
+.pagamento-row-value {
+  min-height: 46px;
+  padding: 0 14px;
+  font: inherit;
+  outline: none;
+}
+
+.pagamento-count-field select[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pagamento-parcelas {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+}
+
+.pagamento-origem-hint {
+  margin: -8px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.pagamento-parcelas.is-scrollable {
+  max-height: 414px;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+}
+
+.pagamento-parcelas.is-scrollable:has(.pagamento-origin-select.is-open) {
+  max-height: none;
+  overflow: visible;
+}
+
+.pagamento-parcelas.is-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.pagamento-parcelas.is-scrollable::-webkit-scrollbar-thumb {
+  background: rgba(255, 122, 89, 0.42);
+  border-radius: 999px;
+}
+
+.pagamento-parcelas.is-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pagamento-row {
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.38);
+}
+
+html[data-theme="dark"] .pagamento-row {
+  background: rgba(20, 20, 24, 0.42);
+}
+
+.pagamento-row-main {
+  gap: 14px;
+  flex: 1;
+  min-width: 290px;
+}
+
+.pagamento-row-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  min-width: 88px;
+}
+
+.pagamento-row-meta {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pagamento-row-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.pagamento-row-hint,
+.pagamento-row-file {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.pagamento-row-actions {
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pagamento-row-value {
+  min-width: 140px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  font-weight: 700;
+}
+
+.pagamento-value-prefix {
+  flex: 0 0 auto;
+}
+
+.pagamento-row-value input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-align: right;
+}
+
+.pagamento-origin-select {
+  position: relative;
+  min-width: 170px;
+}
+
+.pagamento-origin-trigger {
+  position: relative;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 42px 0 14px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+html[data-theme="dark"] .pagamento-origin-trigger {
+  background: rgba(20, 20, 24, 0.6);
+}
+
+.pagamento-origin-trigger::after {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid currentcolor;
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent;
+  content: "";
+  opacity: 0.72;
+  transform: translateY(-25%);
+}
+
+.pagamento-origin-trigger:focus-visible,
+.pagamento-origin-select.is-open .pagamento-origin-trigger {
+  border-color: rgba(255, 122, 89, 0.55);
+  box-shadow: 0 0 0 3px rgba(255, 122, 89, 0.18);
+  outline: none;
+}
+
+.pagamento-origin-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.pagamento-origin-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(20, 20, 24, 0.98);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+.pagamento-origin-option {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.pagamento-origin-option:hover,
+.pagamento-origin-option:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.pagamento-row-value input[readonly] {
+  cursor: default;
+}
+
+.pagamento-pdf-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.pagamento-pdf-thumb {
+  position: relative;
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 1px solid rgba(255, 122, 89, 0.42);
+  border-radius: 10px;
+  overflow: visible;
+}
+
+.pagamento-pdf-thumb img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.pagamento-pdf-remove {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #d83c45;
+  color: #fff;
+  cursor: pointer;
+  font: 700 1rem/1 sans-serif;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.pagamento-pdf-thumb:hover .pagamento-pdf-remove,
+.pagamento-pdf-remove:focus-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.pagamento-anexo-btn {
+  min-width: 180px;
+}
+
+.pagamento-anexo-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.pagamento-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  padding-top: 18px;
+}
+
+.pagamento-validation {
+  width: min(100%, 520px);
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(216, 75, 52, 0.45);
+  border-radius: 10px;
+  background: rgba(216, 75, 52, 0.12);
+  color: #b83022;
+  font-weight: 700;
+  text-align: center;
+}
+
+html[data-theme="dark"] .pagamento-validation {
+  color: #ff9e95;
+}
+
+.pagamento-footer .pagamento-save {
+  min-width: 240px;
+}
+
+.pagamento-success-overlay {
+  z-index: 14;
+}
+
+.pagamento-success-overlay .confirm-icon {
+  background: #2eb05e;
+  box-shadow: 0 10px 20px rgba(46, 176, 94, 0.35);
+}
+
+.pagamento-success-actions {
+  display: block;
+}
+
+.pagamento-success-close {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .pagamento-overlay {
+    padding: 12px;
+  }
+
+  .pagamento-card {
+    width: min(680px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    padding: 20px;
+    overflow: auto;
+  }
+
+  .pagamento-body {
+    gap: 16px;
+  }
+
+  .pagamento-toolbar,
+  .pagamento-row,
+  .pagamento-row-main,
+  .pagamento-row-actions,
+  .pagamento-header {
+    align-items: stretch;
+  }
+
+  .pagamento-header,
+  .pagamento-row,
+  .pagamento-row-main {
+    flex-direction: column;
+  }
+
+  .pagamento-row-actions {
+    justify-content: stretch;
+  }
+
+  .pagamento-row-value,
+  .pagamento-origin-select,
+  .pagamento-anexo-btn,
+  .pagamento-count-field,
+  .pagamento-count-field select {
+    width: 100%;
+  }
+
+  .pagamento-parcelas.is-scrollable {
+    max-height: min(330px, calc(100dvh - 410px));
+  }
+}
+
+@media (max-width: 640px) {
+  .pagamento-overlay {
+    padding: 8px;
+  }
+
+  .pagamento-card {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+    border-radius: 20px;
+    padding: 16px;
+  }
+
+  .pagamento-header h2 {
+    font-size: 1.15rem;
+  }
+
+  .pagamento-header p,
+  .pagamento-row-hint,
+  .pagamento-row-file {
+    font-size: 0.88rem;
+  }
+
+  .pagamento-toolbar {
+    gap: 12px;
+  }
+
+  .pagamento-mode-group,
+  .pagamento-count-field,
+  .pagamento-actions,
+  .pagamento-close,
+  .pagamento-footer .pagamento-save {
+    width: 100%;
+  }
+
+  .pagamento-mode-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pagamento-mode-option span {
+    width: 100%;
+    justify-content: center;
+    padding: 0 12px;
+  }
+
+  .pagamento-row {
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .pagamento-row-main {
+    min-width: 0;
+  }
+
+  .pagamento-row-check,
+  .pagamento-row-value,
+  .pagamento-anexo-btn {
+    min-width: 0;
+  }
+
+  .pagamento-row-actions {
+    gap: 10px;
+  }
+
+  .pagamento-footer .pagamento-save {
+    min-width: 0;
+  }
+
+  .pagamento-parcelas.is-scrollable {
+    max-height: min(292px, calc(100dvh - 360px));
+    padding-right: 4px;
+  }
 }
 
 .observacao-save {

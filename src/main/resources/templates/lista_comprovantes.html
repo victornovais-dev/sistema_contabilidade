@@ -283,6 +283,28 @@
               </svg>
             </span>
           </button>
+          <button class="btn btn-secondary item-pagamento" type="button" aria-label="Gerenciar pagamento">
+            <span class="icon-payment" aria-hidden="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  d="M4 9l8-4 8 4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.9"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M5 9h14M6.5 9v8M10 9v8M14 9v8M17.5 9v8M4 17.5h16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.9"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
           <button class="btn btn-secondary item-upload" type="button" aria-label="Gerenciar anexos">
             <span class="icon-upload" aria-hidden="true">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -383,6 +405,69 @@
         ></textarea>
         <div class="observacao-footer">
           <button class="btn btn-danger observacao-save" type="button" hidden>Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pagamento-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="pagamento-card">
+        <div class="pagamento-header">
+          <div>
+            <h2 id="pagamento-title">Razão social / Nome</h2>
+            <p id="pagamento-subtitle">Valor do item</p>
+          </div>
+          <div class="pagamento-actions">
+            <button class="btn btn-secondary pagamento-close" type="button">Fechar</button>
+          </div>
+        </div>
+        <div class="pagamento-body">
+          <div class="pagamento-toolbar">
+            <fieldset class="pagamento-mode-group">
+              <legend>Pagamento</legend>
+              <label class="pagamento-mode-option">
+                <input type="radio" name="pagamento-forma" value="AVISTA" checked />
+                <span>À vista</span>
+              </label>
+              <label class="pagamento-mode-option">
+                <input type="radio" name="pagamento-forma" value="PARCELADO" />
+                <span>A prazo</span>
+              </label>
+            </fieldset>
+            <label class="pagamento-count-field">
+              <span>Parcelas</span>
+              <select id="pagamento-quantidade">
+                <option value="2">2x</option>
+                <option value="3">3x</option>
+                <option value="4">4x</option>
+              </select>
+            </label>
+          </div>
+          <p class="pagamento-origem-hint">Em cada parcela paga, informe conta de origem.</p>
+          <div class="pagamento-parcelas" id="pagamento-parcelas"></div>
+          <label class="pagamento-total-field">
+            <span>Total pago</span>
+            <input id="pagamento-total-pago" type="text" readonly value="R$ 0,00" />
+          </label>
+        </div>
+        <div class="pagamento-footer">
+          <p class="pagamento-validation" id="pagamento-validation" role="alert" hidden></p>
+          <button class="btn btn-danger pagamento-save" type="button">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="confirm-overlay pagamento-success-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+    >
+      <div class="confirm-card" role="status" aria-live="polite">
+        <div class="confirm-icon" aria-hidden="true">&#10003;</div>
+        <h2>Pagamento salvo</h2>
+        <p>Pagamento atualizado com sucesso.</p>
+        <div class="confirm-actions pagamento-success-actions">
+          <button class="btn pagamento-success-close" type="button">Ok</button>
         </div>
       </div>
     </div>
