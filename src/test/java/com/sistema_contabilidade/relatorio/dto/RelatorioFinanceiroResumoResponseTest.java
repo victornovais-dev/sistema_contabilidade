@@ -15,7 +15,7 @@ class RelatorioFinanceiroResumoResponseTest {
     RelatorioFinanceiroResumoResponse response =
         new RelatorioFinanceiroResumoResponse(
             null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-            null);
+            null, null, null, null);
 
     assertEquals(BigDecimal.ZERO, response.receitasFinanceiras());
     assertEquals(BigDecimal.ZERO, response.receitasEstimaveis());
@@ -30,7 +30,10 @@ class RelatorioFinanceiroResumoResponseTest {
     assertEquals(BigDecimal.ZERO, response.tetoGastosCombustivel());
     assertEquals(BigDecimal.ZERO, response.tetoGastosAlimentacao());
     assertEquals(BigDecimal.ZERO, response.tetoGastosLocacaoVeiculos());
+    assertEquals(BigDecimal.ZERO, response.contasPagas());
+    assertEquals(BigDecimal.ZERO, response.contasAPagar());
     assertEquals(BigDecimal.ZERO, response.saldoFinal());
     assertEquals(BigDecimal.ZERO, response.utilizadoRatio());
+    assertEquals(java.util.List.of(), response.saldosContas());
   }
 }

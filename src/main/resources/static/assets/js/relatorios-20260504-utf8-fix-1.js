@@ -6,12 +6,16 @@
 const REFRESH_ANIMATION_MS = 180;
 
 const summaryLayout = document.getElementById("summary-layout");
+const summaryFinanceiroCard = document.getElementById("summary-financeiro-card");
 const summaryDespesasCard = document.getElementById("summary-despesas-card");
 const summaryLimitesCard = document.getElementById("summary-limites-card");
 const summaryOverviewCard = document.getElementById("summary-overview-card");
+const summaryContasCard = document.getElementById("summary-contas-card");
+const summaryFinanceiroTitle = summaryFinanceiroCard?.querySelector(".summary-card-title") || null;
 const summaryDespesasTitle = summaryDespesasCard?.querySelector(".summary-card-title") || null;
 const summaryLimitesTitle = summaryLimitesCard?.querySelector(".summary-card-title") || null;
 const summaryOverviewTitle = summaryOverviewCard?.querySelector(".summary-card-title") || null;
+const summaryContasTitle = summaryContasCard?.querySelector(".summary-card-title") || null;
 const reportState = document.getElementById("report-state");
 const downloadReportButton = document.getElementById("download-report-btn");
 const roleFilterStorageKey = "sc_home_selected_role";
@@ -193,9 +197,11 @@ const showState = (message, isError = false) => {
   reportState.textContent = message;
   reportState.classList.toggle("is-error", isError);
   if (summaryLayout) summaryLayout.hidden = true;
+  if (summaryFinanceiroCard) summaryFinanceiroCard.hidden = true;
   if (summaryDespesasCard) summaryDespesasCard.hidden = true;
   if (summaryLimitesCard) summaryLimitesCard.hidden = true;
   if (summaryOverviewCard) summaryOverviewCard.hidden = true;
+  if (summaryContasCard) summaryContasCard.hidden = true;
 };
 
 const hideState = () => {
@@ -204,9 +210,11 @@ const hideState = () => {
   reportState.textContent = "";
   reportState.classList.remove("is-error");
   if (summaryLayout) summaryLayout.hidden = false;
+  if (summaryFinanceiroCard) summaryFinanceiroCard.hidden = false;
   if (summaryDespesasCard) summaryDespesasCard.hidden = false;
   if (summaryLimitesCard) summaryLimitesCard.hidden = false;
   if (summaryOverviewCard) summaryOverviewCard.hidden = false;
+  if (summaryContasCard) summaryContasCard.hidden = false;
 };
 
 const setRefreshing = (refreshing) => {
@@ -217,11 +225,14 @@ const setRefreshing = (refreshing) => {
 };
 
 const clearSummaryCards = () => {
-  [summaryDespesasCard, summaryLimitesCard, summaryOverviewCard].forEach((card) => {
+  [summaryFinanceiroCard, summaryDespesasCard, summaryLimitesCard, summaryOverviewCard, summaryContasCard].forEach((card) => {
     if (card) {
       card.innerHTML = "";
     }
   });
+  if (summaryFinanceiroCard && summaryFinanceiroTitle) {
+    summaryFinanceiroCard.appendChild(summaryFinanceiroTitle);
+  }
   if (summaryDespesasCard && summaryDespesasTitle) {
     summaryDespesasCard.appendChild(summaryDespesasTitle);
   }
@@ -230,6 +241,9 @@ const clearSummaryCards = () => {
   }
   if (summaryOverviewCard && summaryOverviewTitle) {
     summaryOverviewCard.appendChild(summaryOverviewTitle);
+  }
+  if (summaryContasCard && summaryContasTitle) {
+    summaryContasCard.appendChild(summaryContasTitle);
   }
 };
 
@@ -348,6 +362,13 @@ const renderRelatorio = () => {
   const tetoCombustivel = Number(relatorio.tetoGastosCombustivel || 0);
   const tetoAlimentacao = Number(relatorio.tetoGastosAlimentacao || 0);
   const tetoLocacaoVeiculos = Number(relatorio.tetoGastosLocacaoVeiculos || 0);
+  const contasPagas = Number(relatorio.contasPagas || 0);
+  const contasAPagar = Number(relatorio.contasAPagar || 0);
+  const saldosContas = new Map(
+    Array.isArray(relatorio.saldosContas)
+      ? relatorio.saldosContas.map((saldo) => [String(saldo?.conta || ""), Number(saldo?.saldo || 0)])
+      : [],
+  );
   const utilizadoRatio = Number(relatorio.utilizadoRatio || 0);
 
   addSummaryMetric(summaryOverviewCard, "Financeiras", formatCurrency(receitasFinanceiras), {
@@ -368,6 +389,20 @@ const renderRelatorio = () => {
   });
   addSummaryMetric(summaryOverviewCard, "Saldo final", formatCurrency(relatorio.saldoFinal), {
     variant: Number(relatorio.saldoFinal || 0) < 0 ? "negative" : "positive",
+  });
+
+  ["CONTA DC", "CONTA FEFC", "CONTA FP"].forEach((conta) => {
+    const saldo = saldosContas.get(conta) || 0;
+    addSummaryMetric(summaryContasCard, conta, formatCurrency(saldo), {
+      variant: saldo < 0 ? "negative" : "positive",
+    });
+  });
+
+  addSummaryMetric(summaryFinanceiroCard, "Contas pagas", formatCurrency(contasPagas), {
+    variant: "positive",
+  });
+  addSummaryMetric(summaryFinanceiroCard, "Contas a pagar", formatCurrency(contasAPagar), {
+    variant: contasAPagar > 0 ? "warning" : "positive",
   });
 
   addSummaryMetric(summaryDespesasCard, "Considerada", formatCurrency(despesasConsideradas), {

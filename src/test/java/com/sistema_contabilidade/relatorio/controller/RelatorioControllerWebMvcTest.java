@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
+import com.sistema_contabilidade.relatorio.dto.RelatorioSaldoContaResponse;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
@@ -61,8 +62,14 @@ class RelatorioControllerWebMvcTest {
             new BigDecimal("80.00"),
             new BigDecimal("80.00"),
             new BigDecimal("160.00"),
+            new BigDecimal("250.00"),
+            new BigDecimal("250.00"),
             new BigDecimal("1000.00"),
-            new BigDecimal("0.3333"));
+            new BigDecimal("0.3333"),
+            List.of(
+                new RelatorioSaldoContaResponse("CONTA DC", new BigDecimal("450.00")),
+                new RelatorioSaldoContaResponse("CONTA FEFC", new BigDecimal("300.00")),
+                new RelatorioSaldoContaResponse("CONTA FP", new BigDecimal("250.00"))));
     relatorioFinanceiroService.resumoResponse = response;
 
     mockMvc
@@ -81,8 +88,12 @@ class RelatorioControllerWebMvcTest {
         .andExpect(jsonPath("$.tetoGastosCombustivel").value(80.00))
         .andExpect(jsonPath("$.tetoGastosAlimentacao").value(80.00))
         .andExpect(jsonPath("$.tetoGastosLocacaoVeiculos").value(160.00))
+        .andExpect(jsonPath("$.contasPagas").value(250.00))
+        .andExpect(jsonPath("$.contasAPagar").value(250.00))
         .andExpect(jsonPath("$.saldoFinal").value(1000.00))
-        .andExpect(jsonPath("$.utilizadoRatio").value(0.3333));
+        .andExpect(jsonPath("$.utilizadoRatio").value(0.3333))
+        .andExpect(jsonPath("$.saldosContas[0].conta").value("CONTA DC"))
+        .andExpect(jsonPath("$.saldosContas[0].saldo").value(450.00));
   }
 
   @Test

@@ -7,6 +7,7 @@ import com.sistema_contabilidade.item.model.TipoItem;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,8 +20,8 @@ class RelatorioItemDtoTest {
   void deveCriarDtoAPartirDoItem() {
     Item item = new Item();
     UUID id = UUID.fromString("11111111-1111-1111-1111-111111111111");
-    LocalDate data = LocalDate.of(2026, 5, 20);
-    LocalDateTime horarioCriacao = LocalDateTime.of(2026, 5, 20, 14, 30);
+    LocalDate data = LocalDate.of(2026, Month.MAY, 20);
+    LocalDateTime horarioCriacao = LocalDateTime.of(2026, Month.MAY, 20, 14, 30);
     item.setId(id);
     item.setTipo(TipoItem.DESPESA);
     item.setValor(new BigDecimal("125.40"));

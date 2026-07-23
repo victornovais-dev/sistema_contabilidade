@@ -6,6 +6,7 @@ import com.sistema_contabilidade.item.model.TipoItem;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -22,8 +23,8 @@ class RelatorioFinanceiroResponseTest {
             UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
             TipoItem.RECEITA,
             BigDecimal.TEN,
-            LocalDate.of(2026, 3, 29),
-            LocalDateTime.of(2026, 3, 29, 10, 0),
+            LocalDate.of(2026, Month.MARCH, 29),
+            LocalDateTime.of(2026, Month.MARCH, 29, 10, 0),
             "ALUGUEL");
     List<RelatorioItemDto> receitas = List.of(item);
     List<RelatorioItemDto> despesas = List.of();

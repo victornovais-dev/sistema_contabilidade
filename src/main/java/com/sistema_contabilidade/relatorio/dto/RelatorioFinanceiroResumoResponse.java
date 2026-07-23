@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.relatorio.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record RelatorioFinanceiroResumoResponse(
     BigDecimal receitasFinanceiras,
@@ -16,8 +17,11 @@ public record RelatorioFinanceiroResumoResponse(
     BigDecimal tetoGastosCombustivel,
     BigDecimal tetoGastosAlimentacao,
     BigDecimal tetoGastosLocacaoVeiculos,
+    BigDecimal contasPagas,
+    BigDecimal contasAPagar,
     BigDecimal saldoFinal,
-    BigDecimal utilizadoRatio) {
+    BigDecimal utilizadoRatio,
+    List<RelatorioSaldoContaResponse> saldosContas) {
 
   public RelatorioFinanceiroResumoResponse {
     receitasFinanceiras = zeroIfNull(receitasFinanceiras);
@@ -33,8 +37,11 @@ public record RelatorioFinanceiroResumoResponse(
     tetoGastosCombustivel = zeroIfNull(tetoGastosCombustivel);
     tetoGastosAlimentacao = zeroIfNull(tetoGastosAlimentacao);
     tetoGastosLocacaoVeiculos = zeroIfNull(tetoGastosLocacaoVeiculos);
+    contasPagas = zeroIfNull(contasPagas);
+    contasAPagar = zeroIfNull(contasAPagar);
     saldoFinal = zeroIfNull(saldoFinal);
     utilizadoRatio = zeroIfNull(utilizadoRatio);
+    saldosContas = saldosContas == null ? List.of() : List.copyOf(saldosContas);
   }
 
   private static BigDecimal zeroIfNull(BigDecimal value) {

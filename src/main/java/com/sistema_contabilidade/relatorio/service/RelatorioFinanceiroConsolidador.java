@@ -1,17 +1,22 @@
 package com.sistema_contabilidade.relatorio.service;
 
 import com.sistema_contabilidade.common.util.RevenueClassificationUtils;
+import com.sistema_contabilidade.item.model.ContaOrigemPagamentoItem;
 import com.sistema_contabilidade.item.model.TipoItem;
+import com.sistema_contabilidade.relatorio.dto.RelatorioContaPagamentoRow;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
 import com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow;
+import com.sistema_contabilidade.relatorio.dto.RelatorioSaldoContaResponse;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 final class RelatorioFinanceiroConsolidador {
@@ -19,6 +24,9 @@ final class RelatorioFinanceiroConsolidador {
   private static final BigDecimal LIMITE_COMBUSTIVEL_RATIO = new BigDecimal("0.10");
   private static final BigDecimal LIMITE_ALIMENTACAO_RATIO = new BigDecimal("0.10");
   private static final BigDecimal LIMITE_LOCACAO_RATIO = new BigDecimal("0.20");
+  private static final String CONTA_DC = "CONTA DC";
+  private static final String CONTA_FEFC = "CONTA FEFC";
+  private static final String CONTA_FP = "CONTA FP";
   private static final Set<String> DESPESAS_ADVOCACIA_CONTABILIDADE =
       Set.of("SERVICOS ADVOCATICIOS", "SERVICOS CONTABEIS");
   private static final Set<String> DESPESAS_COMBUSTIVEL = Set.of("COMBUSTIVEIS E LUBRIFICANTES");
@@ -29,6 +37,9 @@ final class RelatorioFinanceiroConsolidador {
   private final List<RelatorioItemDto> receitas;
   private final List<RelatorioItemDto> despesas;
   private BigDecimal receitasFinanceiras = BigDecimal.ZERO;
+  private BigDecimal receitasContaDc = BigDecimal.ZERO;
+  private BigDecimal receitasContaFefc = BigDecimal.ZERO;
+  private BigDecimal receitasContaFp = BigDecimal.ZERO;
   private BigDecimal receitasEstimaveis = BigDecimal.ZERO;
   private BigDecimal totalReceitas = BigDecimal.ZERO;
   private BigDecimal despesasAdvocaciaContabilidade = BigDecimal.ZERO;
@@ -52,12 +63,14 @@ final class RelatorioFinanceiroConsolidador {
   }
 
   static RelatorioFinanceiroResumoResponse buildSummaryResponse(
-      List<RelatorioResumoCategoriaRow> itensVisiveis) {
+      List<RelatorioResumoCategoriaRow> itensVisiveis,
+      BigDecimal contasPagas,
+      List<RelatorioContaPagamentoRow> contasPagasPorConta) {
     RelatorioFinanceiroConsolidador consolidador = new RelatorioFinanceiroConsolidador(false);
     for (RelatorioResumoCategoriaRow item : itensVisiveis) {
       consolidador.accept(item.tipo(), item.total(), item.descricao(), null);
     }
-    return consolidador.toResumoResponse();
+    return consolidador.toResumoResponse(contasPagas, contasPagasPorConta);
   }
 
   private void accept(RelatorioItemDto item) {
@@ -80,6 +93,7 @@ final class RelatorioFinanceiroConsolidador {
     if (RevenueClassificationUtils.isFinancialRevenue(descricao)) {
       receitasFinanceiras = receitasFinanceiras.add(valorSeguro);
     }
+    acceptReceitaPorConta(valorSeguro, descricao);
     if (RevenueClassificationUtils.isEstimatedRevenue(descricao)) {
       receitasEstimaveis = receitasEstimaveis.add(valorSeguro);
     }
@@ -124,7 +138,24 @@ final class RelatorioFinanceiroConsolidador {
         despesas);
   }
 
-  private RelatorioFinanceiroResumoResponse toResumoResponse() {
+  private void acceptReceitaPorConta(BigDecimal valor, String descricao) {
+    String conta = normalizeCategoryName(descricao);
+    if (CONTA_DC.equals(conta)) {
+      receitasContaDc = receitasContaDc.add(valor);
+      return;
+    }
+    if (CONTA_FEFC.equals(conta)) {
+      receitasContaFefc = receitasContaFefc.add(valor);
+      return;
+    }
+    if (CONTA_FP.equals(conta)) {
+      receitasContaFp = receitasContaFp.add(valor);
+    }
+  }
+
+  private RelatorioFinanceiroResumoResponse toResumoResponse(
+      BigDecimal contasPagas, List<RelatorioContaPagamentoRow> contasPagasPorConta) {
+    BigDecimal contasPagasSeguras = contasPagas == null ? BigDecimal.ZERO : contasPagas;
     return new RelatorioFinanceiroResumoResponse(
         receitasFinanceiras,
         receitasEstimaveis,
@@ -139,8 +170,45 @@ final class RelatorioFinanceiroConsolidador {
         tetoGastos(LIMITE_COMBUSTIVEL_RATIO),
         tetoGastos(LIMITE_ALIMENTACAO_RATIO),
         tetoGastos(LIMITE_LOCACAO_RATIO),
+        contasPagasSeguras,
+        contasAPagar(contasPagasSeguras),
         saldoFinal(),
-        utilizadoRatio());
+        utilizadoRatio(),
+        saldosContas(contasPagasPorConta));
+  }
+
+  private List<RelatorioSaldoContaResponse> saldosContas(
+      List<RelatorioContaPagamentoRow> contasPagasPorConta) {
+    Map<ContaOrigemPagamentoItem, BigDecimal> pagamentosPorConta =
+        new EnumMap<>(ContaOrigemPagamentoItem.class);
+    if (contasPagasPorConta != null) {
+      for (RelatorioContaPagamentoRow pagamento : contasPagasPorConta) {
+        if (pagamento == null || pagamento.contaOrigemPagamento() == null) {
+          continue;
+        }
+        pagamentosPorConta.merge(
+            pagamento.contaOrigemPagamento(),
+            pagamento.totalPago() == null ? BigDecimal.ZERO : pagamento.totalPago(),
+            BigDecimal::add);
+      }
+    }
+    return List.of(
+        new RelatorioSaldoContaResponse(
+            CONTA_DC,
+            saldoConta(receitasContaDc, pagamentosPorConta, ContaOrigemPagamentoItem.CONTA_DC)),
+        new RelatorioSaldoContaResponse(
+            CONTA_FEFC,
+            saldoConta(receitasContaFefc, pagamentosPorConta, ContaOrigemPagamentoItem.CONTA_FEFC)),
+        new RelatorioSaldoContaResponse(
+            CONTA_FP,
+            saldoConta(receitasContaFp, pagamentosPorConta, ContaOrigemPagamentoItem.CONTA_FP)));
+  }
+
+  private BigDecimal saldoConta(
+      BigDecimal receitas,
+      Map<ContaOrigemPagamentoItem, BigDecimal> pagamentosPorConta,
+      ContaOrigemPagamentoItem conta) {
+    return receitas.subtract(pagamentosPorConta.getOrDefault(conta, BigDecimal.ZERO));
   }
 
   private BigDecimal despesasConsideradas() {
@@ -161,6 +229,11 @@ final class RelatorioFinanceiroConsolidador {
 
   private BigDecimal saldoFinal() {
     return totalReceitas.subtract(totalDespesas);
+  }
+
+  private BigDecimal contasAPagar(BigDecimal contasPagas) {
+    BigDecimal contasPagasSeguras = contasPagas == null ? BigDecimal.ZERO : contasPagas;
+    return despesasConsideradas().add(despesasAdvocaciaContabilidade).subtract(contasPagasSeguras);
   }
 
   private BigDecimal utilizadoRatio() {

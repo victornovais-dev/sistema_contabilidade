@@ -378,6 +378,14 @@ html[data-theme="light"] .custom-select-option.is-active {
   column-gap: 22px;
 }
 
+#summary-financeiro-card {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#summary-contas-card {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .summary-card.summary-card-overview {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   row-gap: 0;
@@ -799,6 +807,10 @@ html[data-theme="light"] .summary-value.utilizado {
     grid-template-columns: 1fr;
   }
 
+  #summary-contas-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .expense-limit-bars {
     min-height: 200px;
     gap: 12px;
@@ -825,6 +837,10 @@ html[data-theme="light"] .summary-value.utilizado {
   }
 
   .summary-card.summary-card-solo {
+    grid-template-columns: 1fr;
+  }
+
+  #summary-contas-card {
     grid-template-columns: 1fr;
   }
 }

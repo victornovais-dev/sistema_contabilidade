@@ -2,12 +2,15 @@ package com.sistema_contabilidade.relatorio.service;
 
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
+import com.sistema_contabilidade.relatorio.dto.RelatorioContaPagamentoRow;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
 import com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -64,13 +67,16 @@ public class RelatorioFinanceiroService {
   public byte[] gerarPdf(Authentication authentication, RelatorioFinanceiroResponse relatorio) {
     return playwrightPdfService.generateFinancialReportPdf(
         pdfDataFactory.create(
-            extrairNomeResponsavel(authentication), relatorio, LocalDateTime.now()));
+            extrairNomeResponsavel(authentication),
+            relatorio,
+            LocalDateTime.now(ZoneId.systemDefault())));
   }
 
   private RelatorioFinanceiroResumoResponse gerarResumoInterno(
       Authentication authentication, String roleFiltro) {
     RelatorioScope scope = resolveScope(authentication, roleFiltro);
-    return RelatorioFinanceiroConsolidador.buildSummaryResponse(buscarResumoItens(scope));
+    return RelatorioFinanceiroConsolidador.buildSummaryResponse(
+        buscarResumoItens(scope), buscarContasPagas(scope), buscarContasPagasPorConta(scope));
   }
 
   private RelatorioFinanceiroResponse gerarRelatorio(
@@ -131,6 +137,32 @@ public class RelatorioFinanceiroService {
       return List.of();
     }
     return itemRepository.findRelatorioResumoCategoriasByRoleNomes(scope.roleNomesAutenticado());
+  }
+
+  private BigDecimal buscarContasPagas(RelatorioScope scope) {
+    if (scope.roleFiltroNormalizada() != null) {
+      return itemRepository.findTotalContasPagasDespesasByRoleNome(scope.roleFiltroNormalizada());
+    }
+    if (scope.roleNomesAutenticado().contains(ADMIN_ROLE)) {
+      return itemRepository.findTotalContasPagasDespesas();
+    }
+    if (scope.roleNomesAutenticado().isEmpty()) {
+      return BigDecimal.ZERO;
+    }
+    return itemRepository.findTotalContasPagasDespesasByRoleNomes(scope.roleNomesAutenticado());
+  }
+
+  private List<RelatorioContaPagamentoRow> buscarContasPagasPorConta(RelatorioScope scope) {
+    if (scope.roleFiltroNormalizada() != null) {
+      return itemRepository.findContasPagasPorContaByRoleNome(scope.roleFiltroNormalizada());
+    }
+    if (scope.roleNomesAutenticado().contains(ADMIN_ROLE)) {
+      return itemRepository.findContasPagasPorConta();
+    }
+    if (scope.roleNomesAutenticado().isEmpty()) {
+      return List.of();
+    }
+    return itemRepository.findContasPagasPorContaByRoleNomes(scope.roleNomesAutenticado());
   }
 
   private Set<String> extrairRoleNomes(Authentication authentication) {

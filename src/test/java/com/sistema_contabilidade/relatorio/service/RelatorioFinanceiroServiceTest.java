@@ -8,22 +8,27 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.item.model.ContaOrigemPagamentoItem;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
+import com.sistema_contabilidade.relatorio.dto.RelatorioContaPagamentoRow;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroPdfData;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
 import com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow;
+import com.sistema_contabilidade.relatorio.dto.RelatorioSaldoContaResponse;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -49,7 +54,7 @@ class RelatorioFinanceiroServiceTest {
             playwrightPdfService);
 
     RelatorioItemDto item =
-        dto("ENERGIA", TipoItem.RECEITA, "10.00", LocalDate.of(2026, 3, 31), 10, 0);
+        dto("ENERGIA", TipoItem.RECEITA, "10.00", LocalDate.of(2026, Month.MARCH, 31), 10, 0);
 
     when(itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc())
         .thenReturn(List.of(item));
@@ -79,7 +84,7 @@ class RelatorioFinanceiroServiceTest {
             Mockito.mock(UsuarioRepository.class),
             Mockito.mock(PlaywrightPdfService.class));
     RelatorioItemDto receita =
-        dto("SERVICOS", TipoItem.RECEITA, "50.00", LocalDate.of(2026, 4, 1), 9, 0);
+        dto("SERVICOS", TipoItem.RECEITA, "50.00", LocalDate.of(2026, Month.APRIL, 1), 9, 0);
 
     when(itemRepository.findRelatorioItensByRoleNomeOrderByDataDescHorarioCriacaoDesc("FINANCEIRO"))
         .thenReturn(List.of(receita));
@@ -162,7 +167,7 @@ class RelatorioFinanceiroServiceTest {
             Mockito.mock(UsuarioRepository.class),
             Mockito.mock(PlaywrightPdfService.class));
     RelatorioItemDto receita =
-        dto("SERVICOS", TipoItem.RECEITA, "50.00", LocalDate.of(2026, 4, 1), 9, 0);
+        dto("SERVICOS", TipoItem.RECEITA, "50.00", LocalDate.of(2026, Month.APRIL, 1), 9, 0);
 
     when(itemRepository.findRelatorioItensByRoleNomeOrderByDataDescHorarioCriacaoDesc("FINANCEIRO"))
         .thenReturn(List.of(receita));
@@ -192,11 +197,41 @@ class RelatorioFinanceiroServiceTest {
     when(itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc())
         .thenReturn(
             List.of(
-                dto("CONTA FEFC", TipoItem.RECEITA, "100.00", LocalDate.of(2026, 4, 1), 8, 0),
-                dto("CONTA FP", TipoItem.RECEITA, "50.00", LocalDate.of(2026, 4, 2), 8, 0),
-                dto("ESTIMAVEL", TipoItem.RECEITA, "25.00", LocalDate.of(2026, 4, 3), 8, 0),
-                dto("OUTRAS RECEITAS", TipoItem.RECEITA, "10.00", LocalDate.of(2026, 4, 4), 8, 0),
-                dto("SERVICOS", TipoItem.DESPESA, "40.00", LocalDate.of(2026, 4, 5), 8, 0)));
+                dto(
+                    "CONTA FEFC",
+                    TipoItem.RECEITA,
+                    "100.00",
+                    LocalDate.of(2026, Month.APRIL, 1),
+                    8,
+                    0),
+                dto(
+                    "CONTA FP",
+                    TipoItem.RECEITA,
+                    "50.00",
+                    LocalDate.of(2026, Month.APRIL, 2),
+                    8,
+                    0),
+                dto(
+                    "ESTIMAVEL",
+                    TipoItem.RECEITA,
+                    "25.00",
+                    LocalDate.of(2026, Month.APRIL, 3),
+                    8,
+                    0),
+                dto(
+                    "OUTRAS RECEITAS",
+                    TipoItem.RECEITA,
+                    "10.00",
+                    LocalDate.of(2026, Month.APRIL, 4),
+                    8,
+                    0),
+                dto(
+                    "SERVICOS",
+                    TipoItem.DESPESA,
+                    "40.00",
+                    LocalDate.of(2026, Month.APRIL, 5),
+                    8,
+                    0)));
 
     RelatorioFinanceiroResponse response = service.gerar(adminAuth(), null);
 
@@ -235,10 +270,18 @@ class RelatorioFinanceiroServiceTest {
                     TipoItem.DESPESA, new BigDecimal("15.00"), "ALUGUEL DE VEICULOS"),
                 new RelatorioResumoCategoriaRow(
                     TipoItem.DESPESA, new BigDecimal("25.00"), "INTERNET")));
+    when(itemRepository.findTotalContasPagasDespesas()).thenReturn(new BigDecimal("30.00"));
+    when(itemRepository.findContasPagasPorConta())
+        .thenReturn(
+            List.of(
+                new RelatorioContaPagamentoRow(
+                    ContaOrigemPagamentoItem.CONTA_FEFC, new BigDecimal("30.00"))));
 
     RelatorioFinanceiroResumoResponse response = service.gerarResumo(adminAuth(), null);
 
     verify(itemRepository).findAllRelatorioResumoCategorias();
+    verify(itemRepository).findTotalContasPagasDespesas();
+    verify(itemRepository).findContasPagasPorConta();
     assertEquals(new BigDecimal("100.00"), response.receitasFinanceiras());
     assertEquals(new BigDecimal("50.00"), response.receitasEstimaveis());
     assertEquals(new BigDecimal("150.00"), response.totalReceitas());
@@ -252,8 +295,49 @@ class RelatorioFinanceiroServiceTest {
     assertEquals(new BigDecimal("10.50"), response.tetoGastosCombustivel());
     assertEquals(new BigDecimal("10.50"), response.tetoGastosAlimentacao());
     assertEquals(new BigDecimal("21.00"), response.tetoGastosLocacaoVeiculos());
+    assertEquals(new BigDecimal("30.00"), response.contasPagas());
+    assertEquals(new BigDecimal("45.00"), response.contasAPagar());
     assertEquals(new BigDecimal("75.00"), response.saldoFinal());
     assertEquals(new BigDecimal("0.5000"), response.utilizadoRatio());
+    assertEquals(
+        List.of(
+            new RelatorioSaldoContaResponse("CONTA DC", BigDecimal.ZERO),
+            new RelatorioSaldoContaResponse("CONTA FEFC", new BigDecimal("70.00")),
+            new RelatorioSaldoContaResponse("CONTA FP", BigDecimal.ZERO)),
+        response.saldosContas());
+  }
+
+  @Test
+  @DisplayName("Deve calcular contas pagas e a pagar somente nas roles visiveis")
+  void deveCalcularContasPagasEAbertasNoEscopoDasRoles() {
+    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    RelatorioFinanceiroService service =
+        new RelatorioFinanceiroService(
+            itemRepository,
+            Mockito.mock(CandidateRoleCatalogService.class),
+            Mockito.mock(UsuarioRepository.class),
+            Mockito.mock(PlaywrightPdfService.class));
+    Set<String> rolesVisiveis = Set.of("FINANCEIRO");
+    when(itemRepository.findRelatorioResumoCategoriasByRoleNomes(rolesVisiveis))
+        .thenReturn(
+            List.of(
+                new RelatorioResumoCategoriaRow(
+                    TipoItem.DESPESA, new BigDecimal("90.00"), "INTERNET")));
+    when(itemRepository.findTotalContasPagasDespesasByRoleNomes(rolesVisiveis))
+        .thenReturn(new BigDecimal("35.00"));
+    when(itemRepository.findContasPagasPorContaByRoleNomes(rolesVisiveis)).thenReturn(List.of());
+
+    RelatorioFinanceiroResumoResponse response =
+        service.gerarResumo(authentication("financeiro@email.com", "ROLE_FINANCEIRO"), null);
+
+    assertEquals(new BigDecimal("35.00"), response.contasPagas());
+    assertEquals(new BigDecimal("55.00"), response.contasAPagar());
+    verify(itemRepository).findRelatorioResumoCategoriasByRoleNomes(rolesVisiveis);
+    verify(itemRepository).findTotalContasPagasDespesasByRoleNomes(rolesVisiveis);
+    verify(itemRepository).findContasPagasPorContaByRoleNomes(rolesVisiveis);
+    verify(itemRepository, Mockito.never()).findAllRelatorioResumoCategorias();
+    verify(itemRepository, Mockito.never()).findTotalContasPagasDespesas();
+    verify(itemRepository, Mockito.never()).findContasPagasPorConta();
   }
 
   @Test
@@ -274,18 +358,30 @@ class RelatorioFinanceiroServiceTest {
                     "SERVICOS ADVOCATICIOS",
                     TipoItem.DESPESA,
                     "30.00",
-                    LocalDate.of(2026, 4, 1),
+                    LocalDate.of(2026, Month.APRIL, 1),
                     8,
                     0),
                 dto(
                     "SERVICOS CONTABEIS",
                     TipoItem.DESPESA,
                     "20.00",
-                    LocalDate.of(2026, 4, 2),
+                    LocalDate.of(2026, Month.APRIL, 2),
                     8,
                     0),
-                dto("Internet", TipoItem.DESPESA, "50.00", LocalDate.of(2026, 4, 3), 8, 0),
-                dto("CONTA DC", TipoItem.RECEITA, "200.00", LocalDate.of(2026, 4, 4), 8, 0)));
+                dto(
+                    "Internet",
+                    TipoItem.DESPESA,
+                    "50.00",
+                    LocalDate.of(2026, Month.APRIL, 3),
+                    8,
+                    0),
+                dto(
+                    "CONTA DC",
+                    TipoItem.RECEITA,
+                    "200.00",
+                    LocalDate.of(2026, Month.APRIL, 4),
+                    8,
+                    0)));
 
     RelatorioFinanceiroResponse response = service.gerar(adminAuth(), null);
 
@@ -312,25 +408,37 @@ class RelatorioFinanceiroServiceTest {
                     "COMBUSTIVEIS E LUBRIFICANTES",
                     TipoItem.DESPESA,
                     "100000.00",
-                    LocalDate.of(2026, 4, 1),
+                    LocalDate.of(2026, Month.APRIL, 1),
                     8,
                     0),
-                dto("ALIMENTACAO", TipoItem.DESPESA, "75000.00", LocalDate.of(2026, 4, 2), 8, 0),
+                dto(
+                    "ALIMENTACAO",
+                    TipoItem.DESPESA,
+                    "75000.00",
+                    LocalDate.of(2026, Month.APRIL, 2),
+                    8,
+                    0),
                 dto(
                     "ALUGUEL DE IMOVEIS",
                     TipoItem.DESPESA,
                     "125000.00",
-                    LocalDate.of(2026, 4, 3),
+                    LocalDate.of(2026, Month.APRIL, 3),
                     8,
                     0),
                 dto(
                     "ALUGUEL DE VEICULOS",
                     TipoItem.DESPESA,
                     "50000.00",
-                    LocalDate.of(2026, 4, 4),
+                    LocalDate.of(2026, Month.APRIL, 4),
                     8,
                     0),
-                dto("INTERNET", TipoItem.DESPESA, "150000.00", LocalDate.of(2026, 4, 5), 8, 0)));
+                dto(
+                    "INTERNET",
+                    TipoItem.DESPESA,
+                    "150000.00",
+                    LocalDate.of(2026, Month.APRIL, 5),
+                    8,
+                    0)));
 
     RelatorioFinanceiroResponse response = service.gerar(adminAuth(), null);
 
@@ -364,15 +472,34 @@ class RelatorioFinanceiroServiceTest {
             new BigDecimal("0.6667"),
             new BigDecimal("0.0000"),
             new BigDecimal("700.00"),
-            List.of(dto("SERVICOS", TipoItem.RECEITA, "1000.00", LocalDate.of(2026, 4, 1), 8, 0)),
             List.of(
-                dto("Alimentacao", TipoItem.DESPESA, "200.00", LocalDate.of(2026, 4, 2), 9, 0),
-                dto("Telefone", TipoItem.DESPESA, "70.00", LocalDate.of(2026, 4, 3), 10, 0),
+                dto(
+                    "SERVICOS",
+                    TipoItem.RECEITA,
+                    "1000.00",
+                    LocalDate.of(2026, Month.APRIL, 1),
+                    8,
+                    0)),
+            List.of(
+                dto(
+                    "Alimentacao",
+                    TipoItem.DESPESA,
+                    "200.00",
+                    LocalDate.of(2026, Month.APRIL, 2),
+                    9,
+                    0),
+                dto(
+                    "Telefone",
+                    TipoItem.DESPESA,
+                    "70.00",
+                    LocalDate.of(2026, Month.APRIL, 3),
+                    10,
+                    0),
                 dto(
                     "Categoria Livre",
                     TipoItem.DESPESA,
                     "30.00",
-                    LocalDate.of(2026, 4, 4),
+                    LocalDate.of(2026, Month.APRIL, 4),
                     11,
                     0)));
     Usuario usuario = new Usuario();
@@ -498,6 +625,8 @@ class RelatorioFinanceiroServiceTest {
 
     assertEquals(BigDecimal.ZERO, response.totalReceitas());
     assertEquals(BigDecimal.ZERO, response.totalDespesas());
+    assertEquals(BigDecimal.ZERO, response.contasPagas());
+    assertEquals(BigDecimal.ZERO, response.contasAPagar());
     assertEquals(BigDecimal.ZERO, response.saldoFinal());
   }
 
