@@ -8,8 +8,11 @@ import com.sistema_contabilidade.home.dto.HomeLatestLaunchResponse;
 import com.sistema_contabilidade.home.dto.HomeMonthlyBalanceRow;
 import com.sistema_contabilidade.home.dto.HomeTypeTotalRow;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
+import com.sistema_contabilidade.item.model.ContaOrigemPagamentoItem;
+import com.sistema_contabilidade.item.model.FormaPagamentoItem;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
+import com.sistema_contabilidade.item.model.ItemParcelaPagamento;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
@@ -23,6 +26,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -59,8 +63,8 @@ class ItemRepositoryTest {
   void deveSalvarEBuscarItemPorId() {
     Item item = new Item();
     item.setValor(new BigDecimal("88.30"));
-    item.setData(LocalDate.of(2026, 3, 15));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 14, 10, 0));
+    item.setData(LocalDate.of(2026, Month.MARCH, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.MARCH, 15, 14, 10, 0));
     item.setCaminhoArquivoPdf("uploads/itens/comprovante.pdf");
     item.setTipo(TipoItem.DESPESA);
     item.setDescricao("IMPOSTOS");
@@ -156,19 +160,19 @@ class ItemRepositoryTest {
         novoItem(TipoItem.DESPESA, "uploads/itens/pag-1.pdf", criador, "FINANCEIRO");
     itemElegivel.setDescricao("SERVICOS");
     itemElegivel.setRazaoSocialNome("Fornecedor Alpha & Filhos");
-    itemElegivel.setHorarioCriacao(LocalDateTime.of(2026, 4, 10, 12, 0));
+    itemElegivel.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 10, 12, 0));
 
     Item itemDescricaoDiferente =
         novoItem(TipoItem.DESPESA, "uploads/itens/pag-2.pdf", criador, "FINANCEIRO");
     itemDescricaoDiferente.setDescricao("OUTROS");
     itemDescricaoDiferente.setRazaoSocialNome("Fornecedor Alpha & Filhos");
-    itemDescricaoDiferente.setHorarioCriacao(LocalDateTime.of(2026, 4, 9, 12, 0));
+    itemDescricaoDiferente.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 9, 12, 0));
 
     Item itemRazaoDiferente =
         novoItem(TipoItem.DESPESA, "uploads/itens/pag-3.pdf", criador, "FINANCEIRO");
     itemRazaoDiferente.setDescricao("SERVICOS");
     itemRazaoDiferente.setRazaoSocialNome("Fornecedor Beta");
-    itemRazaoDiferente.setHorarioCriacao(LocalDateTime.of(2026, 4, 8, 12, 0));
+    itemRazaoDiferente.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 8, 12, 0));
 
     itemRepository.save(itemElegivel);
     itemRepository.save(itemDescricaoDiferente);
@@ -315,10 +319,10 @@ class ItemRepositoryTest {
   void deveRetornarUltimosLancamentosOrdenadosPorHorarioCriacao() {
     Usuario criador = criarUsuarioComRole("latest@email.com", "FINANCEIRO");
     Item antigo = novoItem(TipoItem.DESPESA, "uploads/itens/antigo.pdf", criador, "FINANCEIRO");
-    antigo.setHorarioCriacao(LocalDateTime.of(2026, 4, 7, 9, 0));
+    antigo.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 7, 9, 0));
     antigo.setRazaoSocialNome("ANTIGO");
     Item recente = novoItem(TipoItem.RECEITA, "uploads/itens/recente.pdf", criador, "FINANCEIRO");
-    recente.setHorarioCriacao(LocalDateTime.of(2026, 4, 8, 9, 0));
+    recente.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 8, 9, 0));
     recente.setRazaoSocialNome("RECENTE");
     itemRepository.save(antigo);
     itemRepository.save(recente);
@@ -336,12 +340,12 @@ class ItemRepositoryTest {
   void deveAgregarLinhasMensaisParaGraficoDaHome() {
     Usuario criador = criarUsuarioComRole("grafico@email.com", "FINANCEIRO");
     Item item = novoItem(TipoItem.RECEITA, "uploads/itens/grafico.pdf", criador, "FINANCEIRO");
-    item.setData(LocalDate.of(2026, 4, 8));
+    item.setData(LocalDate.of(2026, Month.APRIL, 8));
     itemRepository.save(item);
 
     List<HomeMonthlyBalanceRow> rows =
         itemRepository.findMonthlyBalanceRowsSinceByRoleNome(
-            "FINANCEIRO", LocalDate.of(2026, 1, 1));
+            "FINANCEIRO", LocalDate.of(2026, Month.JANUARY, 1));
 
     assertEquals(1, rows.size());
     assertEquals(2026, rows.getFirst().year());
@@ -356,14 +360,14 @@ class ItemRepositoryTest {
 
     Item antigo =
         novoItem(TipoItem.DESPESA, "uploads/itens/relatorio-antigo.pdf", criador, "FINANCEIRO");
-    antigo.setData(LocalDate.of(2026, 4, 7));
-    antigo.setHorarioCriacao(LocalDateTime.of(2026, 4, 7, 9, 0));
+    antigo.setData(LocalDate.of(2026, Month.APRIL, 7));
+    antigo.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 7, 9, 0));
     antigo.setDescricao("IMPOSTOS");
 
     Item recente =
         novoItem(TipoItem.RECEITA, "uploads/itens/relatorio-recente.pdf", criador, "FINANCEIRO");
-    recente.setData(LocalDate.of(2026, 4, 8));
-    recente.setHorarioCriacao(LocalDateTime.of(2026, 4, 8, 11, 30));
+    recente.setData(LocalDate.of(2026, Month.APRIL, 8));
+    recente.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 8, 11, 30));
     recente.setDescricao("SERVICOS");
 
     itemRepository.save(antigo);
@@ -441,6 +445,43 @@ class ItemRepositoryTest {
                         && new BigDecimal("40.00").compareTo(row.total()) == 0));
   }
 
+  @Test
+  @DisplayName("Deve excluir item com parcelas de pagamento")
+  void deveExcluirItemComParcelasDePagamento() {
+    Usuario criador = criarUsuarioComRole("parcelado-delete@email.com", "FINANCEIRO");
+    Item item =
+        novoItem(TipoItem.DESPESA, "uploads/itens/delete-parcelado.pdf", criador, "FINANCEIRO");
+    item.setFormaPagamento(FormaPagamentoItem.PARCELADO);
+
+    ItemParcelaPagamento parcela1 = new ItemParcelaPagamento();
+    parcela1.setItem(item);
+    parcela1.setNumero(1);
+    parcela1.setValorParcela(new BigDecimal("25.00"));
+    parcela1.setPaga(true);
+    parcela1.setContaOrigemPagamento(ContaOrigemPagamentoItem.CONTA_DC);
+    parcela1.setCaminhoArquivoPdf("uploads/itens/parcela-1.pdf");
+
+    ItemParcelaPagamento parcela2 = new ItemParcelaPagamento();
+    parcela2.setItem(item);
+    parcela2.setNumero(2);
+    parcela2.setValorParcela(new BigDecimal("25.00"));
+    parcela2.setPaga(false);
+
+    item.getParcelasPagamento().add(parcela1);
+    item.getParcelasPagamento().add(parcela2);
+
+    Item salvo = itemRepository.saveAndFlush(item);
+
+    assertEquals(
+        ContaOrigemPagamentoItem.CONTA_DC,
+        salvo.getParcelasPagamento().getFirst().getContaOrigemPagamento());
+
+    itemRepository.delete(salvo);
+    itemRepository.flush();
+
+    assertEquals(false, itemRepository.existsById(salvo.getId()));
+  }
+
   private Usuario criarUsuarioComRole(String email, String roleNome) {
     return criarUsuarioComRoles(email, roleNome);
   }
@@ -469,8 +510,8 @@ class ItemRepositoryTest {
   private Item novoItem(TipoItem tipoItem, String caminhoPdf, Usuario criadoPor, String roleNome) {
     Item item = new Item();
     item.setValor(new BigDecimal("50.00"));
-    item.setData(LocalDate.of(2026, 3, 15));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 14, 10, 0));
+    item.setData(LocalDate.of(2026, Month.MARCH, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.MARCH, 15, 14, 10, 0));
     item.setCaminhoArquivoPdf(caminhoPdf);
     item.setTipo(tipoItem);
     item.setDescricao("SERVICOS");
@@ -524,8 +565,8 @@ class ItemRepositoryTest {
       statement.setObject(1, itemId);
       statement.setObject(2, null);
       statement.setBigDecimal(3, new BigDecimal("100.00"));
-      statement.setObject(4, LocalDate.of(2026, 4, 28));
-      statement.setObject(5, LocalDateTime.of(2026, 4, 28, 0, 54));
+      statement.setObject(4, LocalDate.of(2026, Month.APRIL, 28));
+      statement.setObject(5, LocalDateTime.of(2026, Month.APRIL, 28, 0, 54));
       statement.setString(6, caminhoArquivo);
       statement.setString(7, "Hospedagem");
       statement.setString(8, null);

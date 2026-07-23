@@ -7,11 +7,16 @@ import com.sistema_contabilidade.item.dto.ItemArquivosUploadRequest;
 import com.sistema_contabilidade.item.dto.ItemListPageRequest;
 import com.sistema_contabilidade.item.dto.ItemListPageResponse;
 import com.sistema_contabilidade.item.dto.ItemObservacaoUpdateRequest;
+import com.sistema_contabilidade.item.dto.ItemPagamentoParcelaUpdateRequest;
+import com.sistema_contabilidade.item.dto.ItemPagamentoUpdateRequest;
 import com.sistema_contabilidade.item.dto.ItemResponse;
 import com.sistema_contabilidade.item.dto.ItemUpsertRequest;
 import com.sistema_contabilidade.item.dto.ItemVerificacaoUpdateRequest;
+import com.sistema_contabilidade.item.model.FormaPagamentoItem;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
+import com.sistema_contabilidade.item.model.ItemParcelaPagamento;
+import com.sistema_contabilidade.item.model.ItemParcelaPagamentoArquivo;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
@@ -30,9 +35,13 @@ import jakarta.validation.Valid;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
@@ -94,6 +103,13 @@ public class ItemController {
   private static final String CPF_DUPLICADO = "Ja existe um item cadastrado com este CPF.";
   private static final String VALOR_OBRIGATORIO = "Valor e obrigatorio";
   private static final String DATA_OBRIGATORIA = "Data e obrigatoria";
+  private static final int MAXIMO_PARCELAS = 4;
+  private static final BigDecimal MAXIMO_VALOR_PARCELA = new BigDecimal("5000000.00");
+  private static final String PAGAMENTO_INVALIDO = "Dados de pagamento invalidos.";
+  private static final String PAGAMENTO_APENAS_DESPESA =
+      "Pagamento pode ser registrado somente para despesas.";
+  private static final String FORMA_PAGAMENTO_NAO_PODE_SER_ALTERADA =
+      "Desmarque, exclua os PDFs e salve antes de trocar entre a vista e parcelado.";
 
   private final ItemRepository itemRepository;
   private final ItemArquivoRepository itemArquivoRepository;
@@ -107,6 +123,7 @@ public class ItemController {
   private final ObjectProvider<EntityManager> entityManagerProvider;
 
   @PostMapping
+  @Transactional
   public ResponseEntity<ItemResponse> criar(
       Authentication authentication, @Valid @RequestBody ItemUpsertRequest request) {
     Usuario usuarioAutenticado =
@@ -184,6 +201,7 @@ public class ItemController {
   }
 
   @GetMapping(ID_PATH)
+  @Transactional(readOnly = true)
   public ResponseEntity<ItemResponse> buscarPorId(
       Authentication authentication, @PathVariable("id") UUID id) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
@@ -345,6 +363,7 @@ public class ItemController {
   }
 
   @PutMapping(ID_PATH)
+  @Transactional
   public ResponseEntity<ItemResponse> atualizar(
       Authentication authentication,
       @PathVariable("id") UUID id,
@@ -377,6 +396,7 @@ public class ItemController {
   }
 
   @PatchMapping(ID_PATH + "/observacao")
+  @Transactional
   public ResponseEntity<ItemResponse> atualizarObservacao(
       Authentication authentication,
       @PathVariable("id") UUID id,
@@ -388,7 +408,29 @@ public class ItemController {
     return ResponseEntity.ok(ItemResponse.from(salvo));
   }
 
+  @PatchMapping(ID_PATH + "/pagamento")
+  @Transactional
+  public ResponseEntity<ItemResponse> atualizarPagamento(
+      Authentication authentication,
+      @PathVariable("id") UUID id,
+      @Valid @RequestBody ItemPagamentoUpdateRequest request) {
+    Item item = buscarItemAutorizadoPorId(id, authentication);
+    if (item.getTipo() != TipoItem.DESPESA) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_APENAS_DESPESA);
+    }
+    PagamentoApplyResult resultado = aplicarPagamento(item, request);
+    try {
+      Item salvo = itemRepository.save(item);
+      removerArquivosSubstituidos(resultado.arquivosParaRemover(), resultado.arquivosNovos());
+      return ResponseEntity.ok(ItemResponse.from(salvo));
+    } catch (RuntimeException ex) {
+      removerArquivosSemFalhar(resultado.arquivosNovos());
+      throw ex;
+    }
+  }
+
   @PatchMapping(ID_PATH + "/verificacao")
+  @Transactional
   public ResponseEntity<ItemResponse> atualizarVerificacao(
       Authentication authentication,
       @PathVariable("id") UUID id,
@@ -639,6 +681,335 @@ public class ItemController {
     return documentoNormalizado.length() == 11;
   }
 
+  private PagamentoApplyResult aplicarPagamento(Item item, ItemPagamentoUpdateRequest request) {
+    PagamentoContext context = prepararPagamento(item, request);
+    List<String> arquivosNovos = new ArrayList<>();
+    List<String> arquivosParaRemover = new ArrayList<>();
+
+    try {
+      List<ItemParcelaPagamento> parcelasAtualizadas =
+          atualizarParcelas(item, context, arquivosNovos, arquivosParaRemover);
+      removerArquivosDasParcelasExcluidas(item, context.quantidadeParcelas(), arquivosParaRemover);
+      substituirParcelas(item, context.formaPagamento(), parcelasAtualizadas);
+    } catch (RuntimeException ex) {
+      removerArquivosSemFalhar(arquivosNovos);
+      throw ex;
+    }
+    return new PagamentoApplyResult(List.copyOf(arquivosNovos), List.copyOf(arquivosParaRemover));
+  }
+
+  private PagamentoContext prepararPagamento(Item item, ItemPagamentoUpdateRequest request) {
+    if (request == null || request.formaPagamento() == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
+    }
+    validarTrocaFormaPagamento(item, request.formaPagamento());
+    int quantidadeParcelas = resolveQuantidadeParcelas(request);
+    Map<Integer, ItemPagamentoParcelaUpdateRequest> requestPorNumero =
+        mapearParcelasSolicitadas(request.parcelas(), quantidadeParcelas);
+    List<BigDecimal> valoresParcelas =
+        resolverValoresParcelas(item, request, requestPorNumero, quantidadeParcelas);
+    return new PagamentoContext(
+        request.formaPagamento(),
+        quantidadeParcelas,
+        requestPorNumero,
+        mapearParcelasExistentes(item),
+        valoresParcelas);
+  }
+
+  private void validarTrocaFormaPagamento(Item item, FormaPagamentoItem formaPagamentoSolicitada) {
+    if (item.getFormaPagamento() == null
+        || item.getFormaPagamento() == formaPagamentoSolicitada
+        || modalidadePagamentoEstaLimpa(item)) {
+      return;
+    }
+    throw new ResponseStatusException(
+        HttpStatus.BAD_REQUEST, FORMA_PAGAMENTO_NAO_PODE_SER_ALTERADA);
+  }
+
+  private boolean modalidadePagamentoEstaLimpa(Item item) {
+    return item.getParcelasPagamento().stream()
+        .noneMatch(parcela -> parcela.isPaga() || possuiAnexoPagamento(parcela));
+  }
+
+  private Map<Integer, ItemPagamentoParcelaUpdateRequest> mapearParcelasSolicitadas(
+      List<ItemPagamentoParcelaUpdateRequest> parcelasRequest, int quantidadeParcelas) {
+    if (parcelasRequest.size() != quantidadeParcelas) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
+    }
+    Map<Integer, ItemPagamentoParcelaUpdateRequest> parcelasPorNumero = new HashMap<>();
+    for (ItemPagamentoParcelaUpdateRequest parcelaRequest : parcelasRequest) {
+      adicionarParcelaSolicitada(parcelasPorNumero, parcelaRequest, quantidadeParcelas);
+    }
+    return parcelasPorNumero;
+  }
+
+  private void adicionarParcelaSolicitada(
+      Map<Integer, ItemPagamentoParcelaUpdateRequest> parcelasPorNumero,
+      ItemPagamentoParcelaUpdateRequest parcelaRequest,
+      int quantidadeParcelas) {
+    Integer numero = parcelaRequest == null ? null : parcelaRequest.numero();
+    if (numero == null || numero < 1 || numero > quantidadeParcelas) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
+    }
+    if (parcelasPorNumero.put(numero, parcelaRequest) != null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
+    }
+  }
+
+  private Map<Integer, ItemParcelaPagamento> mapearParcelasExistentes(Item item) {
+    Map<Integer, ItemParcelaPagamento> parcelasPorNumero = new HashMap<>();
+    for (ItemParcelaPagamento parcela : item.getParcelasPagamento()) {
+      if (parcela.getNumero() != null) {
+        parcelasPorNumero.put(parcela.getNumero(), parcela);
+      }
+    }
+    return parcelasPorNumero;
+  }
+
+  private List<ItemParcelaPagamento> atualizarParcelas(
+      Item item,
+      PagamentoContext context,
+      List<String> arquivosNovos,
+      List<String> arquivosParaRemover) {
+    List<ItemParcelaPagamento> parcelasAtualizadas = new ArrayList<>();
+    for (int indice = 1; indice <= context.quantidadeParcelas(); indice++) {
+      parcelasAtualizadas.add(
+          atualizarParcela(item, context, indice, arquivosNovos, arquivosParaRemover));
+    }
+    return parcelasAtualizadas;
+  }
+
+  private ItemParcelaPagamento atualizarParcela(
+      Item item,
+      PagamentoContext context,
+      int indice,
+      List<String> arquivosNovos,
+      List<String> arquivosParaRemover) {
+    ItemPagamentoParcelaUpdateRequest parcelaRequest = context.requestPorNumero().get(indice);
+    ItemParcelaPagamento parcela =
+        context.parcelaExistentePorNumero().getOrDefault(indice, new ItemParcelaPagamento());
+    boolean paga = Boolean.TRUE.equals(parcelaRequest.paga());
+    BigDecimal valorParcela = context.valoresParcelas().get(indice - 1);
+    validarParcelaPaga(parcelaRequest, paga, valorParcela);
+    parcela.setItem(item);
+    parcela.setNumero(indice);
+    parcela.setValorParcela(valorParcela);
+    parcela.setPaga(paga);
+    parcela.setContaOrigemPagamento(paga ? parcelaRequest.contaOrigemPagamento() : null);
+    atualizarArquivosPagamento(parcela, parcelaRequest, paga, arquivosNovos, arquivosParaRemover);
+    validarAnexoParcelaPaga(parcela, paga);
+    return parcela;
+  }
+
+  private void validarParcelaPaga(
+      ItemPagamentoParcelaUpdateRequest parcelaRequest, boolean paga, BigDecimal valorParcela) {
+    if (!paga) {
+      return;
+    }
+    if (parcelaRequest.contaOrigemPagamento() == null
+        || valorParcela == null
+        || valorParcela.signum() <= 0) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
+    }
+  }
+
+  private void validarAnexoParcelaPaga(ItemParcelaPagamento parcela, boolean paga) {
+    if (paga && !possuiAnexoPagamento(parcela)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
+    }
+  }
+
+  private boolean possuiAnexoPagamento(ItemParcelaPagamento parcela) {
+    return (parcela.getCaminhoArquivoPdf() != null && !parcela.getCaminhoArquivoPdf().isBlank())
+        || !parcela.getArquivosComprovantes().isEmpty();
+  }
+
+  private void removerArquivosDasParcelasExcluidas(
+      Item item, int quantidadeParcelas, List<String> arquivosParaRemover) {
+    for (ItemParcelaPagamento parcelaExistente : new ArrayList<>(item.getParcelasPagamento())) {
+      Integer numero = parcelaExistente.getNumero();
+      if (numero == null || numero > quantidadeParcelas) {
+        adicionarArquivosPagamentoParaRemover(parcelaExistente, arquivosParaRemover);
+      }
+    }
+  }
+
+  private void substituirParcelas(
+      Item item,
+      FormaPagamentoItem formaPagamento,
+      List<ItemParcelaPagamento> parcelasAtualizadas) {
+    item.setFormaPagamento(formaPagamento);
+    item.getParcelasPagamento().clear();
+    item.getParcelasPagamento().addAll(parcelasAtualizadas);
+    item.getParcelasPagamento().sort(Comparator.comparing(ItemParcelaPagamento::getNumero));
+  }
+
+  private int resolveQuantidadeParcelas(ItemPagamentoUpdateRequest request) {
+    if (request.formaPagamento() == FormaPagamentoItem.AVISTA) {
+      return 1;
+    }
+    Integer quantidadeParcelas = request.quantidadeParcelas();
+    if (quantidadeParcelas == null
+        || quantidadeParcelas < 2
+        || quantidadeParcelas > MAXIMO_PARCELAS) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
+    }
+    return quantidadeParcelas;
+  }
+
+  private List<BigDecimal> resolverValoresParcelas(
+      Item item,
+      ItemPagamentoUpdateRequest request,
+      Map<Integer, ItemPagamentoParcelaUpdateRequest> requestPorNumero,
+      int quantidadeParcelas) {
+    if (request.formaPagamento() == FormaPagamentoItem.AVISTA) {
+      return validarValoresParcelas(calcularValoresParcelas(item.getValor(), quantidadeParcelas));
+    }
+    List<BigDecimal> valoresInformados = new ArrayList<>(quantidadeParcelas);
+    boolean possuiValorInformado = false;
+    for (int indice = 1; indice <= quantidadeParcelas; indice++) {
+      BigDecimal valor = requestPorNumero.get(indice).valorParcela();
+      possuiValorInformado |= valor != null;
+      valoresInformados.add(valor == null ? null : valor.setScale(2, RoundingMode.HALF_UP));
+    }
+    if (!possuiValorInformado) {
+      return validarValoresParcelas(calcularValoresParcelas(item.getValor(), quantidadeParcelas));
+    }
+    if (valoresInformados.stream().anyMatch(valor -> valor == null || valor.signum() <= 0)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
+    }
+    BigDecimal totalInformado = valoresInformados.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal valorItem =
+        item.getValor() == null
+            ? BigDecimal.ZERO
+            : item.getValor().setScale(2, RoundingMode.HALF_UP);
+    if (totalInformado.compareTo(valorItem) != 0) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
+    }
+    return validarValoresParcelas(valoresInformados);
+  }
+
+  private List<BigDecimal> validarValoresParcelas(List<BigDecimal> valoresParcelas) {
+    if (valoresParcelas.stream().anyMatch(valor -> valor.compareTo(MAXIMO_VALOR_PARCELA) > 0)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
+    }
+    return valoresParcelas;
+  }
+
+  private List<BigDecimal> calcularValoresParcelas(BigDecimal valorTotal, int quantidadeParcelas) {
+    BigDecimal total =
+        valorTotal == null ? BigDecimal.ZERO : valorTotal.setScale(2, RoundingMode.HALF_UP);
+    long totalCentavos = total.movePointRight(2).longValueExact();
+    long valorBase = totalCentavos / quantidadeParcelas;
+    long resto = totalCentavos % quantidadeParcelas;
+    List<BigDecimal> parcelas = new ArrayList<>(quantidadeParcelas);
+    for (int indice = 1; indice <= quantidadeParcelas; indice++) {
+      long centavos = valorBase + (indice <= resto ? 1 : 0);
+      parcelas.add(BigDecimal.valueOf(centavos, 2));
+    }
+    return parcelas;
+  }
+
+  private void atualizarArquivosPagamento(
+      ItemParcelaPagamento parcela,
+      ItemPagamentoParcelaUpdateRequest request,
+      boolean paga,
+      List<String> arquivosNovos,
+      List<String> arquivosParaRemover) {
+    if (!paga) {
+      adicionarArquivosPagamentoParaRemover(parcela, arquivosParaRemover);
+      parcela.setCaminhoArquivoPdf(null);
+      parcela.getArquivosComprovantes().clear();
+      return;
+    }
+    if (Boolean.TRUE.equals(request.removerArquivoLegado())) {
+      adicionarCaminhoSeValido(parcela.getCaminhoArquivoPdf(), arquivosParaRemover);
+      parcela.setCaminhoArquivoPdf(null);
+    }
+    removerArquivosPagamentoSelecionados(parcela, request.arquivosRemovidos(), arquivosParaRemover);
+
+    List<byte[]> arquivosPdf = request.arquivosPdf();
+    List<String> nomesArquivos = request.nomesArquivos();
+    boolean uploadLegado = arquivosPdf == null || arquivosPdf.isEmpty();
+    if (uploadLegado && request.arquivoPdf() != null && request.arquivoPdf().length > 0) {
+      arquivosPdf = List.of(request.arquivoPdf());
+      nomesArquivos = List.of(request.nomeArquivo());
+    }
+    if (arquivosPdf == null || arquivosPdf.isEmpty()) {
+      return;
+    }
+    if (nomesArquivos == null || arquivosPdf.size() != nomesArquivos.size()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
+    }
+    List<String> nomesSanitizados =
+        nomesArquivos.stream()
+            .map(nome -> inputSanitizer.sanitizeInlineText(nome, "nomeArquivo", 255))
+            .map(nome -> nome == null || nome.isBlank() ? "parcela.pdf" : nome)
+            .toList();
+    List<String> caminhosNovos = arquivoStorageService.salvarPdfs(arquivosPdf, nomesSanitizados);
+    if (caminhosNovos.size() != arquivosPdf.size()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Envie ao menos um PDF.");
+    }
+    arquivosNovos.addAll(caminhosNovos);
+    if (uploadLegado) {
+      adicionarCaminhoSeValido(parcela.getCaminhoArquivoPdf(), arquivosParaRemover);
+      parcela.setCaminhoArquivoPdf(caminhosNovos.getFirst());
+      return;
+    }
+    for (String caminho : caminhosNovos) {
+      ItemParcelaPagamentoArquivo arquivo = new ItemParcelaPagamentoArquivo();
+      arquivo.setParcelaPagamento(parcela);
+      arquivo.setCaminhoArquivoPdf(caminho);
+      parcela.getArquivosComprovantes().add(arquivo);
+    }
+  }
+
+  private void removerArquivosPagamentoSelecionados(
+      ItemParcelaPagamento parcela,
+      List<UUID> arquivosRemovidos,
+      List<String> arquivosParaRemover) {
+    if (arquivosRemovidos == null || arquivosRemovidos.isEmpty()) {
+      return;
+    }
+    Set<UUID> idsParaRemover = Set.copyOf(arquivosRemovidos);
+    parcela
+        .getArquivosComprovantes()
+        .removeIf(
+            arquivo -> {
+              if (!idsParaRemover.contains(arquivo.getId())) {
+                return false;
+              }
+              adicionarCaminhoSeValido(arquivo.getCaminhoArquivoPdf(), arquivosParaRemover);
+              return true;
+            });
+  }
+
+  private void adicionarArquivosPagamentoParaRemover(
+      ItemParcelaPagamento parcela, List<String> arquivosParaRemover) {
+    adicionarCaminhoSeValido(parcela.getCaminhoArquivoPdf(), arquivosParaRemover);
+    parcela
+        .getArquivosComprovantes()
+        .forEach(
+            arquivo ->
+                adicionarCaminhoSeValido(arquivo.getCaminhoArquivoPdf(), arquivosParaRemover));
+  }
+
+  private void adicionarCaminhoSeValido(String caminho, List<String> caminhos) {
+    if (caminho != null && !caminho.isBlank() && !caminhos.contains(caminho)) {
+      caminhos.add(caminho);
+    }
+  }
+
+  private record PagamentoApplyResult(
+      List<String> arquivosNovos, List<String> arquivosParaRemover) {}
+
+  private record PagamentoContext(
+      FormaPagamentoItem formaPagamento,
+      int quantidadeParcelas,
+      Map<Integer, ItemPagamentoParcelaUpdateRequest> requestPorNumero,
+      Map<Integer, ItemParcelaPagamento> parcelaExistentePorNumero,
+      List<BigDecimal> valoresParcelas) {}
+
   private List<String> atualizarArquivos(
       Item item, List<byte[]> arquivosPdf, List<String> nomesArquivos) {
     item.getArquivos().clear();
@@ -675,6 +1046,12 @@ public class ItemController {
       if (caminho != null && !caminho.isBlank() && !caminhos.contains(caminho)) {
         caminhos.add(caminho);
       }
+    }
+    for (ItemParcelaPagamento parcela : item.getParcelasPagamento()) {
+      adicionarCaminhoSeValido(parcela.getCaminhoArquivoPdf(), caminhos);
+      parcela
+          .getArquivosComprovantes()
+          .forEach(arquivo -> adicionarCaminhoSeValido(arquivo.getCaminhoArquivoPdf(), caminhos));
     }
     return caminhos;
   }

@@ -7,6 +7,7 @@ import com.sistema_contabilidade.home.dto.HomeTypeTotalRow;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
+import com.sistema_contabilidade.relatorio.dto.RelatorioContaPagamentoRow;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
 import com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow;
 import java.util.List;
@@ -291,6 +292,87 @@ public interface ItemRepository
       order by i.tipo, i.descricao
       """)
   List<RelatorioResumoCategoriaRow> findRelatorioResumoCategoriasByRoleNome(
+      @Param(ROLE_NAME_PARAM) String roleNome);
+
+  @Query(
+      """
+      select coalesce(sum(p.valorParcela), 0)
+      from ItemParcelaPagamento p
+      join p.item i
+      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.DESPESA
+        and p.paga = true
+      """)
+  java.math.BigDecimal findTotalContasPagasDespesas();
+
+  @Query(
+      """
+      select coalesce(sum(p.valorParcela), 0)
+      from ItemParcelaPagamento p
+      join p.item i
+      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.DESPESA
+        and p.paga = true
+        and i.roleNome in ?1
+      """)
+  java.math.BigDecimal findTotalContasPagasDespesasByRoleNomes(Set<String> roleNomes);
+
+  @Query(
+      """
+      select coalesce(sum(p.valorParcela), 0)
+      from ItemParcelaPagamento p
+      join p.item i
+      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.DESPESA
+        and p.paga = true
+        and i.roleNome = :roleNome
+      """)
+  java.math.BigDecimal findTotalContasPagasDespesasByRoleNome(
+      @Param(ROLE_NAME_PARAM) String roleNome);
+
+  @Query(
+      """
+      select new com.sistema_contabilidade.relatorio.dto.RelatorioContaPagamentoRow(
+        p.contaOrigemPagamento,
+        coalesce(sum(p.valorParcela), 0)
+      )
+      from ItemParcelaPagamento p
+      join p.item i
+      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.DESPESA
+        and p.paga = true
+        and p.contaOrigemPagamento is not null
+      group by p.contaOrigemPagamento
+      """)
+  List<RelatorioContaPagamentoRow> findContasPagasPorConta();
+
+  @Query(
+      """
+      select new com.sistema_contabilidade.relatorio.dto.RelatorioContaPagamentoRow(
+        p.contaOrigemPagamento,
+        coalesce(sum(p.valorParcela), 0)
+      )
+      from ItemParcelaPagamento p
+      join p.item i
+      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.DESPESA
+        and p.paga = true
+        and p.contaOrigemPagamento is not null
+        and i.roleNome in ?1
+      group by p.contaOrigemPagamento
+      """)
+  List<RelatorioContaPagamentoRow> findContasPagasPorContaByRoleNomes(Set<String> roleNomes);
+
+  @Query(
+      """
+      select new com.sistema_contabilidade.relatorio.dto.RelatorioContaPagamentoRow(
+        p.contaOrigemPagamento,
+        coalesce(sum(p.valorParcela), 0)
+      )
+      from ItemParcelaPagamento p
+      join p.item i
+      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.DESPESA
+        and p.paga = true
+        and p.contaOrigemPagamento is not null
+        and i.roleNome = :roleNome
+      group by p.contaOrigemPagamento
+      """)
+  List<RelatorioContaPagamentoRow> findContasPagasPorContaByRoleNome(
       @Param(ROLE_NAME_PARAM) String roleNome);
 
   @Query(

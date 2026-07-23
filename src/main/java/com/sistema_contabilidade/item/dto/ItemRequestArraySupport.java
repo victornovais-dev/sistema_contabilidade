@@ -108,4 +108,57 @@ final class ItemRequestArraySupport {
         + request.observacao()
         + "]";
   }
+
+  static boolean pagamentoParcelaEquals(
+      ItemPagamentoParcelaUpdateRequest left, ItemPagamentoParcelaUpdateRequest right) {
+    return Objects.equals(left.numero(), right.numero())
+        && Objects.equals(left.paga(), right.paga())
+        && Objects.equals(left.contaOrigemPagamento(), right.contaOrigemPagamento())
+        && Objects.equals(left.valorParcela(), right.valorParcela())
+        && listsEqual(left.arquivosPdf(), right.arquivosPdf())
+        && Objects.equals(left.nomesArquivos(), right.nomesArquivos())
+        && Objects.equals(left.arquivosRemovidos(), right.arquivosRemovidos())
+        && Objects.equals(left.removerArquivoLegado(), right.removerArquivoLegado())
+        && Arrays.equals(left.arquivoPdf(), right.arquivoPdf())
+        && Objects.equals(left.nomeArquivo(), right.nomeArquivo());
+  }
+
+  static int pagamentoParcelaHashCode(ItemPagamentoParcelaUpdateRequest request) {
+    int result =
+        Objects.hash(
+            request.numero(),
+            request.paga(),
+            request.contaOrigemPagamento(),
+            request.valorParcela(),
+            request.nomesArquivos(),
+            request.arquivosRemovidos(),
+            request.removerArquivoLegado(),
+            request.nomeArquivo());
+    result = 31 * result + listHashCode(request.arquivosPdf());
+    return 31 * result + Arrays.hashCode(request.arquivoPdf());
+  }
+
+  static String pagamentoParcelaToString(ItemPagamentoParcelaUpdateRequest request) {
+    return "ItemPagamentoParcelaUpdateRequest[numero="
+        + request.numero()
+        + ", paga="
+        + request.paga()
+        + ", contaOrigemPagamento="
+        + request.contaOrigemPagamento()
+        + ", valorParcela="
+        + request.valorParcela()
+        + ", arquivosPdf="
+        + listToString(request.arquivosPdf())
+        + ", nomesArquivos="
+        + request.nomesArquivos()
+        + ", arquivosRemovidos="
+        + request.arquivosRemovidos()
+        + ", removerArquivoLegado="
+        + request.removerArquivoLegado()
+        + ", arquivoPdf="
+        + Arrays.toString(request.arquivoPdf())
+        + ", nomeArquivo="
+        + request.nomeArquivo()
+        + "]";
+  }
 }

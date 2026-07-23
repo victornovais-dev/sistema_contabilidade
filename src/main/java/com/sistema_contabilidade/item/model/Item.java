@@ -81,6 +81,10 @@ public class Item {
   @Column(length = 500)
   private String observacao;
 
+  @Enumerated(EnumType.STRING)
+  @Column(name = "forma_pagamento", length = 20)
+  private FormaPagamentoItem formaPagamento;
+
   @Column(nullable = false)
   private boolean verificado;
 
@@ -89,6 +93,9 @@ public class Item {
 
   @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<ItemArquivo> arquivos = new ArrayList<>();
+
+  @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<ItemParcelaPagamento> parcelasPagamento = new ArrayList<>();
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)

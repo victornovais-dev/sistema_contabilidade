@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -23,8 +25,13 @@ import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog;
 import com.sistema_contabilidade.item.dto.ItemListPageResponse;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
+import com.sistema_contabilidade.item.dto.ItemResponse;
+import com.sistema_contabilidade.item.model.ContaOrigemPagamentoItem;
+import com.sistema_contabilidade.item.model.FormaPagamentoItem;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
+import com.sistema_contabilidade.item.model.ItemParcelaPagamento;
+import com.sistema_contabilidade.item.model.ItemParcelaPagamentoArquivo;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
@@ -46,6 +53,7 @@ import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -96,8 +104,8 @@ class ItemControllerWebMvcTest {
     Item item = new Item();
     item.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
     item.setValor(new BigDecimal("10.00"));
-    item.setData(LocalDate.of(2026, 3, 15));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 12, 0, 0));
+    item.setData(LocalDate.of(2026, Month.MARCH, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.MARCH, 15, 12, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/item-lista.pdf");
     item.setTipo(TipoItem.RECEITA);
     item.setDescricao("ALUGUEL");
@@ -369,8 +377,8 @@ class ItemControllerWebMvcTest {
     Item item = new Item();
     item.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
     item.setValor(new BigDecimal("120.50"));
-    item.setData(LocalDate.of(2026, 3, 15));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 18, 0, 0));
+    item.setData(LocalDate.of(2026, Month.MARCH, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.MARCH, 15, 18, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/item-criado.pdf");
     item.setTipo(TipoItem.DESPESA);
     item.setDescricao("SERVICOS");
@@ -434,8 +442,8 @@ class ItemControllerWebMvcTest {
     Item item = new Item();
     item.setId(UUID.fromString("21111111-1111-1111-1111-111111111111"));
     item.setValor(new BigDecimal("100000.00"));
-    item.setData(LocalDate.of(2026, 4, 14));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 4, 14, 11, 0, 0));
+    item.setData(LocalDate.of(2026, Month.APRIL, 14));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 14, 11, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/receita.pdf");
     item.setTipo(TipoItem.RECEITA);
     item.setDescricao("CONTA DC");
@@ -490,7 +498,7 @@ class ItemControllerWebMvcTest {
             argThat(
                 savedItem ->
                     new BigDecimal("100000.00").compareTo(savedItem.getValor()) == 0
-                        && LocalDate.of(2026, 4, 14).equals(savedItem.getData())
+                        && LocalDate.of(2026, Month.APRIL, 14).equals(savedItem.getData())
                         && "Nota fiscal".equals(savedItem.getTipoDocumento())
                         && "12345".equals(savedItem.getNumeroDocumento())
                         && "FORNECEDOR TESTE".equals(savedItem.getRazaoSocialNome())
@@ -504,8 +512,8 @@ class ItemControllerWebMvcTest {
     Item item = new Item();
     item.setId(UUID.fromString("12345678-1234-1234-1234-123456789999"));
     item.setValor(new BigDecimal("120.50"));
-    item.setData(LocalDate.of(2026, 3, 15));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 18, 0, 0));
+    item.setData(LocalDate.of(2026, Month.MARCH, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.MARCH, 15, 18, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/documento.pdf");
     item.setTipo(TipoItem.DESPESA);
     item.setDescricao("ALIMENTAÇÃO");
@@ -575,8 +583,8 @@ class ItemControllerWebMvcTest {
     Item item = new Item();
     item.setId(UUID.fromString("31111111-1111-1111-1111-111111111111"));
     item.setValor(new BigDecimal("120.50"));
-    item.setData(LocalDate.of(2026, 3, 15));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 18, 0, 0));
+    item.setData(LocalDate.of(2026, Month.MARCH, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.MARCH, 15, 18, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/item-cnpj.pdf");
     item.setTipo(TipoItem.DESPESA);
     item.setDescricao("SERVICOS");
@@ -762,8 +770,8 @@ class ItemControllerWebMvcTest {
     Item item = new Item();
     item.setId(UUID.fromString("88888888-1234-1234-1234-123456789999"));
     item.setValor(new BigDecimal("120.50"));
-    item.setData(LocalDate.of(2026, 3, 15));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 18, 0, 0));
+    item.setData(LocalDate.of(2026, Month.MARCH, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.MARCH, 15, 18, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/comprovante.pdf");
     item.setTipo(TipoItem.RECEITA);
     item.setDescricao("CONTA FEFC");
@@ -845,7 +853,7 @@ class ItemControllerWebMvcTest {
             argThat(
                 item ->
                     new BigDecimal("0").compareTo(item.getValor()) == 0
-                        && LocalDate.of(2026, 3, 15).equals(item.getData())
+                        && LocalDate.of(2026, Month.MARCH, 15).equals(item.getData())
                         && "OPERATOR".equals(item.getRoleNome())
                         && item.getTipoDocumento() == null
                         && item.getNumeroDocumento() == null
@@ -967,8 +975,8 @@ class ItemControllerWebMvcTest {
     Item item = new Item();
     item.setId(id);
     item.setValor(new BigDecimal("30.00"));
-    item.setData(LocalDate.of(2026, 3, 15));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 15, 8, 30, 0));
+    item.setData(LocalDate.of(2026, Month.MARCH, 15));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.MARCH, 15, 8, 30, 0));
     item.setCaminhoArquivoPdf("uploads/itens/item-busca.pdf");
     item.setTipo(TipoItem.RECEITA);
     item.setDescricao("ALUGUEL");
@@ -1039,8 +1047,8 @@ class ItemControllerWebMvcTest {
     Item item = new Item();
     item.setId(id);
     item.setValor(new BigDecimal("99.99"));
-    item.setData(LocalDate.of(2026, 3, 16));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 16, 10, 0, 0));
+    item.setData(LocalDate.of(2026, Month.MARCH, 16));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.MARCH, 16, 10, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/comprovante-1.pdf");
     item.setTipo(TipoItem.DESPESA);
     item.setDescricao("IMPOSTOS");
@@ -1204,8 +1212,8 @@ class ItemControllerWebMvcTest {
     Item item = new Item();
     item.setId(id);
     item.setValor(new BigDecimal("10.00"));
-    item.setData(LocalDate.of(2026, 3, 16));
-    item.setHorarioCriacao(LocalDateTime.of(2026, 3, 16, 11, 0, 0));
+    item.setData(LocalDate.of(2026, Month.MARCH, 16));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.MARCH, 16, 11, 0, 0));
     item.setCaminhoArquivoPdf("uploads/itens/antigo.pdf");
     item.setTipo(TipoItem.RECEITA);
     item.setDescricao("ALUGUEL");
@@ -1762,6 +1770,444 @@ class ItemControllerWebMvcTest {
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.observacao").value("Observacao do contabil"));
+  }
+
+  @Test
+  @DisplayName("Deve atualizar pagamento parcelado via PATCH")
+  void atualizarPagamentoDeveSalvarParcelasComTotalPagoEAnexo() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeeee");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(new BigDecimal("100.00"));
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+    item.setRazaoSocialNome("Fornecedor Teste");
+
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(itemArquivoStorageService.salvarPdfs(any(), any()))
+        .thenReturn(List.of("uploads/itens/parcela-1.pdf"), List.of("uploads/itens/parcela-3.pdf"));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "formaPagamento":"PARCELADO",
+                      "quantidadeParcelas":3,
+                      "parcelas":[
+                        {"numero":1,"paga":true,"contaOrigemPagamento":"CONTA_DC","arquivoPdf":[80,68,70],"nomeArquivo":"parcela-1.pdf"},
+                        {"numero":2,"paga":false},
+                        {"numero":3,"paga":true,"contaOrigemPagamento":"CONTA_FP","arquivoPdf":[80,68,70],"nomeArquivo":"parcela-3.pdf"}
+                      ]
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.pagamento.formaPagamento").value("PARCELADO"))
+        .andExpect(jsonPath("$.pagamento.quantidadeParcelas").value(3))
+        .andExpect(jsonPath("$.pagamento.totalPago").value(66.67))
+        .andExpect(jsonPath("$.pagamento.parcelas[0].contaOrigemPagamento").value("CONTA_DC"))
+        .andExpect(jsonPath("$.pagamento.parcelas[0].valorParcela").value(33.34))
+        .andExpect(
+            jsonPath("$.pagamento.parcelas[0].nomeArquivoComprovante").value("parcela-1.pdf"))
+        .andExpect(jsonPath("$.pagamento.parcelas[1].valorParcela").value(33.33))
+        .andExpect(jsonPath("$.pagamento.parcelas[2].valorParcela").value(33.33));
+
+    verify(itemArquivoStorageService, times(2)).salvarPdfs(any(), any());
+    assertEquals(FormaPagamentoItem.PARCELADO, item.getFormaPagamento());
+    assertEquals(3, item.getParcelasPagamento().size());
+    ItemParcelaPagamento primeiraParcela = item.getParcelasPagamento().getFirst();
+    assertEquals(1, primeiraParcela.getNumero());
+    assertTrue(primeiraParcela.isPaga());
+    assertEquals(ContaOrigemPagamentoItem.CONTA_DC, primeiraParcela.getContaOrigemPagamento());
+    assertEquals("uploads/itens/parcela-1.pdf", primeiraParcela.getCaminhoArquivoPdf());
+    assertEquals(new BigDecimal("66.67"), ItemResponse.from(item).pagamento().totalPago());
+  }
+
+  @Test
+  @DisplayName("Nao deve trocar de a vista para parcelado com pagamento registrado")
+  void atualizarPagamentoDeveImpedirTrocaDeFormaComPagamentoRegistrado() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeeef");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(new BigDecimal("100.00"));
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+    item.setFormaPagamento(FormaPagamentoItem.AVISTA);
+    ItemParcelaPagamento parcela = new ItemParcelaPagamento();
+    parcela.setNumero(1);
+    parcela.setValorParcela(new BigDecimal("100.00"));
+    parcela.setPaga(true);
+    parcela.setItem(item);
+    item.getParcelasPagamento().add(parcela);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "formaPagamento":"PARCELADO",
+                      "quantidadeParcelas":2,
+                      "parcelas":[
+                        {"numero":1,"paga":false},
+                        {"numero":2,"paga":false}
+                      ]
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
+    assertEquals(FormaPagamentoItem.AVISTA, item.getFormaPagamento());
+    assertEquals(1, item.getParcelasPagamento().size());
+  }
+
+  @Test
+  @DisplayName("Deve substituir parcelas em aberto por pagamento a vista sem duplicar")
+  void atualizarPagamentoDeveSubstituirParcelasEmAbertoPorPagamentoAVista() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeee0");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(new BigDecimal("100.00"));
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+    item.setFormaPagamento(FormaPagamentoItem.PARCELADO);
+    ItemParcelaPagamento parcelaUm = new ItemParcelaPagamento();
+    parcelaUm.setNumero(1);
+    parcelaUm.setValorParcela(new BigDecimal("50.00"));
+    parcelaUm.setPaga(false);
+    parcelaUm.setItem(item);
+    ItemParcelaPagamento parcelaDois = new ItemParcelaPagamento();
+    parcelaDois.setNumero(2);
+    parcelaDois.setValorParcela(new BigDecimal("50.00"));
+    parcelaDois.setPaga(false);
+    parcelaDois.setItem(item);
+    item.getParcelasPagamento().addAll(List.of(parcelaUm, parcelaDois));
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "formaPagamento":"AVISTA",
+                      "quantidadeParcelas":1,
+                      "parcelas":[{"numero":1,"paga":false}]
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.pagamento.formaPagamento").value("AVISTA"))
+        .andExpect(jsonPath("$.pagamento.quantidadeParcelas").value(1))
+        .andExpect(jsonPath("$.pagamento.parcelas.length()").value(1));
+
+    assertEquals(FormaPagamentoItem.AVISTA, item.getFormaPagamento());
+    assertEquals(1, item.getParcelasPagamento().size());
+  }
+
+  @Test
+  @DisplayName("Nao deve trocar modalidade enquanto houver PDF da modalidade anterior")
+  void atualizarPagamentoDeveExigirModalidadeAnteriorSemPdfParaTrocar() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeee3");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(new BigDecimal("100.00"));
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+    item.setFormaPagamento(FormaPagamentoItem.PARCELADO);
+    ItemParcelaPagamento parcela = new ItemParcelaPagamento();
+    parcela.setNumero(1);
+    parcela.setValorParcela(new BigDecimal("50.00"));
+    parcela.setPaga(false);
+    parcela.setCaminhoArquivoPdf("uploads/itens/parcela-pendente.pdf");
+    parcela.setItem(item);
+    item.getParcelasPagamento().add(parcela);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "formaPagamento":"AVISTA",
+                      "quantidadeParcelas":1,
+                      "parcelas":[{"numero":1,"paga":false}]
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
+    assertEquals(FormaPagamentoItem.PARCELADO, item.getFormaPagamento());
+  }
+
+  @Test
+  @DisplayName("Deve salvar valores manuais e multiplos PDFs da parcela")
+  void atualizarPagamentoDeveSalvarValoresManuaisEMultiplosPdfs() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeeef");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(new BigDecimal("100.00"));
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(itemArquivoStorageService.salvarPdfs(any(), any()))
+        .thenReturn(
+            List.of("uploads/itens/parcela-1-a.pdf", "uploads/itens/parcela-1-b.pdf"),
+            List.of("uploads/itens/parcela-2.pdf"));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "formaPagamento":"PARCELADO",
+                      "quantidadeParcelas":2,
+                      "parcelas":[
+                        {
+                          "numero":1,
+                          "paga":true,
+                          "contaOrigemPagamento":"CONTA_FEFC",
+                          "valorParcela":40.00,
+                          "arquivosPdf":[[80,68,70],[80,68,70]],
+                          "nomesArquivos":["primeiro.pdf","segundo.pdf"]
+                        },
+                        {"numero":2,"paga":true,"contaOrigemPagamento":"CONTA_FP","valorParcela":60.00,"arquivoPdf":[80,68,70],"nomeArquivo":"terceiro.pdf"}
+                      ]
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.pagamento.totalPago").value(100.00))
+        .andExpect(jsonPath("$.pagamento.parcelas[0].valorParcela").value(40.00))
+        .andExpect(jsonPath("$.pagamento.parcelas[0].arquivosComprovantes.length()").value(2))
+        .andExpect(
+            jsonPath("$.pagamento.parcelas[0].arquivosComprovantes[0].nomeArquivo")
+                .value("parcela-1-a.pdf"))
+        .andExpect(
+            jsonPath("$.pagamento.parcelas[0].arquivosComprovantes[1].nomeArquivo")
+                .value("parcela-1-b.pdf"));
+
+    ItemParcelaPagamento primeiraParcela = item.getParcelasPagamento().getFirst();
+    assertEquals(new BigDecimal("40.00"), primeiraParcela.getValorParcela());
+    assertEquals(2, primeiraParcela.getArquivosComprovantes().size());
+  }
+
+  @Test
+  @DisplayName("Deve excluir PDF de parcela somente depois de salvar pagamento")
+  void atualizarPagamentoDeveExcluirPdfSomenteDepoisDeSalvar() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeeea");
+    UUID arquivoId = UUID.fromString("dddddddd-bbbb-cccc-dddd-eeeeeeeeeeee");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(new BigDecimal("100.00"));
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+    ItemParcelaPagamento parcela = new ItemParcelaPagamento();
+    parcela.setNumero(1);
+    parcela.setValorParcela(new BigDecimal("100.00"));
+    parcela.setPaga(true);
+    parcela.setItem(item);
+    ItemParcelaPagamentoArquivo arquivo = new ItemParcelaPagamentoArquivo();
+    arquivo.setId(arquivoId);
+    arquivo.setParcelaPagamento(parcela);
+    arquivo.setCaminhoArquivoPdf("uploads/itens/remover-apos-salvar.pdf");
+    parcela.getArquivosComprovantes().add(arquivo);
+    item.getParcelasPagamento().add(parcela);
+
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "formaPagamento":"AVISTA",
+                      "quantidadeParcelas":1,
+                      "parcelas":[
+                        {
+                          "numero":1,
+                          "paga":false,
+                          "arquivosRemovidos":["dddddddd-bbbb-cccc-dddd-eeeeeeeeeeee"]
+                        }
+                      ]
+                    }
+                    """))
+        .andExpect(status().isOk());
+
+    org.mockito.InOrder ordem = inOrder(itemRepository, itemArquivoStorageService);
+    ordem.verify(itemRepository).save(item);
+    ordem.verify(itemArquivoStorageService).deletarPdf("uploads/itens/remover-apos-salvar.pdf");
+    assertTrue(parcela.getArquivosComprovantes().isEmpty());
+  }
+
+  @Test
+  @DisplayName("Deve exigir conta de origem em parcela paga")
+  void atualizarPagamentoDeveExigirContaDeOrigemEmParcelaPaga() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeeeb");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(new BigDecimal("100.00"));
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"formaPagamento":"AVISTA","parcelas":[{"numero":1,"paga":true}]}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
+  }
+
+  @Test
+  @DisplayName("Deve exigir anexo em parcela paga")
+  void atualizarPagamentoDeveExigirAnexoEmParcelaPaga() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeee1");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(new BigDecimal("100.00"));
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"formaPagamento":"AVISTA","parcelas":[{"numero":1,"paga":true,"contaOrigemPagamento":"CONTA_DC"}]}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
+  }
+
+  @Test
+  @DisplayName("Deve exigir valor positivo em parcela paga")
+  void atualizarPagamentoDeveExigirValorPositivoEmParcelaPaga() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeee2");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(BigDecimal.ZERO);
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"formaPagamento":"AVISTA","parcelas":[{"numero":1,"paga":true,"contaOrigemPagamento":"CONTA_DC","arquivoPdf":[80,68,70],"nomeArquivo":"parcela.pdf"}]}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
+  }
+
+  @Test
+  @DisplayName("Deve recusar pagamento para receita")
+  void atualizarPagamentoDeveRecusarReceita() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeeec");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(new BigDecimal("100.00"));
+    item.setTipo(TipoItem.RECEITA);
+    item.setRoleNome("FINANCEIRO");
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "formaPagamento":"AVISTA",
+                      "parcelas":[
+                        {"numero":1,"paga":true,"contaOrigemPagamento":"CONTA_DC"}
+                      ]
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
+  }
+
+  @Test
+  @DisplayName("Deve limitar cada parcela a cinco milhoes")
+  void atualizarPagamentoDeveLimitarValorDaParcela() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeeed");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(new BigDecimal("5000000.01"));
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "formaPagamento":"AVISTA",
+                      "parcelas":[
+                        {"numero":1,"paga":true,"contaOrigemPagamento":"CONTA_DC"}
+                      ]
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verify(itemRepository, never()).save(any(Item.class));
   }
 
   @Test
