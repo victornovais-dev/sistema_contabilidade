@@ -45,7 +45,7 @@ public class SecurityConfig {
   private static final String CONTABIL_AUTHORITY = "ROLE_CONTABIL";
   private static final String PATH_WILDCARD = "/**";
   private static final String[] PUBLIC_ACTUATOR_PATHS = {
-    "/actuator/health", "/actuator/info", "/actuator/prometheus"
+    "/actuator/health", "/actuator/health/alb", "/actuator/info", "/actuator/prometheus"
   };
   private static final String[] STATIC_RESOURCES = {
     "/assets/**", "/partials/**", "/src/**", "/css/**", "/js/**", "/images/**", "/webjars/**"
