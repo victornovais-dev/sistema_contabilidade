@@ -209,6 +209,7 @@ public class ItemController {
   }
 
   @GetMapping(ARQUIVO_PATH)
+  @Transactional(readOnly = true)
   public ResponseEntity<InputStreamResource> baixarArquivo(
       Authentication authentication, @PathVariable("id") UUID id) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
@@ -229,6 +230,7 @@ public class ItemController {
   }
 
   @GetMapping(ID_PATH + "/arquivos")
+  @Transactional(readOnly = true)
   public ResponseEntity<List<ItemArquivoResponse>> listarArquivos(
       Authentication authentication, @PathVariable("id") UUID id) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
@@ -238,6 +240,7 @@ public class ItemController {
   }
 
   @GetMapping(ID_PATH + "/arquivos/{arquivoId}")
+  @Transactional(readOnly = true)
   public ResponseEntity<InputStreamResource> baixarArquivoPorId(
       Authentication authentication,
       @PathVariable("id") UUID id,
@@ -263,6 +266,7 @@ public class ItemController {
   }
 
   @GetMapping(ID_PATH + "/arquivos/download")
+  @Transactional(readOnly = true)
   public ResponseEntity<InputStreamResource> baixarTodosArquivos(
       Authentication authentication, @PathVariable("id") UUID id) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
@@ -305,6 +309,7 @@ public class ItemController {
   }
 
   @PostMapping(ID_PATH + "/arquivos")
+  @Transactional
   public ResponseEntity<List<ItemArquivoResponse>> adicionarArquivos(
       Authentication authentication,
       @PathVariable("id") UUID id,
