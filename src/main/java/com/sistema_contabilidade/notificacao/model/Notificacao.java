@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -15,7 +16,10 @@ import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(name = "notificacoes")
+@Table(
+    name = "notificacoes",
+    uniqueConstraints =
+        @UniqueConstraint(name = "uk_notificacoes_item_id", columnNames = "item_id"))
 @Getter
 @Setter
 @NoArgsConstructor
