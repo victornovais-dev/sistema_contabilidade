@@ -56,15 +56,6 @@ public interface ItemRepository
 
   @Query(
       """
-      select i
-      from Item i
-      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.RECEITA
-      order by i.horarioCriacao desc
-      """)
-  List<Item> findReceitasOrderByHorarioCriacaoDesc();
-
-  @Query(
-      """
       select new com.sistema_contabilidade.item.dto.ItemListResponse(
         i.id,
         i.valor,
@@ -92,16 +83,6 @@ public interface ItemRepository
 
   @Query(
       """
-      select i
-      from Item i
-      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.RECEITA
-        and i.roleNome in ?1
-      order by i.horarioCriacao desc
-      """)
-  List<Item> findReceitasPorRoleNomesOrderByHorarioCriacaoDesc(Set<String> roleNomes);
-
-  @Query(
-      """
       select new com.sistema_contabilidade.item.dto.ItemListResponse(
         i.id,
         i.valor,
@@ -125,17 +106,6 @@ public interface ItemRepository
       order by i.horarioCriacao desc
       """)
   List<ItemListResponse> findResumoVisiveisPorRoleNomeOrderByHorarioCriacaoDesc(
-      @Param(ROLE_NAME_PARAM) String roleNome);
-
-  @Query(
-      """
-      select i
-      from Item i
-      where i.tipo = com.sistema_contabilidade.item.model.TipoItem.RECEITA
-        and i.roleNome = :roleNome
-      order by i.horarioCriacao desc
-      """)
-  List<Item> findReceitasPorRoleNomeOrderByHorarioCriacaoDesc(
       @Param(ROLE_NAME_PARAM) String roleNome);
 
   @Query(
