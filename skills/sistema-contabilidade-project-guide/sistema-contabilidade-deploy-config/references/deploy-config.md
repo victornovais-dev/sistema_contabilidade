@@ -19,6 +19,14 @@
 - local Redis
 - `spring.thymeleaf.cache=false`
 
+## Database migrations
+
+- Production schema is managed by Flyway migrations under `src/main/resources/db/migration`.
+- Production uses Hibernate `validate`; local and regular H2 tests keep Flyway disabled by default.
+- Existing production adopts Flyway with baseline version 1 and
+  `SPRING_FLYWAY_BASELINE_ON_MIGRATE=true` for the first startup only.
+- Follow `docs/runbooks/flyway-initial-adoption.md` before executing the initial migration.
+
 ## Redis
 
 - Root `docker-compose.yml` starts Redis at `127.0.0.1:6379`.
