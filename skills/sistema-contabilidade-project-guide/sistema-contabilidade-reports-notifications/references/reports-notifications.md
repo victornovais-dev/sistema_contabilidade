@@ -38,6 +38,8 @@
 - Page: `notificacoes.html`
 - Main API: `/api/v1/notificacoes`
 - Every receita synchronizes a persistent notification.
+- `GET /api/v1/notificacoes` reads only the persistent notification read model in a read-only transaction.
+- Notification creation, update and removal happen only during item mutations; listing performs no reconciliation or DML.
 - If receita is removed, related notification is removed.
 - If receita becomes verified, notification remains on page.
 - Navbar badge counts only unchecked/unverified notifications.
