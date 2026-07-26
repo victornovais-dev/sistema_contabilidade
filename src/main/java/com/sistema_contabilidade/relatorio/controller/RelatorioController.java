@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.relatorio.controller;
 
+import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroPdfData;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.service.RelatorioFinanceiroService;
@@ -33,7 +34,9 @@ public class RelatorioController {
   public ResponseEntity<byte[]> baixarRelatorioFinanceiroPdf(
       Authentication authentication, @RequestParam(name = "role", required = false) String role) {
     RelatorioFinanceiroResponse relatorio = relatorioFinanceiroService.gerar(authentication, role);
-    byte[] payload = relatorioFinanceiroService.gerarPdf(authentication, relatorio);
+    RelatorioFinanceiroPdfData dadosPdf =
+        relatorioFinanceiroService.prepararDadosPdf(authentication, relatorio);
+    byte[] payload = relatorioFinanceiroService.gerarPdf(dadosPdf);
     return ResponseEntity.ok()
         .header(
             HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"relatorio-financeiro.pdf\"")

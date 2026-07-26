@@ -522,7 +522,9 @@ class RelatorioFinanceiroServiceTest {
     when(usuarioRepository.findByEmail("maria@email.com")).thenReturn(Optional.of(usuario));
     when(playwrightPdfService.generateFinancialReportPdf(captor.capture())).thenReturn(pdf);
 
-    byte[] result = service.gerarPdf(authentication("maria@email.com", "ROLE_ADMIN"), relatorio);
+    RelatorioFinanceiroPdfData dadosPdf =
+        service.prepararDadosPdf(authentication("maria@email.com", "ROLE_ADMIN"), relatorio);
+    byte[] result = service.gerarPdf(dadosPdf);
 
     RelatorioFinanceiroPdfData data = captor.getValue();
     assertArrayEquals(pdf, result);
@@ -573,7 +575,9 @@ class RelatorioFinanceiroServiceTest {
     when(usuarioRepository.findByEmail("sem-nome@email.com")).thenReturn(Optional.empty());
     when(playwrightPdfService.generateFinancialReportPdf(captor.capture())).thenReturn(pdf);
 
-    service.gerarPdf(authentication("sem-nome@email.com", "ROLE_ADMIN"), relatorio);
+    RelatorioFinanceiroPdfData dadosPdf =
+        service.prepararDadosPdf(authentication("sem-nome@email.com", "ROLE_ADMIN"), relatorio);
+    service.gerarPdf(dadosPdf);
 
     RelatorioFinanceiroPdfData data = captor.getValue();
     assertEquals("sem-nome@email.com", data.responsavel());
@@ -619,7 +623,9 @@ class RelatorioFinanceiroServiceTest {
     when(playwrightPdfService.generateFinancialReportPdf(captor.capture()))
         .thenReturn("pdf".getBytes(StandardCharsets.UTF_8));
 
-    service.gerarPdf(authentication("maria@email.com", "ROLE_ADMIN"), relatorio);
+    RelatorioFinanceiroPdfData dadosPdf =
+        service.prepararDadosPdf(authentication("maria@email.com", "ROLE_ADMIN"), relatorio);
+    service.gerarPdf(dadosPdf);
 
     RelatorioFinanceiroPdfData data = captor.getValue();
     assertTrue(data.resultadoDescricao().contains("saldo negativo"));
@@ -675,7 +681,8 @@ class RelatorioFinanceiroServiceTest {
     when(playwrightPdfService.generateFinancialReportPdf(captor.capture()))
         .thenReturn("pdf".getBytes(StandardCharsets.UTF_8));
 
-    service.gerarPdf(null, relatorio);
+    RelatorioFinanceiroPdfData dadosPdf = service.prepararDadosPdf(null, relatorio);
+    service.gerarPdf(dadosPdf);
 
     assertEquals("Usuario autenticado", captor.getValue().responsavel());
   }

@@ -3,6 +3,7 @@ package com.sistema_contabilidade.relatorio.service;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.relatorio.dto.RelatorioContaPagamentoRow;
+import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroPdfData;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
@@ -59,6 +60,7 @@ public class RelatorioFinanceiroService {
     return gerarResumoInterno(authentication, roleFiltro);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<String> listarRolesDisponiveis(Authentication authentication) {
     Set<String> roleNomesAutenticado = extrairRoleNomes(authentication);
     if (roleNomesAutenticado.contains(ADMIN_ROLE)) {
@@ -67,12 +69,17 @@ public class RelatorioFinanceiroService {
     return candidateRoleCatalogService.filterAvailableRoles(roleNomesAutenticado);
   }
 
-  public byte[] gerarPdf(Authentication authentication, RelatorioFinanceiroResponse relatorio) {
-    return playwrightPdfService.generateFinancialReportPdf(
-        pdfDataFactory.create(
-            extrairNomeResponsavel(authentication),
-            relatorio,
-            LocalDateTime.now(ZoneId.systemDefault())));
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
+  public RelatorioFinanceiroPdfData prepararDadosPdf(
+      Authentication authentication, RelatorioFinanceiroResponse relatorio) {
+    return pdfDataFactory.create(
+        extrairNomeResponsavel(authentication),
+        relatorio,
+        LocalDateTime.now(ZoneId.systemDefault()));
+  }
+
+  public byte[] gerarPdf(RelatorioFinanceiroPdfData dadosPdf) {
+    return playwrightPdfService.generateFinancialReportPdf(dadosPdf);
   }
 
   private RelatorioFinanceiroResumoResponse gerarResumoInterno(

@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.relatorio.controller;
 
+import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroPdfData;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.service.RelatorioFinanceiroService;
@@ -38,7 +39,13 @@ class RelatorioControllerWebMvcTestConfig {
     }
 
     @Override
-    public byte[] gerarPdf(Authentication authentication, RelatorioFinanceiroResponse relatorio) {
+    public RelatorioFinanceiroPdfData prepararDadosPdf(
+        Authentication authentication, RelatorioFinanceiroResponse relatorio) {
+      return null;
+    }
+
+    @Override
+    public byte[] gerarPdf(RelatorioFinanceiroPdfData dadosPdf) {
       return pdfResponse;
     }
 
