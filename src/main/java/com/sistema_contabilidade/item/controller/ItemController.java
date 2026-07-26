@@ -699,9 +699,6 @@ public class ItemController {
   }
 
   private PagamentoContext prepararPagamento(Item item, ItemPagamentoUpdateRequest request) {
-    if (request == null || request.formaPagamento() == null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_INVALIDO);
-    }
     validarTrocaFormaPagamento(item, request.formaPagamento());
     int quantidadeParcelas = resolveQuantidadeParcelas(request);
     Map<Integer, ItemPagamentoParcelaUpdateRequest> requestPorNumero =
