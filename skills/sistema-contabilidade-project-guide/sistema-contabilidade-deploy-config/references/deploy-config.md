@@ -56,6 +56,16 @@
 - Authenticated successful API mutations renew sticky after the response. While active,
   `GET`/`HEAD` requests from the same validated session use the writer.
 - Sticky lookup failures fail safe to writer. Sticky renewal failures do not fail the mutation.
+- Production rate limiting uses Valkey as the primary backend when
+  `APP_RATE_LIMIT_VALKEY_ENABLED=true`; local and regular tests default to the in-memory fallback.
+- Rate-limit keys use `sc:rate-limit:v1:<sha256>` and never contain raw IPs, methods or URIs.
+- The Valkey limiter is an atomic Lua sliding window with the existing defaults of 120 requests per
+  60 seconds. Valkey failures fall back to an equivalent per-instance in-memory window.
+- Client identity comes only from `request.getRemoteAddr()`. Production uses
+  `server.forward-headers-strategy=native` so the trusted ALB/Tomcat forwarding layer resolves the
+  address; application code must not parse client-supplied `X-Forwarded-For` directly.
+- Monitor `app.rate_limit.total{backend,result}` and
+  `app.valkey.operation.errors{operation="rate_limit"}` without high-cardinality labels.
 
 ## Docker Env Gotcha
 
