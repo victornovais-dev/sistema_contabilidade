@@ -72,7 +72,7 @@ public class PlaywrightPdfService {
     Browser browser = browserProvider.getObject();
     try (BrowserContext browserContext = browser.newContext();
         Page page = browserContext.newPage()) {
-      page.setContent(html, new SetContentOptions().setWaitUntil(WaitUntilState.NETWORKIDLE));
+      page.setContent(html, new SetContentOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
       page.waitForFunction("window.__reportLayoutReady === true");
       return page.pdf(
           new PdfOptions()
