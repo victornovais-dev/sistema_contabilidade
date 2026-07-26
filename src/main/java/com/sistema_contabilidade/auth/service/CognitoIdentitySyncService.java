@@ -51,9 +51,7 @@ public class CognitoIdentitySyncService {
     }
 
     Usuario usuario = bySub.orElseGet(() -> byEmail.orElseGet(Usuario::new));
-    if (usuario.getId() == null) {
-      usuario.setSenha(passwordEncoder.encode(UUID.randomUUID().toString()));
-    } else if (usuario.getSenha() == null || usuario.getSenha().isBlank()) {
+    if (usuario.getId() == null || usuario.getSenha() == null || usuario.getSenha().isBlank()) {
       usuario.setSenha(passwordEncoder.encode(UUID.randomUUID().toString()));
     }
     usuario.setNome(nome == null || nome.isBlank() ? email : nome);
