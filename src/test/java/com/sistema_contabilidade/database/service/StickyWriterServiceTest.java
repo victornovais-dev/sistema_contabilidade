@@ -134,7 +134,7 @@ class StickyWriterServiceTest {
   void ttlInvalidoDeveFalharConfiguracao() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> new StickyWriterService(redisTemplate, new SimpleMeterRegistry(), 0, true));
+        () -> createServiceWithTtl(0));
     verify(redisTemplate, never()).opsForValue();
   }
 
@@ -143,6 +143,10 @@ class StickyWriterServiceTest {
   private StickyWriterService service(boolean enabled, long ttlSeconds) {
     serviceRegistry = new SimpleMeterRegistry();
     return new StickyWriterService(redisTemplate, serviceRegistry, ttlSeconds, enabled);
+  }
+
+  private StickyWriterService createServiceWithTtl(long ttlSeconds) {
+    return new StickyWriterService(redisTemplate, new SimpleMeterRegistry(), ttlSeconds, true);
   }
 
   private void assertMetric(SimpleMeterRegistry registry, String result, double expected) {
