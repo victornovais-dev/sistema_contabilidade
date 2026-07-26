@@ -16,7 +16,9 @@ import com.sistema_contabilidade.security.config.JacksonSecurityConfig;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.security.service.LocalRateLimitService;
 import com.sistema_contabilidade.security.service.RequestFingerprintService;
+import com.sistema_contabilidade.security.service.ValkeyRateLimitService;
 import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
 import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
@@ -51,6 +53,8 @@ class UsuarioControllerWebMvcTest {
   @MockitoBean private RequestFingerprintService requestFingerprintService;
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private StickyWriterService stickyWriterService;
+  @MockitoBean private ValkeyRateLimitService valkeyRateLimitService;
+  @MockitoBean private LocalRateLimitService localRateLimitService;
 
   @Test
   @DisplayName("Deve retornar lista de usuarios")

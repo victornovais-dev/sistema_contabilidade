@@ -14,7 +14,9 @@ import com.sistema_contabilidade.relatorio.dto.RelatorioSaldoContaResponse;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.security.service.LocalRateLimitService;
 import com.sistema_contabilidade.security.service.RequestFingerprintService;
+import com.sistema_contabilidade.security.service.ValkeyRateLimitService;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +47,8 @@ class RelatorioControllerWebMvcTest {
   @MockitoBean private RequestFingerprintService requestFingerprintService;
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private StickyWriterService stickyWriterService;
+  @MockitoBean private ValkeyRateLimitService valkeyRateLimitService;
+  @MockitoBean private LocalRateLimitService localRateLimitService;
 
   @Test
   @DisplayName("Deve retornar relatorio financeiro")

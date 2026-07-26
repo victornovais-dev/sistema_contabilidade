@@ -17,7 +17,9 @@ import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
+import com.sistema_contabilidade.security.service.LocalRateLimitService;
 import com.sistema_contabilidade.security.service.RequestFingerprintService;
+import com.sistema_contabilidade.security.service.ValkeyRateLimitService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -45,6 +47,8 @@ class HomeDashboardControllerWebMvcTest {
   @MockitoBean private RequestFingerprintService requestFingerprintService;
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private StickyWriterService stickyWriterService;
+  @MockitoBean private ValkeyRateLimitService valkeyRateLimitService;
+  @MockitoBean private LocalRateLimitService localRateLimitService;
 
   @Test
   @DisplayName("Deve retornar dashboard da home")
