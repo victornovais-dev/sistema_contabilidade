@@ -42,3 +42,12 @@
 - `lista_comprovantes` hot path uses dedicated paginated projection in `ItemListPageRepositoryImpl`.
 - That path now uses `Slice` instead of `Page` to avoid per-request `count(*)`.
 - `relatorios` web summaries aggregate by category in the database through `RelatorioResumoCategoriaRow`.
+
+## Database routing
+
+- `app.db.route.total{route,reason}` counts writer/reader connection selections.
+- `app.db.reader.connection.failures` counts reader acquisition failures that trigger writer
+  fallback.
+- `app.db.reader.circuit.state` exposes `0` for closed, `0.5` for half-open probe and `1` for open.
+- Routing metrics never include session IDs, user IDs, endpoints, credentials or other high-cardinality
+  labels.

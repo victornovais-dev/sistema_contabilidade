@@ -27,6 +27,22 @@
   `SPRING_FLYWAY_BASELINE_ON_MIGRATE=true` for the first startup only.
 - Follow `docs/runbooks/flyway-initial-adoption.md` before executing the initial migration.
 
+## RDS writer/reader routing
+
+- Routing is controlled by `app.database.routing.enabled` / `APP_DB_ROUTING_ENABLED` and remains
+  disabled for the local profile.
+- Production accepts `SPRING_DATASOURCE_WRITER_URL` and `SPRING_DATASOURCE_READER_URL`; the legacy
+  `SPRING_DATASOURCE_URL` remains a temporary fallback for the writer URL.
+- Use native RDS cluster writer/reader endpoints, never individual instance endpoints.
+- Requests without a validated `SC_SESSION`, authentication queries, write transactions, DDL and
+  background work use the writer.
+- Authenticated `GET`/`HEAD` requests can reach the reader only inside an explicitly read-only
+  Spring transaction.
+- Reader connection acquisition failures fall back to the writer and open a five-second circuit;
+  SQL failures after acquisition are never retried.
+- The primary application `DataSource` is a `LazyConnectionDataSourceProxy` over the routing data
+  source so the transaction read-only flag exists before physical connection selection.
+
 ## Redis
 
 - Root `docker-compose.yml` starts Redis at `127.0.0.1:6379`.
