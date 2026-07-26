@@ -2,7 +2,6 @@ package com.sistema_contabilidade.notificacao.service;
 
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
-import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ItemAccessUtils;
 import com.sistema_contabilidade.notificacao.dto.NotificacaoListResponse;
 import com.sistema_contabilidade.notificacao.model.Notificacao;
@@ -28,7 +27,6 @@ import org.springframework.web.server.ResponseStatusException;
 @Slf4j
 public class NotificacaoService {
 
-  private final ItemRepository itemRepository;
   private final NotificacaoRepository notificacaoRepository;
   private final UsuarioRepository usuarioRepository;
   private final CandidateRoleCatalogService candidateRoleCatalogService;
@@ -55,7 +53,7 @@ public class NotificacaoService {
     }
 
     Notificacao notificacao =
-        notificacaoRepository.findFirstByItemId(item.getId()).orElseGet(Notificacao::new);
+        notificacaoRepository.findByItemId(item.getId()).orElseGet(Notificacao::new);
     LocalDateTime criadoEm =
         item.getHorarioCriacao() == null
             ? LocalDateTime.now(ZoneId.systemDefault())
@@ -114,13 +112,11 @@ public class NotificacaoService {
     notificacaoRepository.deleteByItemId(itemId);
   }
 
-  @Transactional
+  @Transactional(readOnly = true)
   public List<NotificacaoListResponse> listar(Authentication authentication, String roleFiltro) {
     String roleFiltroNormalizada =
         ItemAccessUtils.normalizarRole(inputSanitizer.sanitizeInlineText(roleFiltro, "role", 80));
     boolean admin = ItemAccessUtils.isAdmin(authentication);
-    notificacaoRepository.deleteOrfasOuInvalidas();
-    garantirNotificacoesDasReceitas(authentication, roleFiltroNormalizada, admin);
 
     if (roleFiltroNormalizada == null && admin) {
       return notificacaoRepository.findAllResumoOrderByCriadoEmDesc();
@@ -190,38 +186,5 @@ public class NotificacaoService {
     if (roleNotificacao == null || !roleNomesUsuario.contains(roleNotificacao)) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Notificacao nao encontrada.");
     }
-  }
-
-  private void garantirNotificacoesDasReceitas(
-      Authentication authentication, String roleFiltroNormalizada, boolean admin) {
-    if (roleFiltroNormalizada == null && admin) {
-      itemRepository
-          .findReceitasOrderByHorarioCriacaoDesc()
-          .forEach(this::sincronizarComItemInterno);
-      return;
-    }
-    if (roleFiltroNormalizada != null && admin) {
-      itemRepository
-          .findReceitasPorRoleNomeOrderByHorarioCriacaoDesc(roleFiltroNormalizada)
-          .forEach(this::sincronizarComItemInterno);
-      return;
-    }
-
-    Set<String> roleNomesUsuario =
-        ItemAccessUtils.extrairRoleNomes(
-            ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository));
-    if (roleNomesUsuario.isEmpty()) {
-      return;
-    }
-    if (roleFiltroNormalizada != null) {
-      ItemAccessUtils.validarRoleFiltro(roleFiltroNormalizada, roleNomesUsuario);
-      itemRepository
-          .findReceitasPorRoleNomeOrderByHorarioCriacaoDesc(roleFiltroNormalizada)
-          .forEach(this::sincronizarComItemInterno);
-      return;
-    }
-    itemRepository
-        .findReceitasPorRoleNomesOrderByHorarioCriacaoDesc(roleNomesUsuario)
-        .forEach(this::sincronizarComItemInterno);
   }
 }

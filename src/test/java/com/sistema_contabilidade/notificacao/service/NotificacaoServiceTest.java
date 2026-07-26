@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.notificacao.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -11,7 +12,6 @@ import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
-import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.notificacao.dto.NotificacaoListResponse;
 import com.sistema_contabilidade.notificacao.model.Notificacao;
 import com.sistema_contabilidade.notificacao.repository.NotificacaoRepository;
@@ -26,6 +26,7 @@ import java.time.Month;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,12 +36,12 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.transaction.annotation.Transactional;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("NotificacaoService unit tests")
 class NotificacaoServiceTest {
 
-  @Mock private ItemRepository itemRepository;
   @Mock private NotificacaoRepository notificacaoRepository;
   @Mock private UsuarioRepository usuarioRepository;
   @Mock private CandidateRoleCatalogService candidateRoleCatalogService;
@@ -51,11 +52,7 @@ class NotificacaoServiceTest {
   void registrarReceitaLancadaDeveSalvarQuandoItemForReceita() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     Item item = new Item();
     item.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
     item.setTipo(TipoItem.RECEITA);
@@ -64,7 +61,7 @@ class NotificacaoServiceTest {
     item.setRazaoSocialNome("GOV SP");
     item.setValor(new BigDecimal("100000.00"));
     item.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 14, 10, 15));
-    when(notificacaoRepository.findFirstByItemId(item.getId())).thenReturn(Optional.empty());
+    when(notificacaoRepository.findByItemId(item.getId())).thenReturn(Optional.empty());
 
     service.registrarReceitaLancada(item);
 
@@ -81,11 +78,7 @@ class NotificacaoServiceTest {
   void registrarReceitaLancadaNaoDeveSalvarQuandoItemNaoForReceita() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     Item item = new Item();
     item.setId(UUID.fromString("99999999-1111-1111-1111-111111111111"));
     item.setTipo(TipoItem.DESPESA);
@@ -101,11 +94,7 @@ class NotificacaoServiceTest {
   void registrarReceitaLancadaNaoDeveSalvarQuandoReceitaEstiverSemRole() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     Item item = new Item();
     item.setId(UUID.fromString("91919191-1111-1111-1111-111111111111"));
     item.setTipo(TipoItem.RECEITA);
@@ -122,11 +111,7 @@ class NotificacaoServiceTest {
   void sincronizarComItemDeveAtualizarNotificacaoExistente() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     UUID itemId = UUID.fromString("12121212-3434-5656-7878-909090909090");
     Item item = new Item();
     item.setId(itemId);
@@ -142,7 +127,7 @@ class NotificacaoServiceTest {
     existente.setItemId(itemId);
     existente.setLimpa(true);
 
-    when(notificacaoRepository.findFirstByItemId(itemId)).thenReturn(Optional.of(existente));
+    when(notificacaoRepository.findByItemId(itemId)).thenReturn(Optional.of(existente));
 
     service.sincronizarComItem(item);
 
@@ -160,11 +145,7 @@ class NotificacaoServiceTest {
   void sincronizarComItemDeveManterQuandoReceitaEstiverVerificada() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     UUID itemId = UUID.fromString("13131313-3434-5656-7878-909090909090");
     Item item = new Item();
     item.setId(itemId);
@@ -175,7 +156,7 @@ class NotificacaoServiceTest {
     item.setValor(new BigDecimal("1500.00"));
     item.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 27, 22, 0));
     item.setVerificado(true);
-    when(notificacaoRepository.findFirstByItemId(itemId)).thenReturn(Optional.empty());
+    when(notificacaoRepository.findByItemId(itemId)).thenReturn(Optional.empty());
 
     service.sincronizarComItem(item);
 
@@ -184,15 +165,49 @@ class NotificacaoServiceTest {
   }
 
   @Test
+  @DisplayName("Duas instancias nao devem duplicar notificacao persistida")
+  void sincronizarComItemNaoDeveDuplicarEntreInstancias() {
+    NotificacaoService primeiraInstancia =
+        new NotificacaoService(
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
+    NotificacaoService segundaInstancia =
+        new NotificacaoService(
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
+    UUID itemId = UUID.fromString("23232323-3434-5656-7878-909090909090");
+    Item item = new Item();
+    item.setId(itemId);
+    item.setTipo(TipoItem.RECEITA);
+    item.setRoleNome("CONTABIL");
+    item.setDescricao("CONTA DC");
+    item.setRazaoSocialNome("Empresa Teste");
+    item.setValor(new BigDecimal("2500.00"));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.JULY, 26, 14, 0));
+    AtomicReference<Notificacao> persistida = new AtomicReference<>();
+    when(notificacaoRepository.findByItemId(itemId))
+        .thenAnswer(ignored -> Optional.ofNullable(persistida.get()));
+    doAnswer(
+            invocation -> {
+              Notificacao notificacao = invocation.getArgument(0);
+              notificacao.setId(UUID.fromString("abababab-1111-2222-3333-cdcdcdcdcdcd"));
+              persistida.set(notificacao);
+              return notificacao;
+            })
+        .when(notificacaoRepository)
+        .save(any(Notificacao.class));
+
+    primeiraInstancia.sincronizarComItem(item);
+    segundaInstancia.sincronizarComItem(item);
+
+    verify(notificacaoRepository, times(2)).findByItemId(itemId);
+    verify(notificacaoRepository).save(any(Notificacao.class));
+  }
+
+  @Test
   @DisplayName("Deve remover notificacao pelo item")
   void removerPorItemIdDeveDelegarAoRepositorio() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     UUID itemId = UUID.fromString("45454545-6666-7777-8888-999999999999");
 
     service.removerPorItemId(itemId);
@@ -205,12 +220,7 @@ class NotificacaoServiceTest {
   void listarDeveRetornarTodasNotificacoesParaAdmin() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
-    when(itemRepository.findReceitasOrderByHorarioCriacaoDesc()).thenReturn(List.of());
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     when(notificacaoRepository.findAllResumoOrderByCriadoEmDesc())
         .thenReturn(
             List.of(
@@ -228,38 +238,23 @@ class NotificacaoServiceTest {
         service.listar(autenticacao("admin@email.com", "ADMIN"), null);
 
     assertEquals(1, response.size());
-    verify(notificacaoRepository).deleteOrfasOuInvalidas();
     verify(notificacaoRepository).findAllResumoOrderByCriadoEmDesc();
+    verify(notificacaoRepository, never()).save(any());
+    verify(notificacaoRepository, never()).deleteByItemId(any());
+    verify(notificacaoRepository, never()).findByItemId(any());
   }
 
   @Test
-  @DisplayName("Deve validar receitas sem notificacao antes de listar")
-  void listarDeveSincronizarReceitasSemNotificacao() {
-    NotificacaoService service =
-        new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
-    Item item = new Item();
-    item.setId(UUID.fromString("67676767-1111-2222-3333-444444444444"));
-    item.setTipo(TipoItem.RECEITA);
-    item.setRoleNome("ADMIN");
-    item.setDescricao("CONTA FP");
-    item.setRazaoSocialNome("Fornecedor Teste");
-    item.setValor(new BigDecimal("3500.00"));
-    item.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 15, 13, 0));
+  @DisplayName("Deve executar listagem em transacao somente leitura")
+  void listarDeveExecutarEmTransacaoSomenteLeitura() throws NoSuchMethodException {
+    Transactional transactional =
+        NotificacaoService.class
+            .getDeclaredMethod(
+                "listar", org.springframework.security.core.Authentication.class, String.class)
+            .getAnnotation(Transactional.class);
 
-    when(itemRepository.findReceitasOrderByHorarioCriacaoDesc()).thenReturn(List.of(item));
-    when(notificacaoRepository.findFirstByItemId(item.getId())).thenReturn(Optional.empty());
-    when(notificacaoRepository.findAllResumoOrderByCriadoEmDesc()).thenReturn(List.of());
-
-    service.listar(autenticacao("admin@email.com", "ADMIN"), null);
-
-    verify(notificacaoRepository).deleteOrfasOuInvalidas();
-    verify(notificacaoRepository).save(any(Notificacao.class));
-    verify(notificacaoRepository).findAllResumoOrderByCriadoEmDesc();
+    assertNotNull(transactional);
+    assertTrue(transactional.readOnly());
   }
 
   @Test
@@ -267,21 +262,14 @@ class NotificacaoServiceTest {
   void listarDeveFiltrarNotificacoesPelaRoleDoUsuario() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     when(usuarioRepository.findByEmail("operador@email.com"))
         .thenReturn(Optional.of(usuarioComRole("operador@email.com", "OPERADOR")));
-    when(itemRepository.findReceitasPorRoleNomeOrderByHorarioCriacaoDesc("OPERADOR"))
-        .thenReturn(List.of());
     when(notificacaoRepository.findResumoByRoleNomeOrderByCriadoEmDesc("OPERADOR"))
         .thenReturn(List.of());
 
     service.listar(autenticacao("operador@email.com", "OPERADOR"), "operador");
 
-    verify(notificacaoRepository).deleteOrfasOuInvalidas();
     verify(notificacaoRepository).findResumoByRoleNomeOrderByCriadoEmDesc("OPERADOR");
   }
 
@@ -290,19 +278,12 @@ class NotificacaoServiceTest {
   void listarDeveFiltrarNotificacoesPelaRoleSelecionadaDoAdmin() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
-    when(itemRepository.findReceitasPorRoleNomeOrderByHorarioCriacaoDesc("FINANCEIRO"))
-        .thenReturn(List.of());
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     when(notificacaoRepository.findResumoByRoleNomeOrderByCriadoEmDesc("FINANCEIRO"))
         .thenReturn(List.of());
 
     service.listar(autenticacao("admin@email.com", "ADMIN"), "financeiro");
 
-    verify(itemRepository).findReceitasPorRoleNomeOrderByHorarioCriacaoDesc("FINANCEIRO");
     verify(notificacaoRepository).findResumoByRoleNomeOrderByCriadoEmDesc("FINANCEIRO");
   }
 
@@ -311,11 +292,7 @@ class NotificacaoServiceTest {
   void listarRolesDisponiveisDeveRetornarTodasParaAdmin() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     when(candidateRoleCatalogService.listAvailableRolesForAdmin()).thenReturn(List.of("ANDRE"));
 
     List<String> roles = service.listarRolesDisponiveis(autenticacao("admin@email.com", "ADMIN"));
@@ -328,11 +305,7 @@ class NotificacaoServiceTest {
   void listarRolesDisponiveisDeveRetornarRolesDoUsuario() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     when(usuarioRepository.findByEmail("manager@email.com"))
         .thenReturn(Optional.of(usuarioComRole("manager@email.com", "MANAGER", "FINANCEIRO")));
     when(candidateRoleCatalogService.filterAvailableRoles(
@@ -351,11 +324,7 @@ class NotificacaoServiceTest {
   void atualizarLimpezaDevePersistirNovoEstado() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     Notificacao notificacao = new Notificacao();
     UUID id = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
     notificacao.setId(id);
@@ -386,11 +355,7 @@ class NotificacaoServiceTest {
   void removerPorItemIdDeveIgnorarQuandoItemIdForNulo() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
 
     service.removerPorItemId(null);
 
@@ -402,11 +367,7 @@ class NotificacaoServiceTest {
   void atualizarLimpezaDeveRetornarNotFoundQuandoNotificacaoNaoExistir() {
     NotificacaoService service =
         new NotificacaoService(
-            itemRepository,
-            notificacaoRepository,
-            usuarioRepository,
-            candidateRoleCatalogService,
-            inputSanitizer);
+            notificacaoRepository, usuarioRepository, candidateRoleCatalogService, inputSanitizer);
     UUID id = UUID.fromString("ffffffff-1111-2222-3333-444444444444");
 
     when(notificacaoRepository.findById(id)).thenReturn(Optional.empty());

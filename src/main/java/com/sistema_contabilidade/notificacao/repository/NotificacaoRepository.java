@@ -7,7 +7,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,21 +14,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface NotificacaoRepository extends JpaRepository<Notificacao, UUID> {
 
-  Optional<Notificacao> findFirstByItemId(UUID itemId);
+  Optional<Notificacao> findByItemId(UUID itemId);
 
   void deleteByItemId(UUID itemId);
-
-  @Modifying
-  @Query(
-      value =
-          """
-          delete n
-          from notificacoes n
-          left join itens i on i.id = n.item_id
-          where i.id is null or i.tipo <> 'RECEITA'
-          """,
-      nativeQuery = true)
-  int deleteOrfasOuInvalidas();
 
   @Query(
       """
