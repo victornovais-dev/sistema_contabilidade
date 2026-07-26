@@ -58,10 +58,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -2070,14 +2074,15 @@ class ItemControllerWebMvcTest {
     assertTrue(parcela.getArquivosComprovantes().isEmpty());
   }
 
-  @Test
-  @DisplayName("Deve exigir conta de origem em parcela paga")
-  void atualizarPagamentoDeveExigirContaDeOrigemEmParcelaPaga() throws Exception {
+  @ParameterizedTest(name = "{index}: valor={0}")
+  @MethodSource("parcelasPagasInvalidas")
+  void atualizarPagamentoDeveRejeitarParcelaPagaInvalida(BigDecimal valorItem, String conteudo)
+      throws Exception {
     UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeeeb");
     Item item = new Item();
     item.setId(id);
     item.setVersion(0L);
-    item.setValor(new BigDecimal("100.00"));
+    item.setValor(valorItem);
     item.setTipo(TipoItem.DESPESA);
     item.setRoleNome("FINANCEIRO");
     when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
@@ -2087,65 +2092,29 @@ class ItemControllerWebMvcTest {
             patch("/api/v1/itens/{id}/pagamento", id)
                 .with(authComRoles("admin@email.com", "ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {"formaPagamento":"AVISTA","parcelas":[{"numero":1,"paga":true}]}
-                    """))
+                .content(conteudo))
         .andExpect(status().isBadRequest());
 
     verify(itemRepository, never()).save(any(Item.class));
   }
 
-  @Test
-  @DisplayName("Deve exigir anexo em parcela paga")
-  void atualizarPagamentoDeveExigirAnexoEmParcelaPaga() throws Exception {
-    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeee1");
-    Item item = new Item();
-    item.setId(id);
-    item.setVersion(0L);
-    item.setValor(new BigDecimal("100.00"));
-    item.setTipo(TipoItem.DESPESA);
-    item.setRoleNome("FINANCEIRO");
-    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
-
-    mockMvc
-        .perform(
-            patch("/api/v1/itens/{id}/pagamento", id)
-                .with(authComRoles("admin@email.com", "ADMIN"))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {"formaPagamento":"AVISTA","parcelas":[{"numero":1,"paga":true,"contaOrigemPagamento":"CONTA_DC"}]}
-                    """))
-        .andExpect(status().isBadRequest());
-
-    verify(itemRepository, never()).save(any(Item.class));
-  }
-
-  @Test
-  @DisplayName("Deve exigir valor positivo em parcela paga")
-  void atualizarPagamentoDeveExigirValorPositivoEmParcelaPaga() throws Exception {
-    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeee2");
-    Item item = new Item();
-    item.setId(id);
-    item.setVersion(0L);
-    item.setValor(BigDecimal.ZERO);
-    item.setTipo(TipoItem.DESPESA);
-    item.setRoleNome("FINANCEIRO");
-    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
-
-    mockMvc
-        .perform(
-            patch("/api/v1/itens/{id}/pagamento", id)
-                .with(authComRoles("admin@email.com", "ADMIN"))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {"formaPagamento":"AVISTA","parcelas":[{"numero":1,"paga":true,"contaOrigemPagamento":"CONTA_DC","arquivoPdf":[80,68,70],"nomeArquivo":"parcela.pdf"}]}
-                    """))
-        .andExpect(status().isBadRequest());
-
-    verify(itemRepository, never()).save(any(Item.class));
+  private static Stream<Arguments> parcelasPagasInvalidas() {
+    return Stream.of(
+        Arguments.of(
+            new BigDecimal("100.00"),
+            """
+            {"formaPagamento":"AVISTA","parcelas":[{"numero":1,"paga":true}]}
+            """),
+        Arguments.of(
+            new BigDecimal("100.00"),
+            """
+            {"formaPagamento":"AVISTA","parcelas":[{"numero":1,"paga":true,"contaOrigemPagamento":"CONTA_DC"}]}
+            """),
+        Arguments.of(
+            BigDecimal.ZERO,
+            """
+            {"formaPagamento":"AVISTA","parcelas":[{"numero":1,"paga":true,"contaOrigemPagamento":"CONTA_DC","arquivoPdf":[80,68,70],"nomeArquivo":"parcela.pdf"}]}
+            """));
   }
 
   @Test
