@@ -90,3 +90,30 @@ It scrapes:
 ```text
 host.docker.internal:8080/actuator/prometheus
 ```
+
+## Multi-AZ database and Valkey
+
+The ALB must probe only:
+
+```text
+/actuator/health/alb
+```
+
+This public health group contains only `ping` and the writer datasource. Reader or Valkey failures
+must not remove an EC2 instance from the ALB because both dependencies have safe fallbacks.
+
+Operational metrics use fixed, low-cardinality tags:
+
+| Micrometer metric | Tags | Meaning |
+|---|---|---|
+| `app.db.route.total` | `route`, `reason` | Writer/reader route decisions |
+| `app.db.reader.connection.failures` | none | Reader acquisition failures |
+| `app.db.reader.circuit.state` | none | `0` closed, `0.5` probe, `1` open |
+| `app.db.sticky.total` | `result` | Sticky checks and renewals |
+| `app.rate_limit.total` | `backend`, `result` | Valkey/local rate-limit decisions |
+| `app.valkey.operation.errors` | `operation` | Failed Valkey operations |
+| `app.relatorio.resumo.cache.total` | `result` | Report-cache hit/miss/bypass/error |
+
+Never add session IDs, user IDs, IPs, endpoints, tokens, cache keys or credentials as labels. Full
+production thresholds, CloudWatch alarms, failure drills and rollback steps are in
+`docs/runbooks/multi-az-valkey-operations.md`.

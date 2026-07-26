@@ -53,3 +53,6 @@
   `inactive`, `marked`, `read_error`, `write_error` and `disabled`.
 - Routing metrics never include session IDs, user IDs, endpoints, credentials or other high-cardinality
   labels.
+- `/actuator/health/alb` includes only `ping` and writer health. Reader/Valkey availability is
+  observed separately through low-cardinality metrics documented in `observability/README.md` and
+  `docs/runbooks/multi-az-valkey-operations.md`.

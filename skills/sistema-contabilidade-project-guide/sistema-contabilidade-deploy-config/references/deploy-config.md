@@ -73,6 +73,15 @@
   `relatorio:resumo:version`. Successful item mutations increment that version.
 - Sticky-writer sessions bypass the report cache. Valkey read/write/invalidation failures fall back
   to database calculation and never fail the report request.
+- Production Multi-AZ/Valkey setup, approved pool limits, alarms, failure drills and rollback are
+  documented in `docs/runbooks/multi-az-valkey-operations.md`.
+
+## ALB health
+
+- `/actuator/health/alb` contains only `ping` and the explicit writer datasource contributor.
+- Reader and Valkey failures are excluded from ALB health because both have safe fallbacks.
+- Production uses native forwarded headers and JVM DNS TTLs of 60 seconds positive and 10 seconds
+  negative; operational details are in `docs/runbooks/multi-az-valkey-operations.md`.
 
 ## Docker Env Gotcha
 
