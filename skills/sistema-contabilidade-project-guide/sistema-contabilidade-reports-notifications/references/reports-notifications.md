@@ -15,6 +15,8 @@
 - Sticky-writer requests bypass the cache so the writing session never receives a pre-write
   summary. Valkey failures calculate from the database.
 - `RelatorioFinanceiroService` acts as orchestrator.
+- PDF data preparation, including the responsible-user lookup, runs in a read-only transaction;
+  the controller invokes `PlaywrightPdfService` only after that transaction has ended.
 - `PlaywrightPdfService` renders Thymeleaf PDF template and embeds logo as data URI.
 - Central PDF template: `relatorio-financeiro.html`.
 - Executive visual mock exists: `relatorio-executivo-exemplo.html`.
