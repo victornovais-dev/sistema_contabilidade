@@ -21,6 +21,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Month;
 import java.util.HashSet;
 import java.util.Set;
 import org.flywaydb.core.Flyway;
@@ -153,7 +154,7 @@ class NotificationReadModelMigrationTest {
         assertThat(resultSet.getString(3)).isEqualTo("Empresa Atualizada");
         assertThat(resultSet.getBigDecimal(4)).isEqualByComparingTo(new BigDecimal("100.00"));
         assertThat(resultSet.getTimestamp(5).toLocalDateTime())
-            .isEqualTo(java.time.LocalDateTime.of(2026, 7, 1, 10, 0));
+            .isEqualTo(java.time.LocalDateTime.of(2026, Month.JULY, 1, 10, 0));
         assertThat(resultSet.getInt(6)).isEqualTo(1);
       }
     }
