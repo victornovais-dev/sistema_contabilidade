@@ -7,6 +7,7 @@ import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioItemDto;
 import com.sistema_contabilidade.relatorio.dto.RelatorioResumoCategoriaRow;
+import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -93,7 +94,7 @@ public class RelatorioFinanceiroService {
     }
     return usuarioRepository
         .findByEmail(authentication.getName())
-        .map(usuario -> usuario.getNome())
+        .map(Usuario::getNome)
         .filter(nome -> nome != null && !nome.isBlank())
         .orElse(authentication.getName());
   }
