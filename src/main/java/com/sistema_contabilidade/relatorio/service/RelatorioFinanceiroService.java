@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class RelatorioFinanceiroService {
   private final CandidateRoleCatalogService candidateRoleCatalogService;
   private final UsuarioRepository usuarioRepository;
   private final PlaywrightPdfService playwrightPdfService;
+  private final RelatorioResumoCacheService relatorioResumoCacheService;
   private final RelatorioFinanceiroPdfDataFactory pdfDataFactory =
       new RelatorioFinanceiroPdfDataFactory();
 
@@ -76,8 +78,16 @@ public class RelatorioFinanceiroService {
   private RelatorioFinanceiroResumoResponse gerarResumoInterno(
       Authentication authentication, String roleFiltro) {
     RelatorioScope scope = resolveScope(authentication, roleFiltro);
-    return RelatorioFinanceiroConsolidador.buildSummaryResponse(
-        buscarResumoItens(scope), buscarContasPagas(scope), buscarContasPagasPorConta(scope));
+    String normalizedFilters = "role=" + Objects.toString(scope.roleFiltroNormalizada(), "ALL");
+    return relatorioResumoCacheService.getOrCompute(
+        scope.roleNomesAutenticado(),
+        scope.roleFiltroNormalizada(),
+        normalizedFilters,
+        () ->
+            RelatorioFinanceiroConsolidador.buildSummaryResponse(
+                buscarResumoItens(scope),
+                buscarContasPagas(scope),
+                buscarContasPagasPorConta(scope)));
   }
 
   private RelatorioFinanceiroResponse gerarRelatorio(

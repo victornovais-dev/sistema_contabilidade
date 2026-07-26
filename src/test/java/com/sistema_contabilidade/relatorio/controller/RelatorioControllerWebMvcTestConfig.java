@@ -23,7 +23,7 @@ class RelatorioControllerWebMvcTestConfig {
     List<String> rolesResponse = List.of();
 
     StubRelatorioFinanceiroService() {
-      super(null, null, null, null);
+      super(null, null, null, null, null);
     }
 
     @Override

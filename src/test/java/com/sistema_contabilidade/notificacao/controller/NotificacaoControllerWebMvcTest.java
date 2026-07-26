@@ -14,6 +14,7 @@ import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.notificacao.dto.NotificacaoListResponse;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
+import com.sistema_contabilidade.relatorio.service.RelatorioResumoCacheService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
@@ -50,6 +51,7 @@ class NotificacaoControllerWebMvcTest {
   @MockitoBean private RequestFingerprintService requestFingerprintService;
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private StickyWriterService stickyWriterService;
+  @MockitoBean private RelatorioResumoCacheService relatorioResumoCacheService;
   @MockitoBean private ValkeyRateLimitService valkeyRateLimitService;
   @MockitoBean private LocalRateLimitService localRateLimitService;
 

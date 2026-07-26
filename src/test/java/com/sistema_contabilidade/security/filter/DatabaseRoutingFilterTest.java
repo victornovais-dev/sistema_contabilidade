@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.database.routing.DatabaseRoutingContext;
 import com.sistema_contabilidade.database.service.StickyWriterService;
+import com.sistema_contabilidade.relatorio.service.RelatorioResumoCacheService;
 import jakarta.servlet.ServletException;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -20,6 +21,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -29,6 +31,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 class DatabaseRoutingFilterTest {
 
   @Mock private StickyWriterService stickyWriterService;
+  @Mock private RelatorioResumoCacheService relatorioResumoCacheService;
 
   @InjectMocks private DatabaseRoutingFilter filter;
 
@@ -91,7 +94,33 @@ class DatabaseRoutingFilterTest {
         });
 
     verify(stickyWriterService).markWriter(sessionId);
+    verify(relatorioResumoCacheService).invalidateAfterItemWrite();
     assertContextCleared();
+  }
+
+  @Test
+  @DisplayName("Nao deve invalidar resumo apos mutacao fora de itens")
+  void naoDeveInvalidarResumoAposMutacaoForaDeItens() throws Exception {
+    UUID sessionId = UUID.randomUUID();
+    MockHttpServletRequest request = authenticatedRequest("POST", "/api/v1/usuarios", sessionId);
+
+    filter.doFilter(
+        request, new MockHttpServletResponse(), (servletRequest, servletResponse) -> {});
+
+    verify(relatorioResumoCacheService, never()).invalidateAfterItemWrite();
+  }
+
+  @Test
+  @DisplayName("Deve invalidar resumo apos mutacao de item via Bearer sem sessao")
+  void deveInvalidarResumoAposMutacaoDeItemViaBearerSemSessao() throws Exception {
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/itens");
+    request.addHeader("Authorization", "Bearer token");
+
+    filter.doFilter(
+        request, new MockHttpServletResponse(), (servletRequest, servletResponse) -> {});
+
+    verify(stickyWriterService, never()).markWriter(Mockito.any());
+    verify(relatorioResumoCacheService).invalidateAfterItemWrite();
   }
 
   @ParameterizedTest
@@ -142,6 +171,7 @@ class DatabaseRoutingFilterTest {
         request, response, (servletRequest, servletResponse) -> response.setStatus(400));
 
     verify(stickyWriterService, never()).markWriter(sessionId);
+    verify(relatorioResumoCacheService, never()).invalidateAfterItemWrite();
   }
 
   @Test

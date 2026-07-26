@@ -3,6 +3,7 @@ package com.sistema_contabilidade.security.filter;
 import com.sistema_contabilidade.database.routing.DatabaseRoutingContext;
 import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.monitoring.RequestMonitoringPathUtils;
+import com.sistema_contabilidade.relatorio.service.RelatorioResumoCacheService;
 import com.sistema_contabilidade.security.util.SecurityPaths;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -20,6 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class DatabaseRoutingFilter extends OncePerRequestFilter {
 
   private final StickyWriterService stickyWriterService;
+  private final RelatorioResumoCacheService relatorioResumoCacheService;
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -37,6 +39,9 @@ public class DatabaseRoutingFilter extends OncePerRequestFilter {
       filterChain.doFilter(request, response);
       if (shouldMarkWriter(request, response, sessionId)) {
         stickyWriterService.markWriter(sessionId);
+      }
+      if (shouldInvalidateReportCache(request, response)) {
+        relatorioResumoCacheService.invalidateAfterItemWrite();
       }
     } finally {
       DatabaseRoutingContext.clear();
@@ -60,7 +65,21 @@ public class DatabaseRoutingFilter extends OncePerRequestFilter {
     return sessionId != null
         && isApiRequest(request)
         && isMutationMethod(request)
-        && response.getStatus() >= HttpServletResponse.SC_OK
+        && isSuccessful(response);
+  }
+
+  private boolean shouldInvalidateReportCache(
+      HttpServletRequest request, HttpServletResponse response) {
+    if (!isMutationMethod(request) || !isSuccessful(response)) {
+      return false;
+    }
+    String itemsPrefix = request.getContextPath() + SecurityPaths.API_V1_PREFIX + "/itens";
+    String requestUri = request.getRequestURI();
+    return requestUri.equals(itemsPrefix) || requestUri.startsWith(itemsPrefix + "/");
+  }
+
+  private boolean isSuccessful(HttpServletResponse response) {
+    return response.getStatus() >= HttpServletResponse.SC_OK
         && response.getStatus() < HttpServletResponse.SC_MULTIPLE_CHOICES;
   }
 

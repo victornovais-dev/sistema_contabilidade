@@ -51,7 +51,8 @@ class RelatorioFinanceiroServiceTest {
             itemRepository,
             Mockito.mock(CandidateRoleCatalogService.class),
             usuarioRepository,
-            playwrightPdfService);
+            playwrightPdfService,
+            passThroughCache());
 
     RelatorioItemDto item =
         dto("ENERGIA", TipoItem.RECEITA, "10.00", LocalDate.of(2026, Month.MARCH, 31), 10, 0);
@@ -82,7 +83,8 @@ class RelatorioFinanceiroServiceTest {
             itemRepository,
             Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class));
+            Mockito.mock(PlaywrightPdfService.class),
+            passThroughCache());
     RelatorioItemDto receita =
         dto("SERVICOS", TipoItem.RECEITA, "50.00", LocalDate.of(2026, Month.APRIL, 1), 9, 0);
 
@@ -125,7 +127,8 @@ class RelatorioFinanceiroServiceTest {
             Mockito.mock(ItemRepository.class),
             candidateRoleCatalogService,
             Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class));
+            Mockito.mock(PlaywrightPdfService.class),
+            passThroughCache());
 
     when(candidateRoleCatalogService.listAvailableRolesForAdmin()).thenReturn(List.of("ANDRE"));
 
@@ -144,7 +147,8 @@ class RelatorioFinanceiroServiceTest {
             Mockito.mock(ItemRepository.class),
             candidateRoleCatalogService,
             Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class));
+            Mockito.mock(PlaywrightPdfService.class),
+            passThroughCache());
     when(candidateRoleCatalogService.filterAvailableRoles(
             java.util.Set.of("OPERADOR", "FINANCEIRO", "SUPPORT")))
         .thenReturn(List.of("FINANCEIRO", "OPERADOR"));
@@ -165,7 +169,8 @@ class RelatorioFinanceiroServiceTest {
             itemRepository,
             Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class));
+            Mockito.mock(PlaywrightPdfService.class),
+            passThroughCache());
     RelatorioItemDto receita =
         dto("SERVICOS", TipoItem.RECEITA, "50.00", LocalDate.of(2026, Month.APRIL, 1), 9, 0);
 
@@ -192,7 +197,8 @@ class RelatorioFinanceiroServiceTest {
             itemRepository,
             Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class));
+            Mockito.mock(PlaywrightPdfService.class),
+            passThroughCache());
 
     when(itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc())
         .thenReturn(
@@ -251,7 +257,8 @@ class RelatorioFinanceiroServiceTest {
             itemRepository,
             Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class));
+            Mockito.mock(PlaywrightPdfService.class),
+            passThroughCache());
 
     when(itemRepository.findAllRelatorioResumoCategorias())
         .thenReturn(
@@ -316,7 +323,8 @@ class RelatorioFinanceiroServiceTest {
             itemRepository,
             Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class));
+            Mockito.mock(PlaywrightPdfService.class),
+            passThroughCache());
     Set<String> rolesVisiveis = Set.of("FINANCEIRO");
     when(itemRepository.findRelatorioResumoCategoriasByRoleNomes(rolesVisiveis))
         .thenReturn(
@@ -349,7 +357,8 @@ class RelatorioFinanceiroServiceTest {
             itemRepository,
             Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class));
+            Mockito.mock(PlaywrightPdfService.class),
+            passThroughCache());
 
     when(itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc())
         .thenReturn(
@@ -399,7 +408,8 @@ class RelatorioFinanceiroServiceTest {
             itemRepository,
             Mockito.mock(CandidateRoleCatalogService.class),
             Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class));
+            Mockito.mock(PlaywrightPdfService.class),
+            passThroughCache());
 
     when(itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc())
         .thenReturn(
@@ -459,7 +469,8 @@ class RelatorioFinanceiroServiceTest {
             itemRepository,
             Mockito.mock(CandidateRoleCatalogService.class),
             usuarioRepository,
-            playwrightPdfService);
+            playwrightPdfService,
+            passThroughCache());
     RelatorioFinanceiroResponse relatorio =
         new RelatorioFinanceiroResponse(
             new BigDecimal("1000.00"),
@@ -539,7 +550,8 @@ class RelatorioFinanceiroServiceTest {
             Mockito.mock(ItemRepository.class),
             Mockito.mock(CandidateRoleCatalogService.class),
             usuarioRepository,
-            playwrightPdfService);
+            playwrightPdfService,
+            passThroughCache());
     RelatorioFinanceiroResponse relatorio =
         new RelatorioFinanceiroResponse(
             BigDecimal.ZERO,
@@ -584,7 +596,8 @@ class RelatorioFinanceiroServiceTest {
             Mockito.mock(ItemRepository.class),
             Mockito.mock(CandidateRoleCatalogService.class),
             usuarioRepository,
-            playwrightPdfService);
+            playwrightPdfService,
+            passThroughCache());
     RelatorioFinanceiroResponse relatorio =
         new RelatorioFinanceiroResponse(
             BigDecimal.ZERO,
@@ -640,7 +653,8 @@ class RelatorioFinanceiroServiceTest {
             Mockito.mock(ItemRepository.class),
             Mockito.mock(CandidateRoleCatalogService.class),
             usuarioRepository,
-            playwrightPdfService);
+            playwrightPdfService,
+            passThroughCache());
     RelatorioFinanceiroResponse relatorio =
         new RelatorioFinanceiroResponse(
             BigDecimal.ZERO,
@@ -671,7 +685,21 @@ class RelatorioFinanceiroServiceTest {
         Mockito.mock(ItemRepository.class),
         Mockito.mock(CandidateRoleCatalogService.class),
         Mockito.mock(UsuarioRepository.class),
-        Mockito.mock(PlaywrightPdfService.class));
+        Mockito.mock(PlaywrightPdfService.class),
+        passThroughCache());
+  }
+
+  @SuppressWarnings("unchecked")
+  private RelatorioResumoCacheService passThroughCache() {
+    RelatorioResumoCacheService cacheService = Mockito.mock(RelatorioResumoCacheService.class);
+    when(cacheService.getOrCompute(
+            Mockito.anySet(), Mockito.nullable(String.class), Mockito.anyString(), Mockito.any()))
+        .thenAnswer(
+            invocation ->
+                ((java.util.function.Supplier<RelatorioFinanceiroResumoResponse>)
+                        invocation.getArgument(3))
+                    .get());
+    return cacheService;
   }
 
   private UsernamePasswordAuthenticationToken adminAuth() {
