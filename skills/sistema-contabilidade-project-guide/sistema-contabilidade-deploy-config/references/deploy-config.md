@@ -66,6 +66,13 @@
   address; application code must not parse client-supplied `X-Forwarded-For` directly.
 - Monitor `app.rate_limit.total{backend,result}` and
   `app.valkey.operation.errors{operation="rate_limit"}` without high-cardinality labels.
+- The financial summary cache is enabled in production with
+  `APP_RELATORIO_RESUMO_CACHE_ENABLED`, uses a 30-second TTL by default and refuses entries larger
+  than `APP_RELATORIO_RESUMO_CACHE_MAX_BYTES` (default 128 KiB).
+- Report cache keys isolate authorized scope, normalized role, filters and the global
+  `relatorio:resumo:version`. Successful item mutations increment that version.
+- Sticky-writer sessions bypass the report cache. Valkey read/write/invalidation failures fall back
+  to database calculation and never fail the report request.
 
 ## Docker Env Gotcha
 

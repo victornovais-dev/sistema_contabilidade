@@ -8,6 +8,12 @@
 - Web endpoint returns lightweight `RelatorioFinanceiroResumoResponse`.
 - PDF path uses detailed payload via `RelatorioFinanceiroPdfDataFactory`.
 - Web summary aggregation uses `RelatorioFinanceiroConsolidador`.
+- Web summaries can use `RelatorioResumoCacheService`, which stores only
+  `RelatorioFinanceiroResumoResponse` JSON in Valkey for 30 seconds and limits entries to 128 KiB.
+- Cache keys isolate authorized roles, normalized role filter, normalized filters and a global
+  version incremented after successful item mutations.
+- Sticky-writer requests bypass the cache so the writing session never receives a pre-write
+  summary. Valkey failures calculate from the database.
 - `RelatorioFinanceiroService` acts as orchestrator.
 - `PlaywrightPdfService` renders Thymeleaf PDF template and embeds logo as data URI.
 - Central PDF template: `relatorio-financeiro.html`.
