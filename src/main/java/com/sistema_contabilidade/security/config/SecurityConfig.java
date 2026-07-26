@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.security.config;
 
+import com.sistema_contabilidade.security.filter.DatabaseRoutingFilter;
 import com.sistema_contabilidade.security.filter.JwtAuthFilter;
 import com.sistema_contabilidade.security.filter.RateLimitFilter;
 import com.sistema_contabilidade.security.filter.RequestContextMdcFilter;
@@ -52,6 +53,7 @@ public class SecurityConfig {
 
   private final JwtAuthFilter jwtAuthFilter;
   private final RateLimitFilter rateLimitFilter;
+  private final DatabaseRoutingFilter databaseRoutingFilter;
   private final RequestContextMdcFilter requestContextMdcFilter;
 
   private int argon2SaltLength = 16;
@@ -100,8 +102,9 @@ public class SecurityConfig {
                       .accessDeniedHandler(accessDeniedHandler()))
           .authorizeHttpRequests(this::configureAuthorization)
           .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-          .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-          .addFilterAfter(requestContextMdcFilter, JwtAuthFilter.class);
+          .addFilterAfter(jwtAuthFilter, RateLimitFilter.class)
+          .addFilterAfter(databaseRoutingFilter, JwtAuthFilter.class)
+          .addFilterAfter(requestContextMdcFilter, DatabaseRoutingFilter.class);
       return http.build();
     } catch (Exception exception) {
       throw new IllegalStateException("Falha ao construir SecurityFilterChain", exception);

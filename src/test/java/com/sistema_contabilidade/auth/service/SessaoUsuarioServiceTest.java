@@ -123,10 +123,10 @@ class SessaoUsuarioServiceTest {
         .thenReturn(Optional.of(sessao));
 
     // Act
-    UUID resultado = sessaoUsuarioService.validarSessao("token");
+    SessaoUsuario resultado = sessaoUsuarioService.obterSessaoAtiva("token");
 
     // Assert
-    assertEquals(usuarioId, resultado);
+    assertEquals(usuarioId, resultado.getUsuarioId());
   }
 
   @Test
@@ -145,7 +145,8 @@ class SessaoUsuarioServiceTest {
         .thenReturn(Optional.of(sessao));
 
     // Act / Assert
-    assertThrows(ResponseStatusException.class, () -> sessaoUsuarioService.validarSessao("token"));
+    assertThrows(
+        ResponseStatusException.class, () -> sessaoUsuarioService.obterSessaoAtiva("token"));
   }
 
   @Test
@@ -157,7 +158,7 @@ class SessaoUsuarioServiceTest {
 
     ResponseStatusException ex =
         assertThrows(
-            ResponseStatusException.class, () -> sessaoUsuarioService.validarSessao("token"));
+            ResponseStatusException.class, () -> sessaoUsuarioService.obterSessaoAtiva("token"));
 
     assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
   }

@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.security.filter;
 
+import com.sistema_contabilidade.auth.model.SessaoUsuario;
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
@@ -28,6 +29,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
+  public static final String VALIDATED_SESSION_ID_ATTRIBUTE =
+      JwtAuthFilter.class.getName() + ".validatedSessionId";
+
   private static final String LEGACY_AUTH_COOKIE_NAME = "SC_TOKEN";
 
   private final JwtService jwtService;
@@ -45,9 +49,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     if (SecurityContextHolder.getContext().getAuthentication() == null) {
       authenticateComJwt(request, response);
     }
-    if (SecurityContextHolder.getContext().getAuthentication() == null) {
-      authenticateComSessao(request, response);
-    }
+    authenticateComSessao(request, response);
     filterChain.doFilter(request, response);
   }
 
@@ -104,15 +106,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     if (sessionToken == null || sessionToken.isBlank()) {
       return;
     }
+    boolean authenticationRequired = SecurityContextHolder.getContext().getAuthentication() == null;
     try {
-      UUID usuarioId = sessaoUsuarioService.validarSessao(sessionToken);
-      UserDetails userDetails = userDetailsService.loadUserById(usuarioId);
-      authenticateRequest(request, userDetails);
+      SessaoUsuario sessao = sessaoUsuarioService.obterSessaoAtiva(sessionToken);
+      if (authenticationRequired) {
+        UserDetails userDetails = userDetailsService.loadUserById(sessao.getUsuarioId());
+        authenticateRequest(request, userDetails);
+      }
+      request.setAttribute(VALIDATED_SESSION_ID_ATTRIBUTE, sessao.getId());
     } catch (ResponseStatusException exception) {
       if (log.isDebugEnabled()) {
         log.debug("Sessao invalida detectada no filtro de autenticacao", exception);
       }
-      SecurityContextHolder.clearContext();
+      request.removeAttribute(VALIDATED_SESSION_ID_ATTRIBUTE);
+      if (authenticationRequired) {
+        SecurityContextHolder.clearContext();
+      }
       clearSessionCookie(response, isSecureRequest(request));
     }
   }

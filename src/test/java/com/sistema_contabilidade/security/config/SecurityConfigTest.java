@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.sistema_contabilidade.security.filter.DatabaseRoutingFilter;
 import com.sistema_contabilidade.security.filter.JwtAuthFilter;
 import com.sistema_contabilidade.security.filter.RateLimitFilter;
 import com.sistema_contabilidade.security.filter.RequestContextMdcFilter;
@@ -27,11 +28,7 @@ class SecurityConfigTest {
   @Test
   @DisplayName("Deve configurar CORS com origens separadas por virgula")
   void deveConfigurarCorsComOrigensSeparadasPorVirgula() {
-    SecurityConfig config =
-        new SecurityConfig(
-            Mockito.mock(JwtAuthFilter.class),
-            Mockito.mock(RateLimitFilter.class),
-            Mockito.mock(RequestContextMdcFilter.class));
+    SecurityConfig config = newConfig();
 
     CorsConfigurationSource source =
         config.corsConfigurationSource(" http://localhost:3000, http://teste.local ");
@@ -48,11 +45,7 @@ class SecurityConfigTest {
   @Test
   @DisplayName("Deve validar encoder de senha")
   void deveValidarEncoderDeSenha() {
-    SecurityConfig config =
-        new SecurityConfig(
-            Mockito.mock(JwtAuthFilter.class),
-            Mockito.mock(RateLimitFilter.class),
-            Mockito.mock(RequestContextMdcFilter.class));
+    SecurityConfig config = newConfig();
 
     PasswordEncoder encoder = config.passwordEncoder();
     String raw = "senha-forte";
@@ -65,11 +58,7 @@ class SecurityConfigTest {
   @Test
   @DisplayName("Deve aceitar hash SCrypt atual sem prefixo")
   void deveAceitarHashesSCryptLegadosSemPrefixo() {
-    SecurityConfig config =
-        new SecurityConfig(
-            Mockito.mock(JwtAuthFilter.class),
-            Mockito.mock(RateLimitFilter.class),
-            Mockito.mock(RequestContextMdcFilter.class));
+    SecurityConfig config = newConfig();
 
     PasswordEncoder encoder = config.passwordEncoder();
     String raw = "senha-legada";
@@ -82,11 +71,7 @@ class SecurityConfigTest {
   @Test
   @DisplayName("Deve configurar cookie CSRF como HttpOnly e cabecalho customizado")
   void deveConfigurarCookieCsrfComoHttpOnlyECabecalhoCustomizado() {
-    SecurityConfig config =
-        new SecurityConfig(
-            Mockito.mock(JwtAuthFilter.class),
-            Mockito.mock(RateLimitFilter.class),
-            Mockito.mock(RequestContextMdcFilter.class));
+    SecurityConfig config = newConfig();
 
     CsrfTokenRepository repository = config.csrfTokenRepository();
     MockHttpServletRequest request = new MockHttpServletRequest();
@@ -105,11 +90,7 @@ class SecurityConfigTest {
   @Test
   @DisplayName("Deve falhar ao obter AuthenticationManager quando configuracao quebrar")
   void deveFalharAoObterAuthenticationManagerQuandoConfiguracaoQuebrar() {
-    SecurityConfig config =
-        new SecurityConfig(
-            Mockito.mock(JwtAuthFilter.class),
-            Mockito.mock(RateLimitFilter.class),
-            Mockito.mock(RequestContextMdcFilter.class));
+    SecurityConfig config = newConfig();
     AuthenticationConfiguration configuration = Mockito.mock(AuthenticationConfiguration.class);
     Mockito.when(configuration.getAuthenticationManager())
         .thenThrow(new IllegalStateException("quebrou"));
@@ -119,5 +100,13 @@ class SecurityConfigTest {
             IllegalStateException.class, () -> config.authenticationManager(configuration));
 
     assertTrue(exception.getMessage().contains("Falha ao obter AuthenticationManager"));
+  }
+
+  private SecurityConfig newConfig() {
+    return new SecurityConfig(
+        Mockito.mock(JwtAuthFilter.class),
+        Mockito.mock(RateLimitFilter.class),
+        Mockito.mock(DatabaseRoutingFilter.class),
+        Mockito.mock(RequestContextMdcFilter.class));
   }
 }

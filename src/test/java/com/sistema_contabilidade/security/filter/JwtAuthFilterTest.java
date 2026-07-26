@@ -6,9 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.auth.model.SessaoUsuario;
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
@@ -77,6 +79,7 @@ class JwtAuthFilterTest {
 
     assertNotNull(SecurityContextHolder.getContext().getAuthentication());
     verify(userDetailsService).loadUserByUsername("ana@email.com");
+    assertNull(request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE));
   }
 
   @Test
@@ -264,16 +267,73 @@ class JwtAuthFilterTest {
     MockHttpServletResponse response = new MockHttpServletResponse();
     MockFilterChain chain = new MockFilterChain();
     UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    UUID sessaoId = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
     var userDetails =
         User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
-    when(sessaoUsuarioService.validarSessao("sessao-segura")).thenReturn(usuarioId);
+    when(sessaoUsuarioService.obterSessaoAtiva("sessao-segura"))
+        .thenReturn(sessao(sessaoId, usuarioId));
     when(userDetailsService.loadUserById(usuarioId)).thenReturn(userDetails);
 
     filter.doFilter(request, response, chain);
 
     assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    assertEquals(sessaoId, request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE));
     verify(userDetailsService).loadUserById(usuarioId);
+  }
+
+  @Test
+  @DisplayName("Deve publicar sessao validada quando Bearer autentica primeiro")
+  void devePublicarSessaoValidadaQuandoBearerAutenticaPrimeiro() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/itens");
+    request.addHeader("Authorization", "Bearer token-valido");
+    request.setCookies(new Cookie("SC_SESSION", "sessao-segura"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    UUID sessaoId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    var userDetails =
+        User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(requestFingerprintService.generateFingerprint(request)).thenReturn("fingerprint");
+    when(jwtService.extractUserId("token-valido")).thenReturn(usuarioId);
+    when(userDetailsService.loadUserById(usuarioId)).thenReturn(userDetails);
+    when(jwtService.isTokenValid("token-valido", userDetails, "fingerprint")).thenReturn(true);
+    when(sessaoUsuarioService.obterSessaoAtiva("sessao-segura"))
+        .thenReturn(sessao(sessaoId, usuarioId));
+
+    filter.doFilter(request, response, chain);
+
+    assertEquals(sessaoId, request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE));
+    verify(userDetailsService, times(1)).loadUserById(usuarioId);
+  }
+
+  @Test
+  @DisplayName("Deve manter Bearer autenticado sem publicar sessao invalida")
+  void deveManterBearerAutenticadoSemPublicarSessaoInvalida() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/itens");
+    request.addHeader("Authorization", "Bearer token-valido");
+    request.setCookies(new Cookie("SC_SESSION", "sessao-invalida"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    var userDetails =
+        User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(requestFingerprintService.generateFingerprint(request)).thenReturn("fingerprint");
+    when(jwtService.extractUserId("token-valido")).thenReturn(usuarioId);
+    when(userDetailsService.loadUserById(usuarioId)).thenReturn(userDetails);
+    when(jwtService.isTokenValid("token-valido", userDetails, "fingerprint")).thenReturn(true);
+    when(sessaoUsuarioService.obterSessaoAtiva("sessao-invalida"))
+        .thenThrow(
+            new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.UNAUTHORIZED, "Sessao invalida"));
+
+    filter.doFilter(request, response, chain);
+
+    assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    assertNull(request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE));
+    assertEquals(0, response.getCookie("SC_SESSION").getMaxAge());
   }
 
   @Test
@@ -285,7 +345,7 @@ class JwtAuthFilterTest {
     MockHttpServletResponse response = new MockHttpServletResponse();
     MockFilterChain chain = new MockFilterChain();
 
-    when(sessaoUsuarioService.validarSessao("sessao-invalida"))
+    when(sessaoUsuarioService.obterSessaoAtiva("sessao-invalida"))
         .thenThrow(
             new org.springframework.web.server.ResponseStatusException(
                 org.springframework.http.HttpStatus.UNAUTHORIZED, "Sessao invalida"));
@@ -293,6 +353,7 @@ class JwtAuthFilterTest {
     filter.doFilter(request, response, chain);
 
     assertNull(SecurityContextHolder.getContext().getAuthentication());
+    assertNull(request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE));
     Cookie cookieLimpo = response.getCookie("SC_SESSION");
     assertNotNull(cookieLimpo);
     assertEquals(0, cookieLimpo.getMaxAge());
@@ -322,5 +383,12 @@ class JwtAuthFilterTest {
   private JwtAuthFilter novoFiltro() {
     return new JwtAuthFilter(
         jwtService, userDetailsService, sessaoUsuarioService, requestFingerprintService);
+  }
+
+  private SessaoUsuario sessao(UUID sessaoId, UUID usuarioId) {
+    SessaoUsuario sessao = new SessaoUsuario();
+    sessao.setId(sessaoId);
+    sessao.setUsuarioId(usuarioId);
+    return sessao;
   }
 }

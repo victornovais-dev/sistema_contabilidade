@@ -57,10 +57,6 @@ public class SessaoUsuarioService {
     return sessionCipherService.encrypt(salva.getId());
   }
 
-  public UUID validarSessao(String tokenCriptografado) {
-    return obterSessaoAtiva(tokenCriptografado).getUsuarioId();
-  }
-
   public SessaoUsuario obterSessaoAtiva(String tokenCriptografado) {
     UUID sessaoId = sessionCipherService.decrypt(tokenCriptografado);
     SessaoUsuario sessao =
