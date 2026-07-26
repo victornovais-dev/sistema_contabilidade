@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
+import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.rbac.dto.RoleResumoDto;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.security.config.JacksonSecurityConfig;
@@ -49,6 +50,7 @@ class UsuarioControllerWebMvcTest {
   @MockitoBean private AdminRouteService adminRouteService;
   @MockitoBean private RequestFingerprintService requestFingerprintService;
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
+  @MockitoBean private StickyWriterService stickyWriterService;
 
   @Test
   @DisplayName("Deve retornar lista de usuarios")

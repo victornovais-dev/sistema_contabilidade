@@ -3,61 +3,145 @@ package com.sistema_contabilidade.security.filter;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.database.routing.DatabaseRoutingContext;
+import com.sistema_contabilidade.database.service.StickyWriterService;
 import jakarta.servlet.ServletException;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("DatabaseRoutingFilter unit tests")
 class DatabaseRoutingFilterTest {
 
-  private final DatabaseRoutingFilter filter = new DatabaseRoutingFilter();
+  @Mock private StickyWriterService stickyWriterService;
+
+  @InjectMocks private DatabaseRoutingFilter filter;
 
   @AfterEach
   void clearContext() {
     DatabaseRoutingContext.clear();
   }
 
-  @Test
-  @DisplayName("Deve permitir reader para GET com sessao validada")
-  void devePermitirReaderParaGetComSessaoValidada() throws Exception {
-    MockHttpServletRequest request = authenticatedRequest("GET");
+  @ParameterizedTest
+  @ValueSource(strings = {"GET", "HEAD"})
+  @DisplayName("Deve permitir reader para leitura com sessao sem sticky")
+  void devePermitirReaderParaLeituraComSessaoSemSticky(String method) throws Exception {
+    UUID sessionId = UUID.randomUUID();
+    MockHttpServletRequest request = authenticatedRequest(method, "/api/v1/itens", sessionId);
+    when(stickyWriterService.requiresWriter(sessionId)).thenReturn(false);
 
     filter.doFilter(
         request,
         new MockHttpServletResponse(),
-        (servletRequest, servletResponse) -> assertTrue(DatabaseRoutingContext.isReaderAllowed()));
+        (servletRequest, servletResponse) -> {
+          assertTrue(DatabaseRoutingContext.isReaderAllowed());
+          assertFalse(DatabaseRoutingContext.isStickyWriter());
+        });
 
-    assertFalse(DatabaseRoutingContext.isReaderAllowed());
+    assertContextCleared();
   }
 
   @Test
-  @DisplayName("Deve permitir reader para HEAD com sessao validada")
-  void devePermitirReaderParaHeadComSessaoValidada() throws Exception {
-    MockHttpServletRequest request = authenticatedRequest("HEAD");
+  @DisplayName("Deve forcar writer para leitura durante sticky")
+  void deveForcarWriterParaLeituraDuranteSticky() throws Exception {
+    UUID sessionId = UUID.randomUUID();
+    MockHttpServletRequest request = authenticatedRequest("GET", "/api/v1/itens", sessionId);
+    when(stickyWriterService.requiresWriter(sessionId)).thenReturn(true);
 
     filter.doFilter(
         request,
         new MockHttpServletResponse(),
-        (servletRequest, servletResponse) -> assertTrue(DatabaseRoutingContext.isReaderAllowed()));
+        (servletRequest, servletResponse) -> {
+          assertFalse(DatabaseRoutingContext.isReaderAllowed());
+          assertTrue(DatabaseRoutingContext.isStickyWriter());
+        });
 
-    assertFalse(DatabaseRoutingContext.isReaderAllowed());
+    assertContextCleared();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"POST", "PUT", "PATCH", "DELETE"})
+  @DisplayName("Deve renovar sticky depois de mutacao autenticada 2xx")
+  void deveRenovarStickyDepoisDeMutacaoAutenticada2xx(String method) throws Exception {
+    UUID sessionId = UUID.randomUUID();
+    MockHttpServletRequest request = authenticatedRequest(method, "/api/v1/itens", sessionId);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    filter.doFilter(
+        request,
+        response,
+        (servletRequest, servletResponse) -> {
+          assertFalse(DatabaseRoutingContext.isReaderAllowed());
+          response.setStatus(204);
+        });
+
+    verify(stickyWriterService).markWriter(sessionId);
+    assertContextCleared();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"/api/v1/auth/refresh", "/api/v1/auth/logout"})
+  @DisplayName("Deve renovar sticky em refresh e logout com sessao validada")
+  void deveRenovarStickyEmRefreshELogoutComSessaoValidada(String uri) throws Exception {
+    UUID sessionId = UUID.randomUUID();
+    MockHttpServletRequest request = authenticatedRequest("POST", uri, sessionId);
+
+    filter.doFilter(
+        request, new MockHttpServletResponse(), (servletRequest, servletResponse) -> {});
+
+    verify(stickyWriterService).markWriter(sessionId);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"/api/v1/auth/login", "/api/v1/auth/complete-new-password"})
+  @DisplayName("Nao deve marcar login sem sessao validada")
+  void naoDeveMarcarLoginSemSessaoValidada(String uri) throws Exception {
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", uri);
+
+    filter.doFilter(
+        request, new MockHttpServletResponse(), (servletRequest, servletResponse) -> {});
+
+    verifyNoInteractions(stickyWriterService);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"/assets/app.js", "/actuator/health", "/favicon.ico"})
+  @DisplayName("Nao deve consultar sticky para assets e actuator")
+  void naoDeveConsultarStickyParaAssetsEActuator(String uri) throws Exception {
+    MockHttpServletRequest request = authenticatedRequest("GET", uri, UUID.randomUUID());
+
+    filter.doFilter(
+        request, new MockHttpServletResponse(), (servletRequest, servletResponse) -> {});
+
+    verifyNoInteractions(stickyWriterService);
   }
 
   @Test
-  @DisplayName("Deve forcar writer para mutacao autenticada")
-  void deveForcarWriterParaMutacaoAutenticada() throws Exception {
-    MockHttpServletRequest request = authenticatedRequest("POST");
+  @DisplayName("Nao deve renovar sticky quando mutacao falha")
+  void naoDeveRenovarStickyQuandoMutacaoFalha() throws Exception {
+    UUID sessionId = UUID.randomUUID();
+    MockHttpServletRequest request = authenticatedRequest("POST", "/api/v1/itens", sessionId);
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
     filter.doFilter(
-        request,
-        new MockHttpServletResponse(),
-        (servletRequest, servletResponse) -> assertFalse(DatabaseRoutingContext.isReaderAllowed()));
+        request, response, (servletRequest, servletResponse) -> response.setStatus(400));
+
+    verify(stickyWriterService, never()).markWriter(sessionId);
   }
 
   @Test
@@ -70,12 +154,16 @@ class DatabaseRoutingFilterTest {
         request,
         new MockHttpServletResponse(),
         (servletRequest, servletResponse) -> assertFalse(DatabaseRoutingContext.isReaderAllowed()));
+
+    verifyNoInteractions(stickyWriterService);
   }
 
   @Test
   @DisplayName("Deve limpar ThreadLocal quando cadeia falha")
   void deveLimparThreadLocalQuandoCadeiaFalha() {
-    MockHttpServletRequest request = authenticatedRequest("GET");
+    UUID sessionId = UUID.randomUUID();
+    MockHttpServletRequest request = authenticatedRequest("GET", "/api/v1/itens", sessionId);
+    when(stickyWriterService.requiresWriter(sessionId)).thenReturn(true);
 
     assertThrows(
         ServletException.class,
@@ -87,12 +175,18 @@ class DatabaseRoutingFilterTest {
                   throw new ServletException("falha");
                 }));
 
-    assertFalse(DatabaseRoutingContext.isReaderAllowed());
+    verify(stickyWriterService, never()).markWriter(sessionId);
+    assertContextCleared();
   }
 
-  private MockHttpServletRequest authenticatedRequest(String method) {
-    MockHttpServletRequest request = new MockHttpServletRequest(method, "/api/v1/itens");
-    request.setAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE, UUID.randomUUID());
+  private MockHttpServletRequest authenticatedRequest(String method, String uri, UUID sessionId) {
+    MockHttpServletRequest request = new MockHttpServletRequest(method, uri);
+    request.setAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE, sessionId);
     return request;
+  }
+
+  private void assertContextCleared() {
+    assertFalse(DatabaseRoutingContext.isReaderAllowed());
+    assertFalse(DatabaseRoutingContext.isStickyWriter());
   }
 }

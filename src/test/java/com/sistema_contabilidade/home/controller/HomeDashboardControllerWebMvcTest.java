@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
+import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.home.dto.HomeDashboardMonthResponse;
 import com.sistema_contabilidade.home.dto.HomeDashboardResponse;
 import com.sistema_contabilidade.home.dto.HomeLatestLaunchResponse;
@@ -43,6 +44,7 @@ class HomeDashboardControllerWebMvcTest {
   @MockitoBean private AdminRouteService adminRouteService;
   @MockitoBean private RequestFingerprintService requestFingerprintService;
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
+  @MockitoBean private StickyWriterService stickyWriterService;
 
   @Test
   @DisplayName("Deve retornar dashboard da home")

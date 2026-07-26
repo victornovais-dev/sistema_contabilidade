@@ -20,6 +20,16 @@ class DatabaseRoutingContextTest {
   @DisplayName("Deve usar writer por default")
   void deveUsarWriterPorDefault() {
     assertFalse(DatabaseRoutingContext.isReaderAllowed());
+    assertFalse(DatabaseRoutingContext.isStickyWriter());
+  }
+
+  @Test
+  @DisplayName("Deve identificar writer forçado por sticky")
+  void deveIdentificarWriterForcadoPorSticky() {
+    DatabaseRoutingContext.forceWriterForSticky();
+
+    assertFalse(DatabaseRoutingContext.isReaderAllowed());
+    assertTrue(DatabaseRoutingContext.isStickyWriter());
   }
 
   @Test
@@ -35,5 +45,6 @@ class DatabaseRoutingContextTest {
 
     assertFalse(readerAllowedInOtherThread.get());
     assertTrue(DatabaseRoutingContext.isReaderAllowed());
+    assertFalse(DatabaseRoutingContext.isStickyWriter());
   }
 }

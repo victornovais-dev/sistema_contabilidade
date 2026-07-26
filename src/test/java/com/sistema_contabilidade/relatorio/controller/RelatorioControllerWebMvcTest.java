@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
+import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioSaldoContaResponse;
@@ -43,6 +44,7 @@ class RelatorioControllerWebMvcTest {
   @MockitoBean private AdminRouteService adminRouteService;
   @MockitoBean private RequestFingerprintService requestFingerprintService;
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
+  @MockitoBean private StickyWriterService stickyWriterService;
 
   @Test
   @DisplayName("Deve retornar relatorio financeiro")

@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
+import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.notificacao.dto.NotificacaoListResponse;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
@@ -46,6 +47,7 @@ class NotificacaoControllerWebMvcTest {
   @MockitoBean private AdminRouteService adminRouteService;
   @MockitoBean private RequestFingerprintService requestFingerprintService;
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
+  @MockitoBean private StickyWriterService stickyWriterService;
 
   @Test
   @DisplayName("Deve restringir controller para admin e contabil")
