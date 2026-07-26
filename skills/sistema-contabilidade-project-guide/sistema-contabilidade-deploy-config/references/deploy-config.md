@@ -48,6 +48,14 @@
 - Root `docker-compose.yml` starts Redis at `127.0.0.1:6379`.
 - Redis uses `redis-data`, AOF and `redis-cli ping` healthcheck.
 - Active Spring cache remains Caffeine unless explicitly changed.
+- Production Valkey uses `SPRING_DATA_REDIS_HOST`, `SPRING_DATA_REDIS_PORT`,
+  `SPRING_DATA_REDIS_USERNAME`, `SPRING_DATA_REDIS_PASSWORD` and
+  `SPRING_DATA_REDIS_SSL_ENABLED`; credentials must never enter source or logs.
+- Sticky writer uses `sc:db-sticky:v1:<sessaoId>` with TTL configured by
+  `APP_DB_STICKY_SECONDS` (default 10 seconds).
+- Authenticated successful API mutations renew sticky after the response. While active,
+  `GET`/`HEAD` requests from the same validated session use the writer.
+- Sticky lookup failures fail safe to writer. Sticky renewal failures do not fail the mutation.
 
 ## Docker Env Gotcha
 

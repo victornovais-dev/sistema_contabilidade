@@ -49,5 +49,7 @@
 - `app.db.reader.connection.failures` counts reader acquisition failures that trigger writer
   fallback.
 - `app.db.reader.circuit.state` exposes `0` for closed, `0.5` for half-open probe and `1` for open.
+- `app.db.sticky.total{result}` counts sticky state checks and renewals. Results are `active`,
+  `inactive`, `marked`, `read_error`, `write_error` and `disabled`.
 - Routing metrics never include session IDs, user IDs, endpoints, credentials or other high-cardinality
   labels.
