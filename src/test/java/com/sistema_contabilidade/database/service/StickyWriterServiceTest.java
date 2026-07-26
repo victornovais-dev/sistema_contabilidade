@@ -132,9 +132,7 @@ class StickyWriterServiceTest {
   @Test
   @DisplayName("TTL invalido deve falhar configuracao")
   void ttlInvalidoDeveFalharConfiguracao() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> createServiceWithTtl(0));
+    assertThrows(IllegalArgumentException.class, () -> createServiceWithTtl(0));
     verify(redisTemplate, never()).opsForValue();
   }
 
