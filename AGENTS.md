@@ -95,6 +95,22 @@ For debugging or larger refactors, also use these local skills when they exist:
 - `skills/spring-boot-engineer/references/testing.md`
 - `skills/springboot-security-tests/SKILL.md`
 
+## Test Quality Rules
+
+- Never create tests solely to increase line or branch coverage.
+- Every test must identify the behavior or contract it protects.
+- Tests must contain meaningful assertions over observable outcomes.
+- Avoid tautological mock-based tests.
+- Do not consider `assertNotNull`, HTTP 200, or `verify(mock)` sufficient by themselves.
+- Prefer state/output assertions over implementation-detail verification.
+- Use integration tests when behavior depends on Spring configuration,
+  serialization, security, JPA queries, database constraints, or transactions.
+- Before accepting a new test, reason whether it would fail after a realistic
+  regression in production code.
+- For important business rules, validate tests with manual mutations or PIT.
+- Never weaken production behavior or assertions to make a test pass.
+- Report mutation survivors that represent meaningful undetected regressions.
+
 ## Caveman Mode
 
 - At the start of every Codex session in this repository, activate:
