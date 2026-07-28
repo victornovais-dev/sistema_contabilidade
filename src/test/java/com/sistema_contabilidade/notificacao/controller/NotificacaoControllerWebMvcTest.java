@@ -40,7 +40,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @DisplayName("NotificacaoController WebMvc tests")
 class NotificacaoControllerWebMvcTest {
 
-  private static final String NOTIFICATION_ACCESS_EXPRESSION = "hasAnyRole('ADMIN','CONTABIL')";
+  private static final String NOTIFICATION_ACCESS_EXPRESSION =
+      "hasAnyRole('ADMIN','CONTABIL','ESTAGIARIO')";
 
   @Autowired private MockMvc mockMvc;
 
