@@ -37,3 +37,11 @@ uploads/itens/*.pdf
 .tmp_sonar_coverage.json
 .tmp_sonar_issues.json
 .tmp_ui_ux_pro_max_skill/
+
+### Load tests ###
+load-tests/k6/data/users.*.json
+!load-tests/k6/data/users.example.json
+load-tests/k6/results/*
+!load-tests/k6/results/.gitkeep
+load-tests/k6/reports/*
+!load-tests/k6/reports/.gitkeep

@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.security.config;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sistema_contabilidade.security.filter.DatabaseRoutingFilter;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -21,6 +23,16 @@ import org.springframework.security.web.SecurityFilterChain;
 class SecurityFilterOrderIntegrationTest {
 
   @Autowired private FilterChainProxy filterChainProxy;
+
+  @Autowired private FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration;
+
+  @Autowired private FilterRegistrationBean<JwtAuthFilter> jwtAuthFilterRegistration;
+
+  @Autowired
+  private FilterRegistrationBean<DatabaseRoutingFilter> databaseRoutingFilterRegistration;
+
+  @Autowired
+  private FilterRegistrationBean<RequestContextMdcFilter> requestContextMdcFilterRegistration;
 
   @Test
   @DisplayName("Deve executar rate limit, JWT, routing e MDC nesta ordem")
@@ -41,6 +53,15 @@ class SecurityFilterOrderIntegrationTest {
     assertTrue(rateLimitIndex < jwtIndex);
     assertTrue(jwtIndex < routingIndex);
     assertTrue(routingIndex < mdcIndex);
+  }
+
+  @Test
+  @DisplayName("Deve registrar filtros customizados apenas no SecurityFilterChain")
+  void deveDesabilitarRegistroDuplicadoNoServletContainer() {
+    assertFalse(rateLimitFilterRegistration.isEnabled());
+    assertFalse(jwtAuthFilterRegistration.isEnabled());
+    assertFalse(databaseRoutingFilterRegistration.isEnabled());
+    assertFalse(requestContextMdcFilterRegistration.isEnabled());
   }
 
   private int indexOf(List<Filter> filters, Class<? extends Filter> filterType) {

@@ -65,10 +65,8 @@ RUN useradd --create-home --shell /bin/bash spring \
     && mkdir -p ${APP_HOME}/logs \
     && chown -R spring:spring ${APP_HOME}
 
-COPY --from=build /app/target/*.jar app.jar
-COPY --from=build /ms-playwright /ms-playwright
-
-RUN chown -R spring:spring ${APP_HOME} /ms-playwright
+COPY --chown=spring:spring --from=build /app/target/*.jar app.jar
+COPY --chown=spring:spring --from=build /ms-playwright /ms-playwright
 
 USER spring
 

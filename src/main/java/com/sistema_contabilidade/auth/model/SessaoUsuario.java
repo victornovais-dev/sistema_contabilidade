@@ -59,11 +59,11 @@ public class SessaoUsuario {
   private String cognitoSub;
 
   @Lob
-  @Column(name = "refresh_token_cifrado")
+  @Column(name = "refresh_token_cifrado", columnDefinition = "TEXT")
   private String refreshTokenCiphertext;
 
   @Lob
-  @Column(name = "groups_snapshot")
+  @Column(name = "groups_snapshot", columnDefinition = "TEXT")
   private String groupsSnapshot;
 
   @Column(name = "groups_hash", length = 128)

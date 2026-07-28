@@ -130,6 +130,22 @@ class StickyWriterServiceTest {
   }
 
   @Test
+  @DisplayName("Valkey desabilitado deve usar sticky local")
+  void valkeyDesabilitadoDeveUsarStickyLocal() {
+    UUID sessionId = UUID.randomUUID();
+    StickyWriterService service = service(true, false, 10);
+
+    assertFalse(service.requiresWriter(sessionId));
+    service.markWriter(sessionId);
+    assertTrue(service.requiresWriter(sessionId));
+
+    verifyNoInteractions(redisTemplate);
+    assertMetric(serviceRegistry, "inactive", 1.0);
+    assertMetric(serviceRegistry, "marked", 1.0);
+    assertMetric(serviceRegistry, "active", 1.0);
+  }
+
+  @Test
   @DisplayName("TTL invalido deve falhar configuracao")
   void ttlInvalidoDeveFalharConfiguracao() {
     assertThrows(IllegalArgumentException.class, () -> createServiceWithTtl(0));
@@ -139,12 +155,18 @@ class StickyWriterServiceTest {
   private SimpleMeterRegistry serviceRegistry;
 
   private StickyWriterService service(boolean enabled, long ttlSeconds) {
+    return service(enabled, true, ttlSeconds);
+  }
+
+  private StickyWriterService service(boolean enabled, boolean valkeyEnabled, long ttlSeconds) {
     serviceRegistry = new SimpleMeterRegistry();
-    return new StickyWriterService(redisTemplate, serviceRegistry, ttlSeconds, enabled);
+    return new StickyWriterService(
+        redisTemplate, serviceRegistry, ttlSeconds, enabled, valkeyEnabled);
   }
 
   private StickyWriterService createServiceWithTtl(long ttlSeconds) {
-    return new StickyWriterService(redisTemplate, new SimpleMeterRegistry(), ttlSeconds, true);
+    return new StickyWriterService(
+        redisTemplate, new SimpleMeterRegistry(), ttlSeconds, true, true);
   }
 
   private void assertMetric(SimpleMeterRegistry registry, String result, double expected) {

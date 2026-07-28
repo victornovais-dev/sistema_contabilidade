@@ -46,6 +46,19 @@ Do not place credentials in JDBC URLs. Use the current AWS/RDS CA trust chain an
 `sslMode=VERIFY_IDENTITY`; do not use `trustAll`, `VERIFY_CA` without hostname validation or
 individual instance endpoints.
 
+When the JDBC URL references `file:/app/rds-truststore.p12`, keep the RDS truststore on the EC2
+host and mount it read-only into every application container. Do not bake environment-specific
+truststores into the image.
+
+```bash
+docker run \
+  --mount type=bind,src=/home/ec2-user/rds-truststore.p12,dst=/app/rds-truststore.p12,readonly \
+  ...
+```
+
+Before registering the target in the ALB, use `docker inspect` to confirm that this mount has
+`RW=false`.
+
 Approved Hikari defaults per EC2:
 
 | Setting | Writer | Reader | Environment override |

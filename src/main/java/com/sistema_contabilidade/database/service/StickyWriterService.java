@@ -1,5 +1,7 @@
 package com.sistema_contabilidade.database.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -21,6 +23,8 @@ public final class StickyWriterService {
   private final StringRedisTemplate redisTemplate;
   private final Duration ttl;
   private final boolean routingEnabled;
+  private final boolean valkeyEnabled;
+  private final Cache<UUID, Boolean> localStickySessions;
   private final Counter activeCounter;
   private final Counter inactiveCounter;
   private final Counter readErrorCounter;
@@ -35,13 +39,17 @@ public final class StickyWriterService {
       StringRedisTemplate redisTemplate,
       MeterRegistry meterRegistry,
       @Value("${app.database.sticky-writer.seconds:10}") long ttlSeconds,
-      @Value("${app.database.routing.enabled:false}") boolean routingEnabled) {
+      @Value("${app.database.routing.enabled:false}") boolean routingEnabled,
+      @Value("${app.database.sticky-writer.valkey-enabled:false}") boolean valkeyEnabled) {
     if (ttlSeconds <= 0) {
       throw new IllegalArgumentException("Sticky writer TTL deve ser maior que zero");
     }
     this.redisTemplate = redisTemplate;
     this.ttl = Duration.ofSeconds(ttlSeconds);
     this.routingEnabled = routingEnabled;
+    this.valkeyEnabled = valkeyEnabled;
+    this.localStickySessions =
+        Caffeine.newBuilder().maximumSize(100_000).expireAfterWrite(ttl).build();
     this.activeCounter = counter(meterRegistry, "active");
     this.inactiveCounter = counter(meterRegistry, "inactive");
     this.readErrorCounter = counter(meterRegistry, "read_error");
@@ -55,6 +63,9 @@ public final class StickyWriterService {
     if (!routingEnabled) {
       disabledCounter.increment();
       return false;
+    }
+    if (!valkeyEnabled) {
+      return localRequiresWriter(sessionId);
     }
     try {
       boolean active = Boolean.TRUE.equals(redisTemplate.hasKey(key(sessionId)));
@@ -77,6 +88,11 @@ public final class StickyWriterService {
       disabledCounter.increment();
       return;
     }
+    if (!valkeyEnabled) {
+      localStickySessions.put(sessionId, Boolean.TRUE);
+      markedCounter.increment();
+      return;
+    }
     try {
       redisTemplate.opsForValue().set(key(sessionId), "1", ttl);
       markedCounter.increment();
@@ -88,6 +104,16 @@ public final class StickyWriterService {
 
   private String key(UUID sessionId) {
     return KEY_PREFIX + sessionId;
+  }
+
+  private boolean localRequiresWriter(UUID sessionId) {
+    boolean active = localStickySessions.getIfPresent(sessionId) != null;
+    if (active) {
+      activeCounter.increment();
+    } else {
+      inactiveCounter.increment();
+    }
+    return active;
   }
 
   private Counter counter(MeterRegistry meterRegistry, String result) {
