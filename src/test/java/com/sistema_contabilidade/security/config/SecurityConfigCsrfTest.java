@@ -4,6 +4,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,14 +14,19 @@ import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.service.AuthService;
 import com.sistema_contabilidade.auth.service.LoginFlowResult;
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
+import com.sistema_contabilidade.duvida.dto.DuvidaCreateResponse;
+import com.sistema_contabilidade.duvida.service.DuvidaService;
 import com.sistema_contabilidade.rbac.service.RoleService;
 import com.sistema_contabilidade.relatorio.service.RelatorioFinanceiroService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.usuario.dto.UsuarioDto;
+import com.sistema_contabilidade.usuario.service.EstagiarioPermissaoService;
 import com.sistema_contabilidade.usuario.service.UsuarioService;
 import jakarta.servlet.http.Cookie;
+import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.UUID;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
@@ -50,7 +56,9 @@ class SecurityConfigCsrfTest {
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private UsuarioService usuarioService;
+  @MockitoBean private EstagiarioPermissaoService estagiarioPermissaoService;
   @MockitoBean private RoleService roleService;
+  @MockitoBean private DuvidaService duvidaService;
 
   @Test
   @DisplayName("Deve exigir autenticacao para descoberta de rotas admin")
@@ -356,6 +364,41 @@ class SecurityConfigCsrfTest {
   }
 
   @Test
+  @DisplayName("Deve permitir pagina conheca sem autenticacao")
+  void devePermitirPaginaConhecaSemAutenticacao() throws Exception {
+    mockMvc.perform(get("/conheca")).andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("Deve permitir registrar duvida sem autenticacao com token CSRF")
+  void devePermitirRegistrarDuvidaSemAutenticacaoComCsrf() throws Exception {
+    UUID protocolo = UUID.randomUUID();
+    when(duvidaService.registrar(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(
+            new DuvidaCreateResponse(protocolo, LocalDateTime.of(2026, Month.JULY, 27, 12, 0)));
+    MvcResult csrfResult =
+        mockMvc.perform(get("/api/v1/auth/csrf")).andExpect(status().isOk()).andReturn();
+    JsonNode payload = new ObjectMapper().readTree(csrfResult.getResponse().getContentAsString());
+    Cookie csrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
+
+    mockMvc
+        .perform(
+            post("/api/v1/duvidas")
+                .cookie(csrfCookie)
+                .header("X-CSRF-TOKEN", payload.required("token").asString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "nome":"Ana Silva",
+                      "email":"ana@email.com",
+                      "duvida":"Como acompanho meus comprovantes?"
+                    }
+                    """))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
   @DisplayName("Deve redirecionar raiz para home com usuario autenticado")
   void deveRedirecionarRaizParaHomeComUsuarioAutenticado() throws Exception {
     var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
@@ -389,6 +432,122 @@ class SecurityConfigCsrfTest {
         .perform(get("/admin").cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_manager")))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/404"));
+  }
+
+  @Test
+  @DisplayName("Deve exigir autenticacao para pagina de duvidas")
+  void deveExigirAutenticacaoParaPaginaDeDuvidas() throws Exception {
+    mockMvc
+        .perform(get("/duvidas"))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/login"));
+  }
+
+  @Test
+  @DisplayName("Deve permitir a CONTABIL consultar campanhas disponiveis para estagiario")
+  void devePermitirContabilConsultarCampanhasDisponiveisParaEstagiario() throws Exception {
+    var userDetails =
+        User.withUsername("contabil@email.com").password("x").roles("CONTABIL").build();
+    when(jwtService.extractUsername("token_contabil_estagiario")).thenReturn("contabil@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_contabil_estagiario"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("contabil@email.com")).thenReturn(userDetails);
+    when(estagiarioPermissaoService.listarRolesDeCampanhaDisponiveis())
+        .thenReturn(java.util.Set.of("CAMPANHA A"));
+
+    mockMvc
+        .perform(
+            get("/api/v1/estagiarios/roles")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_contabil_estagiario")))
+        .andExpect(status().isOk())
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[0]")
+                .value("CAMPANHA A"));
+  }
+
+  @Test
+  @DisplayName("Deve bloquear a API de estagiarios para role diferente de CONTABIL")
+  void deveBloquearApiDeEstagiariosParaRoleDiferenteDeContabil() throws Exception {
+    var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
+    when(jwtService.extractUsername("token_manager_estagiario")).thenReturn("manager@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_manager_estagiario"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(
+            get("/api/v1/estagiarios/roles")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_manager_estagiario")))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("Deve permitir pagina de estagiarios para CONTABIL")
+  void devePermitirPaginaDeEstagiariosParaContabil() throws Exception {
+    var userDetails =
+        User.withUsername("contabil@email.com").password("x").roles("CONTABIL").build();
+    when(jwtService.extractUsername("token_contabil_pagina_estagiario"))
+        .thenReturn("contabil@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_contabil_pagina_estagiario"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("contabil@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(
+            get("/gerenciar_estagiarios")
+                .cookie(
+                    new jakarta.servlet.http.Cookie(
+                        "SC_TOKEN", "token_contabil_pagina_estagiario")))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("Deve renderizar pagina de duvidas para admin autenticado")
+  void deveRenderizarPaginaDeDuvidasParaAdmin() throws Exception {
+    var userDetails = User.withUsername("admin@email.com").password("x").roles("ADMIN").build();
+    when(jwtService.extractUsername("token_duvidas_admin")).thenReturn("admin@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_duvidas_admin"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(
+            get("/duvidas")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_duvidas_admin")))
+        .andExpect(status().isOk())
+        .andExpect(content().string(Matchers.containsString("Dúvidas recebidas")));
+  }
+
+  @Test
+  @DisplayName("Deve ocultar pagina e API de duvidas de perfil nao admin")
+  void deveBloquearConsultaDeDuvidasParaNaoAdmin() throws Exception {
+    var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
+    when(jwtService.extractUsername("token_duvidas_manager")).thenReturn("manager@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_duvidas_manager"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
+    var cookie = new jakarta.servlet.http.Cookie("SC_TOKEN", "token_duvidas_manager");
+
+    mockMvc
+        .perform(get("/duvidas").cookie(cookie))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/404"));
+    mockMvc.perform(get("/api/v1/duvidas").cookie(cookie)).andExpect(status().isForbidden());
   }
 
   @Test
@@ -544,6 +703,28 @@ class SecurityConfigCsrfTest {
         .perform(
             get("/adicionar_comprovante")
                 .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_contabil")))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/404"));
+  }
+
+  @Test
+  @DisplayName("Deve redirecionar para 404 ao acessar adicionar comprovante como estagiario")
+  void deveRedirecionarPara404AoAcessarAdicionarComprovanteComoEstagiario() throws Exception {
+    var userDetails =
+        User.withUsername("estagiario@email.com").password("x").roles("ESTAGIARIO").build();
+    when(jwtService.extractUsername("token_estagiario")).thenReturn("estagiario@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_estagiario"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("estagiario@email.com"))
+        .thenReturn(userDetails);
+
+    mockMvc
+        .perform(
+            get("/adicionar_comprovante")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_estagiario")))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/404"));
   }

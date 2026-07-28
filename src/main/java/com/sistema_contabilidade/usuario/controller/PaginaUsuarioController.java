@@ -17,9 +17,11 @@ public class PaginaUsuarioController {
 
   private static final String IS_AUTHENTICATED_EXPRESSION = "isAuthenticated()";
   private static final String ADMIN_ROLE_EXPRESSION = "hasRole('ADMIN')";
-  private static final String NOTIFICATION_ROLE_EXPRESSION = "hasAnyRole('ADMIN','CONTABIL')";
+  private static final String CONTABIL_ROLE_EXPRESSION = "hasRole('CONTABIL')";
+  private static final String NOTIFICATION_ROLE_EXPRESSION =
+      "hasAnyRole('ADMIN','CONTABIL','ESTAGIARIO')";
   private static final String AUTHENTICATED_EXCEPT_CONTABIL_EXPRESSION =
-      "isAuthenticated() and !hasRole('CONTABIL')";
+      "isAuthenticated() and !hasAnyRole('CONTABIL','ESTAGIARIO')";
 
   @GetMapping(SecurityPaths.ROOT_PATH)
   public String rootPage(Authentication authentication) {
@@ -37,6 +39,12 @@ public class PaginaUsuarioController {
   @GetMapping(value = SecurityPaths.FIRST_ACCESS_PAGE, produces = MediaType.TEXT_HTML_VALUE)
   public ResponseEntity<Resource> firstAccessPage() {
     Resource resource = new ClassPathResource("static/primeiro_acesso.html");
+    return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
+  }
+
+  @GetMapping(value = SecurityPaths.PUBLIC_INFO_PAGE, produces = MediaType.TEXT_HTML_VALUE)
+  public ResponseEntity<Resource> publicInfoPage() {
+    Resource resource = new ClassPathResource("static/conheca.html");
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
   }
 
@@ -58,6 +66,12 @@ public class PaginaUsuarioController {
   @PreAuthorize(ADMIN_ROLE_EXPRESSION)
   public String atualizarUsuarioPage() {
     return "atualizar_usuario";
+  }
+
+  @GetMapping(value = SecurityPaths.MANAGE_INTERNS_PAGE, produces = MediaType.TEXT_HTML_VALUE)
+  @PreAuthorize(CONTABIL_ROLE_EXPRESSION)
+  public String gerenciarEstagiariosPage() {
+    return "gerenciar_estagiarios";
   }
 
   @GetMapping(value = "/adicionar_comprovante", produces = MediaType.TEXT_HTML_VALUE)
@@ -94,6 +108,12 @@ public class PaginaUsuarioController {
   @PreAuthorize(ADMIN_ROLE_EXPRESSION)
   public String adminPage() {
     return "admin";
+  }
+
+  @GetMapping(value = SecurityPaths.QUESTIONS_PAGE, produces = MediaType.TEXT_HTML_VALUE)
+  @PreAuthorize(ADMIN_ROLE_EXPRESSION)
+  public String duvidasPage() {
+    return "duvidas";
   }
 
   @GetMapping(value = "/gerenciar_roles", produces = MediaType.TEXT_HTML_VALUE)

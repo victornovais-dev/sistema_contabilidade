@@ -24,9 +24,11 @@ class PaginaUsuarioControllerTest {
 
   private static final String IS_AUTHENTICATED_EXPRESSION = "isAuthenticated()";
   private static final String AUTHENTICATED_EXCEPT_CONTABIL_EXPRESSION =
-      "isAuthenticated() and !hasRole('CONTABIL')";
+      "isAuthenticated() and !hasAnyRole('CONTABIL','ESTAGIARIO')";
   private static final String ADMIN_EXPRESSION = "hasRole('ADMIN')";
-  private static final String NOTIFICATION_EXPRESSION = "hasAnyRole('ADMIN','CONTABIL')";
+  private static final String CONTABIL_EXPRESSION = "hasRole('CONTABIL')";
+  private static final String NOTIFICATION_EXPRESSION =
+      "hasAnyRole('ADMIN','CONTABIL','ESTAGIARIO')";
   private static final String CONTENT_TYPE_HTML = "text/html";
 
   @ParameterizedTest(name = "Deve retornar recurso html da pagina {0}")
@@ -122,10 +124,21 @@ class PaginaUsuarioControllerTest {
     assertEquals(NOTIFICATION_EXPRESSION, preAuthorize.value());
   }
 
+  @ParameterizedTest(name = "Deve exigir role contabil para {0}")
+  @MethodSource("contabilOnlyMethods")
+  void deveExigirRoleContabilNasPaginas(String nomePagina, String methodName) throws Exception {
+    Method method = PaginaUsuarioController.class.getMethod(methodName);
+    PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
+
+    assertNotNull(preAuthorize);
+    assertEquals(CONTABIL_EXPRESSION, preAuthorize.value());
+  }
+
   private static Stream<Arguments> resourcePageMethods() {
     return Stream.of(
         Arguments.of("login", "loginPage", HttpStatus.OK),
         Arguments.of("primeiro acesso", "firstAccessPage", HttpStatus.OK),
+        Arguments.of("conheca", "publicInfoPage", HttpStatus.OK),
         Arguments.of("404", "notFoundPage", HttpStatus.NOT_FOUND));
   }
 
@@ -133,12 +146,14 @@ class PaginaUsuarioControllerTest {
     return Stream.of(
         Arguments.of("criar usuario", "criarUsuarioPage", "criar_usuario"),
         Arguments.of("atualizar usuario", "atualizarUsuarioPage", "atualizar_usuario"),
+        Arguments.of("gerenciar estagiarios", "gerenciarEstagiariosPage", "gerenciar_estagiarios"),
         Arguments.of("adicionar comprovante", "adicionarComprovantePage", "adicionar_comprovante"),
         Arguments.of("home", "homePage", "home"),
         Arguments.of("lista comprovantes", "listaComprovantesPage", "lista_comprovantes"),
         Arguments.of("relatorios", "relatoriosPage", "relatorios"),
         Arguments.of("notificacoes", "notificacoesPage", "notificacoes"),
         Arguments.of("admin", "adminPage", "admin"),
+        Arguments.of("duvidas", "duvidasPage", "duvidas"),
         Arguments.of("gerenciar roles", "gerenciarRolesPage", "gerenciar_roles"));
   }
 
@@ -158,11 +173,16 @@ class PaginaUsuarioControllerTest {
         Arguments.of("criar usuario", "criarUsuarioPage"),
         Arguments.of("atualizar usuario", "atualizarUsuarioPage"),
         Arguments.of("admin", "adminPage"),
+        Arguments.of("duvidas", "duvidasPage"),
         Arguments.of("gerenciar roles", "gerenciarRolesPage"));
   }
 
   private static Stream<Arguments> notificationMethods() {
     return Stream.of(Arguments.of("notificacoes", "notificacoesPage"));
+  }
+
+  private static Stream<Arguments> contabilOnlyMethods() {
+    return Stream.of(Arguments.of("gerenciar estagiarios", "gerenciarEstagiariosPage"));
   }
 
   @SuppressWarnings("unchecked")

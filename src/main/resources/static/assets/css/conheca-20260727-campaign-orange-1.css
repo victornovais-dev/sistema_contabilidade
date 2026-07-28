@@ -1,0 +1,76 @@
+@charset "UTF-8";
+
+:root {
+  --page: #f7f4ef;
+  --surface-soft: #f6f0e8;
+  --brand: #d84b34;
+  --brand-dark: #b93d29;
+  --brand-soft: rgba(216, 75, 52, 0.14);
+}
+
+html[data-theme="dark"] {
+  --brand: #ff7a59;
+  --brand-dark: #ff6040;
+  --brand-soft: rgba(255, 122, 89, 0.14);
+}
+
+.brand-logo {
+  width: 101px;
+  height: 48px;
+  display: block;
+  object-fit: contain;
+}
+
+.brand-logo-dark {
+  display: none;
+}
+
+html[data-theme="dark"] .brand-logo-light {
+  display: none;
+}
+
+html[data-theme="dark"] .brand-logo-dark {
+  display: block;
+}
+
+.primary-button {
+  box-shadow: 0 14px 28px rgba(216, 75, 52, 0.2);
+}
+
+.visual-glow {
+  background: radial-gradient(circle, rgba(240, 104, 74, 0.3), transparent 68%);
+}
+
+.mini-brand {
+  background: #d84b34;
+}
+
+.chart-bars i {
+  background: linear-gradient(180deg, #f0684a, #d84b34);
+}
+
+.floating-icon {
+  background: #fbe2db;
+  color: #d84b34;
+}
+
+.floating-icon.blue {
+  background: #dfeafb;
+  color: #376eb8;
+}
+
+.section-heading .eyebrow,
+.steps-grid span {
+  color: #ff7a59;
+}
+
+.form-feedback[data-state="success"] {
+  color: #b93d29;
+}
+
+@media (max-width: 680px) {
+  .brand-logo {
+    width: 92px;
+    height: 44px;
+  }
+}

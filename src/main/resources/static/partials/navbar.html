@@ -16,11 +16,13 @@
     </a>
     <div class="nav-links" aria-label="Navegacao principal">
       <a class="nav-link" href="/home">Home</a>
-      <a class="nav-link" href="/adicionar_comprovante" data-hide-for-role="CONTABIL">Adicionar</a>
+      <a class="nav-link" href="/adicionar_comprovante" data-hide-for-role="CONTABIL,ESTAGIARIO">Adicionar</a>
       <a class="nav-link" href="/lista_comprovantes">Comprovantes</a>
       <a class="nav-link" href="/relatorios">Relatorios</a>
+      <a class="nav-link" href="/gerenciar_estagiarios" data-show-for-roles="CONTABIL">Estagi&aacute;rios</a>
       <a class="nav-link" href="/404" data-show-for-roles="ADMIN" data-route-key="adminPagePath">Admin</a>
-      <a class="nav-link nav-link-notifications" href="/notificacoes" data-show-for-roles="ADMIN,CONTABIL">
+      <a class="nav-link" href="/duvidas" data-show-for-roles="ADMIN">D&uacute;vidas</a>
+      <a class="nav-link nav-link-notifications" href="/notificacoes" data-show-for-roles="ADMIN,CONTABIL,ESTAGIARIO">
         <span>Notifica&ccedil;&otilde;es</span>
         <span class="nav-badge" data-notification-count hidden aria-live="polite"></span>
       </a>

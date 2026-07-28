@@ -8,6 +8,7 @@ import com.sistema_contabilidade.security.util.SecurityPaths;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -42,7 +43,11 @@ public class SecurityConfig {
 
   private static final String ADMIN_ROLE = "ADMIN";
   private static final String CONTABIL_ROLE = "CONTABIL";
+  private static final String ESTAGIARIO_ROLE = "ESTAGIARIO";
   private static final String CONTABIL_AUTHORITY = "ROLE_CONTABIL";
+  private static final String ESTAGIARIO_AUTHORITY = "ROLE_ESTAGIARIO";
+  private static final Set<String> ACCOUNTING_AUTHORITIES =
+      Set.of(CONTABIL_AUTHORITY, ESTAGIARIO_AUTHORITY);
   private static final String PATH_WILDCARD = "/**";
   private static final String[] PUBLIC_ACTUATOR_PATHS = {
     "/actuator/health", "/actuator/health/alb", "/actuator/info", "/actuator/prometheus"
@@ -172,6 +177,7 @@ public class SecurityConfig {
             SecurityPaths.ROOT_PATH,
             SecurityPaths.LOGIN_PAGE,
             SecurityPaths.FIRST_ACCESS_PAGE,
+            SecurityPaths.PUBLIC_INFO_PAGE,
             SecurityPaths.NOT_FOUND_PAGE,
             SecurityPaths.ERROR_PAGE,
             SecurityPaths.ERROR_PAGE + PATH_WILDCARD,
@@ -183,14 +189,18 @@ public class SecurityConfig {
         .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.UPDATE_USER_PAGE)
         .hasRole(ADMIN_ROLE)
+        .requestMatchers(SecurityPaths.MANAGE_INTERNS_PAGE, SecurityPaths.MANAGE_INTERNS_PAGE_HTML)
+        .hasRole(CONTABIL_ROLE)
         .requestMatchers(SecurityPaths.ADD_RECEIPT_PAGE, SecurityPaths.ADD_RECEIPT_PAGE_HTML)
         .access(
             (authentication, context) ->
                 new AuthorizationDecision(canAccessReceiptPage(authentication.get())))
         .requestMatchers(SecurityPaths.ADMIN_PAGE)
         .hasRole(ADMIN_ROLE)
+        .requestMatchers(SecurityPaths.QUESTIONS_PAGE, SecurityPaths.QUESTIONS_PAGE_HTML)
+        .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.NOTIFICATIONS_PAGE, SecurityPaths.NOTIFICATIONS_PAGE_HTML)
-        .hasAnyRole(ADMIN_ROLE, CONTABIL_ROLE)
+        .hasAnyRole(ADMIN_ROLE, CONTABIL_ROLE, ESTAGIARIO_ROLE)
         .requestMatchers(SecurityPaths.MANAGE_ROLES_PAGE)
         .hasRole(ADMIN_ROLE)
         .requestMatchers(STATIC_RESOURCES)
@@ -199,16 +209,22 @@ public class SecurityConfig {
         .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.AUTH_API_BASE + PATH_WILDCARD)
         .permitAll()
+        .requestMatchers(HttpMethod.POST, SecurityPaths.PUBLIC_QUESTIONS_API_BASE)
+        .permitAll()
+        .requestMatchers(SecurityPaths.PUBLIC_QUESTIONS_API_BASE + PATH_WILDCARD)
+        .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.USERS_ME_API_PATH)
         .authenticated()
         .requestMatchers(HttpMethod.PUT, SecurityPaths.USERS_ME_API_PATH)
         .authenticated()
         .requestMatchers(SecurityPaths.USERS_API_BASE + PATH_WILDCARD)
         .hasRole(ADMIN_ROLE)
+        .requestMatchers(SecurityPaths.INTERNS_API_BASE + PATH_WILDCARD)
+        .hasRole(CONTABIL_ROLE)
         .requestMatchers(SecurityPaths.ADMIN_API_BASE + PATH_WILDCARD)
         .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.NOTIFICATIONS_API_PATTERN)
-        .hasAnyRole(ADMIN_ROLE, CONTABIL_ROLE)
+        .hasAnyRole(ADMIN_ROLE, CONTABIL_ROLE, ESTAGIARIO_ROLE)
         .requestMatchers(SecurityPaths.RELATORIOS_ROLES_API_PATH)
         .authenticated()
         .anyRequest()
@@ -220,16 +236,20 @@ public class SecurityConfig {
     return authResult != null
         && authResult.isAuthenticated()
         && authResult.getAuthorities().stream()
-            .noneMatch(authority -> CONTABIL_AUTHORITY.equals(authority.getAuthority()));
+            .noneMatch(authority -> ACCOUNTING_AUTHORITIES.contains(authority.getAuthority()));
   }
 
   private boolean isNotFoundProtectedPath(String requestUri) {
     return List.of(
             SecurityPaths.ADMIN_PAGE,
+            SecurityPaths.QUESTIONS_PAGE,
+            SecurityPaths.QUESTIONS_PAGE_HTML,
             SecurityPaths.ADD_RECEIPT_PAGE,
             SecurityPaths.ADD_RECEIPT_PAGE_HTML,
             SecurityPaths.CREATE_USER_PAGE,
             SecurityPaths.CREATE_USER_PAGE_HTML,
+            SecurityPaths.MANAGE_INTERNS_PAGE,
+            SecurityPaths.MANAGE_INTERNS_PAGE_HTML,
             SecurityPaths.MANAGE_ROLES_PAGE,
             SecurityPaths.UPDATE_USER_PAGE,
             SecurityPaths.UPDATE_USER_PAGE_HTML)
