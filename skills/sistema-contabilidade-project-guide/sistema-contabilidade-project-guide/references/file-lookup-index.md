@@ -48,8 +48,9 @@ Use this only after routing to a specialized skill.
 - `src/main/resources/static/assets/js/auth-session-20260502-startup-perf-1.js`
 - `src/main/resources/static/assets/js/navbar-20260502-startup-perf-1.js`
 - `src/main/resources/static/assets/css/navbar-20260420-navbar-notification-count-fix-3.css`
-- `src/main/resources/static/assets/js/primeiro_acesso-20260605-cognito-new-password-page-1.js`
-- `src/main/resources/static/assets/js/adicionar_comprovante-20260427-auth-ready-1.js`
+- `src/main/resources/static/assets/js/primeiro_acesso-20260727-password-strength-1.js`
+- `src/main/resources/static/assets/css/primeiro_acesso-20260727-password-strength-1.css`
+- `src/main/resources/static/assets/js/adicionar_comprovante-20260727-candidato-name-1.js`
 
 ## Items, Upload and Listing
 

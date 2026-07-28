@@ -4,7 +4,7 @@
 
 - Authenticated pages are primarily rendered from `src/main/resources/templates`.
 - Static files under `src/main/resources/static` still drive public auth pages, assets and fallback flows.
-- Public `/login` and `/primeiro_acesso` are served directly from `static`.
+- Public `/login`, `/primeiro_acesso` and `/conheca` are served directly from `static`.
 - `/` is auth-aware:
   - anonymous -> `/login`
   - authenticated -> `/home`
@@ -13,8 +13,11 @@
 
 - `/login`
 - `/primeiro_acesso`
+- `/conheca`
+- `/duvidas` (`ADMIN` only)
 - `/criar_usuario`
 - `/atualizar_usuario`
+- `/gerenciar_estagiarios` (`CONTABIL` only)
 - `/adicionar_comprovante`
 - `/home`
 - `/lista_comprovantes`
@@ -47,6 +50,12 @@ Rules:
 
 ## Assets
 
+- `/conheca` uses versioned CSS/JS assets plus a local optimized MP4 under
+  `static/assets/video`. Its public question form submits to `POST /api/v1/duvidas`
+  with the CSRF token from `GET /api/v1/auth/csrf`.
+- `/duvidas` lists public questions for `ADMIN`, supports search/status filters and
+  updates the workflow status through `PATCH /api/v1/duvidas/{protocolo}/status`.
+- The first-access page displays the default Cognito password criteria below the new-password field; unmet criteria are red and become green in real time. A green strength bar reflects the five criteria, and password confirmation reports mismatches in real time. Cognito remains authoritative for the configured user-pool policy.
 - Main frontend assets use filename versioning:
   - `auth-session-20260502-startup-perf-1.js`
   - `navbar-20260420-navbar-notification-count-fix-3.css`

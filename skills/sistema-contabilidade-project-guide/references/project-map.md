@@ -5,7 +5,8 @@
 - Main project: Spring Boot 4.0.3 backend with Java 25.
 - Build: Maven Wrapper with Spotless, Checkstyle, SpotBugs, PMD, Error Prone, JaCoCo and ArchUnit.
 - Main UI: Thymeleaf templates plus static JS/CSS fallback assets.
-- Public auth pages `/login` and `/primeiro_acesso` are served from `src/main/resources/static`.
+- Public pages `/login`, `/primeiro_acesso` and `/conheca` are served from
+  `src/main/resources/static`.
 - Authenticated pages are still served primarily through backend server-side rendering.
 - `frontend-angular/` exists, but it is not the main runtime flow.
 - Production auth is provider-based: `local|cognito`, with `prod` defaulting to `cognito`.
@@ -38,8 +39,11 @@ Routes served by `PaginaUsuarioController`:
 - `/`: anonymous -> `/login`, authenticated -> `/home`
 - `/login`
 - `/primeiro_acesso`
+- `/conheca`
+- `/duvidas` (`ADMIN` only; public-question consultation and status tracking)
 - `/criar_usuario`
 - `/atualizar_usuario`
+- `/gerenciar_estagiarios` (`CONTABIL` only; manages campaign scopes for existing `ESTAGIARIO` users)
 - `/adicionar_comprovante`
 - `/home`
 - `/lista_comprovantes`

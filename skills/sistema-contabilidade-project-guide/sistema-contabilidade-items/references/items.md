@@ -19,6 +19,7 @@ Rules:
   - `CONTA FP`
   - `CONTA DC`
 - `CONTABIL` cannot access the add page.
+- Users with the technical `CANDIDATO` role see their own user name in the disabled candidate field; the submitted and stored role is their specific candidate role.
 - CPF must be unique; CNPJ can repeat.
 - Drag-and-drop should use a dedicated area and not consume global document drops.
 - Binary PDF validation happens in `PdfUploadSecurityValidator`.

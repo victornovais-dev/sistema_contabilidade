@@ -27,7 +27,14 @@ Use this skill when the task touches HTML pages, Thymeleaf templates, static aut
 - `src/main/resources/static/assets/css/lista_comprovantes-20260513-descender-fix-1.css`
 - `src/main/resources/static/assets/js/auth-session-20260502-startup-perf-1.js`
 - `src/main/resources/static/primeiro_acesso.html`
-- `src/main/resources/static/assets/js/primeiro_acesso-20260605-cognito-new-password-page-1.js`
+- `src/main/resources/static/conheca.html`
+- `src/main/resources/static/assets/css/conheca-20260727-public-intro-1.css`
+- `src/main/resources/static/assets/js/conheca-20260727-public-intro-1.js`
+- `src/main/resources/static/duvidas.html`
+- `src/main/resources/static/assets/css/duvidas-20260727-admin-list-1.css`
+- `src/main/resources/static/assets/js/duvidas-20260727-admin-list-1.js`
+- `src/main/resources/static/assets/css/primeiro_acesso-20260727-password-strength-1.css`
+- `src/main/resources/static/assets/js/primeiro_acesso-20260727-password-strength-1.js`
 - Page templates under `src/main/resources/templates/`
 - Static fallbacks under `src/main/resources/static/`
 

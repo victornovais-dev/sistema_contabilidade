@@ -43,6 +43,8 @@ Production login/admin role catalog may require:
 ## Roles and Cache
 
 - `CognitoRoleSyncService` creates missing local roles from normalized Cognito group names.
+- `ESTAGIARIO` is a technical role with the same item and notification permissions as `CONTABIL`.
+- `CONTABIL` may manage only campaign roles of users whose sole technical role is `ESTAGIARIO`, using `/api/v1/estagiarios`; the server always preserves `ESTAGIARIO` and rejects technical roles such as `CANDIDATO`, `CONTABIL` and `ADMIN`.
 - Admin user screens should use `GET /api/v1/admin/roles/disponiveis`.
 - `CustomUserDetailsService` warms/evicts `userDetails` cache entries for both email and `id:<uuid>`.
 - Already logged-in users may still need fresh login/session refresh after permission changes.
