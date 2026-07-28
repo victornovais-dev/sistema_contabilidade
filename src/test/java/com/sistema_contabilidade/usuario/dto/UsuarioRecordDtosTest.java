@@ -1,6 +1,8 @@
 package com.sistema_contabilidade.usuario.dto;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sistema_contabilidade.usuario.model.Usuario;
 import java.util.Set;
@@ -22,6 +24,7 @@ class UsuarioRecordDtosTest {
     assertEquals("123456", request.senha());
     assertEquals("ADMIN", request.role());
     assertEquals(Set.of("SUPPORT"), request.roles());
+    assertTrue(request.possuiRolesValidas());
   }
 
   @Test
@@ -31,6 +34,18 @@ class UsuarioRecordDtosTest {
 
     assertEquals("Ana", request.nome());
     assertEquals("ana@email.com", request.email());
+  }
+
+  @Test
+  @DisplayName("Deve validar roles informadas na atualizacao por email")
+  void deveValidarRolesInformadasNaAtualizacaoPorEmail() {
+    UsuarioUpdateByEmailRequest valida =
+        new UsuarioUpdateByEmailRequest("ana@email.com", null, Set.of("ADMIN"));
+    UsuarioUpdateByEmailRequest invalida =
+        new UsuarioUpdateByEmailRequest("ana@email.com", null, Set.of(" "));
+
+    assertTrue(valida.possuiRolesValidas());
+    assertFalse(invalida.possuiRolesValidas());
   }
 
   @Test

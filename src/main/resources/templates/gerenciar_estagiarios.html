@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Permissoes de estagiarios</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <script src="/assets/js/theme-init-20260414-notificacoes-1.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/css/gerenciar_estagiarios-20260727-permissoes-1.css" />
+    <link rel="stylesheet" href="/assets/css/navbar-20260420-navbar-notification-count-fix-3.css" />
+  </head>
+  <body>
+    <th:block th:replace="~{fragments/navbar :: navbar}"></th:block>
+
+    <div class="bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="page page-wide">
+      <header class="page-header">
+        <span class="chip">Cont&aacute;bil</span>
+        <h1>Permiss&otilde;es de estagi&aacute;rios</h1>
+        <p>Busque pelo e-mail e defina as campanhas que o estagi&aacute;rio pode consultar.</p>
+      </header>
+
+      <section class="card">
+        <form id="intern-permissions-form" class="form" action="#" method="post" accept-charset="UTF-8">
+          <label class="field search-field">
+            <span>E-mail do estagi&aacute;rio</span>
+            <div class="field-inline">
+              <input
+                id="email"
+                type="email"
+                name="email"
+                placeholder="estagiario@email.com"
+                required
+              />
+              <button id="load-user-btn" class="btn btn-inline" type="button">Carregar</button>
+            </div>
+          </label>
+
+          <div class="field role-picker-field">
+            <span>Campanhas permitidas</span>
+            <button id="roles-trigger" class="roles-trigger" type="button" aria-haspopup="dialog" aria-expanded="false">
+              <span class="roles-plus" aria-hidden="true">+</span>
+              <span>Selecionar campanhas</span>
+            </button>
+
+            <div id="roles-backdrop" class="roles-backdrop" hidden></div>
+            <section id="roles-card" class="roles-card" role="dialog" aria-label="Selecionar campanhas" hidden>
+              <header class="roles-card-header">
+                <strong>Selecionar campanhas</strong>
+              </header>
+              <label class="roles-search-wrap" for="roles-search">
+                <span class="roles-search-icon" aria-hidden="true">&#128269;</span>
+                <input id="roles-search" class="roles-search" type="text" placeholder="Buscar campanha" autocomplete="off" />
+              </label>
+              <div id="roles-options" class="roles-options">
+                <p class="roles-empty">Carregando campanhas...</p>
+              </div>
+              <div class="roles-actions">
+                <button id="roles-confirm" class="roles-confirm" type="button">OK</button>
+              </div>
+            </section>
+
+            <div id="selected-roles" class="selected-roles" aria-live="polite"></div>
+          </div>
+
+          <button class="btn" type="submit">Salvar permiss&otilde;es</button>
+        </form>
+      </section>
+    </main>
+
+    <div id="intern-feedback" class="confirm-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="confirm-card" role="status" aria-live="polite">
+        <div class="confirm-icon" aria-hidden="true"></div>
+        <h2 class="feedback-title"></h2>
+        <p class="feedback-message"></p>
+        <button id="feedback-ok-btn" class="btn confirm-close" type="button">Ok</button>
+      </div>
+    </div>
+
+    <script src="/assets/js/navbar-20260502-startup-perf-1.js" defer></script>
+    <script src="/assets/js/gerenciar_estagiarios-20260727-permissoes-1.js" defer></script>
+  </body>
+</html>

@@ -195,8 +195,11 @@
 
     document.querySelectorAll(".navbar [data-hide-for-role]").forEach((element) => {
       if (!(element instanceof HTMLElement)) return;
-      const role = String(element.dataset.hideForRole || "").toUpperCase();
-      if (role && roles.includes(role)) {
+      const hiddenRoles = String(element.dataset.hideForRole || "")
+        .split(",")
+        .map((role) => role.trim().toUpperCase())
+        .filter(Boolean);
+      if (hiddenRoles.some((role) => roles.includes(role))) {
         element.remove();
       }
     });

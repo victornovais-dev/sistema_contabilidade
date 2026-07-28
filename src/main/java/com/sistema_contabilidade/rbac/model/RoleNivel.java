@@ -8,6 +8,7 @@ public enum RoleNivel {
   MANAGER("MANAGER"),
   SUPPORT("SUPPORT"),
   CONTABIL("CONTABIL"),
+  ESTAGIARIO("ESTAGIARIO"),
   CANDIDATO("CANDIDATO");
 
   private final String nomeBanco;

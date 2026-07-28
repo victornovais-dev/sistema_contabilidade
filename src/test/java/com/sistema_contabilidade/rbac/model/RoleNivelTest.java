@@ -14,6 +14,7 @@ class RoleNivelTest {
   void deveResolverRoleIgnorandoCaixaEEspacosLaterais() {
     assertEquals(RoleNivel.MANAGER, RoleNivel.fromNome("  manager  "));
     assertEquals(RoleNivel.CONTABIL, RoleNivel.fromNome("contabil"));
+    assertEquals(RoleNivel.ESTAGIARIO, RoleNivel.fromNome("estagiario"));
   }
 
   @Test

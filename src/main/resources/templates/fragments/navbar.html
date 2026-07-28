@@ -24,11 +24,17 @@
             <a
               class="nav-link"
               href="/adicionar_comprovante"
-              th:if="${usuarioRoles == null or !usuarioRoles.contains('CONTABIL')}"
+              th:if="${usuarioRoles == null or (!usuarioRoles.contains('CONTABIL') and !usuarioRoles.contains('ESTAGIARIO'))}"
               >Adicionar</a
             >
             <a class="nav-link" href="/lista_comprovantes">Comprovantes</a>
             <a class="nav-link" href="/relatorios">Relatorios</a>
+            <a
+              class="nav-link"
+              href="/gerenciar_estagiarios"
+              th:if="${usuarioRoles != null and usuarioRoles.contains('CONTABIL')}"
+              >Estagi&aacute;rios</a
+            >
             <a
               class="nav-link"
               href="/404"
@@ -40,7 +46,7 @@
             <a
               class="nav-link nav-link-notifications"
               href="/notificacoes"
-              th:if="${usuarioRoles != null and (usuarioRoles.contains('ADMIN') or usuarioRoles.contains('CONTABIL'))}"
+              th:if="${usuarioRoles != null and (usuarioRoles.contains('ADMIN') or usuarioRoles.contains('CONTABIL') or usuarioRoles.contains('ESTAGIARIO'))}"
             >
               <span>Notifica&ccedil;&otilde;es</span>
               <span class="nav-badge" data-notification-count hidden aria-live="polite"></span>

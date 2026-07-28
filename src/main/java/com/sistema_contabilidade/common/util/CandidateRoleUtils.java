@@ -8,7 +8,7 @@ import java.util.Set;
 public final class CandidateRoleUtils {
 
   private static final Set<String> TECHNICAL_ROLES =
-      Set.of("ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO");
+      Set.of("ADMIN", "CONTABIL", "ESTAGIARIO", "MANAGER", "SUPPORT", "CANDIDATO");
 
   private CandidateRoleUtils() {}
 

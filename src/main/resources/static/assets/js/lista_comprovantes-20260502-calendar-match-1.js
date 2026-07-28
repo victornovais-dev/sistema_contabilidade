@@ -29,7 +29,7 @@ let filterTypeValue = "";
 const filterClear = document.querySelector(".filter-clear");
 const filterRazaoToggle = document.querySelector(".filter-toggle");
 const filterExtraField = document.querySelector("[data-filter-extra]");
-const technicalRoles = new Set(["ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO"]);
+const technicalRoles = new Set(["ADMIN", "CONTABIL", "ESTAGIARIO", "MANAGER", "SUPPORT", "CANDIDATO"]);
 const roleFilterStorageKey = "sc_home_selected_role";
 const getStoredSelectedRole = () => String(localStorage.getItem(roleFilterStorageKey) || "").trim();
 const setSelectedRole = (role) => {
@@ -231,7 +231,8 @@ const loadAndApplyCurrentUserRoles = async () => {
   }
 };
 
-const isContabilUser = () => state.userRoles.includes("CONTABIL");
+const isContabilUser = () =>
+  state.userRoles.includes("CONTABIL") || state.userRoles.includes("ESTAGIARIO");
 
 const formatLocalDateIso = (date) => {
   if (!(date instanceof Date)) return "";
