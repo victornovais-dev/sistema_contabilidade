@@ -5,10 +5,32 @@ const feedback = document.getElementById("first-access-feedback");
 const emailInput = document.getElementById("first-access-email");
 const passwordInput = document.getElementById("nova-senha");
 const confirmPasswordInput = document.getElementById("confirmar-nova-senha");
+const passwordCriteriaItems = document.querySelectorAll("[data-password-rule]");
+const passwordStrengthMeter = document.getElementById("password-strength-meter");
+const passwordStrengthFill = document.querySelector(".password-strength-fill");
+const passwordStrengthLabel = document.getElementById("password-strength-label");
+const passwordMatchStatus = document.getElementById("password-match-status");
 let csrfToken = null;
 
 const FIRST_ACCESS_EMAIL_KEY = "sc_first_login_email";
 const FIRST_ACCESS_MESSAGE_KEY = "sc_first_login_message";
+const COGNITO_SPECIAL_CHARACTERS = "^$*.[\\]{}()?\"!@#%&/\\\\,><':;|_~`=+-";
+const PASSWORD_RULES = {
+  length: (password) => password.length >= 8,
+  uppercase: (password) => /[A-Z]/.test(password),
+  lowercase: (password) => /[a-z]/.test(password),
+  number: (password) => /[0-9]/.test(password),
+  special: (password) =>
+    Array.from(password).some((character) => COGNITO_SPECIAL_CHARACTERS.includes(character)),
+};
+const PASSWORD_STRENGTH_LABELS = [
+  "Muito fraca",
+  "Muito fraca",
+  "Fraca",
+  "Média",
+  "Forte",
+  "Muito forte",
+];
 
 const readCookie = (name) => {
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -69,16 +91,53 @@ const clearFirstAccessState = () => {
   sessionStorage.removeItem(FIRST_ACCESS_MESSAGE_KEY);
 };
 
+const updatePasswordCriteria = () => {
+  const password = passwordInput.value;
+  let validRuleCount = 0;
+  passwordCriteriaItems.forEach((item) => {
+    const rule = PASSWORD_RULES[item.dataset.passwordRule];
+    const isValid = typeof rule === "function" && rule(password);
+    if (isValid) {
+      validRuleCount += 1;
+    }
+    item.classList.toggle("is-valid", isValid);
+    item.setAttribute("aria-label", `${item.textContent}: ${isValid ? "atendido" : "não atendido"}`);
+  });
+
+  const strengthPercentage = Math.round(
+    (validRuleCount / Math.max(passwordCriteriaItems.length, 1)) * 100,
+  );
+  const strengthLabel = PASSWORD_STRENGTH_LABELS[validRuleCount] || "Muito fraca";
+  passwordStrengthFill.style.width = `${strengthPercentage}%`;
+  passwordStrengthLabel.textContent = strengthLabel;
+  passwordStrengthMeter.setAttribute("aria-valuenow", String(strengthPercentage));
+  passwordStrengthMeter.setAttribute("aria-valuetext", strengthLabel);
+};
+
+const updatePasswordMatch = () => {
+  const confirmation = confirmPasswordInput.value;
+  const hasConfirmation = confirmation.length > 0;
+  const passwordsMatch = hasConfirmation && passwordInput.value === confirmation;
+
+  passwordMatchStatus.hidden = !hasConfirmation;
+  passwordMatchStatus.classList.toggle("is-valid", passwordsMatch);
+  passwordMatchStatus.textContent = passwordsMatch
+    ? "As senhas coincidem."
+    : "As senhas não coincidem.";
+  confirmPasswordInput.setCustomValidity(
+    hasConfirmation && !passwordsMatch ? "As senhas não coincidem." : "",
+  );
+  return passwordsMatch;
+};
+
 const bootstrapPage = () => {
   const email = sessionStorage.getItem(FIRST_ACCESS_EMAIL_KEY) || "";
-  const message =
-    sessionStorage.getItem(FIRST_ACCESS_MESSAGE_KEY) ||
-    "Defina a nova senha para concluir seu primeiro acesso.";
+  sessionStorage.removeItem(FIRST_ACCESS_MESSAGE_KEY);
   emailInput.value = email;
   if (!email) {
     emailInput.placeholder = "Usuario do primeiro acesso";
   }
-  setFeedback(message, "info");
+  setFeedback("");
 };
 
 const handleAuthenticatedResponse = async (data) => {
@@ -100,6 +159,8 @@ const handleAuthenticatedResponse = async (data) => {
 
 updateLabel();
 bootstrapPage();
+updatePasswordCriteria();
+updatePasswordMatch();
 
 toggle.addEventListener("click", () => {
   const isDark = root.dataset.theme === "dark";
@@ -109,6 +170,12 @@ toggle.addEventListener("click", () => {
   updateLabel();
 });
 
+passwordInput.addEventListener("input", () => {
+  updatePasswordCriteria();
+  updatePasswordMatch();
+});
+confirmPasswordInput.addEventListener("input", updatePasswordMatch);
+
 firstAccessForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   setFeedback("Salvando nova senha...");
@@ -116,8 +183,9 @@ firstAccessForm.addEventListener("submit", async (event) => {
   const novaSenha = passwordInput.value;
   const confirmarSenha = confirmPasswordInput.value;
 
-  if (novaSenha !== confirmarSenha) {
+  if (novaSenha !== confirmarSenha || !updatePasswordMatch()) {
     setFeedback("A confirmacao da nova senha nao confere", "error");
+    confirmPasswordInput.reportValidity();
     return;
   }
 

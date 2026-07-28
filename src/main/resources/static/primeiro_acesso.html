@@ -13,6 +13,10 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/assets/css/login.css" />
+    <link
+      rel="stylesheet"
+      href="/assets/css/primeiro_acesso-20260727-password-strength-1.css"
+    />
     <script src="/assets/js/auth-session-20260502-startup-perf-1.js"></script>
   </head>
   <body>
@@ -49,29 +53,65 @@
             />
           </label>
 
-          <label class="field">
-            <span>Nova senha</span>
-            <input
-              id="nova-senha"
-              type="password"
-              name="newPassword"
-              placeholder="Digite a nova senha"
-              autocomplete="new-password"
-              required
-            />
-          </label>
+          <div class="password-field-group">
+            <label class="field">
+              <span>Nova senha</span>
+              <input
+                id="nova-senha"
+                type="password"
+                name="newPassword"
+                placeholder="Digite a nova senha"
+                autocomplete="new-password"
+                aria-describedby="password-criteria"
+                required
+              />
+            </label>
 
-          <label class="field">
-            <span>Confirmar nova senha</span>
-            <input
-              id="confirmar-nova-senha"
-              type="password"
-              name="confirmPassword"
-              placeholder="Repita a nova senha"
-              autocomplete="new-password"
-              required
-            />
-          </label>
+            <div id="password-criteria" class="password-criteria">
+              <p>A senha deve conter:</p>
+              <ul>
+                <li data-password-rule="length">8 caracteres ou mais</li>
+                <li data-password-rule="uppercase">Uma letra maiúscula</li>
+                <li data-password-rule="lowercase">Uma letra minúscula</li>
+                <li data-password-rule="number">Um número</li>
+                <li data-password-rule="special">Um caractere especial</li>
+              </ul>
+            </div>
+
+            <div class="password-strength">
+              <div class="password-strength-heading">
+                <span>Força da senha</span>
+                <strong id="password-strength-label">Muito fraca</strong>
+              </div>
+              <div
+                id="password-strength-meter"
+                class="password-strength-meter"
+                role="progressbar"
+                aria-label="Força da senha"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <span class="password-strength-fill"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="confirm-password-group">
+            <label class="field">
+              <span>Confirmar nova senha</span>
+              <input
+                id="confirmar-nova-senha"
+                type="password"
+                name="confirmPassword"
+                placeholder="Repita a nova senha"
+                autocomplete="new-password"
+                aria-describedby="password-match-status"
+                required
+              />
+            </label>
+            <p id="password-match-status" class="password-match-status" aria-live="polite" hidden></p>
+          </div>
 
           <button id="first-access-submit" class="btn" type="submit">Salvar nova senha</button>
         </form>
@@ -81,6 +121,6 @@
       </section>
     </main>
 
-    <script src="/assets/js/primeiro_acesso-20260605-cognito-new-password-page-1.js" defer></script>
+    <script src="/assets/js/primeiro_acesso-20260727-password-strength-1.js" defer></script>
   </body>
 </html>
