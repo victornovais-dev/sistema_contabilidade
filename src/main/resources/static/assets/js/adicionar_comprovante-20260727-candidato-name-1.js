@@ -79,11 +79,20 @@ const MAX_VALOR_CENTS = 1000000000;
 const MAX_RAZAO_SOCIAL_LENGTH = 150;
 const MAX_NUMERO_DOCUMENTO_LENGTH = 50;
 const MAX_RECEIPT_SIZE_BYTES = 20 * 1024 * 1024;
-const TECHNICAL_ROLES = new Set(["ADMIN", "CONTABIL", "MANAGER", "SUPPORT", "CANDIDATO"]);
+const TECHNICAL_ROLES = new Set([
+  "ADMIN",
+  "CONTABIL",
+  "ESTAGIARIO",
+  "MANAGER",
+  "SUPPORT",
+  "CANDIDATO",
+]);
+const CANDIDATO_ROLE = "CANDIDATO";
 const REQUIRED_ATTACHMENT_MESSAGE = "Anexe ao menos um comprovante em PDF.";
 const tipoDocumentoOptionsCache = new Map();
 let descricaoRequestSequence = 0;
 let tipoDocumentoRequestSequence = 0;
+let currentCandidateDisplayName = null;
 
 const isFileDragEvent = (event) => {
   const types = event?.dataTransfer?.types;
@@ -486,15 +495,18 @@ const syncRoleFieldAvailability = () => {
 
   if (roles.length <= 1) {
     const singleRole = roles[0] || "";
+    const isCandidateRole = Boolean(currentCandidateDisplayName);
     roleSelect.value = singleRole;
     roleSelect.disabled = true;
     roleSelect.required = false;
     if (trigger instanceof HTMLButtonElement) {
       trigger.disabled = true;
-      trigger.textContent = singleRole || "Role unica";
+      trigger.textContent = isCandidateRole
+        ? currentCandidateDisplayName
+        : singleRole || "Role unica";
     }
     if (roleField) {
-      roleField.hidden = true;
+      roleField.hidden = !isCandidateRole;
     }
     customRole?.syncFromSelect?.();
     return;
@@ -527,7 +539,7 @@ const syncRoleFieldAvailability = () => {
   customRole?.syncFromSelect?.();
 };
 
-const renderRoleOptions = (roles) => {
+const renderRoleOptions = (roles, candidateDisplayName = null) => {
   if (!roleSelect) return;
   const wrapper = roleSelect.closest("[data-custom-select]");
   if (!wrapper) return;
@@ -547,11 +559,16 @@ const renderRoleOptions = (roles) => {
 
   roleSelect.querySelectorAll("option:not([value=\"\"])").forEach((option) => option.remove());
   menu.innerHTML = "";
+  currentCandidateDisplayName = String(candidateDisplayName || "").trim() || null;
 
   orderedRoles.forEach((role) => {
+    const roleLabel =
+      currentCandidateDisplayName && orderedRoles.length === 1
+        ? currentCandidateDisplayName
+        : role;
     const option = document.createElement("option");
     option.value = role;
-    option.textContent = role;
+    option.textContent = roleLabel;
     roleSelect.appendChild(option);
 
     const button = document.createElement("button");
@@ -559,7 +576,7 @@ const renderRoleOptions = (roles) => {
     button.type = "button";
     button.setAttribute("role", "option");
     button.dataset.value = role;
-    button.textContent = role;
+    button.textContent = roleLabel;
     menu.appendChild(button);
   });
 
@@ -569,9 +586,9 @@ const renderRoleOptions = (roles) => {
     roleSelect.disabled = true;
     roleSelect.required = false;
     trigger.disabled = true;
-    trigger.textContent = singleRole || "Role única";
+    trigger.textContent = currentCandidateDisplayName || singleRole || "Role única";
     if (roleField) {
-      roleField.hidden = true;
+      roleField.hidden = !currentCandidateDisplayName;
     }
   } else {
     roleSelect.value = "";
@@ -587,6 +604,37 @@ const renderRoleOptions = (roles) => {
   customRole?.syncFromSelect();
 };
 
+const loadCurrentCandidateDisplayName = async (accessToken) => {
+  try {
+    const userRoles = await window.SCAuth?.getUserRoles?.();
+    const isCandidate = Array.isArray(userRoles)
+      ? userRoles.some((role) => String(role || "").trim().toUpperCase() === CANDIDATO_ROLE)
+      : false;
+    if (!isCandidate) return null;
+
+    const response = await fetch("/api/v1/usuarios/me", {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    });
+
+    if (response.status === 401) {
+      redirectToLogin();
+      return null;
+    }
+    if (!response.ok) return null;
+
+    const payload = await response.json().catch(() => ({}));
+    return String(payload?.nome || "").trim() || null;
+  } catch (error) {
+    return null;
+  }
+};
+
 const loadRoleOptions = async () => {
   const accessToken = await getAccessToken();
   if (!accessToken || !roleSelect) {
@@ -596,6 +644,7 @@ const loadRoleOptions = async () => {
     return;
   }
 
+  const candidateDisplayNamePromise = loadCurrentCandidateDisplayName(accessToken);
   const response = await fetch("/api/v1/itens/roles", {
     method: "GET",
     credentials: "same-origin",
@@ -609,12 +658,13 @@ const loadRoleOptions = async () => {
     return;
   }
   if (!response.ok) {
-    renderRoleOptions([]);
+    renderRoleOptions([], await candidateDisplayNamePromise);
+    updateExtratoBancarioFieldState();
     return;
   }
 
   const roles = await response.json();
-  renderRoleOptions(roles);
+  renderRoleOptions(roles, await candidateDisplayNamePromise);
   updateExtratoBancarioFieldState();
 };
 

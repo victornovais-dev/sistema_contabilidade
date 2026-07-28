@@ -26,6 +26,7 @@ import com.sistema_contabilidade.item.service.ItemDescricaoService;
 import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
+import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.security.util.SecurityPaths;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.model.Usuario;
@@ -89,6 +90,10 @@ public class ItemController {
   private static final String CONTENT_TYPE_OPTIONS_HEADER = "X-Content-Type-Options";
   private static final String NOSNIFF = "nosniff";
   private static final String CONTABIL_AUTHORITY = "ROLE_CONTABIL";
+  private static final String ESTAGIARIO_AUTHORITY = "ROLE_ESTAGIARIO";
+  private static final Set<String> ACCOUNTING_AUTHORITIES =
+      Set.of(CONTABIL_AUTHORITY, ESTAGIARIO_AUTHORITY);
+  private static final String CANDIDATO_ROLE = "CANDIDATO";
   private static final String SUPPORT_AUTHORITY = "ROLE_SUPPORT";
   private static final String CANDIDATO_AUTHORITY = "ROLE_CANDIDATO";
   private static final String CONTABIL_NAO_PODE_EXCLUIR_ITEM =
@@ -118,6 +123,7 @@ public class ItemController {
   private final ItemDescricaoService itemDescricaoService;
   private final ItemTipoDocumentoService itemTipoDocumentoService;
   private final NotificacaoService notificacaoService;
+  private final CandidateRoleCatalogService candidateRoleCatalogService;
   private final UsuarioRepository usuarioRepository;
   private final InputSanitizer inputSanitizer;
   private final ObjectProvider<EntityManager> entityManagerProvider;
@@ -465,7 +471,7 @@ public class ItemController {
     if (authentication == null) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario nao autenticado");
     }
-    if (temAuthority(authentication, CONTABIL_AUTHORITY)) {
+    if (temAlgumaAuthority(authentication, ACCOUNTING_AUTHORITIES)) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, CONTABIL_NAO_PODE_EXCLUIR_ITEM);
     }
   }
@@ -512,8 +518,17 @@ public class ItemController {
 
   private boolean podeAcessarItemPorEscopo(Authentication authentication, Item item) {
     return isAdmin(authentication)
-        || temAuthority(authentication, CONTABIL_AUTHORITY)
+        || temAlgumaAuthority(authentication, ACCOUNTING_AUTHORITIES)
         || temAcessoPorRole(authentication, item);
+  }
+
+  private boolean temAlgumaAuthority(Authentication authentication, Set<String> authorities) {
+    if (authentication == null) {
+      return false;
+    }
+    return authentication.getAuthorities().stream()
+        .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+        .anyMatch(authorities::contains);
   }
 
   @SuppressWarnings("PMD.CloseResource")
@@ -578,28 +593,81 @@ public class ItemController {
     String roleRequestNormalizada =
         ItemAccessUtils.normalizarRole(inputSanitizer.sanitizeInlineText(roleRequest, "role", 80));
     if (roleRequestNormalizada != null) {
-      if (!usuarioAdmin) {
-        validarRoleFiltro(roleRequestNormalizada, roleNomesUsuario);
-      }
-      return roleRequestNormalizada;
+      return resolverRoleInformada(roleRequestNormalizada, usuarioAdmin, roleNomesUsuario);
     }
 
     String roleAtualNormalizada = ItemAccessUtils.normalizarRole(roleAtualItem);
     if (roleAtualNormalizada != null) {
-      return roleAtualNormalizada;
+      return resolverRoleAtual(roleAtualNormalizada, usuarioAdmin, roleNomesUsuario);
     }
 
+    return resolverRoleSemInformacao(roleNomesUsuario, usuarioAdmin, contaFinanceira);
+  }
+
+  private String resolverRoleInformada(
+      String roleRequestNormalizada, boolean usuarioAdmin, Set<String> roleNomesUsuario) {
+    if (deveUsarRoleEspecificaDoCandidato(roleRequestNormalizada, usuarioAdmin, roleNomesUsuario)) {
+      return resolverRoleEspecificaDoCandidato(roleNomesUsuario);
+    }
+    if (!usuarioAdmin) {
+      validarRoleFiltro(roleRequestNormalizada, roleNomesUsuario);
+    }
+    return roleRequestNormalizada;
+  }
+
+  private String resolverRoleAtual(
+      String roleAtualNormalizada, boolean usuarioAdmin, Set<String> roleNomesUsuario) {
+    if (deveUsarRoleEspecificaDoCandidato(roleAtualNormalizada, usuarioAdmin, roleNomesUsuario)) {
+      return resolverRoleEspecificaDoCandidato(roleNomesUsuario);
+    }
+    return roleAtualNormalizada;
+  }
+
+  private boolean deveUsarRoleEspecificaDoCandidato(
+      String roleNome, boolean usuarioAdmin, Set<String> roleNomesUsuario) {
+    return !usuarioAdmin
+        && CANDIDATO_ROLE.equals(roleNome)
+        && roleNomesUsuario.contains(CANDIDATO_ROLE);
+  }
+
+  private String resolverRoleSemInformacao(
+      Set<String> roleNomesUsuario, boolean usuarioAdmin, boolean contaFinanceira) {
     if (contaFinanceira) {
-      if (usuarioAdmin) {
-        return null;
-      }
-      return roleNomesUsuario.stream().sorted().findFirst().orElse(null);
+      return resolverRoleContaFinanceira(roleNomesUsuario, usuarioAdmin);
+    }
+
+    if (!usuarioAdmin && roleNomesUsuario.contains(CANDIDATO_ROLE)) {
+      return resolverRoleEspecificaDoCandidato(roleNomesUsuario);
     }
 
     if (roleNomesUsuario.size() == SINGLE_ROLE_COUNT) {
       return roleNomesUsuario.iterator().next();
     }
 
+    throw new ResponseStatusException(
+        HttpStatus.BAD_REQUEST, "Selecione a role responsavel por este comprovante.");
+  }
+
+  private String resolverRoleContaFinanceira(Set<String> roleNomesUsuario, boolean usuarioAdmin) {
+    if (usuarioAdmin) {
+      return null;
+    }
+    if (roleNomesUsuario.contains(CANDIDATO_ROLE)) {
+      return resolverRoleEspecificaDoCandidato(roleNomesUsuario);
+    }
+    return roleNomesUsuario.stream().sorted().findFirst().orElse(null);
+  }
+
+  private String resolverRoleEspecificaDoCandidato(Set<String> roleNomesUsuario) {
+    List<String> rolesCandidato =
+        candidateRoleCatalogService.filterAvailableRoles(roleNomesUsuario);
+    if (rolesCandidato.size() == SINGLE_ROLE_COUNT) {
+      return rolesCandidato.getFirst();
+    }
+    if (rolesCandidato.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Usuario CANDIDATO precisa de uma role especifica de candidato.");
+    }
     throw new ResponseStatusException(
         HttpStatus.BAD_REQUEST, "Selecione a role responsavel por este comprovante.");
   }

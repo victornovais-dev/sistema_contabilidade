@@ -43,6 +43,7 @@ import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
+import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.relatorio.service.RelatorioResumoCacheService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
@@ -98,6 +99,7 @@ class ItemControllerWebMvcTest {
   @MockitoBean private ItemTipoDocumentoService itemTipoDocumentoService;
   @MockitoBean private ItemListService itemListService;
   @MockitoBean private NotificacaoService notificacaoService;
+  @MockitoBean private CandidateRoleCatalogService candidateRoleCatalogService;
   @MockitoBean private RoleRepository roleRepository;
   @MockitoBean private UsuarioRepository usuarioRepository;
   @MockitoBean private JwtService jwtService;
@@ -266,6 +268,48 @@ class ItemControllerWebMvcTest {
                     }
                     """))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("Deve salvar comprovante de candidato na role especifica")
+  void criarDeveSalvarComprovanteDeCandidatoNaRoleEspecifica() throws Exception {
+    when(usuarioRepository.findByEmail("candidato@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("candidato", "CANDIDATO", "JOAO DA SILVA")));
+    when(candidateRoleCatalogService.filterAvailableRoles(
+            java.util.Set.of("CANDIDATO", "JOAO DA SILVA")))
+        .thenReturn(List.of("JOAO DA SILVA"));
+    when(itemArquivoStorageService.salvarPdfs(any(), any()))
+        .thenReturn(List.of("uploads/itens/candidato.pdf"));
+    when(itemRepository.save(any(Item.class)))
+        .thenAnswer(
+            invocation -> {
+              Item item = invocation.getArgument(0);
+              item.setId(UUID.fromString("10101010-1111-1111-1111-111111111111"));
+              return item;
+            });
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens")
+                .with(authComRoles("candidato@email.com", "CANDIDATO", "JOAO DA SILVA"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":120.50,
+                      "data":"2026-03-15",
+                      "horarioCriacao":"2026-03-15T18:00:00",
+                      "arquivosPdf":["cGRm"],
+                      "nomesArquivos":["candidato.pdf"],
+                      "tipo":"DESPESA",
+                      "descricao":"SERVICOS",
+                      "role":"CANDIDATO"
+                    }
+                    """))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.role").value("JOAO DA SILVA"));
+
+    verify(itemRepository).save(argThat(item -> "JOAO DA SILVA".equals(item.getRoleNome())));
   }
 
   @Test
@@ -1053,6 +1097,23 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve permitir ESTAGIARIO buscar item mesmo sem intersecao de roles")
+  void buscarPorIdDevePermitirEstagiarioMesmoSemIntersecaoDeRoles() throws Exception {
+    UUID id = UUID.fromString("99999999-1111-2222-3333-444444444446");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("CANDIDATO_TESTE");
+    item.setTipo(TipoItem.RECEITA);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens/{id}", id).with(authComRoles("estagiario@email.com", "ESTAGIARIO")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tipo").value("RECEITA"));
+  }
+
+  @Test
   @DisplayName("Deve baixar arquivo PDF do item")
   void baixarArquivoDeveRetornarPdf() throws Exception {
     UUID id = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -1561,6 +1622,21 @@ class ItemControllerWebMvcTest {
     mockMvc
         .perform(
             delete("/api/v1/itens/{id}", id).with(authComRoles("contabil@email.com", "CONTABIL")))
+        .andExpect(status().isForbidden());
+
+    verify(itemRepository, never()).delete(any(Item.class));
+    verify(notificacaoService, never()).removerPorItemId(any(UUID.class));
+  }
+
+  @Test
+  @DisplayName("Deve proibir usuario ESTAGIARIO de deletar item")
+  void deletarDeveRetornarForbiddenQuandoUsuarioForEstagiario() throws Exception {
+    UUID id = UUID.fromString("67676767-7777-7777-7777-777777777778");
+
+    mockMvc
+        .perform(
+            delete("/api/v1/itens/{id}", id)
+                .with(authComRoles("estagiario@email.com", "ESTAGIARIO")))
         .andExpect(status().isForbidden());
 
     verify(itemRepository, never()).delete(any(Item.class));

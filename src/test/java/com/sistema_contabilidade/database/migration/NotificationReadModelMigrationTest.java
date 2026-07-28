@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.sistema_contabilidade.auth.model.SessaoUsuario;
+import com.sistema_contabilidade.duvida.model.Duvida;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
 import com.sistema_contabilidade.item.model.ItemDescricao;
@@ -40,6 +41,10 @@ class NotificationReadModelMigrationTest {
   private static final String RECEITA_SEM_NOTIFICACAO = "00000000-0000-0000-0000-000000000002";
   private static final String DESPESA = "00000000-0000-0000-0000-000000000003";
   private static final String ITEM_ORFAO = "00000000-0000-0000-0000-000000000004";
+  private static final String RECEITA_CANDIDATO = "00000000-0000-0000-0000-000000000005";
+  private static final String USUARIO_CANDIDATO = "10000000-0000-0000-0000-000000000005";
+  private static final String ROLE_CANDIDATO = "20000000-0000-0000-0000-000000000005";
+  private static final String ROLE_CANDIDATO_ESPECIFICA = "30000000-0000-0000-0000-000000000005";
 
   @Container
   private static final MySQLContainer MYSQL =
@@ -57,7 +62,8 @@ class NotificationReadModelMigrationTest {
     Flyway flyway = configureFlyway().load();
     flyway.migrate();
 
-    assertThat(flyway.info().current().getVersion()).isEqualTo(MigrationVersion.fromVersion("2"));
+    assertThat(flyway.info().current().getVersion()).isEqualTo(MigrationVersion.fromVersion("6"));
+    assertPublicQuestionTableExists();
     assertNotificationDataWasReconciled();
     assertNotificationConstraintsAreEnforced();
     assertHibernateMappingsMatchMigratedSchema();
@@ -105,8 +111,42 @@ class NotificationReadModelMigrationTest {
             "notificacoes");
   }
 
+  private void assertPublicQuestionTableExists() throws SQLException {
+    assertThat(
+            queryCount(
+                "select count(*) from information_schema.tables "
+                    + "where table_schema = database() and table_name = 'duvidas_publicas'"))
+        .isEqualTo(1);
+    assertThat(
+            queryCount(
+                "select count(*) from information_schema.columns "
+                    + "where table_schema = database() and table_name = 'duvidas_publicas' "
+                    + "and column_name = 'status' and column_default = 'PENDENTE'"))
+        .isEqualTo(1);
+  }
+
   private void seedLegacyNotificationData() throws SQLException {
     execute(
+        """
+        insert into roles (id, nome)
+        values
+          (uuid_to_bin('%s'), 'CANDIDATO'),
+          (uuid_to_bin('%s'), 'JOAO DA SILVA')
+        """
+            .formatted(ROLE_CANDIDATO, ROLE_CANDIDATO_ESPECIFICA),
+        """
+        insert into usuarios (id, email, nome, senha)
+        values (uuid_to_bin('%s'), 'joao@email.com', 'Joao da Silva', 'senha')
+        """
+            .formatted(USUARIO_CANDIDATO),
+        """
+        insert into usuario_roles (usuario_id, role_id)
+        values
+          (uuid_to_bin('%s'), uuid_to_bin('%s')),
+          (uuid_to_bin('%s'), uuid_to_bin('%s'))
+        """
+            .formatted(
+                USUARIO_CANDIDATO, ROLE_CANDIDATO, USUARIO_CANDIDATO, ROLE_CANDIDATO_ESPECIFICA),
         """
         insert into itens
           (id, valor, data, horario_criacao, descricao, razao_social, role_nome, verificado, tipo)
@@ -119,6 +159,16 @@ class NotificationReadModelMigrationTest {
            'Despesa', 'Fornecedor', 'CONTABIL', b'0', 'DESPESA')
         """
             .formatted(RECEITA_COM_DUPLICATAS, RECEITA_SEM_NOTIFICACAO, DESPESA),
+        """
+        insert into itens
+          (id, valor, data, horario_criacao, descricao, razao_social, role_nome, verificado, tipo,
+           criado_por_id)
+        values
+          (uuid_to_bin('%s'), 400.00, '2026-07-04', '2026-07-04 13:00:00',
+           'Receita de candidato', 'Empresa Candidata', 'CANDIDATO', b'0', 'RECEITA',
+           uuid_to_bin('%s'))
+        """
+            .formatted(RECEITA_CANDIDATO, USUARIO_CANDIDATO),
         """
         insert into notificacoes
           (id, item_id, role_nome, descricao, razao_social_nome, valor, criado_em, limpa)
@@ -136,7 +186,7 @@ class NotificationReadModelMigrationTest {
   }
 
   private void assertNotificationDataWasReconciled() throws SQLException {
-    assertThat(queryCount("select count(*) from notificacoes")).isEqualTo(2);
+    assertThat(queryCount("select count(*) from notificacoes")).isEqualTo(3);
 
     try (Connection connection = connection();
         PreparedStatement statement =
@@ -170,6 +220,19 @@ class NotificationReadModelMigrationTest {
                 DESPESA,
                 ITEM_ORFAO))
         .isZero();
+    assertThat(
+            queryCount(
+                "select count(*) from itens where id = uuid_to_bin(?) and role_nome = 'JOAO DA SILVA'",
+                RECEITA_CANDIDATO))
+        .isEqualTo(1);
+    assertThat(
+            queryCount(
+                """
+                select count(*) from notificacoes
+                where item_id = uuid_to_bin(?) and role_nome = 'JOAO DA SILVA'
+                """,
+                RECEITA_CANDIDATO))
+        .isEqualTo(1);
   }
 
   private void assertNotificationConstraintsAreEnforced() {
@@ -214,6 +277,7 @@ class NotificationReadModelMigrationTest {
             .addAnnotatedClass(ItemParcelaPagamentoArquivo.class)
             .addAnnotatedClass(ItemTipoDocumento.class)
             .addAnnotatedClass(Notificacao.class)
+            .addAnnotatedClass(Duvida.class)
             .setProperty("jakarta.persistence.jdbc.url", MYSQL.getJdbcUrl())
             .setProperty("jakarta.persistence.jdbc.user", MYSQL.getUsername())
             .setProperty("jakarta.persistence.jdbc.password", MYSQL.getPassword())
