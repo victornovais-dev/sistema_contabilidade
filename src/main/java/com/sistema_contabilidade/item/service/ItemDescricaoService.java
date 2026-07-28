@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.item.service;
 
 import com.sistema_contabilidade.item.config.ItemDescricaoCatalog;
+import com.sistema_contabilidade.item.model.ItemDescricao;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemDescricaoRepository;
 import java.text.Normalizer;
@@ -33,7 +34,7 @@ public class ItemDescricaoService {
     try {
       List<String> descricoesBanco =
           itemDescricaoRepository.findByTipoOrderByOrdemAscNomeAsc(tipo).stream()
-              .map(itemDescricao -> itemDescricao.getNome())
+              .map(ItemDescricao::getNome)
               .toList();
       if (!descricoesBanco.isEmpty()) {
         return ordenarDescricoes(descricoesBanco, tipo);
