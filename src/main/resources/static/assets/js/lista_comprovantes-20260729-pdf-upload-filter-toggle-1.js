@@ -2114,8 +2114,8 @@ const buildPagamentoPayload = async () => {
     const nomesArquivos = [];
     for (const arquivo of parcela.arquivos.filter((entry) => entry.file instanceof File)) {
       const picked = validateUploadFilesOrThrow([arquivo.file]);
-      const buffer = await picked[0].arrayBuffer();
-      arquivosPdf.push(Array.from(new Uint8Array(buffer)));
+      const [arquivoBase64] = await encodeFilesAsBase64(picked);
+      arquivosPdf.push(arquivoBase64);
       nomesArquivos.push(picked[0].name);
     }
     parcelas.push({
@@ -2230,7 +2230,7 @@ const loadItemArquivos = async (id) => {
   updateUploadSaveVisibility();
 };
 
-const filesToBase64 = async (files) => {
+const encodeFilesAsBase64 = async (files) => {
   if (!files || files.length === 0) return [];
   const array = Array.from(files);
   const encoded = [];
@@ -2381,7 +2381,7 @@ const uploadArquivos = async (files) => {
     return;
   }
   const token = await ensureCsrfToken(true);
-  const arquivosPdf = await filesToBase64(pdfs);
+  const arquivosPdf = await encodeFilesAsBase64(pdfs);
   const nomesArquivos = filesToNames(pdfs);
   const response = await fetch(`/api/v1/itens/${pendingUploadItemId}/arquivos`, {
     method: "POST",
@@ -3053,13 +3053,6 @@ const bindEvents = () => {
       const isCollapsed = filterExtraField.classList.toggle("is-collapsed");
       filterRazaoToggle.classList.toggle("is-collapsed", isCollapsed);
       filterRazaoToggle.setAttribute("aria-expanded", String(!isCollapsed));
-      if (isCollapsed) {
-        if (filterRazaoInput) filterRazaoInput.value = "";
-        filterDescricaoValue = "";
-        if (filterDescricaoTrigger) filterDescricaoTrigger.textContent = "Todas";
-        void syncFilterDescricaoOptions(filterTypeValue);
-        void applyFilters();
-      }
     });
   }
 
