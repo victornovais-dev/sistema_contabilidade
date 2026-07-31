@@ -22,6 +22,8 @@
 - `notificacao`: notifications derived from receitas.
 - `security`: JWT/session filter, rate limit, headers, CORS, CSRF, secret admin routes.
 - `monitoring`: query count per request, HTTP timing, JVM memory, Micrometer export.
+- `database.crypto`: AES-256-GCM field encryption, equality blind indexes and legacy-data
+  backfill. Uses `DB_COLUMN_CRYPTO_SECRET`; all JPA entities use timestamp soft delete.
 - `common`: shared utilities such as revenue classification and technical-role filtering.
 
 ## Architecture Rules

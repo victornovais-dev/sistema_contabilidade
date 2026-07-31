@@ -113,7 +113,26 @@ Operational metrics use fixed, low-cardinality tags:
 | `app.rate_limit.total` | `backend`, `result` | Valkey/local rate-limit decisions |
 | `app.valkey.operation.errors` | `operation` | Failed Valkey operations |
 | `app.relatorio.resumo.cache.total` | `result` | Report-cache hit/miss/bypass/error |
+| `app.memory.heap.usage.ratio` | none | JVM heap used divided by maximum heap |
+| `app.memory.metaspace.usage.ratio` | none | JVM Metaspace used divided by maximum/committed |
+| `app.memory.process.rss.bytes` | none | Resident memory of the Java process |
+| `app.memory.container.usage.bytes` | none | Total application cgroup memory, including Chromium |
+| `app.memory.container.limit.bytes` | none | Finite cgroup hard limit |
+| `app.memory.container.usage.ratio` | none | Total cgroup usage divided by hard limit |
+| `app.memory.heap.max.to.container.ratio` | none | Maximum JVM heap divided by cgroup limit |
+| `app.memory.container.limit.configured` | none | `1` finite limit, `0` absent/unlimited |
+| `app.cache.size` | `cache` | Estimated entries currently held by a local Caffeine cache |
+| `app.cache.maximum.entries` | `cache` | Configured hard entry limit |
+| `app.cache.expiration.seconds` | `cache` | Configured expire-after-write duration |
+| `app.cache.requests` | `cache`, `result=hit\|miss` | Cumulative cache lookup results |
+| `app.cache.evictions` | `cache` | Cumulative size-based or expiration evictions |
 
 Never add session IDs, user IDs, IPs, endpoints, tokens, cache keys or credentials as labels. Full
 production thresholds, CloudWatch alarms, failure drills and rollback steps are in
 `docs/runbooks/multi-az-valkey-operations.md`.
+
+Prometheus loads `observability/prometheus/rules/memory-envelope-alerts.yml` and
+`observability/prometheus/rules/caffeine-cache-alerts.yml`. The Caffeine rules warn when a cache
+stays above 90% of its entry limit or sustains more than one eviction per second. Production must
+also monitor EC2 host memory and OOM kills through CloudWatch Agent because JVM, cgroup and cache
+metrics do not replace host-level telemetry.

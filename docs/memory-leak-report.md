@@ -23,14 +23,14 @@ Nenhum achado critico aberto apos a implementacao desta mudanca.
 - **Por que merece atencao:** `ThreadLocal` em pool de threads vira leak se nao houver `remove()`
 - **Status atual:** seguro; `QueryCountFilter` chama `QueryCountContext.clear()` em `finally`
 
-### [BAIXO] Caches aplicacionais ja possuem limite e expiracao
-- **Arquivos:** `src/main/resources/application.properties`, `src/main/java/com/sistema_contabilidade/SistemaContabilidadeApplication.java`
-- **Padrao:** `@Cacheable` com Caffeine
-- **Status atual:** seguro; ha `maximumSize` e `expireAfterWrite`
+### [BAIXO] Caches aplicacionais possuem politicas explicitas
+- **Arquivos:** `src/main/resources/application.properties`, `src/main/java/com/sistema_contabilidade/monitoring/cache`
+- **Padrao:** `@Cacheable` e cache local de sticky writer com Caffeine
+- **Status atual:** todos passam pela mesma fabrica, com `maximumSize`, `expireAfterWrite`, estatisticas e metricas
 
 ## Boas Praticas Identificadas
 - `QueryCountContext` usa `ThreadLocal.remove()` no fluxo de encerramento do filtro
-- caches `userDetails`, `itemDescricoes` e `itemTiposDocumento` usam Caffeine com eviction
+- caches `userDetails`, `itemDescricoes`, `itemTiposDocumento` e `stickyWriterLocal` usam Caffeine com eviction
 - nao encontrei `@SessionScope` com payload grande
 - nao encontrei `addListener(...)` sem remocao correspondente no backend principal
 
@@ -38,6 +38,7 @@ Nenhum achado critico aberto apos a implementacao desta mudanca.
 - metricas Prometheus: `app_memory_heap_usage_ratio` e `app_memory_metaspace_usage_ratio`
 - configuracoes `app.memory-monitor.*` para threshold e logging agendado
 - servico interno `MemoryMonitoringService` para snapshot e alerta de pressao de memoria
+- metricas de capacidade, requisicoes e evicoes para todos os caches Caffeine locais
 
 ## Proximos Passos
 1. Ativar `APP_MEMORY_MONITOR_SCHEDULED_LOGGING_ENABLED=true` em ambiente de investigacao quando houver suspeita real de crescimento de heap.

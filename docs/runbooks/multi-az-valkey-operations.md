@@ -31,6 +31,37 @@ EC2 runs the explicit writer setting.
 
 Store secret values in Secrets Manager. Inject them into both EC2 processes without printing them.
 
+### Database data protection
+
+RDS storage encryption with a customer-managed KMS key is mandatory. It protects the complete
+database storage, automated backups, snapshots and replicas, including structural and analytical
+columns that must remain queryable by MySQL. An existing unencrypted RDS database must be migrated
+through an encrypted snapshot copy and restore before this release; storage encryption cannot be
+substituted by application field converters.
+
+The application additionally encrypts sensitive domain strings with AES-256-GCM and uses
+context-separated HMAC-SHA-256 blind indexes for equality searches. Configure both EC2 instances
+with the same stable secret:
+
+```text
+DB_COLUMN_CRYPTO_SECRET=<at least 32 random bytes from Secrets Manager>
+APP_DB_CRYPTO_BACKFILL_ENABLED=true
+```
+
+`DB_COLUMN_CRYPTO_SECRET` must be independent from database credentials. The
+`SESSION_CRYPTO_SECRET` fallback exists for compatibility, but production must set the dedicated
+secret explicitly. Do not rotate or remove it in place: existing ciphertext and blind indexes
+would become unreadable. Rotation requires a versioned dual-key migration, complete re-encryption
+and blind-index rebuild.
+
+The backfill is idempotent and encrypts legacy plaintext after Flyway V7. Keep maintenance mode
+enabled while it runs. After verifying that no protected column contains legacy plaintext, set
+`APP_DB_CRYPTO_BACKFILL_ENABLED=false` on both instances to avoid full-table scans on later starts.
+New and updated entities remain encrypted by JPA converters.
+
+Soft delete uses `deleted_at`; normal Hibernate repository reads omit deleted rows. Physical purge,
+retention and restore are separate administrative workflows and must not bypass audit requirements.
+
 ### RDS endpoints and routing
 
 ```text
@@ -118,6 +149,124 @@ JAVA_TOOL_OPTIONS=-Dnetworkaddress.cache.ttl=60 -Dnetworkaddress.cache.negative.
 These TTLs let new RDS and Valkey endpoint addresses be resolved after failover. Restart each
 service after changing environment variables; a process restart is required to reload them.
 
+### EC2, container and JVM memory envelope
+
+Production enables `APP_MEMORY_ENVELOPE_ENFORCED=true`. Startup fails when the process cannot find
+a finite cgroup memory limit or when the maximum JVM heap exceeds the approved percentage of that
+limit. This is intentional: heap-only monitoring does not include direct buffers, thread stacks,
+native libraries or Chromium child processes.
+
+Before choosing byte values, record the EC2 RAM and subtract:
+
+- the greater of 1 GiB or 20% for the operating system;
+- CloudWatch/SSM/security agents and reverse proxy memory;
+- any other container or process running on the instance.
+
+The remainder is the maximum application cgroup budget. Initially keep JVM maximum heap at or below
+50% of that budget:
+
+```text
+APP_MEMORY_ENVELOPE_ENFORCED=true
+APP_MEMORY_MAX_HEAP_TO_CONTAINER_RATIO=0.50
+APP_MEMORY_MONITOR_HEAP_ALERT_THRESHOLD=0.70
+APP_MEMORY_MONITOR_CONTAINER_ALERT_THRESHOLD=0.70
+APP_MEMORY_MONITOR_CONTAINER_CRITICAL_THRESHOLD=0.80
+APP_MEMORY_MONITOR_SCHEDULED_LOGGING_ENABLED=true
+```
+
+The image supplies this safe initial JVM policy:
+
+```text
+JDK_JAVA_OPTIONS=-XX:MaxRAMPercentage=50.0 -XX:InitialRAMPercentage=25.0 -XX:+ExitOnOutOfMemoryError
+```
+
+If deployment overrides `JDK_JAVA_OPTIONS`, it must preserve an equivalent `-Xmx` or
+`-XX:MaxRAMPercentage` and `-XX:+ExitOnOutOfMemoryError`.
+
+Docker example, using values approved from the EC2 inventory and load test:
+
+```bash
+docker run \
+  --memory="<approved hard limit>" \
+  --memory-reservation="<approved soft limit below hard limit>" \
+  --env-file /etc/sistema-contabilidade/env \
+  ...
+```
+
+For a direct `systemd` service, configure both controls in the unit:
+
+```ini
+[Service]
+MemoryHigh=<approved soft limit>
+MemoryMax=<approved hard limit>
+EnvironmentFile=/etc/sistema-contabilidade/env
+ExecStart=/usr/bin/java -jar /opt/sistema-contabilidade/app.jar
+```
+
+After changing `--env-file` values, recreate the container; a restart does not reload the file.
+Validate the effective envelope before registering the target:
+
+```bash
+docker inspect --format '{{.HostConfig.Memory}}' <container>
+docker stats --no-stream <container>
+curl --fail --silent http://127.0.0.1:8080/actuator/prometheus \
+  | grep '^app_memory_'
+```
+
+Required signals:
+
+- `app_memory_container_limit_configured` is `1`;
+- `app_memory_heap_max_to_container_ratio` is at most `0.50`;
+- steady-state `app_memory_container_usage_ratio` is below `0.70`;
+- load-test peak remains below `0.80`;
+- `app_memory_process_rss_bytes` tracks Java RSS;
+- `app_memory_container_usage_bytes` tracks Java plus Chromium and other child processes.
+
+Keep the EC2/CloudWatch Agent alarm for host memory below 75%. Application metrics cannot replace
+host-level memory and OOM-kill monitoring.
+
+### Local Caffeine cache budget
+
+All local Caffeine caches are created by one configuration and always use `maximumSize`,
+`expireAfterWrite` and statistics recording. Defaults:
+
+| Cache | Maximum entries | Expire after write | Purpose |
+|---|---:|---:|---|
+| `userDetails` | 500 | 5 minutes | Authentication details indexed by email, ID or Cognito subject |
+| `itemDescricoes` | 8 | 5 minutes | Expense/revenue description catalogs |
+| `itemTiposDocumento` | 8 | 5 minutes | Document-type catalogs |
+| `stickyWriterLocal` | 100,000 | `APP_DB_STICKY_SECONDS`, default 10 seconds | Local fallback when Valkey sticky state is disabled |
+
+Runtime overrides:
+
+```text
+APP_CACHE_CAFFEINE_USER_DETAILS_MAXIMUM_SIZE=500
+APP_CACHE_CAFFEINE_USER_DETAILS_EXPIRE_AFTER_WRITE=5m
+APP_CACHE_CAFFEINE_ITEM_DESCRICOES_MAXIMUM_SIZE=8
+APP_CACHE_CAFFEINE_ITEM_DESCRICOES_EXPIRE_AFTER_WRITE=5m
+APP_CACHE_CAFFEINE_ITEM_TIPOS_DOCUMENTO_MAXIMUM_SIZE=8
+APP_CACHE_CAFFEINE_ITEM_TIPOS_DOCUMENTO_EXPIRE_AFTER_WRITE=5m
+APP_CACHE_CAFFEINE_STICKY_WRITER_MAXIMUM_SIZE=100000
+```
+
+`maximumSize` limits entries, not bytes. Do not raise a limit only to suppress evictions: confirm
+heap headroom, hit/miss rates and entry payload size first. Never put PDFs, Base64, tokens, complete
+CPF/CNPJ, S3 paths or cache keys in cache metric labels.
+
+Verify after deployment:
+
+```bash
+curl --fail --silent http://127.0.0.1:8080/actuator/prometheus \
+  | grep '^app_cache_'
+```
+
+Required signals:
+
+- all four cache names expose size, maximum entries and expiration;
+- `app_cache_size / app_cache_maximum_entries` remains below `0.90`;
+- hit/miss counters move after normal traffic;
+- sustained eviction pressure is investigated together with JVM heap and cgroup usage.
+
 ## Create the Valkey replication group
 
 1. In ElastiCache, create a Valkey replication group with cluster mode disabled.
@@ -166,6 +315,14 @@ Scrape `/actuator/prometheus`. Micrometer metric names and allowed tags:
 | `app.rate_limit.total` | `backend=valkey|local`, fixed `result` values |
 | `app.valkey.operation.errors` | fixed `operation` values |
 | `app.relatorio.resumo.cache.total` | `result=hit|miss|bypass|error` |
+| `app.memory.heap.usage.ratio` | none |
+| `app.memory.metaspace.usage.ratio` | none |
+| `app.memory.process.rss.bytes` | none |
+| `app.memory.container.usage.bytes` | none |
+| `app.memory.container.limit.bytes` | none |
+| `app.memory.container.usage.ratio` | none |
+| `app.memory.heap.max.to.container.ratio` | none |
+| `app.memory.container.limit.configured` | none; `1` finite, `0` absent |
 
 Never add IDs, IPs, URIs, tokens, credentials, session values, roles or cache keys to these labels.
 Logs must also omit credentials and session/cache keys.
@@ -184,6 +341,10 @@ Create CloudWatch alarms and route them to the production notification channel:
 | Valkey | Evictions | `> 0` | critical; restore memory headroom |
 | Valkey | DatabaseMemoryUsagePercentage | `> 80%` | scale or reduce cache pressure |
 | Valkey replica | ReplicationLag | `> 1s` | investigate failover readiness |
+| EC2 | `mem_used_percent` via CloudWatch Agent | `> 70%` | `> 75%`; drain/scale |
+| Application cgroup | `app.memory.container.usage.ratio` | `>= 70%` for 5 min | `>= 80%`; drain/reduce load |
+| Application JVM | `app.memory.heap.usage.ratio` | `>= 70%` for 5 min | inspect GC/heap dump procedure |
+| Application envelope | `app.memory.container.limit.configured` | n/a | `< 1`; do not register in ALB |
 
 Also alert when application counters show reader acquisition failures, an open reader circuit,
 Valkey operation errors or sustained `backend=local` rate limiting. Metric labels must remain the
@@ -195,16 +356,19 @@ fixed sets above.
 2. Confirm writer and reader cluster endpoints and primary keys on all routed tables.
 3. Create a manual RDS snapshot.
 4. Enable maintenance mode and drain both EC2 targets from the ALB.
-5. Deploy to the first EC2 with explicit writer/reader and Valkey environment.
+5. Deploy to the first EC2 with explicit writer/reader, Valkey, database-crypto and memory-envelope
+   environment plus a finite Docker/systemd memory limit.
 6. For initial Flyway adoption only, set `SPRING_FLYWAY_BASELINE_ON_MIGRATE=true` and follow
    `docs/runbooks/flyway-initial-adoption.md`.
-7. Start the first EC2, validate Flyway history/schema, then check ALB health and metrics.
+7. Start the first EC2, validate Flyway history/schema, memory-envelope metrics and encryption
+   backfill, then check ALB health and metrics.
 8. Exercise one authenticated write, immediate sticky read, post-TTL reader read, rate limit and
    report-cache hit/miss.
 9. Register the first EC2 in the ALB, then deploy and validate the second EC2 identically.
-10. Register the second EC2. Disable maintenance mode.
-11. Remove `SPRING_FLYWAY_BASELINE_ON_MIGRATE` or set it to `false` permanently.
-12. Monitor alarms, fallback counters, connection pools and error logs for 24–48 hours.
+10. Disable `APP_DB_CRYPTO_BACKFILL_ENABLED` on both EC2 instances and restart them one at a time.
+11. Register the second EC2. Disable maintenance mode.
+12. Remove `SPRING_FLYWAY_BASELINE_ON_MIGRATE` or set it to `false` permanently.
+13. Monitor alarms, fallback counters, connection pools and error logs for 24–48 hours.
 
 ## Failure drills
 
@@ -234,7 +398,9 @@ fixed sets above.
 ## Rollback
 
 1. Drain one EC2 target at a time.
-2. Restore the previous application artifact and its compatible environment configuration.
+2. Before V7 backfill, restore the previous application artifact and its compatible environment
+   configuration. After backfill starts, the previous artifact is incompatible with ciphertext;
+   restore the pre-deploy RDS snapshot instead.
 3. If the old artifact supports only one datasource, point `SPRING_DATASOURCE_URL` at the RDS
    writer cluster endpoint. Never point it at the reader endpoint.
 4. Restart, validate local health and application write/read behavior, then register the target.

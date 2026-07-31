@@ -23,17 +23,34 @@
 ## Memory
 
 - `MemoryMonitoringMetrics` exposes heap and metaspace gauges.
-- `MemoryMonitoringService` logs snapshots/alerts when enabled.
+- `MemoryMonitoringService` exposes heap, Metaspace, Java RSS and cgroup usage/limit gauges and logs
+  snapshots/alerts when enabled.
+- `LinuxMemoryRuntimeProbe` supports cgroup v2 and v1. Cgroup usage includes Chromium child
+  processes; Java RSS does not.
+- Production enables memory-envelope validation. Startup requires a finite Docker/systemd cgroup
+  limit and rejects JVM maximum heap above the configured percentage of that limit.
+- The container image defaults maximum JVM heap to 50% of cgroup memory. Runtime deployment must
+  still configure Docker `--memory` or systemd `MemoryMax`.
+- Prometheus rules alert when the cgroup limit is missing, container use reaches 70%/80%, heap use
+  reaches 70%, or the heap budget exceeds 50% of the cgroup limit.
 - Memory observability is under `monitoring/memory`.
 
 ## Cache
 
 - Current app cache uses Caffeine.
-- Declared caches:
+- All Caffeine caches are built through `monitoring/cache/CaffeineCacheFactory`, which always applies
+  an entry limit, expire-after-write and statistics recording.
+- Declared local caches:
   - `userDetails`
   - `itemDescricoes`
   - `itemTiposDocumento`
-- Redis is configured and can run locally, but does not automatically speed up `/api/v1/itens` while cache type and app `cacheManager()` keep using Caffeine.
+  - `stickyWriterLocal`
+- Per-cache settings are under `app.cache.caffeine.*`; the sticky-writer expiration remains tied to
+  `app.database.sticky-writer.seconds`.
+- Metrics expose size, configured maximum, expiration, hit/miss requests and evictions with only the
+  fixed `cache` and `result` labels.
+- Redis is configured and can run locally, but does not automatically speed up `/api/v1/itens`;
+  application annotation caches remain local Caffeine caches on each EC2.
 - Good cache candidates are stable auxiliary data such as roles, descriptions and document types.
 - Caching `/api/v1/itens` requires careful invalidation because list data changes with verification, observation, upload and delete.
 
