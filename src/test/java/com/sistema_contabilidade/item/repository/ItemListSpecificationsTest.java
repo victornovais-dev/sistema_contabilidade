@@ -3,6 +3,8 @@ package com.sistema_contabilidade.item.repository;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import com.sistema_contabilidade.database.crypto.service.BlindIndexService;
+import com.sistema_contabilidade.database.crypto.service.DatabaseCryptoService;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.rbac.model.Role;
@@ -21,10 +23,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Sort;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@Import({DatabaseCryptoService.class, BlindIndexService.class})
 @DisplayName("ItemListSpecifications DataJpa tests")
 class ItemListSpecificationsTest {
 

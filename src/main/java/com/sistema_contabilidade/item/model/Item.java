@@ -1,10 +1,16 @@
 package com.sistema_contabilidade.item.model;
 
 import com.sistema_contabilidade.common.util.SearchTextNormalizer;
+import com.sistema_contabilidade.database.crypto.BlindIndexAware;
+import com.sistema_contabilidade.database.crypto.BlindIndexEntityListener;
+import com.sistema_contabilidade.database.crypto.EncryptedStringConverter;
+import com.sistema_contabilidade.database.crypto.service.BlindIndexService;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -27,6 +33,8 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
@@ -36,10 +44,12 @@ import org.hibernate.annotations.UuidGenerator;
       @Index(name = "idx_itens_horario_id", columnList = "horario_criacao, id"),
       @Index(name = "idx_itens_role_horario_id", columnList = "role_nome, horario_criacao, id")
     })
+@EntityListeners(BlindIndexEntityListener.class)
+@SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Item {
+public class Item implements BlindIndexAware {
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -57,28 +67,37 @@ public class Item {
   @Column(name = "horario_criacao", nullable = false)
   private LocalDateTime horarioCriacao;
 
-  @Column(name = "caminho_arquivo_pdf", length = 500)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "caminho_arquivo_pdf", length = 1024)
   private String caminhoArquivoPdf;
 
   @Column(length = 120)
   private String descricao;
 
-  @Column(name = "tipo_documento", length = 80)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "tipo_documento", length = 256)
   private String tipoDocumento;
 
-  @Column(name = "numero_documento", length = 50)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "numero_documento", length = 256)
   private String numeroDocumento;
 
-  @Column(name = "razao_social", length = 150)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "razao_social", length = 512)
   private String razaoSocialNome;
 
   @Column(name = "razao_social_busca", length = 200)
   private String razaoSocialBusca;
 
-  @Column(name = "cnpj_cpf", length = 20)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "cnpj_cpf", length = 256)
   private String cnpjCpf;
 
-  @Column(length = 500)
+  @Column(name = "cnpj_cpf_bidx", length = 64)
+  private String cnpjCpfBlindIndex;
+
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(length = 1024)
   private String observacao;
 
   @Enumerated(EnumType.STRING)
@@ -114,5 +133,10 @@ public class Item {
 
   public void synchronizeSearchFields() {
     this.razaoSocialBusca = SearchTextNormalizer.normalizeForSearch(razaoSocialNome);
+  }
+
+  @Override
+  public void synchronizeBlindIndexes(BlindIndexService blindIndexService) {
+    this.cnpjCpfBlindIndex = blindIndexService.document(cnpjCpf);
   }
 }

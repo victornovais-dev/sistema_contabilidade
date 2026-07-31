@@ -1,7 +1,9 @@
 package com.sistema_contabilidade.item.model;
 
+import com.sistema_contabilidade.database.crypto.EncryptedStringConverter;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -20,10 +22,13 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "itens_parcelas_pagamento")
+@SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -47,13 +52,14 @@ public class ItemParcelaPagamento {
   @Column(name = "conta_origem_pagamento", length = 20)
   private ContaOrigemPagamentoItem contaOrigemPagamento;
 
-  @Column(name = "caminho_arquivo_pdf", length = 500)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "caminho_arquivo_pdf", length = 1024)
   private String caminhoArquivoPdf;
 
   @OneToMany(mappedBy = "parcelaPagamento", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<ItemParcelaPagamentoArquivo> arquivosComprovantes = new ArrayList<>();
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "item_id", nullable = false)
   private Item item;
 }

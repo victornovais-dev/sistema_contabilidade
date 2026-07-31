@@ -3,6 +3,8 @@ package com.sistema_contabilidade.item.repository;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.sistema_contabilidade.database.crypto.service.BlindIndexService;
+import com.sistema_contabilidade.database.crypto.service.DatabaseCryptoService;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.rbac.model.Role;
@@ -27,6 +29,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.UnexpectedRollbackException;
@@ -36,6 +40,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@Import({DatabaseCryptoService.class, BlindIndexService.class})
 @DisplayName("ItemRepository race condition tests")
 class ItemRepositoryConcurrencyTest {
 
@@ -43,12 +48,20 @@ class ItemRepositoryConcurrencyTest {
   @Autowired private UsuarioRepository usuarioRepository;
   @Autowired private RoleRepository roleRepository;
   @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   @AfterEach
   void limparDados() {
-    itemRepository.deleteAll();
-    usuarioRepository.deleteAll();
-    roleRepository.deleteAll();
+    jdbcTemplate.update("delete from notificacoes");
+    jdbcTemplate.update("delete from itens_parcelas_pagamento_arquivos");
+    jdbcTemplate.update("delete from itens_parcelas_pagamento");
+    jdbcTemplate.update("delete from itens_arquivos");
+    jdbcTemplate.update("delete from itens");
+    jdbcTemplate.update("delete from sessoes_usuario");
+    jdbcTemplate.update("delete from usuario_roles");
+    jdbcTemplate.update("delete from usuarios");
+    jdbcTemplate.update("delete from role_permissoes");
+    jdbcTemplate.update("delete from roles");
   }
 
   @Test

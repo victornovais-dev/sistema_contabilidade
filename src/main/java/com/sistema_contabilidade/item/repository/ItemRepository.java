@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.item.repository;
 
+import com.sistema_contabilidade.database.crypto.BlindIndexes;
 import com.sistema_contabilidade.home.dto.HomeLatestLaunchResponse;
 import com.sistema_contabilidade.home.dto.HomeMonthlyBalanceRow;
 import com.sistema_contabilidade.home.dto.HomeRevenueCategoryTotalRow;
@@ -450,35 +451,25 @@ public interface ItemRepository
       """
       select count(i)
       from Item i
-      where function(
-              'replace',
-              function(
-                  'replace',
-                  function('replace', function('replace', coalesce(i.cnpjCpf, ''), '.', ''), '-', ''),
-                  '/',
-                  ''),
-              ' ',
-              '')
-          = :documento
+      where i.cnpjCpfBlindIndex = :blindIndex
       """)
-  long countByDocumentoNormalizado(@Param("documento") String documento);
+  long countByDocumentoBlindIndex(@Param("blindIndex") String blindIndex);
+
+  default long countByDocumentoNormalizado(String documento) {
+    return countByDocumentoBlindIndex(BlindIndexes.document(documento));
+  }
 
   @Query(
       """
       select count(i)
       from Item i
       where i.id <> :id
-        and function(
-                'replace',
-                function(
-                    'replace',
-                    function('replace', function('replace', coalesce(i.cnpjCpf, ''), '.', ''), '-', ''),
-                    '/',
-                    ''),
-                ' ',
-                '')
-            = :documento
+        and i.cnpjCpfBlindIndex = :blindIndex
       """)
-  long countByDocumentoNormalizadoAndIdNot(
-      @Param("documento") String documento, @Param("id") UUID id);
+  long countByDocumentoBlindIndexAndIdNot(
+      @Param("blindIndex") String blindIndex, @Param("id") UUID id);
+
+  default long countByDocumentoNormalizadoAndIdNot(String documento, UUID id) {
+    return countByDocumentoBlindIndexAndIdNot(BlindIndexes.document(documento), id);
+  }
 }

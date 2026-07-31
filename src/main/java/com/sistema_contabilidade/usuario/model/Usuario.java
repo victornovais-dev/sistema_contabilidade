@@ -1,8 +1,14 @@
 package com.sistema_contabilidade.usuario.model;
 
+import com.sistema_contabilidade.database.crypto.BlindIndexAware;
+import com.sistema_contabilidade.database.crypto.BlindIndexEntityListener;
+import com.sistema_contabilidade.database.crypto.EncryptedStringConverter;
+import com.sistema_contabilidade.database.crypto.service.BlindIndexService;
 import com.sistema_contabilidade.rbac.model.Role;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -21,20 +27,30 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(
     name = "usuarios",
     indexes = {
-      @Index(name = "idx_usuarios_email", columnList = "email", unique = true),
-      @Index(name = "idx_usuarios_cognito_sub", columnList = "cognito_sub", unique = true),
-      @Index(name = "idx_usuarios_cognito_username", columnList = "cognito_username", unique = true)
+      @Index(name = "idx_usuarios_email_bidx", columnList = "email_bidx", unique = true),
+      @Index(
+          name = "idx_usuarios_cognito_sub_bidx",
+          columnList = "cognito_sub_bidx",
+          unique = true),
+      @Index(
+          name = "idx_usuarios_cognito_username_bidx",
+          columnList = "cognito_username_bidx",
+          unique = true)
     })
+@EntityListeners(BlindIndexEntityListener.class)
+@SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Usuario {
+public class Usuario implements BlindIndexAware {
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -44,25 +60,40 @@ public class Usuario {
   @Version private Long version;
 
   @NotBlank
-  @Column(nullable = false)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(nullable = false, length = 512)
   private String nome;
 
   @Email
   @NotBlank
-  @Column(nullable = false, unique = true)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(nullable = false, length = 512)
   private String email;
 
+  @Column(name = "email_bidx", length = 64, unique = true)
+  private String emailBlindIndex;
+
   @NotBlank
-  @Column(nullable = false)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(nullable = false, length = 512)
   private String senha;
 
-  @Column(name = "cognito_sub", unique = true, length = 80)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "cognito_sub", length = 256)
   private String cognitoSub;
 
-  @Column(name = "cognito_username", unique = true, length = 120)
+  @Column(name = "cognito_sub_bidx", length = 64, unique = true)
+  private String cognitoSubBlindIndex;
+
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "cognito_username", length = 256)
   private String cognitoUsername;
 
-  @Column(name = "cognito_groups_hash", length = 128)
+  @Column(name = "cognito_username_bidx", length = 64, unique = true)
+  private String cognitoUsernameBlindIndex;
+
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "cognito_groups_hash", length = 256)
   private String cognitoGroupsHash;
 
   @Column(name = "cognito_synced_at")
@@ -74,4 +105,11 @@ public class Usuario {
       joinColumns = @JoinColumn(name = "usuario_id"),
       inverseJoinColumns = @JoinColumn(name = "role_id"))
   private Set<Role> roles = new HashSet<>();
+
+  @Override
+  public void synchronizeBlindIndexes(BlindIndexService blindIndexService) {
+    this.emailBlindIndex = blindIndexService.email(email);
+    this.cognitoSubBlindIndex = blindIndexService.cognitoSub(cognitoSub);
+    this.cognitoUsernameBlindIndex = blindIndexService.cognitoUsername(cognitoUsername);
+  }
 }

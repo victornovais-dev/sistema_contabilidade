@@ -1,6 +1,8 @@
 package com.sistema_contabilidade.duvida.model;
 
+import com.sistema_contabilidade.database.crypto.EncryptedStringConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -13,10 +15,13 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "duvidas_publicas")
+@SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -27,13 +32,16 @@ public class Duvida {
   @UuidGenerator(style = UuidGenerator.Style.TIME)
   private UUID id;
 
-  @Column(nullable = false, length = 120)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(nullable = false, length = 512)
   private String nome;
 
-  @Column(nullable = false, length = 255)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(nullable = false, length = 512)
   private String email;
 
-  @Column(name = "duvida", nullable = false, length = 1200)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "duvida", nullable = false, length = 2048)
   private String mensagem;
 
   @Column(name = "recebida_em", nullable = false)

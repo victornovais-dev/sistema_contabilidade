@@ -1,7 +1,9 @@
 package com.sistema_contabilidade.auth.model;
 
 import com.sistema_contabilidade.auth.config.AuthProvider;
+import com.sistema_contabilidade.database.crypto.EncryptedStringConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -16,6 +18,8 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
@@ -26,6 +30,7 @@ import org.hibernate.annotations.UuidGenerator;
       @Index(name = "idx_sessao_expira_em", columnList = "expira_em"),
       @Index(name = "idx_sessao_cognito_sub", columnList = "cognito_sub")
     })
+@SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -52,10 +57,12 @@ public class SessaoUsuario {
   @Column(name = "auth_provider", nullable = false, length = 20)
   private AuthProvider authProvider = AuthProvider.LOCAL;
 
-  @Column(name = "auth_username", length = 120)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "auth_username", length = 256)
   private String authUsername;
 
-  @Column(name = "cognito_sub", length = 80)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "cognito_sub", length = 256)
   private String cognitoSub;
 
   @Lob
@@ -63,10 +70,12 @@ public class SessaoUsuario {
   private String refreshTokenCiphertext;
 
   @Lob
+  @Convert(converter = EncryptedStringConverter.class)
   @Column(name = "groups_snapshot", columnDefinition = "TEXT")
   private String groupsSnapshot;
 
-  @Column(name = "groups_hash", length = 128)
+  @Convert(converter = EncryptedStringConverter.class)
+  @Column(name = "groups_hash", length = 256)
   private String groupsHash;
 
   @Column(name = "revogada_em")

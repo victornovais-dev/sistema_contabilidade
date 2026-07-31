@@ -16,5 +16,8 @@ public interface UsuarioMapper {
   @Mapping(target = "cognitoUsername", ignore = true)
   @Mapping(target = "cognitoGroupsHash", ignore = true)
   @Mapping(target = "cognitoSyncedAt", ignore = true)
+  @Mapping(target = "emailBlindIndex", ignore = true)
+  @Mapping(target = "cognitoSubBlindIndex", ignore = true)
+  @Mapping(target = "cognitoUsernameBlindIndex", ignore = true)
   Usuario toEntity(UsuarioDto usuarioDto);
 }

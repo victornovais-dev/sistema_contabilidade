@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.usuario.repository;
 
+import com.sistema_contabilidade.database.crypto.BlindIndexes;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,16 +21,28 @@ public interface UsuarioRepository
   String ROLE_PERMISSION_ATTRIBUTE = "roles.permissoes";
 
   @EntityGraph(attributePaths = {ROLE_ATTRIBUTE, ROLE_PERMISSION_ATTRIBUTE})
-  Optional<Usuario> findByEmail(String email);
+  Optional<Usuario> findByEmailBlindIndex(String emailBlindIndex);
+
+  default Optional<Usuario> findByEmail(String email) {
+    return findByEmailBlindIndex(BlindIndexes.email(email));
+  }
 
   @EntityGraph(attributePaths = {ROLE_ATTRIBUTE, ROLE_PERMISSION_ATTRIBUTE})
   Optional<Usuario> findWithRolesById(UUID id);
 
   @EntityGraph(attributePaths = {ROLE_ATTRIBUTE, ROLE_PERMISSION_ATTRIBUTE})
-  Optional<Usuario> findByCognitoSub(String cognitoSub);
+  Optional<Usuario> findByCognitoSubBlindIndex(String cognitoSubBlindIndex);
+
+  default Optional<Usuario> findByCognitoSub(String cognitoSub) {
+    return findByCognitoSubBlindIndex(BlindIndexes.cognitoSub(cognitoSub));
+  }
 
   @EntityGraph(attributePaths = {ROLE_ATTRIBUTE, ROLE_PERMISSION_ATTRIBUTE})
-  Optional<Usuario> findByCognitoUsername(String cognitoUsername);
+  Optional<Usuario> findByCognitoUsernameBlindIndex(String cognitoUsernameBlindIndex);
+
+  default Optional<Usuario> findByCognitoUsername(String cognitoUsername) {
+    return findByCognitoUsernameBlindIndex(BlindIndexes.cognitoUsername(cognitoUsername));
+  }
 
   @Transactional
   @Modifying
@@ -41,7 +54,15 @@ public interface UsuarioRepository
   @Query("select u.version from Usuario u where u.id = :id")
   Optional<Long> findVersionById(@Param("id") UUID id);
 
-  boolean existsByEmail(String email);
+  boolean existsByEmailBlindIndex(String emailBlindIndex);
 
-  boolean existsByCognitoSub(String cognitoSub);
+  default boolean existsByEmail(String email) {
+    return existsByEmailBlindIndex(BlindIndexes.email(email));
+  }
+
+  boolean existsByCognitoSubBlindIndex(String cognitoSubBlindIndex);
+
+  default boolean existsByCognitoSub(String cognitoSub) {
+    return existsByCognitoSubBlindIndex(BlindIndexes.cognitoSub(cognitoSub));
+  }
 }
