@@ -1,0 +1,31 @@
+@import url("./atualizar_usuario-20260420-role-search-order-1.css");
+
+.page-header p {
+  max-width: 620px;
+}
+
+#intern-feedback[aria-hidden="false"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.confirm-card.is-loading .confirm-icon {
+  border: 4px solid rgba(216, 75, 52, 0.2);
+  border-top-color: var(--accent);
+  background: transparent;
+  box-shadow: none;
+  animation: intern-feedback-spin 750ms linear infinite;
+}
+
+@keyframes intern-feedback-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-card.is-loading .confirm-icon {
+    border-color: var(--accent);
+    animation: none;
+  }
+}

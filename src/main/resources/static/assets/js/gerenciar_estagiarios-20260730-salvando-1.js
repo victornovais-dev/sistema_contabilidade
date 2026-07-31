@@ -39,14 +39,25 @@ const extractErrorMessage = async (response, fallbackMessage) => {
 
 const showFeedback = (type, message) => {
   const isSuccess = type === "success";
-  feedbackCard.classList.remove("is-success", "is-error");
-  feedbackCard.classList.add(isSuccess ? "is-success" : "is-error");
-  feedbackIcon.textContent = isSuccess ? "✓" : "✕";
-  feedbackTitle.textContent = isSuccess ? "Permissoes atualizadas" : "Nao foi possivel salvar";
+  const isLoading = type === "loading";
+  feedbackCard.classList.remove("is-success", "is-error", "is-loading");
+  feedbackCard.classList.add(isLoading ? "is-loading" : isSuccess ? "is-success" : "is-error");
+  feedbackIcon.textContent = isLoading ? "" : isSuccess ? "✓" : "✕";
+  feedbackTitle.textContent = isLoading
+    ? "Salvando permissoes"
+    : isSuccess
+      ? "Permissoes atualizadas"
+      : "Nao foi possivel salvar";
   feedbackMessage.textContent = message || "";
   feedbackMessage.hidden = !message;
+  feedbackOkButton.hidden = isLoading;
+  feedbackOkButton.disabled = isLoading;
+  form.setAttribute("aria-busy", isLoading ? "true" : "false");
   feedbackOverlay.classList.add("is-visible");
   feedbackOverlay.setAttribute("aria-hidden", "false");
+  if (!isLoading) {
+    feedbackOkButton.focus();
+  }
 };
 
 const closeFeedback = () => {
@@ -280,6 +291,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   const payload = { email, roles: sortRoles([...selectedRoles]) };
+  showFeedback("loading", "Aguarde enquanto as permissoes sao atualizadas.");
   const sendUpdate = async (token) =>
     fetch(`${API_BASE_PATH}/por-email`, {
       method: "PUT",
