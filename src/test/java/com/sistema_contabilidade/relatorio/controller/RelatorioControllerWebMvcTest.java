@@ -1,5 +1,9 @@
 package com.sistema_contabilidade.relatorio.controller;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -11,6 +15,8 @@ import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import com.sistema_contabilidade.relatorio.dto.RelatorioSaldoContaResponse;
+import com.sistema_contabilidade.relatorio.exception.PdfGenerationCapacityExceededException;
+import com.sistema_contabilidade.relatorio.service.PdfGenerationLimiter;
 import com.sistema_contabilidade.relatorio.service.RelatorioResumoCacheService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
@@ -20,12 +26,15 @@ import com.sistema_contabilidade.security.service.RequestFingerprintService;
 import com.sistema_contabilidade.security.service.ValkeyRateLimitService;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -49,8 +58,16 @@ class RelatorioControllerWebMvcTest {
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private StickyWriterService stickyWriterService;
   @MockitoBean private RelatorioResumoCacheService relatorioResumoCacheService;
+  @MockitoBean private PdfGenerationLimiter pdfGenerationLimiter;
   @MockitoBean private ValkeyRateLimitService valkeyRateLimitService;
   @MockitoBean private LocalRateLimitService localRateLimitService;
+
+  @BeforeEach
+  void executeAdmittedPdfTask() {
+    relatorioFinanceiroService.gerarCalls = 0;
+    when(pdfGenerationLimiter.execute(any()))
+        .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(0)).get());
+  }
 
   @Test
   @DisplayName("Deve retornar relatorio financeiro")
@@ -134,6 +151,22 @@ class RelatorioControllerWebMvcTest {
             header()
                 .string("Content-Disposition", "attachment; filename=\"relatorio-financeiro.pdf\""))
         .andExpect(content().bytes(pdf));
+  }
+
+  @Test
+  @DisplayName("Deve retornar 503 e Retry-After quando capacidade de PDF estiver esgotada")
+  void baixarRelatorioFinanceiroPdfDeveRetornarServicoIndisponivelQuandoSaturado()
+      throws Exception {
+    doThrow(new PdfGenerationCapacityExceededException(7L))
+        .when(pdfGenerationLimiter)
+        .execute(any());
+
+    mockMvc
+        .perform(get("/api/v1/relatorios/financeiro/pdf"))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(header().string(HttpHeaders.RETRY_AFTER, "7"))
+        .andExpect(content().string(""));
+    assertEquals(0, relatorioFinanceiroService.gerarCalls);
   }
 
   @Test

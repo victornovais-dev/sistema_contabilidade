@@ -21,6 +21,7 @@ class RelatorioControllerWebMvcTestConfig {
     RelatorioFinanceiroResumoResponse resumoResponse;
     RelatorioFinanceiroResponse relatorioResponse;
     byte[] pdfResponse = new byte[0];
+    int gerarCalls;
     List<String> rolesResponse = List.of();
 
     StubRelatorioFinanceiroService() {
@@ -35,6 +36,7 @@ class RelatorioControllerWebMvcTestConfig {
 
     @Override
     public RelatorioFinanceiroResponse gerar(Authentication authentication, String roleFiltro) {
+      gerarCalls++;
       return relatorioResponse;
     }
 
