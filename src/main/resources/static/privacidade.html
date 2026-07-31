@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Canal público da SACS Contábil para solicitações relacionadas a dados pessoais."
+    />
+    <meta name="referrer" content="no-referrer" />
+    <title>Faça uma solicitação de privacidade | SACS Contábil</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <script src="/assets/js/theme-init-20260414-notificacoes-1.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="/assets/css/privacidade-20260730-lgpd-workflow-1.css"
+    />
+  </head>
+  <body>
+    <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+
+    <header class="site-header">
+      <a class="brand" href="/conheca" aria-label="SACS Contábil">
+        <img
+          class="brand-logo brand-logo-light"
+          src="/assets/img/sacs-contabil-navbar-azul.webp"
+          alt="SACS Contábil"
+          width="101"
+          height="48"
+        />
+        <img
+          class="brand-logo brand-logo-dark"
+          src="/assets/img/sacs-contabil-navbar-branco.webp"
+          alt="SACS Contábil"
+          width="101"
+          height="48"
+        />
+      </a>
+      <nav class="header-actions" aria-label="Navegação principal">
+        <a href="#aviso">Como tratamos seus dados</a>
+        <a href="/conheca">Conheça o sistema</a>
+        <a class="login-button" href="/login">Entrar</a>
+      </nav>
+    </header>
+
+    <main id="conteudo">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow"><span></span> Direitos sobre dados pessoais</p>
+          <h1 id="page-title">Faça uma solicitação de privacidade</h1>
+          <p class="hero-copy">
+            Peça acesso, correção, cópia, anonimização, exclusão, oposição ou informações sobre
+            compartilhamento dos seus dados.
+          </p>
+        </div>
+        <aside class="security-card">
+          <span class="security-icon" aria-hidden="true">✓</span>
+          <div>
+            <strong>Envie somente o necessário</strong>
+            <p>Não inclua senhas, tokens, documentos completos ou dados bancários.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="portal-layout" aria-label="Solicitação e consulta">
+        <article class="surface request-card">
+          <header class="section-heading">
+            <div>
+              <p class="eyebrow"><span></span> Nova solicitação</p>
+              <h2>Informe os dados do pedido</h2>
+            </div>
+            <span class="step-pill">Etapa única</span>
+          </header>
+
+          <form id="privacy-request-form" novalidate>
+            <div class="honeypot" aria-hidden="true">
+              <label>Não preencha<input name="website" tabindex="-1" autocomplete="off" /></label>
+            </div>
+
+            <div class="form-grid">
+              <label class="field">
+                <span>Nome completo</span>
+                <input name="nome" maxlength="120" autocomplete="name" required />
+                <small>Informe o nome usado no cadastro.</small>
+              </label>
+
+              <label class="field">
+                <span>E-mail</span>
+                <input name="email" type="email" maxlength="255" autocomplete="email" required />
+                <small>Será usado para confirmar e consultar o pedido.</small>
+              </label>
+
+              <label class="field">
+                <span>Cliente, campanha ou organização</span>
+                <input name="organizacao" maxlength="120" autocomplete="organization" required />
+              </label>
+
+              <label class="field">
+                <span>Seu vínculo</span>
+                <select name="vinculo" required>
+                  <option value="">Selecione</option>
+                  <option value="USUARIO">Usuário do sistema</option>
+                  <option value="REPRESENTANTE_CLIENTE">Representante do cliente</option>
+                  <option value="COLABORADOR_PRESTADOR">Colaborador ou prestador</option>
+                  <option value="CANDIDATO_CAMPANHA">Candidato ou integrante de campanha</option>
+                  <option value="OUTRO">Outro</option>
+                </select>
+              </label>
+
+              <label class="field full-width">
+                <span>O que deseja solicitar?</span>
+                <select name="tipo" required>
+                  <option value="">Selecione</option>
+                  <option value="ACESSO">Acesso aos dados</option>
+                  <option value="EXPORTACAO">Cópia ou exportação dos dados</option>
+                  <option value="CORRECAO">Correção de dados</option>
+                  <option value="DESATIVACAO">Desativação de conta</option>
+                  <option value="ANONIMIZACAO">Anonimização</option>
+                  <option value="EXCLUSAO">Exclusão de dados</option>
+                  <option value="OPOSICAO">Oposição ao tratamento</option>
+                  <option value="INFORMACOES_COMPARTILHAMENTO">
+                    Informações de compartilhamento
+                  </option>
+                </select>
+              </label>
+
+              <fieldset class="scope-fieldset full-width">
+                <legend>Quais dados estão relacionados ao pedido?</legend>
+                <div class="scope-grid">
+                  <label><input type="checkbox" name="escopos" value="CADASTRO_PERFIL" /> Cadastro e perfil</label>
+                  <label><input type="checkbox" name="escopos" value="DOCUMENTOS" /> Documentos e PDFs</label>
+                  <label><input type="checkbox" name="escopos" value="FINANCEIRO" /> Dados financeiros</label>
+                  <label><input type="checkbox" name="escopos" value="ACESSOS_AUTENTICACAO" /> Acessos e autenticação</label>
+                  <label><input type="checkbox" name="escopos" value="COMUNICACOES_SUPORTE" /> Mensagens e suporte</label>
+                  <label><input type="checkbox" name="escopos" value="NAO_SEI" /> Não sei informar</label>
+                </div>
+              </fieldset>
+
+              <label class="field full-width">
+                <span>Descreva sua solicitação</span>
+                <textarea
+                  name="descricao"
+                  rows="6"
+                  minlength="20"
+                  maxlength="1600"
+                  placeholder="Explique de forma objetiva quais dados ou acontecimentos estão relacionados ao pedido."
+                  required
+                ></textarea>
+                <small><span id="description-count">0</span>/1600 caracteres</small>
+              </label>
+
+              <label class="field">
+                <span>Forma preferida de resposta</span>
+                <select name="canalResposta" required>
+                  <option value="EMAIL">E-mail</option>
+                  <option value="PLATAFORMA">Mensagem pela plataforma</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Identificador no sistema (opcional)</span>
+                <input
+                  name="referencia"
+                  maxlength="100"
+                  autocomplete="off"
+                  placeholder="ID do usuário ou matrícula"
+                />
+                <small>Não informe CPF completo.</small>
+              </label>
+
+              <label class="consent full-width">
+                <input name="avisoAceito" type="checkbox" required />
+                <span>
+                  Li as informações de privacidade e entendo que poderá ser necessário confirmar
+                  minha identidade antes do atendimento.
+                </span>
+              </label>
+            </div>
+
+            <p id="request-feedback" class="feedback" role="alert" aria-live="polite"></p>
+            <div class="form-actions">
+              <button class="button button-secondary" type="reset">Limpar</button>
+              <button id="request-submit" class="button button-primary" type="submit">
+                Enviar solicitação
+              </button>
+            </div>
+          </form>
+        </article>
+
+        <aside class="side-column">
+          <section class="surface lookup-card">
+            <p class="eyebrow"><span></span> Acompanhar pedido</p>
+            <h2>Consultar protocolo</h2>
+            <p>Use o protocolo e o mesmo e-mail informado na abertura.</p>
+            <form id="privacy-lookup-form" novalidate>
+              <label class="field">
+                <span>Protocolo</span>
+                <input
+                  name="protocolo"
+                  maxlength="32"
+                  pattern="LGPD-[0-9]{4}-[A-Fa-f0-9]{12}"
+                  placeholder="LGPD-2026-A1B2C3D4E5F6"
+                  autocomplete="off"
+                  required
+                />
+              </label>
+              <label class="field">
+                <span>E-mail</span>
+                <input name="email" type="email" maxlength="255" autocomplete="email" required />
+              </label>
+              <button id="lookup-submit" class="button button-primary full-button" type="submit">
+                Consultar andamento
+              </button>
+            </form>
+            <div id="lookup-result" class="lookup-result" aria-live="polite" hidden></div>
+          </section>
+
+          <section class="surface guidance-card">
+            <h2>Antes de enviar</h2>
+            <ul>
+              <li>Descreva apenas dados ligados ao pedido.</li>
+              <li>Guarde o protocolo exibido após o envio.</li>
+              <li>A identidade poderá ser confirmada por canal seguro.</li>
+            </ul>
+          </section>
+        </aside>
+      </section>
+
+      <section id="aviso" class="notice-section" aria-labelledby="notice-title">
+        <p class="eyebrow"><span></span> Transparência</p>
+        <h2 id="notice-title">Como este canal trata suas informações</h2>
+        <div class="notice-grid">
+          <article><span>01</span><h3>Finalidade</h3><p>Receber, validar e atender direitos relacionados a dados pessoais.</p></article>
+          <article><span>02</span><h3>Segurança</h3><p>Dados pessoais são cifrados e o acesso administrativo exige autorização.</p></article>
+          <article><span>03</span><h3>Retenção</h3><p>Registros são mantidos pelo período necessário para atendimento e comprovação.</p></article>
+          <article><span>04</span><h3>Identidade</h3><p>Antes de entregar ou alterar dados, poderemos solicitar confirmação segura.</p></article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>SACS Contábil · Canal de privacidade</span>
+      <a href="/conheca">Voltar ao site</a>
+    </footer>
+
+    <div id="success-dialog" class="dialog" role="dialog" aria-modal="true" hidden>
+      <div class="dialog-card">
+        <span class="success-icon" aria-hidden="true">✓</span>
+        <p class="eyebrow"><span></span> Solicitação recebida</p>
+        <h2>Guarde seu protocolo</h2>
+        <p>Use este código junto com seu e-mail para acompanhar o atendimento.</p>
+        <div class="protocol-box">
+          <strong id="success-protocol"></strong>
+          <button id="copy-protocol" type="button">Copiar protocolo</button>
+        </div>
+        <button id="close-success" class="button button-primary full-button" type="button">
+          Concluir
+        </button>
+      </div>
+    </div>
+
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+    <script src="/assets/js/privacidade-20260730-lgpd-workflow-1.js" defer></script>
+  </body>
+</html>

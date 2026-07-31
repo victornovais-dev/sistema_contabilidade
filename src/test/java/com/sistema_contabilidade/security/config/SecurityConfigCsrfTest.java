@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.security.config;
 
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -16,6 +17,10 @@ import com.sistema_contabilidade.auth.service.LoginFlowResult;
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.duvida.dto.DuvidaCreateResponse;
 import com.sistema_contabilidade.duvida.service.DuvidaService;
+import com.sistema_contabilidade.privacidade.dto.SolicitacaoPrivacidadeCreateResponse;
+import com.sistema_contabilidade.privacidade.dto.SolicitacaoPrivacidadeListResponse;
+import com.sistema_contabilidade.privacidade.dto.SolicitacaoPrivacidadeResumoResponse;
+import com.sistema_contabilidade.privacidade.service.SolicitacaoPrivacidadeService;
 import com.sistema_contabilidade.rbac.service.RoleService;
 import com.sistema_contabilidade.relatorio.service.RelatorioFinanceiroService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
@@ -59,6 +64,7 @@ class SecurityConfigCsrfTest {
   @MockitoBean private EstagiarioPermissaoService estagiarioPermissaoService;
   @MockitoBean private RoleService roleService;
   @MockitoBean private DuvidaService duvidaService;
+  @MockitoBean private SolicitacaoPrivacidadeService solicitacaoPrivacidadeService;
 
   @Test
   @DisplayName("Deve exigir autenticacao para descoberta de rotas admin")
@@ -370,6 +376,59 @@ class SecurityConfigCsrfTest {
   }
 
   @Test
+  @DisplayName("Deve permitir pagina publica de privacidade sem autenticacao")
+  void devePermitirPaginaPublicaDePrivacidadeSemAutenticacao() throws Exception {
+    mockMvc
+        .perform(get("/privacidade"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(Matchers.containsString("privacy-request-form")))
+        .andExpect(
+            content()
+                .string(
+                    Matchers.containsString("/assets/js/privacidade-20260730-lgpd-workflow-1.js")));
+  }
+
+  @Test
+  @DisplayName("Deve bloquear abertura publica sem token CSRF")
+  void deveBloquearSolicitacaoDePrivacidadeSemCsrf() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/solicitacoes-privacidade")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(solicitacaoPrivacidadeValida()))
+        .andExpect(status().isForbidden());
+
+    verifyNoInteractions(solicitacaoPrivacidadeService);
+  }
+
+  @Test
+  @DisplayName("Deve permitir abertura publica com CSRF e impedir cache da resposta")
+  void devePermitirSolicitacaoDePrivacidadeComCsrf() throws Exception {
+    var response =
+        new SolicitacaoPrivacidadeCreateResponse(
+            "LGPD-2026-A1B2C3D4E5F6",
+            java.time.LocalDate.of(2026, Month.JULY, 30),
+            java.time.LocalDate.of(2026, Month.AUGUST, 14));
+    when(solicitacaoPrivacidadeService.registrar(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(response);
+    MvcResult csrfResult =
+        mockMvc.perform(get("/api/v1/auth/csrf")).andExpect(status().isOk()).andReturn();
+    JsonNode payload = new ObjectMapper().readTree(csrfResult.getResponse().getContentAsString());
+    Cookie csrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
+
+    mockMvc
+        .perform(
+            post("/api/v1/solicitacoes-privacidade")
+                .cookie(csrfCookie)
+                .header("X-CSRF-TOKEN", payload.required("token").asString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(solicitacaoPrivacidadeValida()))
+        .andExpect(status().isCreated())
+        .andExpect(header().string("Cache-Control", "no-store"))
+        .andExpect(content().string(Matchers.containsString("LGPD-2026-A1B2C3D4E5F6")));
+  }
+
+  @Test
   @DisplayName("Deve permitir registrar duvida sem autenticacao com token CSRF")
   void devePermitirRegistrarDuvidaSemAutenticacaoComCsrf() throws Exception {
     UUID protocolo = UUID.randomUUID();
@@ -507,7 +566,19 @@ class SecurityConfigCsrfTest {
                 .cookie(
                     new jakarta.servlet.http.Cookie(
                         "SC_TOKEN", "token_contabil_pagina_estagiario")))
-        .andExpect(status().isOk());
+        .andExpect(status().isOk())
+        .andExpect(content().string(Matchers.containsString("id=\"intern-feedback\"")))
+        .andExpect(content().string(Matchers.containsString("class=\"confirm-card\"")))
+        .andExpect(
+            content()
+                .string(
+                    Matchers.containsString(
+                        "/assets/js/gerenciar_estagiarios-20260730-salvando-1.js")))
+        .andExpect(
+            content()
+                .string(
+                    Matchers.containsString(
+                        "/assets/css/gerenciar_estagiarios-20260730-salvando-1.css")));
   }
 
   @Test
@@ -527,7 +598,8 @@ class SecurityConfigCsrfTest {
             get("/duvidas")
                 .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_duvidas_admin")))
         .andExpect(status().isOk())
-        .andExpect(content().string(Matchers.containsString("Dúvidas recebidas")));
+        .andExpect(content().string(Matchers.containsString("Dúvidas recebidas")))
+        .andExpect(content().string(Matchers.containsString("class=\"navbar\"")));
   }
 
   @Test
@@ -727,5 +799,91 @@ class SecurityConfigCsrfTest {
                 .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_estagiario")))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/404"));
+  }
+
+  @Test
+  @DisplayName("Deve renderizar pagina secreta de solicitacoes para admin")
+  void deveRenderizarSolicitacoesDosTitularesParaAdmin() throws Exception {
+    var userDetails = User.withUsername("admin@email.com").password("x").roles("ADMIN").build();
+    when(jwtService.extractUsername("token_privacidade_admin")).thenReturn("admin@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_privacidade_admin"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(
+            get(adminRouteService.privacyRequestsPagePath())
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_privacidade_admin")))
+        .andExpect(status().isOk())
+        .andExpect(content().string(Matchers.containsString("Solicitações dos titulares")))
+        .andExpect(content().string(Matchers.containsString("id=\"requests-table\"")));
+  }
+
+  @Test
+  @DisplayName("Deve bloquear API de solicitacoes para perfil nao admin")
+  void deveBloquearApiDeSolicitacoesParaNaoAdmin() throws Exception {
+    var userDetails = User.withUsername("manager@email.com").password("x").roles("MANAGER").build();
+    when(jwtService.extractUsername("token_privacidade_manager")).thenReturn("manager@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_privacidade_manager"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("manager@email.com")).thenReturn(userDetails);
+
+    mockMvc
+        .perform(
+            get("/api/v1/solicitacoes-privacidade")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_privacidade_manager")))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("Deve permitir API de solicitacoes somente para admin")
+  void devePermitirApiDeSolicitacoesParaAdmin() throws Exception {
+    var userDetails = User.withUsername("admin@email.com").password("x").roles("ADMIN").build();
+    when(jwtService.extractUsername("token_privacidade_api_admin")).thenReturn("admin@email.com");
+    when(jwtService.isTokenValid(
+            org.mockito.ArgumentMatchers.eq("token_privacidade_api_admin"),
+            org.mockito.ArgumentMatchers.eq(userDetails),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
+    when(customUserDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
+    when(solicitacaoPrivacidadeService.listar("", null, null, 0, 12))
+        .thenReturn(
+            new SolicitacaoPrivacidadeListResponse(
+                java.util.List.of(),
+                0,
+                12,
+                0,
+                0,
+                new SolicitacaoPrivacidadeResumoResponse(0, 0, 0, 0)));
+
+    mockMvc
+        .perform(
+            get("/api/v1/solicitacoes-privacidade")
+                .cookie(new jakarta.servlet.http.Cookie("SC_TOKEN", "token_privacidade_api_admin")))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Cache-Control", "no-store"));
+  }
+
+  private String solicitacaoPrivacidadeValida() {
+    return """
+        {
+          "nome":"Titular Teste",
+          "email":"titular@email.com",
+          "organizacao":"Campanha Teste",
+          "vinculo":"USUARIO",
+          "tipo":"ACESSO",
+          "escopos":["CADASTRO_PERFIL"],
+          "canalResposta":"EMAIL",
+          "descricao":"Quero acessar os dados associados ao meu cadastro.",
+          "avisoAceito":true,
+          "website":""
+        }
+        """;
   }
 }

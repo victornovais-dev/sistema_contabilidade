@@ -48,6 +48,12 @@ public class PaginaUsuarioController {
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
   }
 
+  @GetMapping(value = SecurityPaths.PUBLIC_PRIVACY_PAGE, produces = MediaType.TEXT_HTML_VALUE)
+  public ResponseEntity<Resource> publicPrivacyPage() {
+    Resource resource = new ClassPathResource("static/privacidade.html");
+    return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(resource);
+  }
+
   @GetMapping(value = "/404", produces = MediaType.TEXT_HTML_VALUE)
   public ResponseEntity<Resource> notFoundPage() {
     Resource resource = new ClassPathResource("static/404.html");
@@ -114,6 +120,12 @@ public class PaginaUsuarioController {
   @PreAuthorize(ADMIN_ROLE_EXPRESSION)
   public String duvidasPage() {
     return "duvidas";
+  }
+
+  @GetMapping(value = SecurityPaths.PRIVACY_REQUESTS_PAGE, produces = MediaType.TEXT_HTML_VALUE)
+  @PreAuthorize(ADMIN_ROLE_EXPRESSION)
+  public String solicitacoesTitularesPage() {
+    return "solicitacoes_titulares";
   }
 
   @GetMapping(value = "/gerenciar_roles", produces = MediaType.TEXT_HTML_VALUE)

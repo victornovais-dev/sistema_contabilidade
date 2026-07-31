@@ -139,6 +139,7 @@ class PaginaUsuarioControllerTest {
         Arguments.of("login", "loginPage", HttpStatus.OK),
         Arguments.of("primeiro acesso", "firstAccessPage", HttpStatus.OK),
         Arguments.of("conheca", "publicInfoPage", HttpStatus.OK),
+        Arguments.of("privacidade", "publicPrivacyPage", HttpStatus.OK),
         Arguments.of("404", "notFoundPage", HttpStatus.NOT_FOUND));
   }
 
@@ -154,6 +155,8 @@ class PaginaUsuarioControllerTest {
         Arguments.of("notificacoes", "notificacoesPage", "notificacoes"),
         Arguments.of("admin", "adminPage", "admin"),
         Arguments.of("duvidas", "duvidasPage", "duvidas"),
+        Arguments.of(
+            "solicitacoes titulares", "solicitacoesTitularesPage", "solicitacoes_titulares"),
         Arguments.of("gerenciar roles", "gerenciarRolesPage", "gerenciar_roles"));
   }
 
@@ -174,6 +177,7 @@ class PaginaUsuarioControllerTest {
         Arguments.of("atualizar usuario", "atualizarUsuarioPage"),
         Arguments.of("admin", "adminPage"),
         Arguments.of("duvidas", "duvidasPage"),
+        Arguments.of("solicitacoes titulares", "solicitacoesTitularesPage"),
         Arguments.of("gerenciar roles", "gerenciarRolesPage"));
   }
 

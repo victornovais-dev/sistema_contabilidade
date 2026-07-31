@@ -178,6 +178,7 @@ public class SecurityConfig {
             SecurityPaths.LOGIN_PAGE,
             SecurityPaths.FIRST_ACCESS_PAGE,
             SecurityPaths.PUBLIC_INFO_PAGE,
+            SecurityPaths.PUBLIC_PRIVACY_PAGE,
             SecurityPaths.NOT_FOUND_PAGE,
             SecurityPaths.ERROR_PAGE,
             SecurityPaths.ERROR_PAGE + PATH_WILDCARD,
@@ -199,6 +200,9 @@ public class SecurityConfig {
         .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.QUESTIONS_PAGE, SecurityPaths.QUESTIONS_PAGE_HTML)
         .hasRole(ADMIN_ROLE)
+        .requestMatchers(
+            SecurityPaths.PRIVACY_REQUESTS_PAGE, SecurityPaths.PRIVACY_REQUESTS_PAGE_HTML)
+        .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.NOTIFICATIONS_PAGE, SecurityPaths.NOTIFICATIONS_PAGE_HTML)
         .hasAnyRole(ADMIN_ROLE, CONTABIL_ROLE, ESTAGIARIO_ROLE)
         .requestMatchers(SecurityPaths.MANAGE_ROLES_PAGE)
@@ -212,6 +216,13 @@ public class SecurityConfig {
         .requestMatchers(HttpMethod.POST, SecurityPaths.PUBLIC_QUESTIONS_API_BASE)
         .permitAll()
         .requestMatchers(SecurityPaths.PUBLIC_QUESTIONS_API_BASE + PATH_WILDCARD)
+        .hasRole(ADMIN_ROLE)
+        .requestMatchers(
+            HttpMethod.POST,
+            SecurityPaths.PRIVACY_REQUESTS_API_BASE,
+            SecurityPaths.PRIVACY_REQUESTS_API_BASE + "/consulta")
+        .permitAll()
+        .requestMatchers(SecurityPaths.PRIVACY_REQUESTS_API_BASE + PATH_WILDCARD)
         .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.USERS_ME_API_PATH)
         .authenticated()
@@ -244,6 +255,8 @@ public class SecurityConfig {
             SecurityPaths.ADMIN_PAGE,
             SecurityPaths.QUESTIONS_PAGE,
             SecurityPaths.QUESTIONS_PAGE_HTML,
+            SecurityPaths.PRIVACY_REQUESTS_PAGE,
+            SecurityPaths.PRIVACY_REQUESTS_PAGE_HTML,
             SecurityPaths.ADD_RECEIPT_PAGE,
             SecurityPaths.ADD_RECEIPT_PAGE_HTML,
             SecurityPaths.CREATE_USER_PAGE,

@@ -10,6 +10,7 @@ public final class SecurityPaths {
   public static final String LOGIN_PAGE = "/login";
   public static final String FIRST_ACCESS_PAGE = "/primeiro_acesso";
   public static final String PUBLIC_INFO_PAGE = "/conheca";
+  public static final String PUBLIC_PRIVACY_PAGE = "/privacidade";
   public static final String NOT_FOUND_PAGE = "/404";
   public static final String ERROR_PAGE = "/error";
   public static final String FAVICON_PATH = "/favicon.ico";
@@ -17,6 +18,8 @@ public final class SecurityPaths {
   public static final String ADMIN_PAGE_HTML = ADMIN_PAGE + HTML_SUFFIX;
   public static final String QUESTIONS_PAGE = "/duvidas";
   public static final String QUESTIONS_PAGE_HTML = QUESTIONS_PAGE + HTML_SUFFIX;
+  public static final String PRIVACY_REQUESTS_PAGE = "/solicitacoes_titulares";
+  public static final String PRIVACY_REQUESTS_PAGE_HTML = PRIVACY_REQUESTS_PAGE + HTML_SUFFIX;
   public static final String ID_PATH = "/{id}";
   public static final String ADD_RECEIPT_PAGE = "/adicionar_comprovante";
   public static final String ADD_RECEIPT_PAGE_HTML = ADD_RECEIPT_PAGE + HTML_SUFFIX;
@@ -39,6 +42,8 @@ public final class SecurityPaths {
   public static final String ITEMS_API_BASE = API_V1_PREFIX + "/itens";
   public static final String NOTIFICATIONS_API_PATTERN = API_V1_PREFIX + "/notificacoes/**";
   public static final String PUBLIC_QUESTIONS_API_BASE = API_V1_PREFIX + QUESTIONS_PAGE;
+  public static final String PRIVACY_REQUESTS_API_BASE =
+      API_V1_PREFIX + "/solicitacoes-privacidade";
   public static final String RELATORIOS_ROLES_API_PATH = API_V1_PREFIX + "/relatorios/roles";
 
   private SecurityPaths() {}
