@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,18 +24,23 @@ import org.springframework.stereotype.Service;
 public class MemoryMonitoringService {
 
   private static final long BYTES_PER_MEGABYTE = 1_048_576L;
+  private static final String AVAILABLE_FIELD = "available";
+  private static final String UNAVAILABLE_VALUE = "indisponivel";
   private static final String METASPACE_NAME = "Metaspace";
+  private static final String USED_WITH_LIMIT = " usado (limite ";
   private static final long ZERO_BYTES = 0L;
 
   private final MemoryMonitoringProperties properties;
+  private final MemoryRuntimeProbe memoryRuntimeProbe;
 
   public Map<String, Object> createReport() {
     MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
     MemoryUsage heapUsage = memoryBean.getHeapMemoryUsage();
     MemoryUsage nonHeapUsage = memoryBean.getNonHeapMemoryUsage();
     Optional<MemoryUsage> metaspaceUsage = findMetaspaceUsage();
+    MemoryRuntimeSnapshot runtimeSnapshot = memoryRuntimeProbe.snapshot();
 
-    List<String> warnings = buildWarnings(heapUsage, metaspaceUsage);
+    List<String> warnings = buildWarnings(heapUsage, metaspaceUsage, runtimeSnapshot);
     Map<String, Object> report = new LinkedHashMap<>();
     report.put("capturedAt", Instant.now().toString());
     report.put("monitoringEnabled", properties.isEnabled());
@@ -43,6 +49,7 @@ public class MemoryMonitoringService {
     report.put("heap", buildAreaReport("heap", heapUsage));
     report.put("nonHeap", buildAreaReport("nonHeap", nonHeapUsage));
     report.put("metaspace", buildMetaspaceReport(metaspaceUsage));
+    report.put("runtimeEnvelope", buildRuntimeEnvelopeReport(runtimeSnapshot, heapUsage));
     report.put("warnings", warnings);
     report.put("memoryPools", buildPoolReports());
     return report;
@@ -56,6 +63,35 @@ public class MemoryMonitoringService {
     return findMetaspaceUsage().map(this::usageRatio).orElse(0.0d);
   }
 
+  public double currentProcessRssBytes() {
+    return optionalBytes(memoryRuntimeProbe.snapshot().processRssBytes());
+  }
+
+  public double currentContainerUsageBytes() {
+    return optionalBytes(memoryRuntimeProbe.snapshot().containerUsageBytes());
+  }
+
+  public double currentContainerLimitBytes() {
+    return optionalBytes(memoryRuntimeProbe.snapshot().containerLimitBytes());
+  }
+
+  public double currentContainerUsageRatio() {
+    MemoryRuntimeSnapshot snapshot = memoryRuntimeProbe.snapshot();
+    return ratio(snapshot.containerUsageBytes(), snapshot.containerLimitBytes());
+  }
+
+  public double currentHeapMaxToContainerRatio() {
+    OptionalLong containerLimitBytes = memoryRuntimeProbe.snapshot().containerLimitBytes();
+    if (containerLimitBytes.isEmpty()) {
+      return 0.0d;
+    }
+    return ratio(Runtime.getRuntime().maxMemory(), containerLimitBytes.getAsLong());
+  }
+
+  public double currentContainerLimitConfigured() {
+    return memoryRuntimeProbe.snapshot().containerLimitBytes().isPresent() ? 1.0d : 0.0d;
+  }
+
   @Scheduled(fixedDelayString = "${app.memory-monitor.fixed-delay-ms:60000}")
   public void logWhenThresholdExceeded() {
     if (!properties.isEnabled() || !properties.isScheduledLoggingEnabled()) {
@@ -65,14 +101,16 @@ public class MemoryMonitoringService {
     MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
     MemoryUsage heapUsage = memoryBean.getHeapMemoryUsage();
     Optional<MemoryUsage> metaspaceUsage = findMetaspaceUsage();
-    List<String> warnings = buildWarnings(heapUsage, metaspaceUsage);
+    MemoryRuntimeSnapshot runtimeSnapshot = memoryRuntimeProbe.snapshot();
+    List<String> warnings = buildWarnings(heapUsage, metaspaceUsage, runtimeSnapshot);
 
     if (warnings.isEmpty()) {
       return;
     }
     if (log.isWarnEnabled()) {
       log.warn(
-          "MEMORY ALERT - heap={} MB/{} MB ({}), metaspace={}, avisos={}",
+          "MEMORY ALERT - heap={} MB/{} MB ({}), metaspace={}, processRss={}, "
+              + "container={}, avisos={}",
           toMegabytes(heapUsage.getUsed()),
           toMegabytes(resolveMaxBytes(heapUsage)),
           formatRatio(usageRatio(heapUsage)),
@@ -85,7 +123,9 @@ public class MemoryMonitoringService {
                           + " MB ("
                           + formatRatio(usageRatio(usage))
                           + ")")
-              .orElse("indisponivel"),
+              .orElse(UNAVAILABLE_VALUE),
+          formatOptionalMegabytes(runtimeSnapshot.processRssBytes()),
+          formatContainer(runtimeSnapshot),
           String.join(" | ", warnings));
     }
   }
@@ -94,19 +134,48 @@ public class MemoryMonitoringService {
     Map<String, Object> thresholds = new LinkedHashMap<>();
     thresholds.put("heapAlertThreshold", properties.getHeapAlertThreshold());
     thresholds.put("metaspaceAlertThreshold", properties.getMetaspaceAlertThreshold());
+    thresholds.put("containerAlertThreshold", properties.getContainerAlertThreshold());
+    thresholds.put("containerCriticalThreshold", properties.getContainerCriticalThreshold());
+    thresholds.put("maxHeapToContainerRatio", properties.getMaxHeapToContainerRatio());
+    thresholds.put("envelopeEnforced", properties.isEnvelopeEnforced());
     return thresholds;
+  }
+
+  private Map<String, Object> buildRuntimeEnvelopeReport(
+      MemoryRuntimeSnapshot runtimeSnapshot, MemoryUsage heapUsage) {
+    Map<String, Object> report = new LinkedHashMap<>();
+    report.put("processRss", buildOptionalBytesReport(runtimeSnapshot.processRssBytes()));
+    report.put("containerUsage", buildOptionalBytesReport(runtimeSnapshot.containerUsageBytes()));
+    report.put("containerLimit", buildOptionalBytesReport(runtimeSnapshot.containerLimitBytes()));
+    report.put(
+        "containerUsageRatio",
+        ratio(runtimeSnapshot.containerUsageBytes(), runtimeSnapshot.containerLimitBytes()));
+    report.put(
+        "heapMaxToContainerRatio",
+        runtimeSnapshot.containerLimitBytes().isPresent()
+            ? ratio(resolveMaxBytes(heapUsage), runtimeSnapshot.containerLimitBytes().getAsLong())
+            : 0.0d);
+    return report;
+  }
+
+  private Map<String, Object> buildOptionalBytesReport(OptionalLong value) {
+    Map<String, Object> report = new LinkedHashMap<>();
+    report.put(AVAILABLE_FIELD, value.isPresent());
+    report.put("bytes", value.orElse(ZERO_BYTES));
+    report.put("megabytes", value.isPresent() ? toMegabytes(value.getAsLong()) : ZERO_BYTES);
+    return report;
   }
 
   private Map<String, Object> buildMetaspaceReport(Optional<MemoryUsage> metaspaceUsage) {
     if (metaspaceUsage.isEmpty()) {
       Map<String, Object> unavailable = new LinkedHashMap<>();
       unavailable.put("name", METASPACE_NAME);
-      unavailable.put("available", false);
+      unavailable.put(AVAILABLE_FIELD, false);
       return unavailable;
     }
 
     Map<String, Object> report = buildAreaReport(METASPACE_NAME, metaspaceUsage.get());
-    report.put("available", true);
+    report.put(AVAILABLE_FIELD, true);
     return report;
   }
 
@@ -132,14 +201,17 @@ public class MemoryMonitoringService {
     return area;
   }
 
-  private List<String> buildWarnings(MemoryUsage heapUsage, Optional<MemoryUsage> metaspaceUsage) {
+  private List<String> buildWarnings(
+      MemoryUsage heapUsage,
+      Optional<MemoryUsage> metaspaceUsage,
+      MemoryRuntimeSnapshot runtimeSnapshot) {
     List<String> warnings = new ArrayList<>();
     double heapRatio = usageRatio(heapUsage);
     if (heapRatio >= properties.getHeapAlertThreshold()) {
       warnings.add(
           "Heap acima do limite configurado: "
               + formatRatio(heapRatio)
-              + " usado (limite "
+              + USED_WITH_LIMIT
               + formatRatio(properties.getHeapAlertThreshold())
               + ")");
     }
@@ -151,12 +223,53 @@ public class MemoryMonitoringService {
             warnings.add(
                 "Metaspace acima do limite configurado: "
                     + formatRatio(metaspaceRatio)
-                    + " usado (limite "
+                    + USED_WITH_LIMIT
                     + formatRatio(properties.getMetaspaceAlertThreshold())
                     + ")");
           }
         });
+    addContainerWarnings(runtimeSnapshot, warnings);
     return warnings;
+  }
+
+  private void addContainerWarnings(MemoryRuntimeSnapshot runtimeSnapshot, List<String> warnings) {
+    if (runtimeSnapshot.containerLimitBytes().isEmpty()) {
+      if (properties.isEnvelopeEnforced()) {
+        warnings.add("Limite finito do container indisponivel");
+      }
+      return;
+    }
+
+    double heapMaxRatio =
+        ratio(
+            resolveMaxBytes(ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()),
+            runtimeSnapshot.containerLimitBytes().getAsLong());
+    if (heapMaxRatio > properties.getMaxHeapToContainerRatio()) {
+      warnings.add(
+          "Heap maximo excede a proporcao do container: "
+              + formatRatio(heapMaxRatio)
+              + " (limite "
+              + formatRatio(properties.getMaxHeapToContainerRatio())
+              + ")");
+    }
+
+    double containerRatio =
+        ratio(runtimeSnapshot.containerUsageBytes(), runtimeSnapshot.containerLimitBytes());
+    if (containerRatio >= properties.getContainerCriticalThreshold()) {
+      warnings.add(
+          "Container acima do limite critico: "
+              + formatRatio(containerRatio)
+              + USED_WITH_LIMIT
+              + formatRatio(properties.getContainerCriticalThreshold())
+              + ")");
+    } else if (containerRatio >= properties.getContainerAlertThreshold()) {
+      warnings.add(
+          "Container acima do limite de alerta: "
+              + formatRatio(containerRatio)
+              + USED_WITH_LIMIT
+              + formatRatio(properties.getContainerAlertThreshold())
+              + ")");
+    }
   }
 
   private Optional<MemoryUsage> findMetaspaceUsage() {
@@ -178,8 +291,42 @@ public class MemoryMonitoringService {
     return usage.getMax() > 0L ? usage.getMax() : usage.getCommitted();
   }
 
+  private double optionalBytes(OptionalLong value) {
+    return value.isPresent() ? (double) value.getAsLong() : 0.0d;
+  }
+
+  private double ratio(OptionalLong numerator, OptionalLong denominator) {
+    if (numerator.isEmpty() || denominator.isEmpty()) {
+      return 0.0d;
+    }
+    return ratio(numerator.getAsLong(), denominator.getAsLong());
+  }
+
+  private double ratio(long numerator, long denominator) {
+    if (numerator < ZERO_BYTES || denominator <= ZERO_BYTES) {
+      return 0.0d;
+    }
+    return Math.min(1.0d, (double) numerator / (double) denominator);
+  }
+
   private long toMegabytes(long bytes) {
     return bytes <= 0L ? 0L : bytes / BYTES_PER_MEGABYTE;
+  }
+
+  private String formatOptionalMegabytes(OptionalLong bytes) {
+    return bytes.isPresent() ? toMegabytes(bytes.getAsLong()) + " MB" : UNAVAILABLE_VALUE;
+  }
+
+  private String formatContainer(MemoryRuntimeSnapshot snapshot) {
+    if (snapshot.containerUsageBytes().isEmpty() || snapshot.containerLimitBytes().isEmpty()) {
+      return UNAVAILABLE_VALUE;
+    }
+    return toMegabytes(snapshot.containerUsageBytes().getAsLong())
+        + " MB/"
+        + toMegabytes(snapshot.containerLimitBytes().getAsLong())
+        + " MB ("
+        + formatRatio(ratio(snapshot.containerUsageBytes(), snapshot.containerLimitBytes()))
+        + ")";
   }
 
   private String formatRatio(double ratio) {

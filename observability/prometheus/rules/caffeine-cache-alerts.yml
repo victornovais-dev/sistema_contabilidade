@@ -1,0 +1,20 @@
+groups:
+  - name: sistema-contabilidade-caffeine-cache
+    rules:
+      - alert: CaffeineCacheNearCapacity
+        expr: app_cache_size / clamp_min(app_cache_maximum_entries, 1) >= 0.90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Local Caffeine cache is near its configured entry limit"
+          description: "Cache {{ $labels.cache }} has remained at or above 90% of capacity for 10 minutes."
+
+      - alert: CaffeineCacheEvictingContinuously
+        expr: rate(app_cache_evictions_total[15m]) > 1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Local Caffeine cache has sustained eviction pressure"
+          description: "Cache {{ $labels.cache }} is evicting more than one entry per second for 15 minutes."

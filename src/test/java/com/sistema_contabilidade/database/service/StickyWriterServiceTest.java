@@ -9,6 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
@@ -161,12 +163,19 @@ class StickyWriterServiceTest {
   private StickyWriterService service(boolean enabled, boolean valkeyEnabled, long ttlSeconds) {
     serviceRegistry = new SimpleMeterRegistry();
     return new StickyWriterService(
-        redisTemplate, serviceRegistry, ttlSeconds, enabled, valkeyEnabled);
+        redisTemplate, serviceRegistry, localCache(ttlSeconds), ttlSeconds, enabled, valkeyEnabled);
   }
 
   private StickyWriterService createServiceWithTtl(long ttlSeconds) {
     return new StickyWriterService(
-        redisTemplate, new SimpleMeterRegistry(), ttlSeconds, true, true);
+        redisTemplate, new SimpleMeterRegistry(), localCache(1), ttlSeconds, true, true);
+  }
+
+  private Cache<UUID, Boolean> localCache(long ttlSeconds) {
+    return Caffeine.newBuilder()
+        .maximumSize(100L)
+        .expireAfterWrite(Duration.ofSeconds(ttlSeconds))
+        .build();
   }
 
   private void assertMetric(SimpleMeterRegistry registry, String result, double expected) {

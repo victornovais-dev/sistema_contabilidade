@@ -1,7 +1,7 @@
 package com.sistema_contabilidade.database.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
+import com.sistema_contabilidade.monitoring.cache.CaffeineCacheConfiguration;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,8 @@ public final class StickyWriterService {
   public StickyWriterService(
       StringRedisTemplate redisTemplate,
       MeterRegistry meterRegistry,
+      @Qualifier(CaffeineCacheConfiguration.STICKY_WRITER_LOCAL_CACHE_BEAN)
+          Cache<UUID, Boolean> localStickySessions,
       @Value("${app.database.sticky-writer.seconds:10}") long ttlSeconds,
       @Value("${app.database.routing.enabled:false}") boolean routingEnabled,
       @Value("${app.database.sticky-writer.valkey-enabled:false}") boolean valkeyEnabled) {
@@ -48,8 +51,7 @@ public final class StickyWriterService {
     this.ttl = Duration.ofSeconds(ttlSeconds);
     this.routingEnabled = routingEnabled;
     this.valkeyEnabled = valkeyEnabled;
-    this.localStickySessions =
-        Caffeine.newBuilder().maximumSize(100_000).expireAfterWrite(ttl).build();
+    this.localStickySessions = localStickySessions;
     this.activeCounter = counter(meterRegistry, "active");
     this.inactiveCounter = counter(meterRegistry, "inactive");
     this.readErrorCounter = counter(meterRegistry, "read_error");

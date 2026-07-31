@@ -25,10 +25,14 @@ class SistemaContabilidadeApplicationTest {
   @Test
   @DisplayName("Deve registrar caches usados pela aplicacao")
   void deveRegistrarCachesUsadosPelaAplicacao() {
-    CacheManager cacheManager = new SistemaContabilidadeApplication().cacheManager();
+    try (ConfigurableApplicationContext context =
+        new SpringApplicationBuilder(SistemaContabilidadeApplication.class)
+            .run("--spring.main.banner-mode=off", "--server.port=0")) {
+      CacheManager cacheManager = context.getBean(CacheManager.class);
 
-    assertNotNull(cacheManager.getCache("userDetails"));
-    Assertions.assertNotNull(cacheManager.getCache("itemDescricoes"));
-    Assertions.assertNotNull(cacheManager.getCache("itemTiposDocumento"));
+      assertNotNull(cacheManager.getCache("userDetails"));
+      Assertions.assertNotNull(cacheManager.getCache("itemDescricoes"));
+      Assertions.assertNotNull(cacheManager.getCache("itemTiposDocumento"));
+    }
   }
 }

@@ -30,7 +30,13 @@ class MemoryMonitoringPrometheusIntegrationTest {
     assertThat(response.statusCode()).isEqualTo(HttpStatus.OK.value());
     assertThat(response.body())
         .contains("app_memory_heap_usage_ratio")
-        .contains("app_memory_metaspace_usage_ratio");
+        .contains("app_memory_metaspace_usage_ratio")
+        .contains("app_memory_process_rss_bytes")
+        .contains("app_memory_container_usage_bytes")
+        .contains("app_memory_container_limit_bytes")
+        .contains("app_memory_container_usage_ratio")
+        .contains("app_memory_heap_max_to_container_ratio")
+        .contains("app_memory_container_limit_configured");
   }
 
   private HttpResponse<String> get(String path) throws IOException, InterruptedException {

@@ -1,0 +1,52 @@
+groups:
+  - name: sistema-contabilidade-memory-envelope
+    rules:
+      - alert: MemoryEnvelopeMissing
+        expr: app_memory_container_limit_configured < 1
+        for: 2m
+        labels:
+          severity: critical
+          service: sistema_contabilidade
+        annotations:
+          summary: "Application has no finite cgroup memory limit"
+          description: "Configure Docker --memory or systemd MemoryMax before production traffic."
+
+      - alert: ContainerMemoryUsageHigh
+        expr: app_memory_container_usage_ratio >= 0.70
+        for: 5m
+        labels:
+          severity: warning
+          service: sistema_contabilidade
+        annotations:
+          summary: "Application cgroup memory usage is high"
+          description: "Container memory usage remained at {{ $value | humanizePercentage }} for 5 minutes."
+
+      - alert: ContainerMemoryUsageCritical
+        expr: app_memory_container_usage_ratio >= 0.80
+        for: 1m
+        labels:
+          severity: critical
+          service: sistema_contabilidade
+        annotations:
+          summary: "Application cgroup memory usage is critical"
+          description: "Container memory usage reached {{ $value | humanizePercentage }}. Drain the instance or reduce load."
+
+      - alert: JvmHeapUsageHigh
+        expr: app_memory_heap_usage_ratio >= 0.70
+        for: 5m
+        labels:
+          severity: warning
+          service: sistema_contabilidade
+        annotations:
+          summary: "JVM heap usage is high"
+          description: "JVM heap usage remained at {{ $value | humanizePercentage }} for 5 minutes."
+
+      - alert: JvmHeapBudgetExceedsContainerEnvelope
+        expr: app_memory_heap_max_to_container_ratio > 0.50
+        for: 1m
+        labels:
+          severity: critical
+          service: sistema_contabilidade
+        annotations:
+          summary: "JVM heap budget exceeds the approved container envelope"
+          description: "Maximum JVM heap is {{ $value | humanizePercentage }} of the cgroup limit. Approved ceiling: 50%."

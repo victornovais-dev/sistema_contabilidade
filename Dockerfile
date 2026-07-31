@@ -58,6 +58,7 @@ RUN apt-get update \
 
 ENV APP_HOME=/app
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:InitialRAMPercentage=25.0 -XX:+ExitOnOutOfMemoryError"
 
 WORKDIR ${APP_HOME}
 
