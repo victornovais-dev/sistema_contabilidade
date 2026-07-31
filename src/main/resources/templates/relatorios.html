@@ -12,7 +12,7 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/css/relatorios-20260427-despesas-estimaveis-1.css" />
+    <link rel="stylesheet" href="assets/css/relatorios-20260731-pdf-capacity-1.css" />
     <link rel="stylesheet" href="assets/css/navbar-20260420-navbar-notification-count-fix-3.css" />
   </head>
   <body>
@@ -81,8 +81,32 @@
         </div>
       </template>
 
+      <section
+        id="pdf-capacity-card"
+        class="card pdf-capacity-card"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        hidden
+      >
+        <div class="pdf-capacity-countdown" aria-label="Tempo restante">
+          <span id="pdf-capacity-countdown">5</span><small>s</small>
+        </div>
+        <div>
+          <strong>Gerador de PDF ocupado</strong>
+          <p id="pdf-capacity-message">
+            Todas as vagas estão em uso. Tente novamente quando o contador terminar.
+          </p>
+        </div>
+      </section>
+
       <section class="report-actions">
-        <button class="btn btn-primary" id="download-report-btn" type="button">
+        <button
+          class="btn btn-primary"
+          id="download-report-btn"
+          type="button"
+          aria-describedby="pdf-capacity-message"
+        >
           Baixar relatório (PDF)
         </button>
       </section>
@@ -90,7 +114,7 @@
 
     <script src="assets/js/navbar-20260502-startup-perf-1.js" defer></script>
     <script src="assets/js/role-dropdown-20260420-home-role-filter-1.js" defer></script>
-    <script src="assets/js/relatorios-20260504-utf8-fix-1.js" defer></script>
+    <script src="assets/js/relatorios-20260731-pdf-capacity-1.js" defer></script>
   </body>
 </html>
 

@@ -18,6 +18,13 @@ const summaryOverviewTitle = summaryOverviewCard?.querySelector(".summary-card-t
 const summaryContasTitle = summaryContasCard?.querySelector(".summary-card-title") || null;
 const reportState = document.getElementById("report-state");
 const downloadReportButton = document.getElementById("download-report-btn");
+const pdfCapacityCard = document.getElementById("pdf-capacity-card");
+const pdfCapacityCountdown = document.getElementById("pdf-capacity-countdown");
+const PDF_DEFAULT_RETRY_AFTER_SECONDS = 5;
+const PDF_MAX_RETRY_AFTER_SECONDS = 60;
+const PDF_DOWNLOAD_BUTTON_LABEL =
+  downloadReportButton?.textContent.trim() || "Baixar relat\u00f3rio (PDF)";
+let pdfCooldownTimerId = null;
 const roleFilterStorageKey = "sc_home_selected_role";
 const getStoredSelectedRole = () => String(localStorage.getItem(roleFilterStorageKey) || "").trim();
 const setSelectedRole = (role) => {
@@ -57,6 +64,70 @@ const roleDropdown =
 const summaryItemTemplate = document.getElementById("summary-item-template");
 const getAccessToken = () => localStorage.getItem("sc_access_token");
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+const parseRetryAfterSeconds = (value) => {
+  const numericSeconds = Number.parseInt(String(value || ""), 10);
+  if (Number.isFinite(numericSeconds) && numericSeconds > 0) {
+    return Math.min(numericSeconds, PDF_MAX_RETRY_AFTER_SECONDS);
+  }
+
+  const retryAt = Date.parse(String(value || ""));
+  if (Number.isFinite(retryAt)) {
+    return Math.min(
+      Math.max(1, Math.ceil((retryAt - Date.now()) / 1000)),
+      PDF_MAX_RETRY_AFTER_SECONDS,
+    );
+  }
+
+  return PDF_DEFAULT_RETRY_AFTER_SECONDS;
+};
+
+const resetPdfDownloadButton = () => {
+  if (!downloadReportButton) return;
+  downloadReportButton.disabled = false;
+  downloadReportButton.textContent = PDF_DOWNLOAD_BUTTON_LABEL;
+};
+
+const hidePdfCapacityCard = () => {
+  if (pdfCapacityCard) {
+    pdfCapacityCard.hidden = true;
+  }
+};
+
+const startPdfCapacityCountdown = (retryAfterSeconds) => {
+  if (pdfCooldownTimerId !== null) {
+    window.clearInterval(pdfCooldownTimerId);
+  }
+
+  const totalSeconds = Math.max(1, Math.ceil(retryAfterSeconds));
+  const deadline = Date.now() + totalSeconds * 1000;
+  if (pdfCapacityCard) {
+    pdfCapacityCard.hidden = false;
+  }
+  if (downloadReportButton) {
+    downloadReportButton.disabled = true;
+  }
+
+  const updateCountdown = () => {
+    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    if (pdfCapacityCountdown) {
+      pdfCapacityCountdown.textContent = String(remaining);
+    }
+    if (downloadReportButton) {
+      downloadReportButton.textContent =
+        remaining > 0 ? `Tente novamente em ${remaining}s` : PDF_DOWNLOAD_BUTTON_LABEL;
+    }
+    if (remaining === 0) {
+      window.clearInterval(pdfCooldownTimerId);
+      pdfCooldownTimerId = null;
+      hidePdfCapacityCard();
+      resetPdfDownloadButton();
+    }
+  };
+
+  updateCountdown();
+  pdfCooldownTimerId = window.setInterval(updateCountdown, 250);
+};
 
 const buildRoleQuery = () => {
   if (!state.selectedRole) return "";
@@ -503,6 +574,12 @@ const downloadPdf = async () => {
   if (response.status === 403) {
     throw new Error("Acesso negado para gerar PDF do candidato selecionado.");
   }
+  if (response.status === 503 || response.status === 429) {
+    const capacityError = new Error("Capacidade temporariamente esgotada para gerar PDF.");
+    capacityError.code = "PDF_CAPACITY_EXCEEDED";
+    capacityError.retryAfterSeconds = parseRetryAfterSeconds(response.headers.get("Retry-After"));
+    throw capacityError;
+  }
   if (!response.ok) {
     throw new Error("N\u00e3o foi poss\u00edvel gerar o PDF.");
   }
@@ -551,10 +628,23 @@ const loadRoleFilterOptions = async () => {
 const bindEvents = () => {
   if (!downloadReportButton) return;
   downloadReportButton.addEventListener("click", async () => {
+    if (downloadReportButton.disabled) return;
+    hidePdfCapacityCard();
+    downloadReportButton.disabled = true;
+    downloadReportButton.textContent = "Gerando PDF...";
+
     try {
       await downloadPdf();
     } catch (error) {
+      if (error?.code === "PDF_CAPACITY_EXCEEDED") {
+        startPdfCapacityCountdown(error.retryAfterSeconds);
+        return;
+      }
       showState("Erro ao gerar PDF. Tente novamente.", true);
+    } finally {
+      if (pdfCooldownTimerId === null) {
+        resetPdfDownloadButton();
+      }
     }
   });
 };

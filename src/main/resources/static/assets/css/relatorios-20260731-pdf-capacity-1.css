@@ -328,6 +328,13 @@ html[data-theme="light"] .custom-select-option.is-active {
   box-shadow: 0 16px 30px rgba(216, 75, 52, 0.34);
 }
 
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+  transform: none;
+  box-shadow: 0 8px 18px rgba(216, 75, 52, 0.18);
+}
+
 .report-actions {
   display: flex;
   justify-content: center;
@@ -338,6 +345,61 @@ html[data-theme="light"] .custom-select-option.is-active {
   width: min(520px, 92vw);
   padding: 20px 24px;
   font-size: 1.05rem;
+}
+
+.pdf-capacity-card {
+  width: min(620px, 92vw);
+  margin: 18px auto 0;
+  padding: 20px 22px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  border: 1px solid rgba(240, 104, 74, 0.38);
+  background: linear-gradient(135deg, rgba(240, 104, 74, 0.12), var(--card));
+}
+
+.pdf-capacity-card[hidden] {
+  display: none;
+}
+
+.pdf-capacity-card strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.pdf-capacity-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.pdf-capacity-countdown {
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  padding-top: 13px;
+  color: #fff;
+  background: linear-gradient(135deg, #f0684a, #d84b34);
+  box-shadow: 0 12px 24px rgba(216, 75, 52, 0.26);
+  font-variant-numeric: tabular-nums;
+}
+
+.pdf-capacity-countdown span {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pdf-capacity-countdown small {
+  margin-left: 2px;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .page-header p {
