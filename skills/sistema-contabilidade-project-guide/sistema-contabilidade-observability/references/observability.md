@@ -59,6 +59,9 @@
 - `lista_comprovantes` hot path uses dedicated paginated projection in `ItemListPageRepositoryImpl`.
 - That path now uses `Slice` instead of `Page` to avoid per-request `count(*)`.
 - `relatorios` web summaries aggregate by category in the database through `RelatorioResumoCategoriaRow`.
+- PDF generation uses per-instance bounded concurrency and queue capacity. Micrometer exposes active
+  work, queued work, configured limits, results, slot duration and observed RSS/cgroup increase
+  under the fixed `app.pdf.*` metric family.
 
 ## Database routing
 

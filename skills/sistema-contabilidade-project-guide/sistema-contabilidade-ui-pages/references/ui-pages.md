@@ -22,6 +22,8 @@
 - `/home`
 - `/lista_comprovantes`
 - `/relatorios`
+  - Keep the Thymeleaf page and static fallback synchronized. PDF saturation shows a countdown card
+    from `Retry-After`; the client must not retry automatically.
 - `/notificacoes`
 - `/admin`
 - `/gerenciar_roles`

@@ -126,6 +126,13 @@ Operational metrics use fixed, low-cardinality tags:
 | `app.cache.expiration.seconds` | `cache` | Configured expire-after-write duration |
 | `app.cache.requests` | `cache`, `result=hit\|miss` | Cumulative cache lookup results |
 | `app.cache.evictions` | `cache` | Cumulative size-based or expiration evictions |
+| `app.pdf.concurrent.active` | none | PDF generations currently holding Chromium execution slots |
+| `app.pdf.concurrent.limit` | none | Configured concurrent PDF limit per application instance |
+| `app.pdf.queue.size` | none | PDF requests currently waiting for an execution slot |
+| `app.pdf.queue.capacity` | none | Configured bounded PDF queue capacity per instance |
+| `app.pdf.requests` | `result=success\|error\|rejected\|interrupted` | PDF generation outcomes |
+| `app.pdf.slot.held` | none | Time spent holding a PDF execution slot |
+| `app.pdf.memory.increase` | `scope=java_process\|container` | Positive RSS/cgroup increase observed while a PDF slot is held |
 
 Never add session IDs, user IDs, IPs, endpoints, tokens, cache keys or credentials as labels. Full
 production thresholds, CloudWatch alarms, failure drills and rollback steps are in

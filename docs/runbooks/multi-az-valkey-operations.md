@@ -225,6 +225,44 @@ Required signals:
 Keep the EC2/CloudWatch Agent alarm for host memory below 75%. Application metrics cannot replace
 host-level memory and OOM-kill monitoring.
 
+### Bounded PDF generation
+
+Each application instance limits Chromium work independently. The pilot defaults allow two active
+PDFs and four queued requests:
+
+```text
+APP_PDF_MAX_CONCURRENCY=2
+APP_PDF_QUEUE_CAPACITY=4
+APP_PDF_RETRY_AFTER_SECONDS=5
+```
+
+Admission happens before detailed report queries and DTO creation. An admitted request waits in the
+bounded in-process queue until an execution slot is free. When all active and queued capacity is
+occupied, the PDF endpoint returns `503 Service Unavailable` with `Retry-After`; it does not query
+the detailed report or open another Chromium context. With two EC2 instances, the fleet can execute
+up to twice the configured per-instance concurrency.
+
+Do not keep `APP_PDF_MAX_CONCURRENCY=2` beyond the pilot until a separate progressive PDF load test
+confirms the cgroup peak remains below 80%, normal usage remains below 70%, and no OOM kill or
+continuous RSS growth occurs. Roll back to `1` if the envelope is exceeded.
+`app.pdf.memory.increase` records the positive start-to-finish change observed for Java RSS and
+total cgroup usage; it is not a peak-memory measurement. Correlate it with
+`app.memory.container.usage.bytes`, `app.pdf.concurrent.active` and slot duration during the test.
+
+Verify after deployment:
+
+```bash
+curl --fail --silent http://127.0.0.1:8080/actuator/prometheus \
+  | grep '^app_pdf_'
+```
+
+Required signals:
+
+- `app_pdf_concurrent_active` never exceeds `app_pdf_concurrent_limit`;
+- `app_pdf_queue_size` never exceeds `app_pdf_queue_capacity`;
+- rejected requests increment `app_pdf_requests_total{result="rejected"}` and return `Retry-After`;
+- slot duration and cgroup memory stay within the load-tested envelope.
+
 ### Local Caffeine cache budget
 
 All local Caffeine caches are created by one configuration and always use `maximumSize`,

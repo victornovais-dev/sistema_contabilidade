@@ -18,6 +18,14 @@
 - PDF data preparation, including the responsible-user lookup, runs in a read-only transaction;
   the controller invokes `PlaywrightPdfService` only after that transaction has ended.
 - `PlaywrightPdfService` renders Thymeleaf PDF template and embeds logo as data URI.
+- `PdfGenerationLimiter` admits at most `app.pdf.max-concurrency + app.pdf.queue-capacity`
+  requests per application instance before the detailed report query. Excess requests receive
+  `503` with `Retry-After`.
+- `APP_PDF_MAX_CONCURRENCY` defaults to `2` for the pilot; the bounded queue defaults to `4`.
+- On `503`/`429`, the reports page reads `Retry-After`, displays a bounded countdown card and
+  reenables PDF download without automatic retry.
+- PDF metrics expose active work, queued work, configured limits, outcomes, slot duration and
+  observed Java RSS/cgroup memory increase. Labels are fixed and contain no user or campaign data.
 - Central PDF template: `relatorio-financeiro.html`.
 - Executive visual mock exists: `relatorio-executivo-exemplo.html`.
 - `Despesas por categoria` uses circular chart and fixed palette.
