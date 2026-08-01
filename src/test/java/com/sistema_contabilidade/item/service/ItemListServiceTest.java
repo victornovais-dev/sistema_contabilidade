@@ -16,6 +16,7 @@ import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemListPageQuery;
 import com.sistema_contabilidade.item.repository.ItemRepository;
+import com.sistema_contabilidade.rbac.service.CampaignScopeResolver;
 import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
 import java.math.BigDecimal;
@@ -47,7 +48,10 @@ class ItemListServiceTest {
   @DisplayName("Deve listar pagina de itens para admin sem restringir role")
   void listarParaAdminSemFiltroDeveRetornarPagina() {
     ItemListService service =
-        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
+        new ItemListService(
+            itemRepository,
+            new CampaignScopeResolver(candidateRoleCatalogService),
+            new InputSanitizer());
     ItemListResponse item = novoResumo("ADMIN");
     when(itemRepository.findPageForList(any(ItemListPageQuery.class), any()))
         .thenReturn(
@@ -81,9 +85,15 @@ class ItemListServiceTest {
   @DisplayName("Deve listar pagina filtrada pela role selecionada do usuario")
   void listarComRoleSelecionadaDeveFiltrarPorRole() {
     ItemListService service =
-        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
+        new ItemListService(
+            itemRepository,
+            new CampaignScopeResolver(candidateRoleCatalogService),
+            new InputSanitizer());
     ItemListPageRequest request = new ItemListPageRequest();
     request.setRole("financeiro");
+    when(candidateRoleCatalogService.filterAvailableRoles(
+            java.util.Set.of("OPERADOR", "FINANCEIRO")))
+        .thenReturn(List.of("FINANCEIRO", "OPERADOR"));
     when(itemRepository.findPageForList(any(ItemListPageQuery.class), any()))
         .thenReturn(new SliceImpl<>(List.of()));
 
@@ -107,7 +117,10 @@ class ItemListServiceTest {
   @DisplayName("Deve retornar forbidden quando usuario filtrar por role que nao possui")
   void listarComRoleInvalidaDeveRetornarForbidden() {
     ItemListService service =
-        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
+        new ItemListService(
+            itemRepository,
+            new CampaignScopeResolver(candidateRoleCatalogService),
+            new InputSanitizer());
     ItemListPageRequest request = new ItemListPageRequest();
     request.setRole("financeiro");
     UsernamePasswordAuthenticationToken authentication =
@@ -125,7 +138,10 @@ class ItemListServiceTest {
   @DisplayName("Deve retornar bad request quando intervalo de datas for invalido")
   void listarComIntervaloInvalidoDeveRetornarBadRequest() {
     ItemListService service =
-        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
+        new ItemListService(
+            itemRepository,
+            new CampaignScopeResolver(candidateRoleCatalogService),
+            new InputSanitizer());
     ItemListPageRequest request = new ItemListPageRequest();
     request.setDataInicio(LocalDate.of(2026, Month.MAY, 10));
     request.setDataFim(LocalDate.of(2026, Month.MAY, 1));
@@ -142,7 +158,10 @@ class ItemListServiceTest {
   @DisplayName("Deve listar roles disponiveis para admin usando nomes do banco")
   void listarRolesDisponiveisParaAdminDeveVirDoBanco() {
     ItemListService service =
-        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
+        new ItemListService(
+            itemRepository,
+            new CampaignScopeResolver(candidateRoleCatalogService),
+            new InputSanitizer());
     when(candidateRoleCatalogService.listAvailableRolesForAdmin()).thenReturn(List.of("ANDRE"));
 
     List<String> roles = service.listarRolesDisponiveis(autenticacao("admin@email.com", "ADMIN"));
@@ -155,7 +174,10 @@ class ItemListServiceTest {
   @DisplayName("Deve retornar pagina vazia quando usuario nao possuir roles visiveis")
   void deveRetornarPaginaVaziaQuandoUsuarioNaoPossuirRolesVisiveis() {
     ItemListService service =
-        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
+        new ItemListService(
+            itemRepository,
+            new CampaignScopeResolver(candidateRoleCatalogService),
+            new InputSanitizer());
 
     ItemListPageResponse resultado =
         service.listarItens(
@@ -171,7 +193,10 @@ class ItemListServiceTest {
       "Deve reajustar pagina para ultima pagina valida quando pagina solicitada estiver vazia")
   void deveReajustarPaginaParaUltimaPaginaValidaQuandoPaginaSolicitadaEstiverVazia() {
     ItemListService service =
-        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
+        new ItemListService(
+            itemRepository,
+            new CampaignScopeResolver(candidateRoleCatalogService),
+            new InputSanitizer());
     ItemListPageRequest request = new ItemListPageRequest();
     request.setPage(5);
     request.setPageSize(10);
@@ -193,7 +218,10 @@ class ItemListServiceTest {
   @DisplayName("Deve listar roles do proprio usuario quando nao for admin")
   void listarRolesDisponiveisParaUsuarioComumDeveVirDaAutenticacao() {
     ItemListService service =
-        new ItemListService(itemRepository, candidateRoleCatalogService, new InputSanitizer());
+        new ItemListService(
+            itemRepository,
+            new CampaignScopeResolver(candidateRoleCatalogService),
+            new InputSanitizer());
     when(candidateRoleCatalogService.filterAvailableRoles(java.util.Set.of("OPERADOR", "SUPPORT")))
         .thenReturn(List.of("OPERADOR"));
 

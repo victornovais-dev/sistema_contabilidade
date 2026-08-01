@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.database.routing.DatabaseRoutingContext;
+import com.sistema_contabilidade.rbac.service.CampaignScope;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -63,8 +64,7 @@ class RelatorioResumoCacheServiceTest {
 
     RelatorioFinanceiroResumoResponse result =
         service.getOrCompute(
-            Set.of("CONTABIL"),
-            "CONTABIL",
+            CampaignScope.restricted(Set.of("CONTABIL")).withRoleFilter("CONTABIL"),
             "role=CONTABIL",
             () -> {
               loads.incrementAndGet();
@@ -85,7 +85,8 @@ class RelatorioResumoCacheServiceTest {
     RelatorioFinanceiroResumoResponse computed = response("55.00");
 
     RelatorioFinanceiroResumoResponse result =
-        service.getOrCompute(Set.of("ADMIN"), " contabil ", "role=CONTABIL", () -> computed);
+        service.getOrCompute(
+            CampaignScope.all().withRoleFilter("CONTABIL"), "role=CONTABIL", () -> computed);
 
     ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
@@ -101,7 +102,7 @@ class RelatorioResumoCacheServiceTest {
   }
 
   @Test
-  @DisplayName("Chave deve isolar escopo role e filtros")
+  @DisplayName("Chave deve usar o escopo efetivo e isolar filtros")
   void chaveDeveIsolarEscopoRoleEFiltros() {
     RelatorioResumoCacheService service = service(true, 30, 131_072);
     when(valueOperations.get(anyString()))
@@ -111,14 +112,20 @@ class RelatorioResumoCacheServiceTest {
                     ? "3"
                     : null);
 
-    service.getOrCompute(Set.of("ADMIN"), "CONTABIL", "role=CONTABIL", () -> response("1"));
-    service.getOrCompute(Set.of("CONTABIL"), "CONTABIL", "role=CONTABIL", () -> response("1"));
-    service.getOrCompute(Set.of("ADMIN"), "ADMIN", "role=ADMIN", () -> response("1"));
+    service.getOrCompute(
+        CampaignScope.all().withRoleFilter("CONTABIL"), "role=CONTABIL", () -> response("1"));
+    service.getOrCompute(
+        CampaignScope.restricted(Set.of("CONTABIL")).withRoleFilter("CONTABIL"),
+        "role=CONTABIL",
+        () -> response("1"));
+    service.getOrCompute(
+        CampaignScope.restricted(Set.of("FINANCEIRO")), "role=ALL", () -> response("1"));
 
     ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
     verify(valueOperations, Mockito.times(3))
         .set(keyCaptor.capture(), anyString(), eq(Duration.ofSeconds(30)));
-    assertThat(keyCaptor.getAllValues()).doesNotHaveDuplicates();
+    assertThat(keyCaptor.getAllValues().get(0)).isEqualTo(keyCaptor.getAllValues().get(1));
+    assertThat(keyCaptor.getAllValues().get(2)).isNotEqualTo(keyCaptor.getAllValues().get(0));
   }
 
   @Test
@@ -140,7 +147,7 @@ class RelatorioResumoCacheServiceTest {
     DatabaseRoutingContext.forceWriterForSticky();
 
     RelatorioFinanceiroResumoResponse result =
-        service.getOrCompute(Set.of("ADMIN"), null, "role=ALL", () -> computed);
+        service.getOrCompute(CampaignScope.all(), "role=ALL", () -> computed);
 
     assertThat(result).isSameAs(computed);
     verifyNoInteractions(valueOperations);
@@ -157,8 +164,7 @@ class RelatorioResumoCacheServiceTest {
 
     RelatorioFinanceiroResumoResponse result =
         service.getOrCompute(
-            Set.of("ADMIN"),
-            null,
+            CampaignScope.all(),
             "role=ALL",
             () -> {
               loads.incrementAndGet();
@@ -179,7 +185,7 @@ class RelatorioResumoCacheServiceTest {
     RelatorioFinanceiroResumoResponse computed = response("123456789.00");
 
     RelatorioFinanceiroResumoResponse result =
-        service.getOrCompute(Set.of("ADMIN"), null, "role=ALL", () -> computed);
+        service.getOrCompute(CampaignScope.all(), "role=ALL", () -> computed);
 
     assertThat(result).isSameAs(computed);
     verify(valueOperations, never()).set(anyString(), anyString(), Mockito.any(Duration.class));
@@ -193,7 +199,7 @@ class RelatorioResumoCacheServiceTest {
     RelatorioFinanceiroResumoResponse computed = response("15.00");
 
     RelatorioFinanceiroResumoResponse result =
-        service.getOrCompute(Set.of("ADMIN"), null, "role=ALL", () -> computed);
+        service.getOrCompute(CampaignScope.all(), "role=ALL", () -> computed);
     service.invalidateAfterItemWrite();
 
     assertThat(result).isSameAs(computed);

@@ -1,7 +1,8 @@
 package com.sistema_contabilidade.relatorio.service;
 
 import com.sistema_contabilidade.item.repository.ItemRepository;
-import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
+import com.sistema_contabilidade.rbac.service.CampaignScope;
+import com.sistema_contabilidade.rbac.service.CampaignScopeResolver;
 import com.sistema_contabilidade.relatorio.dto.RelatorioContaPagamentoRow;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroPdfData;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResponse;
@@ -14,25 +15,18 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@RequiredArgsConstructor
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
 public class RelatorioFinanceiroService {
 
-  private static final String ADMIN_ROLE = "ADMIN";
-
   private final ItemRepository itemRepository;
-  private final CandidateRoleCatalogService candidateRoleCatalogService;
+  private final CampaignScopeResolver campaignScopeResolver;
   private final UsuarioRepository usuarioRepository;
   private final PlaywrightPdfService playwrightPdfService;
   private final RelatorioResumoCacheService relatorioResumoCacheService;
@@ -62,11 +56,7 @@ public class RelatorioFinanceiroService {
 
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<String> listarRolesDisponiveis(Authentication authentication) {
-    Set<String> roleNomesAutenticado = extrairRoleNomes(authentication);
-    if (roleNomesAutenticado.contains(ADMIN_ROLE)) {
-      return candidateRoleCatalogService.listAvailableRolesForAdmin();
-    }
-    return candidateRoleCatalogService.filterAvailableRoles(roleNomesAutenticado);
+    return campaignScopeResolver.listAvailableCampaigns(authentication);
   }
 
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
@@ -84,11 +74,10 @@ public class RelatorioFinanceiroService {
 
   private RelatorioFinanceiroResumoResponse gerarResumoInterno(
       Authentication authentication, String roleFiltro) {
-    RelatorioScope scope = resolveScope(authentication, roleFiltro);
-    String normalizedFilters = "role=" + Objects.toString(scope.roleFiltroNormalizada(), "ALL");
+    CampaignScope scope = campaignScopeResolver.resolve(authentication, roleFiltro);
+    String normalizedFilters = "role=" + Objects.toString(scope.roleFilter(), "ALL");
     return relatorioResumoCacheService.getOrCompute(
-        scope.roleNomesAutenticado(),
-        scope.roleFiltroNormalizada(),
+        scope,
         normalizedFilters,
         () ->
             RelatorioFinanceiroConsolidador.buildSummaryResponse(
@@ -99,7 +88,7 @@ public class RelatorioFinanceiroService {
 
   private RelatorioFinanceiroResponse gerarRelatorio(
       Authentication authentication, String roleFiltro) {
-    RelatorioScope scope = resolveScope(authentication, roleFiltro);
+    CampaignScope scope = campaignScopeResolver.resolve(authentication, roleFiltro);
     return RelatorioFinanceiroConsolidador.buildDetailedResponse(buscarItensVisiveis(scope));
   }
 
@@ -116,90 +105,57 @@ public class RelatorioFinanceiroService {
         .orElse(authentication.getName());
   }
 
-  private RelatorioScope resolveScope(Authentication authentication, String roleFiltro) {
-    String roleFiltroNormalizada = normalizarRole(roleFiltro);
-    Set<String> roleNomesAutenticado = extrairRoleNomes(authentication);
-    boolean isAdmin = roleNomesAutenticado.contains(ADMIN_ROLE);
-    if (roleFiltroNormalizada != null
-        && !isAdmin
-        && !roleNomesAutenticado.contains(roleFiltroNormalizada)) {
-      throw new ResponseStatusException(
-          HttpStatus.FORBIDDEN, "A role selecionada nao pertence ao usuario autenticado.");
-    }
-    return new RelatorioScope(roleNomesAutenticado, roleFiltroNormalizada);
-  }
-
-  private List<RelatorioItemDto> buscarItensVisiveis(RelatorioScope scope) {
-    if (scope.roleFiltroNormalizada() != null) {
+  private List<RelatorioItemDto> buscarItensVisiveis(CampaignScope scope) {
+    if (scope.roleFilter() != null) {
       return itemRepository.findRelatorioItensByRoleNomeOrderByDataDescHorarioCriacaoDesc(
-          scope.roleFiltroNormalizada());
+          scope.roleFilter());
     }
-    if (scope.roleNomesAutenticado().contains(ADMIN_ROLE)) {
+    if (scope.allCampaigns()) {
       return itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc();
     }
-    if (scope.roleNomesAutenticado().isEmpty()) {
+    if (scope.effectiveCampaignNames().isEmpty()) {
       return List.of();
     }
     return itemRepository.findRelatorioItensByRoleNomesOrderByDataDescHorarioCriacaoDesc(
-        scope.roleNomesAutenticado());
+        scope.effectiveCampaignNames());
   }
 
-  private List<RelatorioResumoCategoriaRow> buscarResumoItens(RelatorioScope scope) {
-    if (scope.roleFiltroNormalizada() != null) {
-      return itemRepository.findRelatorioResumoCategoriasByRoleNome(scope.roleFiltroNormalizada());
+  private List<RelatorioResumoCategoriaRow> buscarResumoItens(CampaignScope scope) {
+    if (scope.roleFilter() != null) {
+      return itemRepository.findRelatorioResumoCategoriasByRoleNome(scope.roleFilter());
     }
-    if (scope.roleNomesAutenticado().contains(ADMIN_ROLE)) {
+    if (scope.allCampaigns()) {
       return itemRepository.findAllRelatorioResumoCategorias();
     }
-    if (scope.roleNomesAutenticado().isEmpty()) {
+    if (scope.effectiveCampaignNames().isEmpty()) {
       return List.of();
     }
-    return itemRepository.findRelatorioResumoCategoriasByRoleNomes(scope.roleNomesAutenticado());
+    return itemRepository.findRelatorioResumoCategoriasByRoleNomes(scope.effectiveCampaignNames());
   }
 
-  private BigDecimal buscarContasPagas(RelatorioScope scope) {
-    if (scope.roleFiltroNormalizada() != null) {
-      return itemRepository.findTotalContasPagasDespesasByRoleNome(scope.roleFiltroNormalizada());
+  private BigDecimal buscarContasPagas(CampaignScope scope) {
+    if (scope.roleFilter() != null) {
+      return itemRepository.findTotalContasPagasDespesasByRoleNome(scope.roleFilter());
     }
-    if (scope.roleNomesAutenticado().contains(ADMIN_ROLE)) {
+    if (scope.allCampaigns()) {
       return itemRepository.findTotalContasPagasDespesas();
     }
-    if (scope.roleNomesAutenticado().isEmpty()) {
+    if (scope.effectiveCampaignNames().isEmpty()) {
       return BigDecimal.ZERO;
     }
-    return itemRepository.findTotalContasPagasDespesasByRoleNomes(scope.roleNomesAutenticado());
+    return itemRepository.findTotalContasPagasDespesasByRoleNomes(scope.effectiveCampaignNames());
   }
 
-  private List<RelatorioContaPagamentoRow> buscarContasPagasPorConta(RelatorioScope scope) {
-    if (scope.roleFiltroNormalizada() != null) {
-      return itemRepository.findContasPagasPorContaByRoleNome(scope.roleFiltroNormalizada());
+  private List<RelatorioContaPagamentoRow> buscarContasPagasPorConta(CampaignScope scope) {
+    if (scope.roleFilter() != null) {
+      return itemRepository.findContasPagasPorContaByRoleNome(scope.roleFilter());
     }
-    if (scope.roleNomesAutenticado().contains(ADMIN_ROLE)) {
+    if (scope.allCampaigns()) {
       return itemRepository.findContasPagasPorConta();
     }
-    if (scope.roleNomesAutenticado().isEmpty()) {
+    if (scope.effectiveCampaignNames().isEmpty()) {
       return List.of();
     }
-    return itemRepository.findContasPagasPorContaByRoleNomes(scope.roleNomesAutenticado());
+    return itemRepository.findContasPagasPorContaByRoleNomes(scope.effectiveCampaignNames());
   }
-
-  private Set<String> extrairRoleNomes(Authentication authentication) {
-    if (authentication == null) {
-      return Set.of();
-    }
-    return authentication.getAuthorities().stream()
-        .map(GrantedAuthority::getAuthority)
-        .filter(authority -> authority != null && authority.startsWith("ROLE_"))
-        .map(authority -> authority.substring("ROLE_".length()))
-        .collect(Collectors.toSet());
-  }
-
-  private String normalizarRole(String role) {
-    if (role == null || role.isBlank()) {
-      return null;
-    }
-    return role.trim().toUpperCase(Locale.ROOT);
-  }
-
-  private record RelatorioScope(Set<String> roleNomesAutenticado, String roleFiltroNormalizada) {}
 }

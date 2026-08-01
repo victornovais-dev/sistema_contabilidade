@@ -25,7 +25,12 @@ class RelatorioControllerWebMvcTestConfig {
     List<String> rolesResponse = List.of();
 
     StubRelatorioFinanceiroService() {
-      super(null, null, null, null, null);
+      super(
+          null,
+          (com.sistema_contabilidade.rbac.service.CampaignScopeResolver) null,
+          null,
+          null,
+          null);
     }
 
     @Override

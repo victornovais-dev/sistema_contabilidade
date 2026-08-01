@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.relatorio.service;
 
 import com.sistema_contabilidade.database.routing.DatabaseRoutingContext;
+import com.sistema_contabilidade.rbac.service.CampaignScope;
 import com.sistema_contabilidade.relatorio.dto.RelatorioFinanceiroResumoResponse;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.micrometer.core.instrument.Counter;
@@ -10,11 +11,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
-import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -77,11 +75,10 @@ public final class RelatorioResumoCacheService {
   }
 
   public RelatorioFinanceiroResumoResponse getOrCompute(
-      Set<String> authorizedRoles,
-      String normalizedRole,
+      CampaignScope scope,
       String normalizedFilters,
       Supplier<RelatorioFinanceiroResumoResponse> loader) {
-    Objects.requireNonNull(authorizedRoles, "authorizedRoles");
+    Objects.requireNonNull(scope, "scope");
     Objects.requireNonNull(normalizedFilters, "normalizedFilters");
     Objects.requireNonNull(loader, "loader");
     if (!enabled || DatabaseRoutingContext.isStickyWriter()) {
@@ -91,7 +88,7 @@ public final class RelatorioResumoCacheService {
 
     String cacheKey;
     try {
-      cacheKey = cacheKey(authorizedRoles, normalizedRole, normalizedFilters, currentVersion());
+      cacheKey = cacheKey(scope, normalizedFilters, currentVersion());
       String cachedPayload = redisTemplate.opsForValue().get(cacheKey);
       if (cachedPayload != null) {
         if (payloadSize(cachedPayload) > maxBytes) {
@@ -149,25 +146,11 @@ public final class RelatorioResumoCacheService {
     return Long.toString(parsedVersion);
   }
 
-  private String cacheKey(
-      Set<String> authorizedRoles,
-      String normalizedRole,
-      String normalizedFilters,
-      String version) {
-    String canonicalScope =
-        authorizedRoles.stream()
-            .filter(Objects::nonNull)
-            .map(String::trim)
-            .filter(role -> !role.isEmpty())
-            .map(role -> role.toUpperCase(Locale.ROOT))
-            .sorted()
-            .collect(Collectors.joining("\u001f"));
+  private String cacheKey(CampaignScope scope, String normalizedFilters, String version) {
     String role =
-        normalizedRole == null || normalizedRole.isBlank()
-            ? ALL_ROLES
-            : normalizedRole.trim().toUpperCase(Locale.ROOT);
+        scope.roleFilter() == null || scope.roleFilter().isBlank() ? ALL_ROLES : scope.roleFilter();
     return CACHE_KEY_PREFIX
-        + sha256(canonicalScope)
+        + sha256(scope.canonicalCacheScope())
         + ':'
         + role
         + ':'

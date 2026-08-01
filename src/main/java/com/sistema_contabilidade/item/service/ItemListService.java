@@ -5,12 +5,14 @@ import com.sistema_contabilidade.item.dto.ItemListPageResponse;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.repository.ItemListPageQuery;
 import com.sistema_contabilidade.item.repository.ItemRepository;
-import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
+import com.sistema_contabilidade.rbac.service.CampaignScope;
+import com.sistema_contabilidade.rbac.service.CampaignScopeResolver;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -22,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@RequiredArgsConstructor
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
 public class ItemListService {
 
   private static final int DEFAULT_PAGE = 1;
@@ -31,7 +33,7 @@ public class ItemListService {
       Sort.by(Sort.Order.desc("horarioCriacao"), Sort.Order.desc("id"));
 
   private final ItemRepository itemRepository;
-  private final CandidateRoleCatalogService candidateRoleCatalogService;
+  private final CampaignScopeResolver campaignScopeResolver;
   private final InputSanitizer inputSanitizer;
 
   @Transactional(readOnly = true)
@@ -48,7 +50,8 @@ public class ItemListService {
     validarIntervaloDeDatas(dataInicio, dataFim);
 
     Pageable pageable = PageRequest.of(page - 1, pageSize, DEFAULT_SORT);
-    Set<String> roleNomesVisiveis = resolveRoleScope(authentication, roleFiltroNormalizada);
+    CampaignScope scope = campaignScopeResolver.resolve(authentication, roleFiltroNormalizada);
+    Set<String> roleNomesVisiveis = scope.queryCampaignNames();
     if (roleNomesVisiveis != null && roleNomesVisiveis.isEmpty()) {
       return ItemListPageResponse.empty(pageable);
     }
@@ -75,29 +78,7 @@ public class ItemListService {
 
   @Transactional(readOnly = true)
   public List<String> listarRolesDisponiveis(Authentication authentication) {
-    if (ItemAccessUtils.isAdmin(authentication)) {
-      return candidateRoleCatalogService.listAvailableRolesForAdmin();
-    }
-
-    return candidateRoleCatalogService.filterAvailableRoles(
-        ItemAccessUtils.extrairRoleNomes(authentication));
-  }
-
-  private Set<String> resolveRoleScope(
-      Authentication authentication, String roleFiltroNormalizada) {
-    if (ItemAccessUtils.isAdmin(authentication)) {
-      return roleFiltroNormalizada == null ? null : Set.of(roleFiltroNormalizada);
-    }
-
-    Set<String> roleNomesUsuario = ItemAccessUtils.extrairRoleNomes(authentication);
-    if (roleNomesUsuario.isEmpty()) {
-      return Set.of();
-    }
-    if (roleFiltroNormalizada != null) {
-      ItemAccessUtils.validarRoleFiltro(roleFiltroNormalizada, roleNomesUsuario);
-      return Set.of(roleFiltroNormalizada);
-    }
-    return roleNomesUsuario;
+    return campaignScopeResolver.listAvailableCampaigns(authentication);
   }
 
   private String sanitizeRole(String role) {
