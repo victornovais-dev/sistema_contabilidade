@@ -9,6 +9,7 @@ import com.sistema_contabilidade.database.crypto.service.DatabaseCryptoService;
 import com.sistema_contabilidade.home.dto.HomeLatestLaunchResponse;
 import com.sistema_contabilidade.home.dto.HomeMonthlyBalanceRow;
 import com.sistema_contabilidade.home.dto.HomeTypeTotalRow;
+import com.sistema_contabilidade.item.dto.ItemListCursorDirection;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.model.ContaOrigemPagamentoItem;
 import com.sistema_contabilidade.item.model.FormaPagamentoItem;
@@ -193,6 +194,110 @@ class ItemRepositoryTest {
     assertEquals("Fornecedor Alpha & Filhos", page.getContent().getFirst().razaoSocialNome());
     assertEquals(1, page.getContent().size());
     assertEquals(false, page.hasNext());
+  }
+
+  @Test
+  @DisplayName("Deve navegar paginas keyset sem repetir empates de horario")
+  void deveNavegarPaginasKeysetSemRepetirEmpatesDeHorario() {
+    Usuario criador = criarUsuarioComRole("keyset@email.com", "FINANCEIRO");
+    Item maisRecente =
+        novoItem(TipoItem.DESPESA, "uploads/itens/keyset-1.pdf", criador, "FINANCEIRO");
+    maisRecente.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 12, 12, 0));
+    Item segundoMaisRecente =
+        novoItem(TipoItem.DESPESA, "uploads/itens/keyset-2.pdf", criador, "FINANCEIRO");
+    segundoMaisRecente.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 11, 12, 0));
+    Item empateUm = novoItem(TipoItem.DESPESA, "uploads/itens/keyset-3.pdf", criador, "FINANCEIRO");
+    empateUm.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 10, 12, 0));
+    Item empateDois =
+        novoItem(TipoItem.DESPESA, "uploads/itens/keyset-4.pdf", criador, "FINANCEIRO");
+    empateDois.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 10, 12, 0));
+    Item maisAntigo =
+        novoItem(TipoItem.DESPESA, "uploads/itens/keyset-5.pdf", criador, "FINANCEIRO");
+    maisAntigo.setHorarioCriacao(LocalDateTime.of(2026, Month.APRIL, 9, 12, 0));
+    itemRepository.saveAll(
+        List.of(maisRecente, segundoMaisRecente, empateUm, empateDois, maisAntigo));
+
+    ItemListPageQuery query =
+        new ItemListPageQuery(Set.of("FINANCEIRO"), TipoItem.DESPESA, null, null, "SERVICOS", null);
+    ItemListKeysetPage primeiraPagina = itemRepository.findKeysetPageForList(query, null, 2);
+    ItemListResponse ultimoDaPrimeira = primeiraPagina.items().getLast();
+    ItemListKeysetPage segundaPagina =
+        itemRepository.findKeysetPageForList(
+            query,
+            new ItemListKeysetCursor(
+                ultimoDaPrimeira.horarioCriacao(),
+                ultimoDaPrimeira.id(),
+                ItemListCursorDirection.NEXT),
+            2);
+
+    assertEquals(2, primeiraPagina.items().size());
+    assertEquals(2, segundaPagina.items().size());
+    assertTrue(primeiraPagina.hasMore());
+    assertTrue(segundaPagina.hasMore());
+    assertTrue(
+        segundaPagina.items().stream()
+            .noneMatch(
+                item ->
+                    primeiraPagina.items().stream()
+                        .anyMatch(first -> first.id().equals(item.id()))));
+
+    ItemListResponse primeiroDaSegunda = segundaPagina.items().getFirst();
+    ItemListKeysetPage paginaAnterior =
+        itemRepository.findKeysetPageForList(
+            query,
+            new ItemListKeysetCursor(
+                primeiroDaSegunda.horarioCriacao(),
+                primeiroDaSegunda.id(),
+                ItemListCursorDirection.PREVIOUS),
+            2);
+
+    assertEquals(
+        primeiraPagina.items().stream().map(ItemListResponse::id).toList(),
+        paginaAnterior.items().stream().map(ItemListResponse::id).toList());
+  }
+
+  @Test
+  @DisplayName("Deve ignorar insercao nova e exclusao entre paginas keyset")
+  void deveIgnorarInsercaoNovaEExclusaoEntrePaginasKeyset() {
+    Usuario criador = criarUsuarioComRole("keyset-mutacao@email.com", "FINANCEIRO");
+    Item primeiro =
+        novoItem(TipoItem.DESPESA, "uploads/itens/mutacao-1.pdf", criador, "FINANCEIRO");
+    primeiro.setHorarioCriacao(LocalDateTime.of(2026, Month.MAY, 4, 12, 0));
+    Item ancora = novoItem(TipoItem.DESPESA, "uploads/itens/mutacao-2.pdf", criador, "FINANCEIRO");
+    ancora.setHorarioCriacao(LocalDateTime.of(2026, Month.MAY, 3, 12, 0));
+    Item excluido =
+        novoItem(TipoItem.DESPESA, "uploads/itens/mutacao-3.pdf", criador, "FINANCEIRO");
+    excluido.setHorarioCriacao(LocalDateTime.of(2026, Month.MAY, 2, 12, 0));
+    Item sobrevivente =
+        novoItem(TipoItem.DESPESA, "uploads/itens/mutacao-4.pdf", criador, "FINANCEIRO");
+    sobrevivente.setHorarioCriacao(LocalDateTime.of(2026, Month.MAY, 1, 12, 0));
+    itemRepository.saveAll(List.of(primeiro, ancora, excluido, sobrevivente));
+
+    ItemListPageQuery query =
+        new ItemListPageQuery(Set.of("FINANCEIRO"), TipoItem.DESPESA, null, null, "SERVICOS", null);
+    ItemListKeysetPage primeiraPagina = itemRepository.findKeysetPageForList(query, null, 2);
+    ItemListResponse ultimoDaPrimeira = primeiraPagina.items().getLast();
+    Item inseridoDepois =
+        novoItem(TipoItem.DESPESA, "uploads/itens/mutacao-novo.pdf", criador, "FINANCEIRO");
+    inseridoDepois.setHorarioCriacao(LocalDateTime.of(2026, Month.MAY, 5, 12, 0));
+    itemRepository.save(inseridoDepois);
+    itemRepository.delete(excluido);
+    itemRepository.flush();
+
+    ItemListKeysetPage segundaPagina =
+        itemRepository.findKeysetPageForList(
+            query,
+            new ItemListKeysetCursor(
+                ultimoDaPrimeira.horarioCriacao(),
+                ultimoDaPrimeira.id(),
+                ItemListCursorDirection.NEXT),
+            2);
+
+    assertEquals(
+        List.of(sobrevivente.getId()),
+        segundaPagina.items().stream().map(ItemListResponse::id).toList());
+    assertTrue(
+        segundaPagina.items().stream().noneMatch(item -> item.id().equals(inseridoDepois.getId())));
   }
 
   @Test

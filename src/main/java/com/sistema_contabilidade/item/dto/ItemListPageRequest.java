@@ -3,6 +3,7 @@ package com.sistema_contabilidade.item.dto;
 import com.sistema_contabilidade.item.model.TipoItem;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import lombok.Getter;
 import lombok.Setter;
@@ -30,4 +31,9 @@ public class ItemListPageRequest {
 
   private String descricao;
   private String razao;
+
+  @Size(max = 2048)
+  private String cursor;
+
+  private ItemListCursorDirection direction = ItemListCursorDirection.NEXT;
 }

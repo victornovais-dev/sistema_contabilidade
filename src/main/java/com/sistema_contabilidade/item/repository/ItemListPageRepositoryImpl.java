@@ -2,6 +2,7 @@ package com.sistema_contabilidade.item.repository;
 
 import com.sistema_contabilidade.common.util.SearchTextNormalizer;
 import com.sistema_contabilidade.item.config.ItemRazaoSocialSearchDatabaseSupport;
+import com.sistema_contabilidade.item.dto.ItemListCursorDirection;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
@@ -17,11 +18,14 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -45,12 +49,44 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
 
   @Override
   public Slice<ItemListResponse> findPageForList(ItemListPageQuery query, Pageable pageable) {
+    Objects.requireNonNull(query, "query");
+    Objects.requireNonNull(pageable, "pageable");
     if (shouldUseFullText(query)) {
       return findPageContentWithFullText(query, pageable);
     }
 
     CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
     return findPageContent(query, pageable, criteriaBuilder);
+  }
+
+  @Override
+  public ItemListKeysetPage findKeysetPageForList(
+      ItemListPageQuery query, ItemListKeysetCursor cursor, int pageSize) {
+    Objects.requireNonNull(query, "query");
+    if (shouldUseFullText(query)) {
+      return findKeysetPageContentWithFullText(query, cursor, pageSize);
+    }
+
+    CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+    CriteriaQuery<ItemListResponse> criteriaQuery =
+        criteriaBuilder.createQuery(ItemListResponse.class);
+    Root<Item> root = criteriaQuery.from(Item.class);
+    applyProjection(criteriaQuery, criteriaBuilder, root);
+    List<Predicate> predicates = buildPredicates(query, criteriaBuilder, root);
+    addKeysetPredicate(cursor, criteriaBuilder, root, predicates);
+    criteriaQuery.where(predicates.toArray(Predicate[]::new));
+    criteriaQuery.orderBy(buildSort(root, criteriaBuilder, cursor));
+
+    List<ItemListResponse> rows =
+        entityManager.createQuery(criteriaQuery).setMaxResults(pageSize + 1).getResultList();
+    boolean hasMore = rows.size() > pageSize;
+    if (hasMore) {
+      rows = new ArrayList<>(rows.subList(0, pageSize));
+    }
+    if (isPrevious(cursor)) {
+      Collections.reverse(rows);
+    }
+    return new ItemListKeysetPage(rows, hasMore);
   }
 
   private boolean shouldUseFullText(ItemListPageQuery query) {
@@ -104,58 +140,32 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
     return new SliceImpl<>(rows, pageable, hasNext);
   }
 
+  private ItemListKeysetPage findKeysetPageContentWithFullText(
+      ItemListPageQuery query, ItemListKeysetCursor cursor, int pageSize) {
+    List<UUID> ids = findIdsWithFullText(query, cursor, pageSize);
+    boolean hasMore = ids.size() > pageSize;
+    if (hasMore) {
+      ids = new ArrayList<>(ids.subList(0, pageSize));
+    }
+    if (ids.isEmpty()) {
+      return new ItemListKeysetPage(List.of(), false);
+    }
+
+    CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+    CriteriaQuery<ItemListResponse> criteriaQuery =
+        criteriaBuilder.createQuery(ItemListResponse.class);
+    Root<Item> root = criteriaQuery.from(Item.class);
+    applyProjection(criteriaQuery, criteriaBuilder, root);
+    criteriaQuery.where(root.get(FIELD_ID).in(ids));
+    criteriaQuery.orderBy(buildSort(root, criteriaBuilder));
+    List<ItemListResponse> rows = entityManager.createQuery(criteriaQuery).getResultList();
+    return new ItemListKeysetPage(rows, hasMore);
+  }
+
   private List<UUID> findIdsWithFullText(ItemListPageQuery query, Pageable pageable) {
-    StringBuilder sql = new StringBuilder("select i.id from itens i where 1 = 1");
+    StringBuilder sql = new StringBuilder("select i.id from itens i where i.deleted_at is null");
     Map<Integer, Object> parameters = new LinkedHashMap<>();
-    int nextParameterIndex = 1;
-
-    if (query.roleNomes() != null && !query.roleNomes().isEmpty()) {
-      sql.append(" and i.role_nome in (");
-      int startIndex = nextParameterIndex;
-      for (String roleNome : query.roleNomes()) {
-        if (nextParameterIndex > startIndex) {
-          sql.append(", ");
-        }
-        sql.append("?").append(nextParameterIndex);
-        parameters.put(nextParameterIndex, roleNome);
-        nextParameterIndex++;
-      }
-      sql.append(")");
-    }
-
-    if (query.tipo() != null) {
-      sql.append(" and i.tipo = ?").append(nextParameterIndex);
-      parameters.put(nextParameterIndex, query.tipo().name());
-      nextParameterIndex++;
-    }
-
-    if (query.dataInicio() != null) {
-      sql.append(" and i.data >= ?").append(nextParameterIndex);
-      parameters.put(nextParameterIndex, query.dataInicio());
-      nextParameterIndex++;
-    }
-
-    if (query.dataFim() != null) {
-      sql.append(" and i.data <= ?").append(nextParameterIndex);
-      parameters.put(nextParameterIndex, query.dataFim());
-      nextParameterIndex++;
-    }
-
-    if (query.descricao() != null && !query.descricao().isBlank()) {
-      sql.append(" and upper(trim(i.descricao)) = ?").append(nextParameterIndex);
-      parameters.put(nextParameterIndex, query.descricao().trim().toUpperCase(Locale.ROOT));
-      nextParameterIndex++;
-    }
-
-    String booleanQuery =
-        SearchTextNormalizer.toBooleanPrefixQuery(query.razao(), FULLTEXT_MIN_TOKEN_LENGTH);
-    if (booleanQuery != null) {
-      sql.append(" and match(i.razao_social_busca) against (?")
-          .append(nextParameterIndex)
-          .append(" in boolean mode)");
-      parameters.put(nextParameterIndex, booleanQuery);
-      nextParameterIndex++;
-    }
+    int nextParameterIndex = appendFullTextFilters(sql, parameters, query, 1);
 
     sql.append(" order by i.horario_criacao desc, i.id desc");
     sql.append(" limit ?").append(nextParameterIndex);
@@ -169,6 +179,90 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
     @SuppressWarnings("unchecked")
     List<Object> rawIds = nativeQuery.getResultList();
     return rawIds.stream().map(this::toUuid).toList();
+  }
+
+  private List<UUID> findIdsWithFullText(
+      ItemListPageQuery query, ItemListKeysetCursor cursor, int pageSize) {
+    StringBuilder sql = new StringBuilder("select i.id from itens i where i.deleted_at is null");
+    Map<Integer, Object> parameters = new LinkedHashMap<>();
+    int nextParameterIndex = appendFullTextFilters(sql, parameters, query, 1);
+    if (cursor != null) {
+      String comparison = isPrevious(cursor) ? ">" : "<";
+      sql.append(" and (i.horario_criacao ")
+          .append(comparison)
+          .append(" ?")
+          .append(nextParameterIndex)
+          .append(" or (i.horario_criacao = ?")
+          .append(nextParameterIndex)
+          .append(" and i.id ")
+          .append(comparison)
+          .append(" ?")
+          .append(nextParameterIndex + 1)
+          .append("))");
+      parameters.put(nextParameterIndex, cursor.horarioCriacao());
+      parameters.put(nextParameterIndex + 1, cursor.id());
+      nextParameterIndex += 2;
+    }
+    sql.append(" order by i.horario_criacao ")
+        .append(isPrevious(cursor) ? "asc" : "desc")
+        .append(", i.id ")
+        .append(isPrevious(cursor) ? "asc" : "desc");
+    sql.append(" limit ?").append(nextParameterIndex);
+    parameters.put(nextParameterIndex, pageSize + 1);
+
+    Query nativeQuery = entityManager.createNativeQuery(sql.toString());
+    parameters.forEach(nativeQuery::setParameter);
+    @SuppressWarnings("unchecked")
+    List<Object> rawIds = nativeQuery.getResultList();
+    return rawIds.stream().map(this::toUuid).toList();
+  }
+
+  private int appendFullTextFilters(
+      StringBuilder sql, Map<Integer, Object> parameters, ItemListPageQuery query, int nextIndex) {
+    int nextParameterIndex = nextIndex;
+    if (query.roleNomes() != null && !query.roleNomes().isEmpty()) {
+      sql.append(" and i.role_nome in (");
+      int startIndex = nextParameterIndex;
+      for (String roleNome : query.roleNomes()) {
+        if (nextParameterIndex > startIndex) {
+          sql.append(", ");
+        }
+        sql.append("?").append(nextParameterIndex);
+        parameters.put(nextParameterIndex, roleNome);
+        nextParameterIndex++;
+      }
+      sql.append(")");
+    }
+    if (query.tipo() != null) {
+      sql.append(" and i.tipo = ?").append(nextParameterIndex);
+      parameters.put(nextParameterIndex, query.tipo().name());
+      nextParameterIndex++;
+    }
+    if (query.dataInicio() != null) {
+      sql.append(" and i.data >= ?").append(nextParameterIndex);
+      parameters.put(nextParameterIndex, query.dataInicio());
+      nextParameterIndex++;
+    }
+    if (query.dataFim() != null) {
+      sql.append(" and i.data <= ?").append(nextParameterIndex);
+      parameters.put(nextParameterIndex, query.dataFim());
+      nextParameterIndex++;
+    }
+    if (query.descricao() != null && !query.descricao().isBlank()) {
+      sql.append(" and upper(trim(i.descricao)) = ?").append(nextParameterIndex);
+      parameters.put(nextParameterIndex, query.descricao().trim().toUpperCase(Locale.ROOT));
+      nextParameterIndex++;
+    }
+    String booleanQuery =
+        SearchTextNormalizer.toBooleanPrefixQuery(query.razao(), FULLTEXT_MIN_TOKEN_LENGTH);
+    if (booleanQuery != null) {
+      sql.append(" and match(i.razao_social_busca) against (?")
+          .append(nextParameterIndex)
+          .append(" in boolean mode)");
+      parameters.put(nextParameterIndex, booleanQuery);
+      nextParameterIndex++;
+    }
+    return nextParameterIndex;
   }
 
   private void applyProjection(
@@ -268,6 +362,44 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
     return List.of(
         criteriaBuilder.desc(root.get(FIELD_HORARIO_CRIACAO)),
         criteriaBuilder.desc(root.get(FIELD_ID)));
+  }
+
+  private List<Order> buildSort(
+      Root<Item> root, CriteriaBuilder criteriaBuilder, ItemListKeysetCursor cursor) {
+    if (isPrevious(cursor)) {
+      return List.of(
+          criteriaBuilder.asc(root.get(FIELD_HORARIO_CRIACAO)),
+          criteriaBuilder.asc(root.get(FIELD_ID)));
+    }
+    return buildSort(root, criteriaBuilder);
+  }
+
+  private void addKeysetPredicate(
+      ItemListKeysetCursor cursor,
+      CriteriaBuilder criteriaBuilder,
+      Root<Item> root,
+      List<Predicate> predicates) {
+    if (cursor == null) {
+      return;
+    }
+    Path<LocalDateTime> horarioCriacao = root.get(FIELD_HORARIO_CRIACAO);
+    Path<UUID> id = root.get(FIELD_ID);
+    boolean previous = isPrevious(cursor);
+    Predicate byHorario =
+        previous
+            ? criteriaBuilder.greaterThan(horarioCriacao, cursor.horarioCriacao())
+            : criteriaBuilder.lessThan(horarioCriacao, cursor.horarioCriacao());
+    Predicate sameHorarioAndId =
+        criteriaBuilder.and(
+            criteriaBuilder.equal(horarioCriacao, cursor.horarioCriacao()),
+            previous
+                ? criteriaBuilder.greaterThan(id, cursor.id())
+                : criteriaBuilder.lessThan(id, cursor.id()));
+    predicates.add(criteriaBuilder.or(byHorario, sameHorarioAndId));
+  }
+
+  private boolean isPrevious(ItemListKeysetCursor cursor) {
+    return cursor != null && cursor.direction() == ItemListCursorDirection.PREVIOUS;
   }
 
   private Expression<Boolean> buildHasAttachmentsExpression(

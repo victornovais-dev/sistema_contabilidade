@@ -11,10 +11,23 @@ public record ItemListPageResponse(
     long totalItems,
     int totalPages,
     boolean hasNext,
-    boolean hasPrevious) {
+    boolean hasPrevious,
+    String nextCursor,
+    String previousCursor) {
 
   public ItemListPageResponse {
     items = items == null ? List.of() : List.copyOf(items);
+  }
+
+  public ItemListPageResponse(
+      List<ItemListResponse> items,
+      int page,
+      int pageSize,
+      long totalItems,
+      int totalPages,
+      boolean hasNext,
+      boolean hasPrevious) {
+    this(items, page, pageSize, totalItems, totalPages, hasNext, hasPrevious, null, null);
   }
 
   public static ItemListPageResponse empty(Pageable pageable) {
@@ -26,6 +39,28 @@ public record ItemListPageResponse(
         1,
         false,
         pageable.getPageNumber() > 0);
+  }
+
+  public static ItemListPageResponse fromKeyset(
+      List<ItemListResponse> items,
+      int page,
+      int pageSize,
+      boolean hasNext,
+      boolean hasPrevious,
+      String nextCursor,
+      String previousCursor) {
+    long totalItems = (long) (page - 1) * pageSize + items.size() + (hasNext ? 1 : 0);
+    int totalPages = Math.max(page + (hasNext ? 1 : 0), 1);
+    return new ItemListPageResponse(
+        items,
+        page,
+        pageSize,
+        totalItems,
+        totalPages,
+        hasNext,
+        hasPrevious,
+        nextCursor,
+        previousCursor);
   }
 
   public static ItemListPageResponse fromSlice(Slice<ItemListResponse> slice) {

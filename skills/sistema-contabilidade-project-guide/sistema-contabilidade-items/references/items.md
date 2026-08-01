@@ -40,6 +40,8 @@ Pagination input:
 - `dataFim`
 - `descricao`
 - `razao`
+- `cursor` (keyset assinado, opcional na primeira página)
+- `direction` (`NEXT` ou `PREVIOUS`, com cursor)
 
 Response envelope:
 
@@ -50,6 +52,8 @@ Response envelope:
 - `totalPages`
 - `hasNext`
 - `hasPrevious`
+- `nextCursor`
+- `previousCursor`
 
 Rules:
 
@@ -57,6 +61,9 @@ Rules:
 - `descricao` uses exact filter.
 - `razao` uses search path based on `razaoSocialBusca`.
 - Current hot path uses `Slice`, avoiding per-request `count(*)`.
+- Default pagination uses signed keyset `(horarioCriacao desc, id desc)`, returns `pageSize + 1`,
+  and binds cursor to endpoint, canonical campaign scope, normalized filters and page size.
+- Offset pages after page 1 are accepted only with `APP_ITEM_LEGACY_OFFSET_ENABLED=true`.
 - MySQL/MariaDB can upgrade search to FULLTEXT when available.
 
 Indexes:
