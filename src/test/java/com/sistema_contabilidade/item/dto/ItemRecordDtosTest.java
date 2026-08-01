@@ -312,13 +312,11 @@ class ItemRecordDtosTest {
             new BigDecimal("12.34"),
             LocalDate.of(2026, Month.APRIL, 1),
             LocalDateTime.of(2026, Month.APRIL, 1, 9, 0),
-            "uploads/itens/pagina.pdf",
             TipoItem.DESPESA,
             "FINANCEIRO",
             "SERVICOS",
             "EMPRESA TESTE",
             "123.456.789-00",
-            "Observacao",
             false,
             false);
     List<ItemListResponse> items = new java.util.ArrayList<>(List.of(item));
@@ -332,8 +330,8 @@ class ItemRecordDtosTest {
   }
 
   @Test
-  @DisplayName("Deve mapear Item para ItemListResponse e indicar se ha arquivo")
-  void deveMapearItemParaItemListResponseEIndicarSeHaArquivo() {
+  @DisplayName("Deve mapear Item para resumo sem expor documento completo ou observacao")
+  void deveMapearItemParaItemListResponseComDocumentoMascarado() {
     Item comArquivo = new Item();
     comArquivo.setId(UUID.fromString("33333333-3333-3333-3333-333333333333"));
     comArquivo.setValor(new BigDecimal("150.00"));
@@ -367,6 +365,7 @@ class ItemRecordDtosTest {
 
     assertEquals(comArquivo.getId(), responseComArquivo.id());
     assertEquals("BONAFONTE", responseComArquivo.razaoSocialNome());
+    assertEquals("**.***.***/****-84", responseComArquivo.cnpjCpfMascarado());
     assertTrue(responseComArquivo.temArquivos());
     assertEquals(semArquivo.getId(), responseSemArquivo.id());
     assertEquals("CONTA DC", responseSemArquivo.descricao());

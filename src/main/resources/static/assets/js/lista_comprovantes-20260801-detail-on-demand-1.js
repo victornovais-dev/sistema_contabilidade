@@ -1196,7 +1196,6 @@ const createItemCard = (item) => {
   article.dataset.id = item.id;
   article.dataset.tipo = String(item.tipo || "").toLowerCase();
   article.dataset.data = item.data;
-  article.dataset.observacao = item.observacao ? String(item.observacao) : "";
   article.classList.toggle("is-checked", isItemChecked(item.id));
 
   node.querySelector('[data-field="valor"]').textContent = formatCurrency(item.valor);
@@ -1215,7 +1214,7 @@ const createItemCard = (item) => {
     const length = razaoText.replace(/\s+/g, " ").trim().length;
     razaoContainer.classList.toggle("is-long", length >= 28);
   }
-  node.querySelector('[data-field="cnpjCpf"]').textContent = formatText(item.cnpjCpf);
+  node.querySelector('[data-field="cnpjCpf"]').textContent = formatText(item.cnpjCpfMascarado);
 
   const downloadLink = node.querySelector(".item-download");
   const hasArquivos =
@@ -1456,17 +1455,24 @@ const closeUploadModal = () => {
   updateUploadSaveVisibility();
 };
 
-const openObservacaoModal = (id) => {
+const openObservacaoModal = async (id) => {
   pendingObservacaoItemId = id;
   if (!observacaoOverlay || !observacaoContent) return;
-  const item = state.items.find((entry) => entry.id === id);
-  const texto = item?.observacao ? String(item.observacao) : "";
-  observacaoContent.value = texto;
+  observacaoContent.value = "Carregando...";
   observacaoContent.readOnly = true;
   observacaoIsEditing = false;
   setObservacaoSaveVisible(false);
   observacaoOverlay.classList.add("is-visible");
   observacaoOverlay.setAttribute("aria-hidden", "false");
+  try {
+    const item = await fetchItemById(id);
+    if (pendingObservacaoItemId !== id || !observacaoContent) return;
+    observacaoContent.value = item?.observacao ? String(item.observacao) : "";
+  } catch (error) {
+    if (pendingObservacaoItemId !== id) return;
+    closeObservacaoModal();
+    showListState(error instanceof Error ? error.message : "Falha ao carregar observação.");
+  }
 };
 
 const closeObservacaoModal = () => {
@@ -1591,17 +1597,7 @@ const saveObservacao = async () => {
       observacaoSave.textContent = "Salvando...";
     }
     const updated = await patchObservacao(pendingObservacaoItemId, value);
-    const idx = state.items.findIndex((entry) => entry.id === pendingObservacaoItemId);
-    if (idx >= 0) {
-      state.items[idx].observacao = updated?.observacao ?? value;
-    }
-    // Keep dataset in sync for the card.
-    if (itemsList) {
-      const card = itemsList.querySelector(`.item-card[data-id="${pendingObservacaoItemId}"]`);
-      if (card) {
-        card.dataset.observacao = updated?.observacao ?? value;
-      }
-    }
+    observacaoContent.value = updated?.observacao ?? value;
     observacaoContent.readOnly = true;
     observacaoIsEditing = false;
     setObservacaoSaveVisible(false);
@@ -1627,6 +1623,7 @@ const fetchItemById = async (id) => {
   }
   const response = await fetch(`/api/v1/itens/${id}`, {
     method: "GET",
+    cache: "no-store",
     credentials: "same-origin",
     redirect: "manual",
     headers: {
@@ -2636,6 +2633,7 @@ const loadItems = async (cursor = null, direction = "NEXT") => {
   showListState("Carregando comprovantes...");
   const response = await fetch(`/api/v1/itens${buildListQuery(cursor, direction)}`, {
     method: "GET",
+    cache: "no-store",
     credentials: "same-origin",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -3030,7 +3028,7 @@ const bindEvents = () => {
       if (observacaoButton) {
         const card = observacaoButton.closest(".item-card");
         if (card?.dataset.id) {
-          openObservacaoModal(card.dataset.id);
+          void openObservacaoModal(card.dataset.id);
         }
         return;
       }

@@ -152,7 +152,6 @@ class ItemRepositoryTest {
 
     assertEquals(1, resumos.size());
     assertEquals(item.getId(), resumos.getFirst().id());
-    assertEquals("uploads/itens/resumo.pdf", resumos.getFirst().caminhoArquivoPdf());
     assertTrue(resumos.getFirst().temArquivos());
   }
 

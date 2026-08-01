@@ -12,15 +12,22 @@ public record ItemListResponse(
     BigDecimal valor,
     LocalDate data,
     LocalDateTime horarioCriacao,
-    String caminhoArquivoPdf,
     TipoItem tipo,
     String role,
     String descricao,
     String razaoSocialNome,
-    String cnpjCpf,
-    String observacao,
+    String cnpjCpfMascarado,
     boolean verificado,
     boolean temArquivos) {
+
+  private static final int CPF_LENGTH = 11;
+  private static final int CPF_VISIBLE_SUFFIX_START = 9;
+  private static final int CNPJ_LENGTH = 14;
+  private static final int CNPJ_VISIBLE_SUFFIX_START = 12;
+
+  public ItemListResponse {
+    cnpjCpfMascarado = mascararDocumento(cnpjCpfMascarado);
+  }
 
   public static ItemListResponse from(Item item) {
     return new ItemListResponse(
@@ -28,14 +35,26 @@ public record ItemListResponse(
         item.getValor(),
         item.getData(),
         item.getHorarioCriacao(),
-        item.getCaminhoArquivoPdf(),
         item.getTipo(),
         item.getRoleNome(),
         item.getDescricao(),
         item.getRazaoSocialNome(),
         item.getCnpjCpf(),
-        item.getObservacao(),
         item.isVerificado(),
         item.getCaminhoArquivoPdf() != null && !item.getCaminhoArquivoPdf().isBlank());
+  }
+
+  private static String mascararDocumento(String documento) {
+    if (documento == null || documento.isBlank()) {
+      return null;
+    }
+    String digitos = documento.replaceAll("\\D", "");
+    if (digitos.length() == CPF_LENGTH) {
+      return "***.***.***-" + digitos.substring(CPF_VISIBLE_SUFFIX_START);
+    }
+    if (digitos.length() == CNPJ_LENGTH) {
+      return "**.***.***/****-" + digitos.substring(CNPJ_VISIBLE_SUFFIX_START);
+    }
+    return "***";
   }
 }

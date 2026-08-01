@@ -51,6 +51,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -78,6 +79,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequiredArgsConstructor
 @Slf4j
 public class ItemController {
+
+  private static final CacheControl PRIVATE_NO_STORE = CacheControl.noStore().cachePrivate();
 
   private static final int SINGLE_ROLE_COUNT = 1;
   private static final String ID_PATH = SecurityPaths.ID_PATH;
@@ -168,7 +171,9 @@ public class ItemController {
   @GetMapping
   public ResponseEntity<ItemListPageResponse> listarTodos(
       Authentication authentication, @Valid @ModelAttribute ItemListPageRequest request) {
-    return ResponseEntity.ok(itemListService.listarItens(authentication, request));
+    return ResponseEntity.ok()
+        .cacheControl(PRIVATE_NO_STORE)
+        .body(itemListService.listarItens(authentication, request));
   }
 
   @GetMapping("/roles")
@@ -211,7 +216,7 @@ public class ItemController {
   public ResponseEntity<ItemResponse> buscarPorId(
       Authentication authentication, @PathVariable("id") UUID id) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
-    return ResponseEntity.ok(ItemResponse.from(item));
+    return ResponseEntity.ok().cacheControl(PRIVATE_NO_STORE).body(ItemResponse.from(item));
   }
 
   @GetMapping(ARQUIVO_PATH)

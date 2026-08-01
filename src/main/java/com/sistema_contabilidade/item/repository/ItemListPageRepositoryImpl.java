@@ -276,13 +276,11 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
             root.get("valor"),
             root.get(FIELD_DATA),
             root.get(FIELD_HORARIO_CRIACAO),
-            root.get("caminhoArquivoPdf"),
             root.get("tipo"),
             root.get("roleNome"),
             root.get("descricao"),
             root.get("razaoSocialNome"),
             root.get("cnpjCpf"),
-            root.get("observacao"),
             root.get("verificado"),
             buildHasAttachmentsExpression(criteriaBuilder, root)));
   }

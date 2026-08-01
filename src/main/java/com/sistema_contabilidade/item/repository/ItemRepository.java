@@ -37,13 +37,11 @@ public interface ItemRepository
         i.valor,
         i.data,
         i.horarioCriacao,
-        i.caminhoArquivoPdf,
         i.tipo,
         i.roleNome,
         i.descricao,
         i.razaoSocialNome,
         i.cnpjCpf,
-        i.observacao,
         i.verificado,
         case
           when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> '' then true
@@ -62,13 +60,11 @@ public interface ItemRepository
         i.valor,
         i.data,
         i.horarioCriacao,
-        i.caminhoArquivoPdf,
         i.tipo,
         i.roleNome,
         i.descricao,
         i.razaoSocialNome,
         i.cnpjCpf,
-        i.observacao,
         i.verificado,
         case
           when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> '' then true
@@ -89,13 +85,11 @@ public interface ItemRepository
         i.valor,
         i.data,
         i.horarioCriacao,
-        i.caminhoArquivoPdf,
         i.tipo,
         i.roleNome,
         i.descricao,
         i.razaoSocialNome,
         i.cnpjCpf,
-        i.observacao,
         i.verificado,
         case
           when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> '' then true

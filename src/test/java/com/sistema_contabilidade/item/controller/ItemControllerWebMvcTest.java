@@ -134,21 +134,24 @@ class ItemControllerWebMvcTest {
                     item.getValor(),
                     item.getData(),
                     item.getHorarioCriacao(),
-                    item.getCaminhoArquivoPdf(),
                     item.getTipo(),
                     "ADMIN",
                     item.getDescricao(),
                     item.getRazaoSocialNome(),
                     item.getCnpjCpf(),
-                    item.getObservacao(),
                     false,
                     true)));
 
     mockMvc
         .perform(get("/api/v1/itens").with(authComRoles("admin@email.com", "ADMIN")))
         .andExpect(status().isOk())
+        .andExpect(header().string("Cache-Control", "no-store, private"))
         .andExpect(jsonPath("$.items[0].valor").value(10.00))
         .andExpect(jsonPath("$.items[0].tipo").value("RECEITA"))
+        .andExpect(jsonPath("$.items[0].cnpjCpfMascarado").value("**.***.***/****-99"))
+        .andExpect(jsonPath("$.items[0].cnpjCpf").doesNotExist())
+        .andExpect(jsonPath("$.items[0].caminhoArquivoPdf").doesNotExist())
+        .andExpect(jsonPath("$.items[0].observacao").doesNotExist())
         .andExpect(jsonPath("$.page").value(1))
         .andExpect(jsonPath("$.pageSize").value(10));
   }
@@ -168,11 +171,9 @@ class ItemControllerWebMvcTest {
                     null,
                     null,
                     null,
-                    null,
                     item.getTipo(),
                     "FINANCEIRO",
                     item.getDescricao(),
-                    null,
                     null,
                     null,
                     false,
@@ -222,11 +223,9 @@ class ItemControllerWebMvcTest {
                     null,
                     null,
                     null,
-                    null,
                     item.getTipo(),
                     "TARCISIO",
                     item.getDescricao(),
-                    null,
                     null,
                     null,
                     false,
@@ -1048,6 +1047,7 @@ class ItemControllerWebMvcTest {
     mockMvc
         .perform(get("/api/v1/itens/{id}", id).with(authComRoles("admin@email.com", "ADMIN")))
         .andExpect(status().isOk())
+        .andExpect(header().string("Cache-Control", "no-store, private"))
         .andExpect(jsonPath("$.tipo").value("RECEITA"));
   }
 

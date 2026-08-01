@@ -236,13 +236,11 @@ class ItemListServiceTest {
         new BigDecimal("120.50"),
         LocalDate.of(2026, Month.APRIL, 8),
         LocalDateTime.of(2026, Month.APRIL, 8, 10, 30),
-        "uploads/itens/admin.pdf",
         TipoItem.DESPESA,
         roleNome,
         "SERVICOS",
         "EMPRESA TESTE",
         "123.456.789-00",
-        "Observacao",
         false,
         true);
   }
