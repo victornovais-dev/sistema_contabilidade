@@ -10,9 +10,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -39,6 +42,12 @@ public class DatabaseRoutingFilter extends OncePerRequestFilter {
       filterChain.doFilter(request, response);
       if (shouldMarkWriter(request, response, sessionId)) {
         stickyWriterService.markWriter(sessionId);
+        addSignedMarker(request, response, sessionId);
+      }
+      if (isSuccessfulLogout(request, response)) {
+        response.addHeader(
+            HttpHeaders.SET_COOKIE,
+            stickyWriterService.clearSignedMarkerCookie(isSecureRequest(request)).toString());
       }
       if (shouldInvalidateReportCache(request, response)) {
         relatorioResumoCacheService.invalidateAfterItemWrite();
@@ -53,7 +62,8 @@ public class DatabaseRoutingFilter extends OncePerRequestFilter {
       DatabaseRoutingContext.forceWriter();
       return;
     }
-    if (stickyWriterService.requiresWriter(sessionId)) {
+    if (stickyWriterService.requiresWriter(
+        sessionId, resolveCookieValue(request, stickyWriterService.markerCookieName()))) {
       DatabaseRoutingContext.forceWriterForSticky();
       return;
     }
@@ -76,6 +86,20 @@ public class DatabaseRoutingFilter extends OncePerRequestFilter {
     String itemsPrefix = request.getContextPath() + SecurityPaths.API_V1_PREFIX + "/itens";
     String requestUri = request.getRequestURI();
     return requestUri.equals(itemsPrefix) || requestUri.startsWith(itemsPrefix + "/");
+  }
+
+  private void addSignedMarker(
+      HttpServletRequest request, HttpServletResponse response, UUID sessionId) {
+    Optional<ResponseCookie> marker =
+        stickyWriterService.signedMarkerCookie(sessionId, isSecureRequest(request));
+    marker.ifPresent(cookie -> response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString()));
+  }
+
+  private boolean isSuccessfulLogout(HttpServletRequest request, HttpServletResponse response) {
+    String logoutPath = request.getContextPath() + SecurityPaths.AUTH_API_BASE + "/logout";
+    return HttpMethod.POST.matches(request.getMethod())
+        && logoutPath.equals(request.getRequestURI())
+        && isSuccessful(response);
   }
 
   private boolean isSuccessful(HttpServletResponse response) {
@@ -104,5 +128,22 @@ public class DatabaseRoutingFilter extends OncePerRequestFilter {
   private UUID validatedSessionId(HttpServletRequest request) {
     Object sessionId = request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE);
     return sessionId instanceof UUID uuid ? uuid : null;
+  }
+
+  private String resolveCookieValue(HttpServletRequest request, String cookieName) {
+    if (request.getCookies() == null) {
+      return null;
+    }
+    for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+      if (cookieName.equals(cookie.getName())) {
+        return cookie.getValue();
+      }
+    }
+    return null;
+  }
+
+  private boolean isSecureRequest(HttpServletRequest request) {
+    String forwardedProto = request.getHeader("X-Forwarded-Proto");
+    return request.isSecure() || "https".equalsIgnoreCase(forwardedProto);
   }
 }
