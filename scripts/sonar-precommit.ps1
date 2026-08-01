@@ -19,28 +19,39 @@ if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
 
-Write-Host "Aguardando processamento do SonarQube..."
-$measureUrl = "$sonarHost/api/measures/component?component=$([uri]::EscapeDataString($projectKey))&metricKeys=alert_status,bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density"
+Write-Host "Aguardando processamento da tarefa SonarQube..."
+$reportTaskPath = Join-Path $PSScriptRoot "..\target\sonar\report-task.txt"
+if (-not (Test-Path $reportTaskPath)) {
+  Write-Host "Relatorio da tarefa SonarQube nao encontrado."
+  exit 1
+}
 
-$ready = $false
-for ($i = 0; $i -lt 15; $i++) {
+$reportTask = Get-Content $reportTaskPath | ConvertFrom-StringData
+$taskCompleted = $false
+for ($i = 0; $i -lt 30; $i++) {
   try {
-    $measures = Invoke-RestMethod -Headers $headers -Uri $measureUrl
-    if ($measures.component -and $measures.component.measures.Count -gt 0) {
-      $ready = $true
+    $task = Invoke-RestMethod -Headers $headers -Uri $reportTask.ceTaskUrl
+    if ($task.task.status -eq "SUCCESS") {
+      $taskCompleted = $true
       break
     }
+    if ($task.task.status -in @("CANCELED", "FAILED")) {
+      Write-Host ("Tarefa SonarQube terminou com status: {0}" -f $task.task.status)
+      exit 1
+    }
   } catch {
-    Start-Sleep -Seconds 2
-    continue
+    # A tarefa pode ainda nao estar disponivel para consulta.
   }
   Start-Sleep -Seconds 2
 }
 
-if (-not $ready) {
-  Write-Host "Nao foi possivel obter o relatorio do SonarQube a tempo."
+if (-not $taskCompleted) {
+  Write-Host "A tarefa SonarQube nao concluiu a tempo."
   exit 1
 }
+
+$measureUrl = "$sonarHost/api/measures/component?component=$([uri]::EscapeDataString($projectKey))&metricKeys=alert_status,bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density"
+$measures = Invoke-RestMethod -Headers $headers -Uri $measureUrl
 
 $metricMap = @{}
 foreach ($m in $measures.component.measures) {
