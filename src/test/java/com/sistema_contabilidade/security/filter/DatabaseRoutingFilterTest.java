@@ -23,6 +23,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.ResponseCookie;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -46,7 +47,7 @@ class DatabaseRoutingFilterTest {
   void devePermitirReaderParaLeituraComSessaoSemSticky(String method) throws Exception {
     UUID sessionId = UUID.randomUUID();
     MockHttpServletRequest request = authenticatedRequest(method, "/api/v1/itens", sessionId);
-    when(stickyWriterService.requiresWriter(sessionId)).thenReturn(false);
+    when(stickyWriterService.requiresWriter(sessionId, null)).thenReturn(false);
 
     filter.doFilter(
         request,
@@ -64,7 +65,7 @@ class DatabaseRoutingFilterTest {
   void deveForcarWriterParaLeituraDuranteSticky() throws Exception {
     UUID sessionId = UUID.randomUUID();
     MockHttpServletRequest request = authenticatedRequest("GET", "/api/v1/itens", sessionId);
-    when(stickyWriterService.requiresWriter(sessionId)).thenReturn(true);
+    when(stickyWriterService.requiresWriter(sessionId, null)).thenReturn(true);
 
     filter.doFilter(
         request,
@@ -99,6 +100,32 @@ class DatabaseRoutingFilterTest {
   }
 
   @Test
+  @DisplayName("Deve enviar marcador sticky HttpOnly depois de mutacao autenticada")
+  void deveEnviarMarcadorStickyDepoisDeMutacaoAutenticada() throws Exception {
+    UUID sessionId = UUID.randomUUID();
+    MockHttpServletRequest request = authenticatedRequest("POST", "/api/v1/itens", sessionId);
+    request.addHeader("X-Forwarded-Proto", "https");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    when(stickyWriterService.signedMarkerCookie(sessionId, true))
+        .thenReturn(
+            java.util.Optional.of(
+                ResponseCookie.from("SC_DB_STICKY", "marcador-assinado")
+                    .httpOnly(true)
+                    .secure(true)
+                    .sameSite("Strict")
+                    .path("/")
+                    .maxAge(10)
+                    .build()));
+
+    filter.doFilter(
+        request, response, (servletRequest, servletResponse) -> response.setStatus(204));
+
+    assertTrue(
+        response.getHeaders("Set-Cookie").stream()
+            .anyMatch(value -> value.contains("SC_DB_STICKY=marcador-assinado")));
+  }
+
+  @Test
   @DisplayName("Nao deve invalidar resumo apos mutacao fora de itens")
   void naoDeveInvalidarResumoAposMutacaoForaDeItens() throws Exception {
     UUID sessionId = UUID.randomUUID();
@@ -129,6 +156,10 @@ class DatabaseRoutingFilterTest {
   void deveRenovarStickyEmRefreshELogoutComSessaoValidada(String uri) throws Exception {
     UUID sessionId = UUID.randomUUID();
     MockHttpServletRequest request = authenticatedRequest("POST", uri, sessionId);
+    if (uri.endsWith("/logout")) {
+      when(stickyWriterService.clearSignedMarkerCookie(false))
+          .thenReturn(ResponseCookie.from("SC_DB_STICKY", "").path("/").maxAge(0).build());
+    }
 
     filter.doFilter(
         request, new MockHttpServletResponse(), (servletRequest, servletResponse) -> {});
@@ -193,7 +224,7 @@ class DatabaseRoutingFilterTest {
   void deveLimparThreadLocalQuandoCadeiaFalha() {
     UUID sessionId = UUID.randomUUID();
     MockHttpServletRequest request = authenticatedRequest("GET", "/api/v1/itens", sessionId);
-    when(stickyWriterService.requiresWriter(sessionId)).thenReturn(true);
+    when(stickyWriterService.requiresWriter(sessionId, null)).thenReturn(true);
 
     assertThrows(
         ServletException.class,

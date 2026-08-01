@@ -15,6 +15,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,6 +54,49 @@ class StickyWriterServiceTest {
 
     assertTrue(service.requiresWriter(sessionId));
     assertFalse(service.requiresWriter(sessionId));
+  }
+
+  @Test
+  @DisplayName("Marcador assinado mantem writer apos troca de instancia e falha de renovacao")
+  void marcadorAssinadoMantemWriterAposTrocaDeInstanciaEFalhaDeRenovacao() {
+    UUID sessionId = UUID.randomUUID();
+    AtomicLong epochSeconds = new AtomicLong(1_000L);
+    StickyWriterService firstInstance = service(true, 10, epochSeconds);
+    when(redisTemplate.opsForValue()).thenThrow(new IllegalStateException("Valkey indisponivel"));
+    assertDoesNotThrow(() -> firstInstance.markWriter(sessionId));
+    String marker = firstInstance.createSignedMarker(sessionId);
+    StickyWriterService secondInstance = service(true, 10, epochSeconds);
+
+    when(redisTemplate.hasKey(StickyWriterService.KEY_PREFIX + sessionId)).thenReturn(false);
+
+    assertTrue(secondInstance.requiresWriter(sessionId, marker));
+    assertFalse(marker.contains(sessionId.toString()));
+    assertMetric(serviceRegistry, "marker_active", 1.0);
+  }
+
+  @Test
+  @DisplayName("Marcador alterado deve forcar writer")
+  void marcadorAlteradoDeveForcarWriter() {
+    UUID sessionId = UUID.randomUUID();
+    StickyWriterService service = service(true, 10);
+    when(redisTemplate.hasKey(StickyWriterService.KEY_PREFIX + sessionId)).thenReturn(false);
+
+    assertTrue(service.requiresWriter(sessionId, "v1.9999999999.assinatura-alterada"));
+    assertMetric(serviceRegistry, "marker_invalid", 1.0);
+  }
+
+  @Test
+  @DisplayName("Marcador expirado permite reader")
+  void marcadorExpiradoPermiteReader() {
+    UUID sessionId = UUID.randomUUID();
+    AtomicLong epochSeconds = new AtomicLong(1_000L);
+    StickyWriterService service = service(true, 10, epochSeconds);
+    String marker = service.createSignedMarker(sessionId);
+    epochSeconds.set(1_010L);
+    when(redisTemplate.hasKey(StickyWriterService.KEY_PREFIX + sessionId)).thenReturn(false);
+
+    assertFalse(service.requiresWriter(sessionId, marker));
+    assertMetric(serviceRegistry, "marker_expired", 1.0);
   }
 
   @Test
@@ -161,14 +205,39 @@ class StickyWriterServiceTest {
   }
 
   private StickyWriterService service(boolean enabled, boolean valkeyEnabled, long ttlSeconds) {
+    return service(enabled, valkeyEnabled, ttlSeconds, new AtomicLong(1_000L));
+  }
+
+  private StickyWriterService service(boolean enabled, long ttlSeconds, AtomicLong epochSeconds) {
+    return service(enabled, true, ttlSeconds, epochSeconds);
+  }
+
+  private StickyWriterService service(
+      boolean enabled, boolean valkeyEnabled, long ttlSeconds, AtomicLong epochSeconds) {
     serviceRegistry = new SimpleMeterRegistry();
     return new StickyWriterService(
-        redisTemplate, serviceRegistry, localCache(ttlSeconds), ttlSeconds, enabled, valkeyEnabled);
+        redisTemplate,
+        serviceRegistry,
+        localCache(ttlSeconds),
+        ttlSeconds,
+        enabled,
+        valkeyEnabled,
+        "SC_DB_STICKY",
+        "0123456789ABCDEF0123456789ABCDEF",
+        epochSeconds::get);
   }
 
   private StickyWriterService createServiceWithTtl(long ttlSeconds) {
     return new StickyWriterService(
-        redisTemplate, new SimpleMeterRegistry(), localCache(1), ttlSeconds, true, true);
+        redisTemplate,
+        new SimpleMeterRegistry(),
+        localCache(1),
+        ttlSeconds,
+        true,
+        true,
+        "SC_DB_STICKY",
+        "0123456789ABCDEF0123456789ABCDEF",
+        () -> 1_000L);
   }
 
   private Cache<UUID, Boolean> localCache(long ttlSeconds) {
