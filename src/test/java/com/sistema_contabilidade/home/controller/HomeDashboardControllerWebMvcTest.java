@@ -14,6 +14,7 @@ import com.sistema_contabilidade.home.dto.HomeDashboardResponse;
 import com.sistema_contabilidade.home.dto.HomeLatestLaunchResponse;
 import com.sistema_contabilidade.home.service.HomeDashboardService;
 import com.sistema_contabilidade.item.model.TipoItem;
+import com.sistema_contabilidade.item.service.ItemListPageCache;
 import com.sistema_contabilidade.relatorio.service.RelatorioResumoCacheService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
@@ -49,6 +50,7 @@ class HomeDashboardControllerWebMvcTest {
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private StickyWriterService stickyWriterService;
   @MockitoBean private RelatorioResumoCacheService relatorioResumoCacheService;
+  @MockitoBean private ItemListPageCache itemListPageCache;
   @MockitoBean private ValkeyRateLimitService valkeyRateLimitService;
   @MockitoBean private LocalRateLimitService localRateLimitService;
 

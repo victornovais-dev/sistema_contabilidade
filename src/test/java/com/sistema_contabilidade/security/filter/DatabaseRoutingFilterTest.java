@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.database.routing.DatabaseRoutingContext;
 import com.sistema_contabilidade.database.service.StickyWriterService;
+import com.sistema_contabilidade.item.service.ItemListPageCache;
 import com.sistema_contabilidade.relatorio.service.RelatorioResumoCacheService;
 import jakarta.servlet.ServletException;
 import java.util.UUID;
@@ -33,6 +34,7 @@ class DatabaseRoutingFilterTest {
 
   @Mock private StickyWriterService stickyWriterService;
   @Mock private RelatorioResumoCacheService relatorioResumoCacheService;
+  @Mock private ItemListPageCache itemListPageCache;
 
   @InjectMocks private DatabaseRoutingFilter filter;
 
@@ -96,6 +98,7 @@ class DatabaseRoutingFilterTest {
 
     verify(stickyWriterService).markWriter(sessionId);
     verify(relatorioResumoCacheService).invalidateAfterItemWrite();
+    verify(itemListPageCache).invalidateAfterItemWrite();
     assertContextCleared();
   }
 
@@ -135,6 +138,7 @@ class DatabaseRoutingFilterTest {
         request, new MockHttpServletResponse(), (servletRequest, servletResponse) -> {});
 
     verify(relatorioResumoCacheService, never()).invalidateAfterItemWrite();
+    verify(itemListPageCache, never()).invalidateAfterItemWrite();
   }
 
   @Test
@@ -148,6 +152,7 @@ class DatabaseRoutingFilterTest {
 
     verify(stickyWriterService, never()).markWriter(Mockito.any());
     verify(relatorioResumoCacheService).invalidateAfterItemWrite();
+    verify(itemListPageCache).invalidateAfterItemWrite();
   }
 
   @ParameterizedTest
@@ -203,6 +208,7 @@ class DatabaseRoutingFilterTest {
 
     verify(stickyWriterService, never()).markWriter(sessionId);
     verify(relatorioResumoCacheService, never()).invalidateAfterItemWrite();
+    verify(itemListPageCache, never()).invalidateAfterItemWrite();
   }
 
   @Test

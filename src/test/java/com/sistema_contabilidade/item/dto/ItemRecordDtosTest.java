@@ -371,4 +371,24 @@ class ItemRecordDtosTest {
     assertEquals("CONTA DC", responseSemArquivo.descricao());
     assertEquals(false, responseSemArquivo.temArquivos());
   }
+
+  @Test
+  @DisplayName("Deve preservar documento ja mascarado ao reconstruir resposta da lista")
+  void devePreservarDocumentoJaMascaradoAoReconstruirRespostaDaLista() {
+    ItemListResponse response =
+        new ItemListResponse(
+            UUID.fromString("44444444-4444-4444-4444-444444444444"),
+            BigDecimal.ONE,
+            LocalDate.of(2026, Month.APRIL, 8),
+            LocalDateTime.of(2026, Month.APRIL, 8, 10, 30),
+            TipoItem.DESPESA,
+            "FINANCEIRO",
+            "SERVICOS",
+            "EMPRESA",
+            "***.***.***-00",
+            false,
+            false);
+
+    assertEquals("***.***.***-00", response.cnpjCpfMascarado());
+  }
 }

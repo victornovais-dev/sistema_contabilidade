@@ -20,9 +20,12 @@ import com.sistema_contabilidade.rbac.service.CampaignScopeResolver;
 import com.sistema_contabilidade.rbac.service.CandidateRoleCatalogService;
 import com.sistema_contabilidade.security.validation.InputSanitizer;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +43,35 @@ class ItemListServiceTest {
 
   @Mock private ItemRepository itemRepository;
   @Mock private CandidateRoleCatalogService candidateRoleCatalogService;
+  @Mock private ItemListPageCache itemListPageCache;
+
+  @Test
+  @DisplayName("Deve consultar cache Valkey antes da pagina quente")
+  void deveConsultarCacheValkeyAntesDaPaginaQuente() {
+    ItemListPageResponse cached =
+        ItemListPageResponse.empty(org.springframework.data.domain.PageRequest.of(0, 10));
+    when(itemListPageCache.getOrCompute(any(), any(), any())).thenReturn(cached);
+    ItemListService service =
+        new ItemListService(
+            itemRepository,
+            new CampaignScopeResolver(candidateRoleCatalogService),
+            new InputSanitizer(),
+            new ItemListCursorService(
+                "0123456789ABCDEF0123456789ABCDEF",
+                "",
+                Clock.fixed(Instant.parse("2026-08-03T00:00:00Z"), ZoneOffset.UTC)),
+            itemListPageCache,
+            false);
+
+    ItemListPageResponse result =
+        service.listarItens(autenticacao("admin@email.com", "ADMIN"), new ItemListPageRequest());
+
+    assertEquals(cached, result);
+    verify(itemListPageCache)
+        .getOrCompute(any(), org.mockito.ArgumentMatchers.contains("page=1"), any());
+    verify(itemRepository, never())
+        .findKeysetPageForList(any(ItemListPageQuery.class), any(), any(Integer.class));
+  }
 
   @Test
   @DisplayName("Deve listar pagina de itens para admin sem restringir role")

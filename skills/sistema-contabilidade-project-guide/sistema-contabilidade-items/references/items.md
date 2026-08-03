@@ -63,6 +63,10 @@ Rules:
 - Current hot path uses `Slice`, avoiding per-request `count(*)`.
 - Default pagination uses signed keyset `(horarioCriacao desc, id desc)`, returns `pageSize + 1`,
   and binds cursor to endpoint, canonical campaign scope, normalized filters and page size.
+- Hot list pages can use distributed Valkey cache. Keys bind canonical campaign scope,
+  normalized filters and parsed keyset position; raw cursor tokens never become cache keys.
+  Sticky-writer requests bypass this cache. Successful item mutations invalidate it by incrementing
+  global version after transaction completion.
 - Offset pages after page 1 are accepted only with `APP_ITEM_LEGACY_OFFSET_ENABLED=true`.
 - MySQL/MariaDB can upgrade search to FULLTEXT when available.
 - List DTO exposes only card data: id, amount, dates, type, authorized campaign, description,

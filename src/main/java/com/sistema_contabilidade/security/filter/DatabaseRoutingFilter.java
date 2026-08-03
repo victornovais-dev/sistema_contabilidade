@@ -2,6 +2,7 @@ package com.sistema_contabilidade.security.filter;
 
 import com.sistema_contabilidade.database.routing.DatabaseRoutingContext;
 import com.sistema_contabilidade.database.service.StickyWriterService;
+import com.sistema_contabilidade.item.service.ItemListPageCache;
 import com.sistema_contabilidade.monitoring.RequestMonitoringPathUtils;
 import com.sistema_contabilidade.relatorio.service.RelatorioResumoCacheService;
 import com.sistema_contabilidade.security.util.SecurityPaths;
@@ -25,6 +26,7 @@ public class DatabaseRoutingFilter extends OncePerRequestFilter {
 
   private final StickyWriterService stickyWriterService;
   private final RelatorioResumoCacheService relatorioResumoCacheService;
+  private final ItemListPageCache itemListPageCache;
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -51,6 +53,7 @@ public class DatabaseRoutingFilter extends OncePerRequestFilter {
       }
       if (shouldInvalidateReportCache(request, response)) {
         relatorioResumoCacheService.invalidateAfterItemWrite();
+        itemListPageCache.invalidateAfterItemWrite();
       }
     } finally {
       DatabaseRoutingContext.clear();

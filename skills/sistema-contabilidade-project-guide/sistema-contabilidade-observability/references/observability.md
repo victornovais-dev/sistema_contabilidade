@@ -52,7 +52,12 @@
 - Redis is configured and can run locally, but does not automatically speed up `/api/v1/itens`;
   application annotation caches remain local Caffeine caches on each EC2.
 - Good cache candidates are stable auxiliary data such as roles, descriptions and document types.
-- Caching `/api/v1/itens` requires careful invalidation because list data changes with verification, observation, upload and delete.
+- Hot `/api/v1/itens` pages use versioned Valkey JSON cache when
+  `APP_ITEM_LIST_PAGE_CACHE_ENABLED=true`. It has TTL capped at 30 seconds, 128 KiB default
+  payload limit, canonical-scope/filter/keyset isolation, sticky-writer bypass and post-commit
+  invalidation after each successful item mutation.
+- Metrics use fixed labels only: `app.item.list.cache.total{result}` and
+  `app.valkey.operation.errors{operation="item_list_page_cache"}`.
 
 ## Performance Notes
 

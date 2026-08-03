@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 public record ItemListResponse(
     UUID id,
@@ -24,6 +25,10 @@ public record ItemListResponse(
   private static final int CPF_VISIBLE_SUFFIX_START = 9;
   private static final int CNPJ_LENGTH = 14;
   private static final int CNPJ_VISIBLE_SUFFIX_START = 12;
+  private static final Pattern MASKED_CPF_PATTERN =
+      Pattern.compile("\\*\\*\\*\\.\\*\\*\\*\\.\\*\\*\\*-\\d{2}");
+  private static final Pattern MASKED_CNPJ_PATTERN =
+      Pattern.compile("\\*\\*\\.\\*\\*\\*\\.\\*\\*\\*/\\*\\*\\*\\*-\\d{2}");
 
   public ItemListResponse {
     cnpjCpfMascarado = mascararDocumento(cnpjCpfMascarado);
@@ -47,6 +52,11 @@ public record ItemListResponse(
   private static String mascararDocumento(String documento) {
     if (documento == null || documento.isBlank()) {
       return null;
+    }
+    if (MASKED_CPF_PATTERN.matcher(documento).matches()
+        || MASKED_CNPJ_PATTERN.matcher(documento).matches()
+        || "***".equals(documento)) {
+      return documento;
     }
     String digitos = documento.replaceAll("\\D", "");
     if (digitos.length() == CPF_LENGTH) {

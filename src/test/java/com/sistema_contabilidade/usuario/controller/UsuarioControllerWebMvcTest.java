@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.database.service.StickyWriterService;
+import com.sistema_contabilidade.item.service.ItemListPageCache;
 import com.sistema_contabilidade.rbac.dto.RoleResumoDto;
 import com.sistema_contabilidade.rbac.dto.UsuarioComRolesDto;
 import com.sistema_contabilidade.relatorio.service.RelatorioResumoCacheService;
@@ -55,6 +56,7 @@ class UsuarioControllerWebMvcTest {
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private StickyWriterService stickyWriterService;
   @MockitoBean private RelatorioResumoCacheService relatorioResumoCacheService;
+  @MockitoBean private ItemListPageCache itemListPageCache;
   @MockitoBean private ValkeyRateLimitService valkeyRateLimitService;
   @MockitoBean private LocalRateLimitService localRateLimitService;
 

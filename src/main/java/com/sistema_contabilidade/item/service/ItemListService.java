@@ -42,6 +42,7 @@ public class ItemListService {
   private final CampaignScopeResolver campaignScopeResolver;
   private final InputSanitizer inputSanitizer;
   private final ItemListCursorService itemListCursorService;
+  private final ItemListPageCache itemListPageCache;
   private final boolean legacyOffsetEnabled;
 
   @Autowired
@@ -50,11 +51,13 @@ public class ItemListService {
       CampaignScopeResolver campaignScopeResolver,
       InputSanitizer inputSanitizer,
       ItemListCursorService itemListCursorService,
+      ItemListPageCache itemListPageCache,
       @Value("${app.item-list.legacy-offset-enabled:false}") boolean legacyOffsetEnabled) {
     this.itemRepository = itemRepository;
     this.campaignScopeResolver = campaignScopeResolver;
     this.inputSanitizer = inputSanitizer;
     this.itemListCursorService = itemListCursorService;
+    this.itemListPageCache = itemListPageCache;
     this.legacyOffsetEnabled = legacyOffsetEnabled;
   }
 
@@ -68,6 +71,7 @@ public class ItemListService {
         inputSanitizer,
         new ItemListCursorService(
             "0123456789ABCDEF0123456789ABCDEF", "", java.time.Clock.systemUTC()),
+        ItemListPageCache.noOp(),
         false);
   }
 
@@ -91,25 +95,53 @@ public class ItemListService {
             normalizedRequest.dataFim(),
             normalizedRequest.descricao(),
             normalizedRequest.razao());
-    return listarPagina(query, normalizedRequest);
+    return listarPagina(scope, query, normalizedRequest);
   }
 
   private ItemListPageResponse listarPagina(
-      ItemListPageQuery query, NormalizedListRequest normalizedRequest) {
+      CampaignScope scope, ItemListPageQuery query, NormalizedListRequest normalizedRequest) {
     String cursor = normalizedRequest.cursor();
     if (cursor == null || cursor.isBlank()) {
       if (normalizedRequest.direction() == ItemListCursorDirection.PREVIOUS) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Cursor de paginacao obrigatorio.");
       }
-      return listarPrimeiraOuPaginaLegada(
-          query, normalizedRequest.page(), normalizedRequest.pageSize());
+      return itemListPageCache.getOrCompute(
+          scope,
+          normalizedFilters(normalizedRequest, null),
+          () ->
+              listarPrimeiraOuPaginaLegada(
+                  query, normalizedRequest.page(), normalizedRequest.pageSize()));
     }
     ItemListKeysetCursor keysetCursor =
         itemListCursorService.parse(
             cursor, query, normalizedRequest.pageSize(), normalizedRequest.direction());
-    return listarComCursor(
-        query, normalizedRequest.page(), normalizedRequest.pageSize(), keysetCursor);
+    return itemListPageCache.getOrCompute(
+        scope,
+        normalizedFilters(normalizedRequest, keysetCursor),
+        () ->
+            listarComCursor(
+                query, normalizedRequest.page(), normalizedRequest.pageSize(), keysetCursor));
+  }
+
+  private String normalizedFilters(
+      NormalizedListRequest request, ItemListKeysetCursor keysetCursor) {
+    return String.join(
+        "\u001f",
+        "page=" + request.page(),
+        "pageSize=" + request.pageSize(),
+        "tipo=" + stringValue(request.tipo()),
+        "dataInicio=" + stringValue(request.dataInicio()),
+        "dataFim=" + stringValue(request.dataFim()),
+        "descricao=" + stringValue(request.descricao()),
+        "razao=" + stringValue(request.razao()),
+        "direction=" + request.direction(),
+        "cursorHorario=" + (keysetCursor == null ? "" : keysetCursor.horarioCriacao()),
+        "cursorId=" + (keysetCursor == null ? "" : keysetCursor.id()));
+  }
+
+  private String stringValue(Object value) {
+    return value == null ? "" : value.toString();
   }
 
   private ItemListPageResponse listarPrimeiraOuPaginaLegada(

@@ -38,6 +38,7 @@ import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ArquivoStorageService;
 import com.sistema_contabilidade.item.service.ItemDescricaoService;
+import com.sistema_contabilidade.item.service.ItemListPageCache;
 import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
@@ -109,6 +110,7 @@ class ItemControllerWebMvcTest {
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
   @MockitoBean private StickyWriterService stickyWriterService;
   @MockitoBean private RelatorioResumoCacheService relatorioResumoCacheService;
+  @MockitoBean private ItemListPageCache itemListPageCache;
   @MockitoBean private ValkeyRateLimitService valkeyRateLimitService;
   @MockitoBean private LocalRateLimitService localRateLimitService;
 

@@ -69,6 +69,9 @@
 - The financial summary cache is enabled in production with
   `APP_RELATORIO_RESUMO_CACHE_ENABLED`, uses a 30-second TTL by default and refuses entries larger
   than `APP_RELATORIO_RESUMO_CACHE_MAX_BYTES` (default 128 KiB).
+- Production item-list page cache is enabled with `APP_ITEM_LIST_PAGE_CACHE_ENABLED` and uses
+  bounded defaults: `APP_ITEM_LIST_PAGE_CACHE_TTL_SECONDS` (30),
+  `APP_ITEM_LIST_PAGE_CACHE_JITTER_SECONDS` (3) and `APP_ITEM_LIST_PAGE_CACHE_MAX_BYTES` (128 KiB).
 - Report cache keys isolate authorized scope, normalized role, filters and the global
   `relatorio:resumo:version`. Successful item mutations increment that version.
 - Sticky-writer sessions bypass the report cache. Valkey read/write/invalidation failures fall back
