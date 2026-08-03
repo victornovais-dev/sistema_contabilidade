@@ -255,8 +255,8 @@ class RelatorioFinanceiroServiceTest {
   }
 
   @Test
-  @DisplayName("Deve gerar resumo financeiro com consulta leve e acumulacao unica")
-  void deveGerarResumoFinanceiroComConsultaLeveEAcumulacaoUnica() {
+  @DisplayName("Deve gerar resumo financeiro com duas agregacoes")
+  void deveGerarResumoFinanceiroComDuasAgregacoes() {
     ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
@@ -283,7 +283,6 @@ class RelatorioFinanceiroServiceTest {
                     TipoItem.DESPESA, new BigDecimal("15.00"), "ALUGUEL DE VEICULOS"),
                 new RelatorioResumoCategoriaRow(
                     TipoItem.DESPESA, new BigDecimal("25.00"), "INTERNET")));
-    when(itemRepository.findTotalContasPagasDespesas()).thenReturn(new BigDecimal("30.00"));
     when(itemRepository.findContasPagasPorConta())
         .thenReturn(
             List.of(
@@ -293,8 +292,8 @@ class RelatorioFinanceiroServiceTest {
     RelatorioFinanceiroResumoResponse response = service.gerarResumo(adminAuth(), null);
 
     verify(itemRepository).findAllRelatorioResumoCategorias();
-    verify(itemRepository).findTotalContasPagasDespesas();
     verify(itemRepository).findContasPagasPorConta();
+    verify(itemRepository, Mockito.never()).findTotalContasPagasDespesas();
     assertEquals(new BigDecimal("100.00"), response.receitasFinanceiras());
     assertEquals(new BigDecimal("50.00"), response.receitasEstimaveis());
     assertEquals(new BigDecimal("150.00"), response.totalReceitas());
@@ -337,9 +336,11 @@ class RelatorioFinanceiroServiceTest {
             List.of(
                 new RelatorioResumoCategoriaRow(
                     TipoItem.DESPESA, new BigDecimal("90.00"), "INTERNET")));
-    when(itemRepository.findTotalContasPagasDespesasByRoleNomes(rolesVisiveis))
-        .thenReturn(new BigDecimal("35.00"));
-    when(itemRepository.findContasPagasPorContaByRoleNomes(rolesVisiveis)).thenReturn(List.of());
+    when(itemRepository.findContasPagasPorContaByRoleNomes(rolesVisiveis))
+        .thenReturn(
+            List.of(
+                new RelatorioContaPagamentoRow(
+                    ContaOrigemPagamentoItem.CONTA_DC, new BigDecimal("35.00"))));
 
     RelatorioFinanceiroResumoResponse response =
         service.gerarResumo(authentication("financeiro@email.com", "ROLE_FINANCEIRO"), null);
@@ -347,10 +348,10 @@ class RelatorioFinanceiroServiceTest {
     assertEquals(new BigDecimal("35.00"), response.contasPagas());
     assertEquals(new BigDecimal("55.00"), response.contasAPagar());
     verify(itemRepository).findRelatorioResumoCategoriasByRoleNomes(rolesVisiveis);
-    verify(itemRepository).findTotalContasPagasDespesasByRoleNomes(rolesVisiveis);
     verify(itemRepository).findContasPagasPorContaByRoleNomes(rolesVisiveis);
     verify(itemRepository, Mockito.never()).findAllRelatorioResumoCategorias();
     verify(itemRepository, Mockito.never()).findTotalContasPagasDespesas();
+    verify(itemRepository, Mockito.never()).findTotalContasPagasDespesasByRoleNomes(rolesVisiveis);
     verify(itemRepository, Mockito.never()).findContasPagasPorConta();
   }
 

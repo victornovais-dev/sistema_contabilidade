@@ -77,13 +77,13 @@ public class RelatorioFinanceiroService {
     CampaignScope scope = campaignScopeResolver.resolve(authentication, roleFiltro);
     String normalizedFilters = "role=" + Objects.toString(scope.roleFilter(), "ALL");
     return relatorioResumoCacheService.getOrCompute(
-        scope,
-        normalizedFilters,
-        () ->
-            RelatorioFinanceiroConsolidador.buildSummaryResponse(
-                buscarResumoItens(scope),
-                buscarContasPagas(scope),
-                buscarContasPagasPorConta(scope)));
+        scope, normalizedFilters, () -> gerarResumoPorAgregacoes(scope));
+  }
+
+  private RelatorioFinanceiroResumoResponse gerarResumoPorAgregacoes(CampaignScope scope) {
+    List<RelatorioContaPagamentoRow> contasPagasPorConta = buscarContasPagasPorConta(scope);
+    return RelatorioFinanceiroConsolidador.buildSummaryResponse(
+        buscarResumoItens(scope), calcularContasPagas(contasPagasPorConta), contasPagasPorConta);
   }
 
   private RelatorioFinanceiroResponse gerarRelatorio(
@@ -133,17 +133,15 @@ public class RelatorioFinanceiroService {
     return itemRepository.findRelatorioResumoCategoriasByRoleNomes(scope.effectiveCampaignNames());
   }
 
-  private BigDecimal buscarContasPagas(CampaignScope scope) {
-    if (scope.roleFilter() != null) {
-      return itemRepository.findTotalContasPagasDespesasByRoleNome(scope.roleFilter());
-    }
-    if (scope.allCampaigns()) {
-      return itemRepository.findTotalContasPagasDespesas();
-    }
-    if (scope.effectiveCampaignNames().isEmpty()) {
+  private BigDecimal calcularContasPagas(List<RelatorioContaPagamentoRow> contasPagasPorConta) {
+    if (contasPagasPorConta == null) {
       return BigDecimal.ZERO;
     }
-    return itemRepository.findTotalContasPagasDespesasByRoleNomes(scope.effectiveCampaignNames());
+    return contasPagasPorConta.stream()
+        .filter(Objects::nonNull)
+        .map(RelatorioContaPagamentoRow::totalPago)
+        .filter(Objects::nonNull)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   private List<RelatorioContaPagamentoRow> buscarContasPagasPorConta(CampaignScope scope) {
