@@ -9,7 +9,8 @@
 - PDF path uses detailed payload via `RelatorioFinanceiroPdfDataFactory`.
 - Web summary aggregation uses `RelatorioFinanceiroConsolidador`.
 - Web summaries can use `RelatorioResumoCacheService`, which stores only
-  `RelatorioFinanceiroResumoResponse` JSON in Valkey for 30 seconds and limits entries to 128 KiB.
+  `RelatorioFinanceiroResumoResponse` JSON in Valkey with TTL jitter capped at 30 seconds and limits entries to 128 KiB.
+- A cache miss uses at most two database aggregations: category totals and paid totals grouped by account.
 - Cache keys isolate authorized roles, normalized role filter, normalized filters and a global
   version incremented after successful item mutations.
 - Sticky-writer requests bypass the cache so the writing session never receives a pre-write
