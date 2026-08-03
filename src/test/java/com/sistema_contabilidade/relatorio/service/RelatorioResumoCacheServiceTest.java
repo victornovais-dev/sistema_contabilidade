@@ -57,7 +57,7 @@ class RelatorioResumoCacheServiceTest {
   @Test
   @DisplayName("Deve retornar hit sem consultar banco")
   void deveRetornarHitSemConsultarBanco() throws Exception {
-    RelatorioResumoCacheService service = service(true, 30, 131_072);
+    RelatorioResumoCacheService service = service(true, 30, 0, 131_072);
     RelatorioFinanceiroResumoResponse cached = response("42.00");
     stubVersionAndPayload("7", objectMapper.writeValueAsString(cached));
     AtomicInteger loads = new AtomicInteger();
@@ -80,7 +80,7 @@ class RelatorioResumoCacheServiceTest {
   @Test
   @DisplayName("Miss deve gravar JSON com TTL de trinta segundos")
   void missDeveGravarJsonComTtlDeTrintaSegundos() {
-    RelatorioResumoCacheService service = service(true, 30, 131_072);
+    RelatorioResumoCacheService service = service(true, 30, 0, 131_072);
     stubVersionAndPayload("7", null);
     RelatorioFinanceiroResumoResponse computed = response("55.00");
 
@@ -104,7 +104,7 @@ class RelatorioResumoCacheServiceTest {
   @Test
   @DisplayName("Chave deve usar o escopo efetivo e isolar filtros")
   void chaveDeveIsolarEscopoRoleEFiltros() {
-    RelatorioResumoCacheService service = service(true, 30, 131_072);
+    RelatorioResumoCacheService service = service(true, 30, 0, 131_072);
     when(valueOperations.get(anyString()))
         .thenAnswer(
             invocation ->
@@ -131,7 +131,7 @@ class RelatorioResumoCacheServiceTest {
   @Test
   @DisplayName("Mutacao de item deve incrementar versao global")
   void mutacaoDeItemDeveIncrementarVersaoGlobal() {
-    RelatorioResumoCacheService service = service(true, 30, 131_072);
+    RelatorioResumoCacheService service = service(true, 30, 0, 131_072);
     when(valueOperations.increment(RelatorioResumoCacheService.VERSION_KEY)).thenReturn(9L);
 
     service.invalidateAfterItemWrite();
@@ -142,7 +142,7 @@ class RelatorioResumoCacheServiceTest {
   @Test
   @DisplayName("Sessao sticky deve ignorar Valkey")
   void sessaoStickyDeveIgnorarValkey() {
-    RelatorioResumoCacheService service = service(true, 30, 131_072);
+    RelatorioResumoCacheService service = service(true, 30, 0, 131_072);
     RelatorioFinanceiroResumoResponse computed = response("73.00");
     DatabaseRoutingContext.forceWriterForSticky();
 
@@ -157,7 +157,7 @@ class RelatorioResumoCacheServiceTest {
   @Test
   @DisplayName("Falha Valkey deve calcular uma vez pelo banco")
   void falhaValkeyDeveCalcularUmaVezPeloBanco() {
-    RelatorioResumoCacheService service = service(true, 30, 131_072);
+    RelatorioResumoCacheService service = service(true, 30, 0, 131_072);
     when(valueOperations.get(RelatorioResumoCacheService.VERSION_KEY))
         .thenThrow(new IllegalStateException("offline"));
     AtomicInteger loads = new AtomicInteger();
@@ -180,7 +180,7 @@ class RelatorioResumoCacheServiceTest {
   @Test
   @DisplayName("Payload acima de 128 KiB nao deve ser cacheado")
   void payloadAcimaDoLimiteNaoDeveSerCacheado() {
-    RelatorioResumoCacheService service = service(true, 30, 32);
+    RelatorioResumoCacheService service = service(true, 30, 0, 32);
     stubVersionAndPayload("0", null);
     RelatorioFinanceiroResumoResponse computed = response("123456789.00");
 
@@ -195,7 +195,7 @@ class RelatorioResumoCacheServiceTest {
   @Test
   @DisplayName("Cache desabilitado deve usar banco sem tocar Redis")
   void cacheDesabilitadoDeveUsarBancoSemTocarRedis() {
-    RelatorioResumoCacheService service = service(false, 30, 131_072);
+    RelatorioResumoCacheService service = service(false, 30, 0, 131_072);
     RelatorioFinanceiroResumoResponse computed = response("15.00");
 
     RelatorioFinanceiroResumoResponse result =
@@ -210,9 +210,26 @@ class RelatorioResumoCacheServiceTest {
   @Test
   @DisplayName("Configuracao invalida deve falhar no startup")
   void configuracaoInvalidaDeveFalharNoStartup() {
-    assertThatThrownBy(() -> service(true, 0, 131_072))
+    assertThatThrownBy(() -> service(true, 0, 0, 131_072))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> service(true, 30, 0)).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> service(true, 31, 0, 131_072))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> service(true, 30, 30, 131_072))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> service(true, 30, 0, 0)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("Miss deve aplicar jitter sem ultrapassar trinta segundos")
+  void missDeveAplicarJitterSemUltrapassarTrintaSegundos() {
+    RelatorioResumoCacheService service = service(true, 30, 3, 131_072);
+    stubVersionAndPayload("7", null);
+
+    service.getOrCompute(CampaignScope.all(), "role=ALL", () -> response("55.00"));
+
+    ArgumentCaptor<Duration> ttlCaptor = ArgumentCaptor.forClass(Duration.class);
+    verify(valueOperations).set(anyString(), anyString(), ttlCaptor.capture());
+    assertThat(ttlCaptor.getValue()).isBetween(Duration.ofSeconds(27), Duration.ofSeconds(30));
   }
 
   private void stubVersionAndPayload(String version, String payload) {
@@ -224,9 +241,10 @@ class RelatorioResumoCacheServiceTest {
                     : payload);
   }
 
-  private RelatorioResumoCacheService service(boolean enabled, long ttlSeconds, int maxBytes) {
+  private RelatorioResumoCacheService service(
+      boolean enabled, long ttlSeconds, long jitterSeconds, int maxBytes) {
     return new RelatorioResumoCacheService(
-        redisTemplate, objectMapper, meterRegistry, ttlSeconds, maxBytes, enabled);
+        redisTemplate, objectMapper, meterRegistry, ttlSeconds, jitterSeconds, maxBytes, enabled);
   }
 
   private RelatorioFinanceiroResumoResponse response(String saldoFinal) {

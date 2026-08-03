@@ -9,6 +9,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Objects;
@@ -29,10 +30,12 @@ public final class RelatorioResumoCacheService {
   static final String VALKEY_ERROR_METRIC = "app.valkey.operation.errors";
 
   private static final String ALL_ROLES = "ALL";
+  private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
   private final StringRedisTemplate redisTemplate;
   private final ObjectMapper objectMapper;
   private final Duration ttl;
+  private final long jitterSeconds;
   private final int maxBytes;
   private final boolean enabled;
   private final Counter hitCounter;
@@ -50,10 +53,14 @@ public final class RelatorioResumoCacheService {
       ObjectMapper objectMapper,
       MeterRegistry meterRegistry,
       @Value("${app.relatorio.resumo-cache.ttl-seconds:30}") long ttlSeconds,
+      @Value("${app.relatorio.resumo-cache.jitter-seconds:3}") long jitterSeconds,
       @Value("${app.relatorio.resumo-cache.max-bytes:131072}") int maxBytes,
       @Value("${app.relatorio.resumo-cache.enabled:false}") boolean enabled) {
-    if (ttlSeconds <= 0) {
-      throw new IllegalArgumentException("TTL do cache de resumo deve ser maior que zero");
+    if (ttlSeconds <= 0 || ttlSeconds > 30) {
+      throw new IllegalArgumentException("TTL do cache de resumo deve estar entre 1 e 30 segundos");
+    }
+    if (jitterSeconds < 0 || jitterSeconds >= ttlSeconds) {
+      throw new IllegalArgumentException("Jitter do cache de resumo deve ser menor que o TTL");
     }
     if (maxBytes <= 0) {
       throw new IllegalArgumentException("Limite do cache de resumo deve ser maior que zero");
@@ -61,6 +68,7 @@ public final class RelatorioResumoCacheService {
     this.redisTemplate = redisTemplate;
     this.objectMapper = objectMapper;
     this.ttl = Duration.ofSeconds(ttlSeconds);
+    this.jitterSeconds = jitterSeconds;
     this.maxBytes = maxBytes;
     this.enabled = enabled;
     this.hitCounter = counter(meterRegistry, "hit");
@@ -112,7 +120,7 @@ public final class RelatorioResumoCacheService {
         bypassCounter.increment();
         return response;
       }
-      redisTemplate.opsForValue().set(cacheKey, payload, ttl);
+      redisTemplate.opsForValue().set(cacheKey, payload, ttlWithJitter());
       missCounter.increment();
     } catch (Exception exception) {
       recordError("Falha ao gravar resumo financeiro no Valkey", exception);
@@ -161,6 +169,15 @@ public final class RelatorioResumoCacheService {
 
   private int payloadSize(String payload) {
     return payload.getBytes(StandardCharsets.UTF_8).length;
+  }
+
+  private Duration ttlWithJitter() {
+    if (jitterSeconds == 0) {
+      return ttl;
+    }
+    long minimumSeconds = ttl.getSeconds() - jitterSeconds;
+    long ttlSeconds = SECURE_RANDOM.nextLong(minimumSeconds, ttl.getSeconds() + 1);
+    return Duration.ofSeconds(ttlSeconds);
   }
 
   private String sha256(String value) {
