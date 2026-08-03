@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.item.service;
 
 import com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog;
+import com.sistema_contabilidade.item.model.ItemTipoDocumento;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemTipoDocumentoRepository;
 import java.util.List;
@@ -23,7 +24,7 @@ public class ItemTipoDocumentoService {
     try {
       List<String> tiposDocumento =
           itemTipoDocumentoRepository.findAllByOrderByOrdemAscNomeAsc().stream()
-              .map(itemTipoDocumento -> itemTipoDocumento.getNome())
+              .map(ItemTipoDocumento::getNome)
               .toList();
       if (!tiposDocumento.isEmpty()) {
         return tiposDocumento;
