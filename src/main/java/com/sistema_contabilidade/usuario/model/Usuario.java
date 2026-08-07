@@ -78,6 +78,9 @@ public class Usuario implements BlindIndexAware {
   @Column(nullable = false, length = 512)
   private String senha;
 
+  @Column(name = "troca_senha_obrigatoria", nullable = false)
+  private boolean trocaSenhaObrigatoria;
+
   @Convert(converter = EncryptedStringConverter.class)
   @Column(name = "cognito_sub", length = 256)
   private String cognitoSub;

@@ -19,5 +19,6 @@ public interface UsuarioMapper {
   @Mapping(target = "emailBlindIndex", ignore = true)
   @Mapping(target = "cognitoSubBlindIndex", ignore = true)
   @Mapping(target = "cognitoUsernameBlindIndex", ignore = true)
+  @Mapping(target = "trocaSenhaObrigatoria", ignore = true)
   Usuario toEntity(UsuarioDto usuarioDto);
 }

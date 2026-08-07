@@ -84,9 +84,19 @@ public class CognitoUserManagementService {
       String email,
       String senha,
       Set<String> normalizedRoles) {
+    return updateUser(providerUsername, nome, email, senha, normalizedRoles, false);
+  }
+
+  public CognitoUserProfile updateUser(
+      String providerUsername,
+      String nome,
+      String email,
+      String senha,
+      Set<String> normalizedRoles,
+      boolean forcarTrocaSenha) {
     try {
       updateUserAttributes(providerUsername, nome, email);
-      updatePasswordIfPresent(providerUsername, senha);
+      updatePasswordIfPresent(providerUsername, senha, forcarTrocaSenha);
       syncGroupsIfPresent(providerUsername, normalizedRoles);
       return refreshUpdatedProfile(providerUsername);
     } catch (UserNotFoundException exception) {
@@ -163,7 +173,8 @@ public class CognitoUserManagementService {
     }
   }
 
-  private void updatePasswordIfPresent(String providerUsername, String senha) {
+  private void updatePasswordIfPresent(
+      String providerUsername, String senha, boolean forcarTrocaSenha) {
     if (senha == null || senha.isBlank()) {
       return;
     }
@@ -174,7 +185,7 @@ public class CognitoUserManagementService {
               .userPoolId(cognitoProperties.getUserPoolId())
               .username(providerUsername)
               .password(senha)
-              .permanent(true)
+              .permanent(!forcarTrocaSenha)
               .build());
     } catch (ResponseStatusException
         | UserNotFoundException

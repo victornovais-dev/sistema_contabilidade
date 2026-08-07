@@ -28,7 +28,7 @@
       <header class="page-header">
         <span class="chip">Admin</span>
         <h1>Atualizar usuario</h1>
-        <p>Busque por email e atualize senha e roles do usuario.</p>
+        <p>Busque por email e atualize nome, senha e roles do usuario.</p>
       </header>
 
       <section class="card">
@@ -48,6 +48,11 @@
           </label>
 
           <label class="field">
+            <span>Nome do usuario</span>
+            <input id="nome" type="text" name="nome" placeholder="Nome completo" maxlength="120" required />
+          </label>
+
+          <label class="field">
             <span>Senha (opcional)</span>
             <input
               id="senha"
@@ -57,6 +62,12 @@
               minlength="6"
             />
           </label>
+
+          <label class="field password-change-option">
+            <input id="forcar-troca-senha" type="checkbox" name="forcar_troca_senha" />
+            <span>Exigir troca de senha no proximo login</span>
+          </label>
+          <p class="field-hint">Informe acima senha temporaria para habilitar esta opcao.</p>
 
           <div class="field role-picker-field">
             <span>Roles</span>

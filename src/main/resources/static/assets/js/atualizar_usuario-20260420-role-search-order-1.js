@@ -2,7 +2,9 @@ const root = document.documentElement;
 const form = document.getElementById("update-user-form");
 const loadUserButton = document.getElementById("load-user-btn");
 const emailInput = document.getElementById("email");
+const nomeInput = document.getElementById("nome");
 const senhaInput = document.getElementById("senha");
+const forcePasswordChangeInput = document.getElementById("forcar-troca-senha");
 const confirmOverlay = document.getElementById("update-user-feedback");
 const confirmCard = confirmOverlay.querySelector(".confirm-card");
 const feedbackOkBtn = document.getElementById("feedback-ok-btn");
@@ -270,7 +272,9 @@ const setCheckedRoles = (roles) => {
 
 const clearLoadedUserState = ({ keepEmail = true } = {}) => {
   loadedUserEmail = null;
+  nomeInput.value = "";
   senhaInput.value = "";
+  forcePasswordChangeInput.checked = false;
   selectedRoles.clear();
   if (rolesOptions) {
     rolesOptions.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
@@ -460,6 +464,7 @@ const carregarUsuario = async () => {
   }
 
   loadedUserEmail = email;
+  nomeInput.value = data.nome || "";
   senhaInput.value = "";
   const roles = Array.isArray(data.roles) ? data.roles.map((item) => item.nome).filter(Boolean) : [];
   setCheckedRoles(roles);
@@ -479,10 +484,20 @@ loadUserButton.addEventListener("click", async () => {
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const email = emailInput.value.trim();
+  const nome = nomeInput.value.trim();
+  const forcarTrocaSenha = forcePasswordChangeInput.checked;
   applySelectedRolesFromChecks();
   const selectedRolesList = Array.from(selectedRoles);
   if (!email) {
     showFeedback("error", "Informe um email valido.");
+    return;
+  }
+  if (!nome) {
+    showFeedback("error", "Informe o nome do usuario.");
+    return;
+  }
+  if (forcarTrocaSenha && !senhaInput.value.trim()) {
+    showFeedback("error", "Informe uma senha temporaria para forcar a troca no proximo login.");
     return;
   }
   if (selectedRolesList.length === 0) {
@@ -500,8 +515,10 @@ form.addEventListener("submit", async (event) => {
 
   const payload = {
     email,
+    nome,
     senha: senhaInput.value.trim() ? senhaInput.value : null,
     roles: selectedRolesList,
+    forcarTrocaSenha,
   };
 
   try {
@@ -554,8 +571,10 @@ form.addEventListener("submit", async (event) => {
     const data = await response.json().catch(() => ({}));
     const roles = Array.isArray(data.roles) ? data.roles.map((item) => item.nome).filter(Boolean) : [];
     loadedUserEmail = normalizeEmail(data.email || email);
+    nomeInput.value = data.nome || nome;
     setCheckedRoles(roles);
     senhaInput.value = "";
+    forcePasswordChangeInput.checked = false;
     csrfToken = null;
     showFeedback("success", "Usuario atualizado com sucesso.");
   } catch (error) {

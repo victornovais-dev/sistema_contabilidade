@@ -43,7 +43,7 @@ public class EstagiarioPermissaoService {
     rolesDesejadas.addAll(rolesDeCampanha);
 
     return usuarioService.updateByEmail(
-        new UsuarioUpdateByEmailRequest(usuario.getEmail(), null, rolesDesejadas));
+        new UsuarioUpdateByEmailRequest(usuario.getEmail(), null, null, rolesDesejadas, false));
   }
 
   private Set<String> validarRolesDeCampanha(Set<String> rolesSolicitadas) {

@@ -17,3 +17,21 @@
 .search-field {
   margin-bottom: 2px;
 }
+
+.password-change-option {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin-top: -2px;
+}
+
+.password-change-option input {
+  width: auto;
+  accent-color: var(--accent);
+}
+
+.field-hint {
+  margin: -10px 0 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
