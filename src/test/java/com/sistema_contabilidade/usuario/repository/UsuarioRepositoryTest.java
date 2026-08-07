@@ -78,12 +78,16 @@ class UsuarioRepositoryTest {
   void deveProtegerLinhaLegadaNoBackfill() throws Exception {
     UUID id = UUID.randomUUID();
     jdbcTemplate.update(
-        "insert into usuarios (id, email, nome, senha, version) values (?, ?, ?, ?, ?)",
+        """
+        insert into usuarios (id, email, nome, senha, version, troca_senha_obrigatoria)
+        values (?, ?, ?, ?, ?, ?)
+        """,
         id,
         "legado@email.com",
         "Legado",
         "hash-legado",
-        0L);
+        0L,
+        false);
     DatabaseDataProtectionBackfill backfill =
         new DatabaseDataProtectionBackfill(jdbcTemplate, cryptoService, blindIndexService);
 

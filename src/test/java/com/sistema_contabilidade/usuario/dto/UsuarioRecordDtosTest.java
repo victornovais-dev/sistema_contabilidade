@@ -40,9 +40,9 @@ class UsuarioRecordDtosTest {
   @DisplayName("Deve validar roles informadas na atualizacao por email")
   void deveValidarRolesInformadasNaAtualizacaoPorEmail() {
     UsuarioUpdateByEmailRequest valida =
-        new UsuarioUpdateByEmailRequest("ana@email.com", null, Set.of("ADMIN"));
+        new UsuarioUpdateByEmailRequest("ana@email.com", null, null, Set.of("ADMIN"), false);
     UsuarioUpdateByEmailRequest invalida =
-        new UsuarioUpdateByEmailRequest("ana@email.com", null, Set.of(" "));
+        new UsuarioUpdateByEmailRequest("ana@email.com", null, null, Set.of(" "), false);
 
     assertTrue(valida.possuiRolesValidas());
     assertFalse(invalida.possuiRolesValidas());

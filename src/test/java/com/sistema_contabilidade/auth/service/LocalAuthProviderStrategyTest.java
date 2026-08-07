@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.auth.config.AuthProvider;
+import com.sistema_contabilidade.auth.dto.CompleteNewPasswordRequest;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
 import com.sistema_contabilidade.auth.model.SessaoUsuario;
 import com.sistema_contabilidade.usuario.model.Usuario;
@@ -69,6 +70,49 @@ class LocalAuthProviderStrategyTest {
     assertThrows(ResponseStatusException.class, () -> localAuthProviderStrategy.login(request));
 
     verify(usuarioRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("Deve exigir nova senha local quando admin marcar troca obrigatoria")
+  void deveExigirNovaSenhaLocalQuandoAdminMarcarTrocaObrigatoria() {
+    Usuario usuario = new Usuario();
+    usuario.setEmail("ana@email.com");
+    usuario.setSenha("hash-atual");
+    usuario.setTrocaSenhaObrigatoria(true);
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
+    when(passwordEncoder.matches("123456", "hash-atual")).thenReturn(true);
+    when(passwordEncoder.upgradeEncoding("hash-atual")).thenReturn(false);
+
+    AuthProviderLoginResult result =
+        localAuthProviderStrategy.login(new LoginRequest("ana@email.com", "123456"));
+
+    assertEquals(AuthProvider.LOCAL, result.challenge().provider());
+    assertEquals("NEW_PASSWORD_REQUIRED", result.challenge().challengeName());
+  }
+
+  @Test
+  @DisplayName("Deve concluir troca obrigatoria de senha local")
+  void deveConcluirTrocaObrigatoriaDeSenhaLocal() {
+    Usuario usuario = new Usuario();
+    usuario.setId(UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"));
+    usuario.setEmail("ana@email.com");
+    usuario.setSenha("hash-antigo");
+    usuario.setNome("Ana");
+    usuario.setTrocaSenhaObrigatoria(true);
+    AuthLoginChallenge challenge =
+        new AuthLoginChallenge(
+            AuthProvider.LOCAL, "NEW_PASSWORD_REQUIRED", "ana@email.com", null, "Troque a senha");
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.of(usuario));
+    when(passwordEncoder.encode("NovaSenha@123")).thenReturn("hash-novo");
+    when(usuarioRepository.save(usuario)).thenReturn(usuario);
+
+    AuthProviderLoginResult result =
+        localAuthProviderStrategy.completeNewPassword(
+            challenge, new CompleteNewPasswordRequest("NovaSenha@123"));
+
+    assertEquals("hash-novo", usuario.getSenha());
+    assertEquals(false, usuario.isTrocaSenhaObrigatoria());
+    assertEquals("ana@email.com", result.email());
   }
 
   @Test

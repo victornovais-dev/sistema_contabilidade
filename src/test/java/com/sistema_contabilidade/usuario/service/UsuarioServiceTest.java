@@ -554,7 +554,8 @@ class UsuarioServiceTest {
             UUID.fromString("66666666-6666-6666-6666-666666666666"), "Suporte", "sup@email.com");
     usuario.getRoles().add(role("TARCISIO"));
     UsuarioUpdateByEmailRequest request =
-        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("ADMIN", "TARCISIO"));
+        new UsuarioUpdateByEmailRequest(
+            "sup@email.com", "Suporte Atualizado", null, Set.of("ADMIN", "TARCISIO"), false);
     UsuarioComRolesDto dto =
         new UsuarioComRolesDto(
             usuario.getId(),
@@ -569,6 +570,7 @@ class UsuarioServiceTest {
 
     UsuarioComRolesDto resultado = usuarioService.updateByEmail(request);
 
+    assertEquals("Suporte Atualizado", usuario.getNome());
     assertEquals(2, usuario.getRoles().size());
     assertEquals(2, resultado.getRoles().size());
     verify(customUserDetailsService).atualizarCacheUsuario(usuario.getId(), "sup@email.com");
@@ -581,7 +583,8 @@ class UsuarioServiceTest {
         novoUsuario(
             UUID.fromString("56565656-5656-5656-5656-565656565656"), "Suporte", "sup@email.com");
     UsuarioUpdateByEmailRequest request =
-        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("MARCOS PONTES"));
+        new UsuarioUpdateByEmailRequest(
+            "sup@email.com", null, null, Set.of("MARCOS PONTES"), false);
     UsuarioComRolesDto dto =
         new UsuarioComRolesDto(
             usuario.getId(),
@@ -608,7 +611,8 @@ class UsuarioServiceTest {
   void updateByEmailDeveUsarCognitoQuandoProviderAtivoForCognito() {
     authProviderProperties.setProvider(AuthProvider.COGNITO);
     UsuarioUpdateByEmailRequest request =
-        new UsuarioUpdateByEmailRequest("bia@email.com", "123456", Set.of("ADMIN", "SUPPORT"));
+        new UsuarioUpdateByEmailRequest(
+            "bia@email.com", "Beatriz", "123456", Set.of("ADMIN", "SUPPORT"), true);
     Usuario sincronizado =
         novoUsuario(
             UUID.fromString("67676767-6767-6767-6767-676767676767"), "Bia", "bia@email.com");
@@ -617,7 +621,7 @@ class UsuarioServiceTest {
             "bia@email.com", "bia@email.com", "Bia", "sub-456", Set.of("CONTABIL"));
     CognitoUserProfile updatedProfile =
         new CognitoUserProfile(
-            "bia@email.com", "bia@email.com", "Bia", "sub-456", Set.of("ADMIN", "SUPPORT"));
+            "bia@email.com", "bia@email.com", "Beatriz", "sub-456", Set.of("ADMIN", "SUPPORT"));
     UsuarioComRolesDto dto =
         new UsuarioComRolesDto(
             sincronizado.getId(),
@@ -632,7 +636,12 @@ class UsuarioServiceTest {
     when(cognitoRoleSyncServiceProvider.getIfAvailable()).thenReturn(cognitoRoleSyncService);
     when(cognitoUserManagementService.findProfile("bia@email.com")).thenReturn(currentProfile);
     when(cognitoUserManagementService.updateUser(
-            "bia@email.com", "Bia", "bia@email.com", "123456", Set.of("ADMIN", "SUPPORT")))
+            "bia@email.com",
+            "Beatriz",
+            "bia@email.com",
+            "123456",
+            Set.of("ADMIN", "SUPPORT"),
+            true))
         .thenReturn(updatedProfile);
     when(cognitoIdentitySyncService.synchronizeRefreshIdentity(any())).thenReturn(sincronizado);
     when(cognitoRoleSyncService.syncMemberships(sincronizado, Set.of("ADMIN", "SUPPORT")))
@@ -646,7 +655,13 @@ class UsuarioServiceTest {
     assertEquals(2, resultado.getRoles().size());
     verify(cognitoUserManagementService).findProfile("bia@email.com");
     verify(cognitoUserManagementService)
-        .updateUser("bia@email.com", "Bia", "bia@email.com", "123456", Set.of("ADMIN", "SUPPORT"));
+        .updateUser(
+            "bia@email.com",
+            "Beatriz",
+            "bia@email.com",
+            "123456",
+            Set.of("ADMIN", "SUPPORT"),
+            true);
   }
 
   @Test
@@ -655,7 +670,7 @@ class UsuarioServiceTest {
   void updateByEmailDeveRetornarNotFoundQuandoUsuarioNaoExistirNoCognito() {
     authProviderProperties.setProvider(AuthProvider.COGNITO);
     UsuarioUpdateByEmailRequest request =
-        new UsuarioUpdateByEmailRequest("lucas@email.com", null, Set.of("CONTABIL"));
+        new UsuarioUpdateByEmailRequest("lucas@email.com", null, null, Set.of("CONTABIL"), false);
 
     when(cognitoUserManagementServiceProvider.getIfAvailable())
         .thenReturn(cognitoUserManagementService);
@@ -678,7 +693,7 @@ class UsuarioServiceTest {
             UUID.fromString("23232323-2323-2323-2323-232323232323"), "Suporte", "sup@email.com");
     usuario.setVersion(null);
     UsuarioUpdateByEmailRequest request =
-        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("ADMIN"));
+        new UsuarioUpdateByEmailRequest("sup@email.com", null, null, Set.of("ADMIN"), false);
     UsuarioComRolesDto dto =
         new UsuarioComRolesDto(
             usuario.getId(), "Suporte", "sup@email.com", Set.of(new RoleResumoDto(null, "ADMIN")));
@@ -788,7 +803,7 @@ class UsuarioServiceTest {
   @DisplayName("Deve retornar bad request ao atualizar roles por email sem roles")
   void updateByEmailSemRolesDeveRetornarBadRequest() {
     UsuarioUpdateByEmailRequest request =
-        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of());
+        new UsuarioUpdateByEmailRequest("sup@email.com", null, null, Set.of(), false);
 
     ResponseStatusException ex =
         assertThrows(ResponseStatusException.class, () -> usuarioService.updateByEmail(request));
@@ -802,7 +817,8 @@ class UsuarioServiceTest {
       "Deve retornar bad request ao atualizar usuario com SUPPORT e MANAGER ao mesmo tempo")
   void updateByEmailComSupportEManagerDeveRetornarBadRequest() {
     UsuarioUpdateByEmailRequest request =
-        new UsuarioUpdateByEmailRequest("sup@email.com", null, Set.of("SUPPORT", "MANAGER"));
+        new UsuarioUpdateByEmailRequest(
+            "sup@email.com", null, null, Set.of("SUPPORT", "MANAGER"), false);
 
     ResponseStatusException ex =
         assertThrows(ResponseStatusException.class, () -> usuarioService.updateByEmail(request));

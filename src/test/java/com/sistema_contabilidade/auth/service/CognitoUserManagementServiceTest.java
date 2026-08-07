@@ -3,6 +3,7 @@ package com.sistema_contabilidade.auth.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -118,6 +119,23 @@ class CognitoUserManagementServiceTest {
         .adminAddUserToGroup(any(AdminAddUserToGroupRequest.class));
     verify(cognitoIdentityProviderClient, never())
         .adminRemoveUserFromGroup(any(AdminRemoveUserFromGroupRequest.class));
+  }
+
+  @Test
+  @DisplayName("Deve definir senha temporaria quando admin exigir troca no proximo login")
+  void deveDefinirSenhaTemporariaQuandoAdminExigirTrocaNoProximoLogin() {
+    CognitoUserProfile perfil =
+        new CognitoUserProfile("rafa@email.com", "rafa@email.com", "Rafa", "sub-123", Set.of());
+    when(cognitoAuthProviderStrategy.loadProfile("rafa@email.com")).thenReturn(perfil);
+
+    cognitoUserManagementService.updateUser(
+        "rafa@email.com", "Rafa", "rafa@email.com", "Senha@123", null, true);
+
+    verify(cognitoIdentityProviderClient)
+        .adminSetUserPassword(
+            argThat(
+                (AdminSetUserPasswordRequest request) ->
+                    !request.permanent() && "Senha@123".equals(request.password())));
   }
 
   @Test
