@@ -330,8 +330,8 @@ class ItemRecordDtosTest {
   }
 
   @Test
-  @DisplayName("Deve mapear Item para resumo sem expor documento completo ou observacao")
-  void deveMapearItemParaItemListResponseComDocumentoMascarado() {
+  @DisplayName("Deve mapear Item para resumo com documento completo e sem observacao")
+  void deveMapearItemParaItemListResponseComDocumentoCompleto() {
     Item comArquivo = new Item();
     comArquivo.setId(UUID.fromString("33333333-3333-3333-3333-333333333333"));
     comArquivo.setValor(new BigDecimal("150.00"));
@@ -365,7 +365,7 @@ class ItemRecordDtosTest {
 
     assertEquals(comArquivo.getId(), responseComArquivo.id());
     assertEquals("BONAFONTE", responseComArquivo.razaoSocialNome());
-    assertEquals("**.***.***/****-84", responseComArquivo.cnpjCpfMascarado());
+    assertEquals("20.783.964/2307-84", responseComArquivo.cnpjCpf());
     assertTrue(responseComArquivo.temArquivos());
     assertEquals(semArquivo.getId(), responseSemArquivo.id());
     assertEquals("CONTA DC", responseSemArquivo.descricao());
@@ -373,8 +373,8 @@ class ItemRecordDtosTest {
   }
 
   @Test
-  @DisplayName("Deve preservar documento ja mascarado ao reconstruir resposta da lista")
-  void devePreservarDocumentoJaMascaradoAoReconstruirRespostaDaLista() {
+  @DisplayName("Deve preservar documento completo ao reconstruir resposta da lista")
+  void devePreservarDocumentoCompletoAoReconstruirRespostaDaLista() {
     ItemListResponse response =
         new ItemListResponse(
             UUID.fromString("44444444-4444-4444-4444-444444444444"),
@@ -385,10 +385,10 @@ class ItemRecordDtosTest {
             "FINANCEIRO",
             "SERVICOS",
             "EMPRESA",
-            "***.***.***-00",
+            "123.456.789-00",
             false,
             false);
 
-    assertEquals("***.***.***-00", response.cnpjCpfMascarado());
+    assertEquals("123.456.789-00", response.cnpjCpf());
   }
 }

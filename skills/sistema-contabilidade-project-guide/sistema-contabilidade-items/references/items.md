@@ -70,9 +70,9 @@ Rules:
 - Offset pages after page 1 are accepted only with `APP_ITEM_LEGACY_OFFSET_ENABLED=true`.
 - MySQL/MariaDB can upgrade search to FULLTEXT when available.
 - List DTO exposes only card data: id, amount, dates, type, authorized campaign, description,
-  display name, masked CPF/CNPJ, verification status and `temArquivos`.
-- Observation, full CPF/CNPJ and storage paths stay out of list payload. `GET /api/v1/itens/{id}`
-  reloads authorized details on demand; list and detail respond with `Cache-Control: no-store, private`.
+  display name, full CPF/CNPJ, verification status and `temArquivos`.
+- Observation and storage paths stay out of list payload. The list returns full CPF/CNPJ only after
+  campaign-scope authorization; list and detail respond with `Cache-Control: no-store, private`.
 
 Indexes:
 
