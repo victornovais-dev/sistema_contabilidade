@@ -1214,7 +1214,7 @@ const createItemCard = (item) => {
     const length = razaoText.replace(/\s+/g, " ").trim().length;
     razaoContainer.classList.toggle("is-long", length >= 28);
   }
-  node.querySelector('[data-field="cnpjCpf"]').textContent = formatText(item.cnpjCpfMascarado);
+  node.querySelector('[data-field="cnpjCpf"]').textContent = formatText(item.cnpjCpf);
 
   const downloadLink = node.querySelector(".item-download");
   const hasArquivos =

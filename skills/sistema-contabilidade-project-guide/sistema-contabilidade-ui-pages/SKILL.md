@@ -23,7 +23,7 @@ Use this skill when the task touches HTML pages, Thymeleaf templates, static aut
 - `src/main/resources/static/assets/css/navbar-20260420-navbar-notification-count-fix-3.css`
 - `src/main/resources/templates/lista_comprovantes.html`
 - `src/main/resources/static/lista_comprovantes.html`
-- `src/main/resources/static/assets/js/lista_comprovantes-20260801-detail-on-demand-1.js`
+- `src/main/resources/static/assets/js/lista_comprovantes-20260803-full-document-1.js`
 - `src/main/resources/static/assets/css/lista_comprovantes-20260513-descender-fix-1.css`
 - `src/main/resources/static/assets/js/auth-session-20260502-startup-perf-1.js`
 - `src/main/resources/static/primeiro_acesso.html`

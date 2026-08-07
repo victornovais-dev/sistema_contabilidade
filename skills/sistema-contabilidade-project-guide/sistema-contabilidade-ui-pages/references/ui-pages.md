@@ -39,7 +39,7 @@ Keep these synchronized:
 - `static/assets/css/navbar-20260420-navbar-notification-count-fix-3.css`
 - `templates/lista_comprovantes.html`
 - `static/lista_comprovantes.html`
-- `static/assets/js/lista_comprovantes-20260801-detail-on-demand-1.js`
+- `static/assets/js/lista_comprovantes-20260803-full-document-1.js`
 - `static/assets/css/lista_comprovantes-20260513-descender-fix-1.css`
 
 Rules:
@@ -62,7 +62,7 @@ Rules:
   - `auth-session-20260502-startup-perf-1.js`
   - `navbar-20260420-navbar-notification-count-fix-3.css`
   - `lista_comprovantes-20260513-descender-fix-1.css`
-- List templates and static fallback use `lista_comprovantes-20260801-detail-on-demand-1.js`.
+- List templates and static fallback use `lista_comprovantes-20260803-full-document-1.js`.
   It keeps only page data in memory and fetches authorized item details when opening observation,
   payment or attachment actions.
 - Do not revert to `?v=` query params unless explicitly intended.
