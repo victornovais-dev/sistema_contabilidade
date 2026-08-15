@@ -63,6 +63,9 @@ public class SessionCipherService {
   }
 
   public String decryptString(String token) {
+    if (token == null || token.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessao ausente");
+    }
     try {
       byte[] payload = Base64.getUrlDecoder().decode(token);
       if (payload.length <= IV_SIZE) {

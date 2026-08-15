@@ -35,6 +35,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping(SecurityPaths.AUTH_API_BASE)
@@ -110,7 +111,7 @@ public class AuthController {
 
   @PostMapping("/refresh")
   public ResponseEntity<JwtLoginResponse> refresh(HttpServletRequest request) {
-    return ResponseEntity.ok(authService.refresh(resolveSessionToken(request), request));
+    return ResponseEntity.ok(authService.refresh(requireSessionToken(request), request));
   }
 
   @PostMapping("/logout")
@@ -159,6 +160,14 @@ public class AuthController {
 
   private String resolveSessionToken(HttpServletRequest request) {
     return resolveCookieValue(request, sessionCookieName);
+  }
+
+  private String requireSessionToken(HttpServletRequest request) {
+    String sessionToken = resolveSessionToken(request);
+    if (sessionToken == null || sessionToken.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessao ausente");
+    }
+    return sessionToken;
   }
 
   private String resolveChallengeToken(HttpServletRequest request) {

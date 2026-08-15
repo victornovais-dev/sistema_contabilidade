@@ -2,11 +2,16 @@ package com.sistema_contabilidade.auth.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -40,7 +45,29 @@ class SessionCipherServiceTest {
     ReflectionTestUtils.invokeMethod(service, "validateSecret");
 
     // Act / Assert
-    assertThrows(ResponseStatusException.class, () -> service.decrypt("token-invalido"));
+    ResponseStatusException exception =
+        assertThrows(ResponseStatusException.class, () -> service.decrypt("token-invalido"));
+
+    assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    assertEquals("Sessao invalida", exception.getReason());
+    assertNotNull(exception.getCause());
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = {" ", "  \t  "})
+  @DisplayName("Deve rejeitar sessao ausente sem gerar causa interna")
+  void deveRejeitarSessaoAusenteSemCausaInterna(String token) {
+    SessionCipherService service = new SessionCipherService();
+    ReflectionTestUtils.setField(service, "cryptoSecret", "0123456789ABCDEF0123456789ABCDEF");
+    ReflectionTestUtils.invokeMethod(service, "validateSecret");
+
+    ResponseStatusException exception =
+        assertThrows(ResponseStatusException.class, () -> service.decryptString(token));
+
+    assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    assertEquals("Sessao ausente", exception.getReason());
+    assertNull(exception.getCause());
   }
 
   @Test

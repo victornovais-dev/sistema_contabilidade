@@ -1,5 +1,7 @@
 package com.sistema_contabilidade.auth.controller;
 
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -107,5 +109,40 @@ class AuthControllerWebMvcTest {
                 .string(
                     HttpHeaders.SET_COOKIE,
                     org.hamcrest.Matchers.containsString("SC_LOGIN_CHALLENGE=challenge-cookie")));
+  }
+
+  @Test
+  @DisplayName("Deve responder 401 sem stacktrace quando refresh nao possui sessao")
+  void refreshSemSessaoDeveRetornarUnauthorized() throws Exception {
+    mockMvc
+        .perform(post("/api/v1/auth/refresh"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.message").value("Sessao ausente"))
+        .andExpect(jsonPath("$.trace").doesNotExist())
+        .andExpect(jsonPath("$.exception").doesNotExist());
+
+    verifyNoInteractions(authService);
+  }
+
+  @Test
+  @DisplayName("Deve renovar access token quando cookie de sessao esta presente")
+  void refreshComSessaoDeveRetornarNovoAccessToken() throws Exception {
+    when(authService.refresh(
+            org.mockito.ArgumentMatchers.eq("sessao-token"),
+            org.mockito.ArgumentMatchers.any(jakarta.servlet.http.HttpServletRequest.class)))
+        .thenReturn(new JwtLoginResponse("token-renovado", "Bearer"));
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/refresh")
+                .cookie(new jakarta.servlet.http.Cookie("SC_SESSION", "sessao-token")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.accessToken").value("token-renovado"))
+        .andExpect(jsonPath("$.tokenType").value("Bearer"));
+
+    verify(authService)
+        .refresh(
+            org.mockito.ArgumentMatchers.eq("sessao-token"),
+            org.mockito.ArgumentMatchers.any(jakarta.servlet.http.HttpServletRequest.class));
   }
 }

@@ -1,6 +1,8 @@
 package com.sistema_contabilidade.auth.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
@@ -38,6 +40,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.DefaultCsrfToken;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AuthController unit tests")
@@ -207,6 +210,20 @@ class AuthControllerTest {
 
     assertEquals(HttpStatus.OK, result.getStatusCode());
     assertEquals("novo-token", result.getBody().accessToken());
+  }
+
+  @Test
+  @DisplayName("Deve rejeitar refresh sem cookie de sessao")
+  void refreshDeveRejeitarSessaoAusente() {
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/refresh");
+    ReflectionTestUtils.setField(authController, "sessionCookieName", "SC_SESSION");
+
+    ResponseStatusException exception =
+        assertThrows(ResponseStatusException.class, () -> authController.refresh(request));
+
+    assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    assertEquals("Sessao ausente", exception.getReason());
+    assertNull(exception.getCause());
   }
 
   @Test
