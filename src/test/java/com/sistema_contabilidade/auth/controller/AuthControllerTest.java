@@ -18,6 +18,7 @@ import com.sistema_contabilidade.auth.service.AuthService;
 import com.sistema_contabilidade.auth.service.LoginChallengeCookieService;
 import com.sistema_contabilidade.auth.service.LoginFlowResult;
 import com.sistema_contabilidade.database.service.StickyWriterService;
+import com.sistema_contabilidade.security.filter.JwtAuthFilter;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import java.util.List;
 import java.util.Map;
@@ -213,6 +214,25 @@ class AuthControllerTest {
   }
 
   @Test
+  @DisplayName("Deve usar sessao validada pelo filtro quando existem cookies duplicados")
+  void refreshDeveUsarSessaoValidadaPeloFiltro() {
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/refresh");
+    request.setCookies(
+        new jakarta.servlet.http.Cookie("SC_SESSION", "sessao-antiga"),
+        new jakarta.servlet.http.Cookie("SC_SESSION", "sessao-valida"));
+    request.setAttribute(JwtAuthFilter.VALIDATED_SESSION_TOKEN_ATTRIBUTE, "sessao-valida");
+    ReflectionTestUtils.setField(authController, "sessionCookieName", "SC_SESSION");
+    when(authService.refresh("sessao-valida", request))
+        .thenReturn(new JwtLoginResponse("novo-token", "Bearer"));
+
+    ResponseEntity<JwtLoginResponse> result = authController.refresh(request);
+
+    assertEquals(HttpStatus.OK, result.getStatusCode());
+    assertEquals("novo-token", result.getBody().accessToken());
+    verify(authService).refresh("sessao-valida", request);
+  }
+
+  @Test
   @DisplayName("Deve rejeitar refresh sem cookie de sessao")
   void refreshDeveRejeitarSessaoAusente() {
     MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/refresh");
@@ -241,6 +261,23 @@ class AuthControllerTest {
         response.getHeaders(HttpHeaders.SET_COOKIE).stream()
             .anyMatch(h -> h.contains("SC_SESSION=")));
     verify(authService).logout("sessao-token");
+  }
+
+  @Test
+  @DisplayName("Deve encerrar sessao validada quando existem cookies duplicados")
+  void logoutDeveUsarSessaoValidadaPeloFiltro() {
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/logout");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    request.setCookies(
+        new jakarta.servlet.http.Cookie("SC_SESSION", "sessao-antiga"),
+        new jakarta.servlet.http.Cookie("SC_SESSION", "sessao-valida"));
+    request.setAttribute(JwtAuthFilter.VALIDATED_SESSION_TOKEN_ATTRIBUTE, "sessao-valida");
+    ReflectionTestUtils.setField(authController, "sessionCookieName", "SC_SESSION");
+
+    ResponseEntity<Void> result = authController.logout(request, response);
+
+    assertEquals(HttpStatus.NO_CONTENT, result.getStatusCode());
+    verify(authService).logout("sessao-valida");
   }
 
   @Test

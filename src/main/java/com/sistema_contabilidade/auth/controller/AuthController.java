@@ -10,6 +10,7 @@ import com.sistema_contabilidade.auth.service.AuthService;
 import com.sistema_contabilidade.auth.service.LoginChallengeCookieService;
 import com.sistema_contabilidade.auth.service.LoginFlowResult;
 import com.sistema_contabilidade.database.service.StickyWriterService;
+import com.sistema_contabilidade.security.filter.JwtAuthFilter;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.util.SecurityPaths;
 import jakarta.servlet.http.Cookie;
@@ -159,6 +160,10 @@ public class AuthController {
   }
 
   private String resolveSessionToken(HttpServletRequest request) {
+    Object validatedToken = request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_TOKEN_ATTRIBUTE);
+    if (validatedToken instanceof String sessionToken && !sessionToken.isBlank()) {
+      return sessionToken;
+    }
     return resolveCookieValue(request, sessionCookieName);
   }
 
