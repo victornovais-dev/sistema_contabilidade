@@ -78,6 +78,20 @@ const handleAuthenticatedResponse = async (data) => {
   } else {
     localStorage.setItem("sc_access_token", data.accessToken);
   }
+
+  if (window.SCAuth?.refreshAccessToken) {
+    try {
+      await window.SCAuth.refreshAccessToken();
+    } catch (error) {
+      window.SCAuth.clearClientAuthState?.();
+      setFeedback(
+        "Login confirmado, mas o navegador nao manteve a sessao. Habilite cookies para este site e tente novamente.",
+        "error",
+      );
+      return;
+    }
+  }
+
   setFeedback("Login realizado com sucesso. Redirecionando...", "success");
   window.location.href = "/home";
 };
