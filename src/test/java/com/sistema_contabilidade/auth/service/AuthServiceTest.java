@@ -13,6 +13,7 @@ import com.sistema_contabilidade.auth.dto.AuthenticatedLoginResult;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
 import com.sistema_contabilidade.auth.model.SessaoUsuario;
+import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.security.service.RequestFingerprintService;
@@ -49,6 +50,7 @@ class AuthServiceTest {
   @Mock private CustomUserDetailsService customUserDetailsService;
   @Mock private SessaoUsuarioService sessaoUsuarioService;
   @Mock private RequestFingerprintService requestFingerprintService;
+  @Mock private StickyWriterService stickyWriterService;
   @Mock private AuthProviderStrategyResolver authProviderStrategyResolver;
   @Mock private AuthProviderStrategy localAuthProviderStrategy;
   @Mock private AuthProviderStrategy cognitoAuthProviderStrategy;
@@ -68,6 +70,7 @@ class AuthServiceTest {
             customUserDetailsService,
             sessaoUsuarioService,
             requestFingerprintService,
+            stickyWriterService,
             authProviderStrategyResolver,
             cognitoIdentitySyncServiceProvider,
             cognitoRoleSyncServiceProvider);
@@ -97,8 +100,8 @@ class AuthServiceTest {
                 null,
                 null));
     when(usuarioRepository.findWithRolesById(usuario.getId())).thenReturn(Optional.of(usuario));
-    when(sessaoUsuarioService.criarSessao(any(SessionCreationRequest.class)))
-        .thenReturn("sessao-segura");
+    when(sessaoUsuarioService.criarSessaoComId(any(SessionCreationRequest.class)))
+        .thenReturn(new SessaoUsuarioService.SessaoCriada(usuario.getId(), "sessao-segura"));
     when(customUserDetailsService.loadUserById(usuario.getId())).thenReturn(userDetails);
     when(requestFingerprintService.generateFingerprint(httpRequest)).thenReturn("fingerprint");
     when(jwtService.generateToken(userDetails, usuario.getId(), null, "fingerprint"))
@@ -111,6 +114,7 @@ class AuthServiceTest {
     assertEquals("sessao-segura", response.authenticatedResult().sessionToken());
     verify(customUserDetailsService).aquecerCacheUsuario(usuario);
     verify(sessaoUsuarioService).revogarSessoesAtivas(usuario.getId());
+    verify(stickyWriterService).markWriter(usuario.getId());
   }
 
   @Test
@@ -143,8 +147,8 @@ class AuthServiceTest {
     when(cognitoRoleSyncService.syncMemberships(usuario, Set.of("ADMIN")))
         .thenReturn(new CognitoRoleSyncResult(Set.of("ADMIN"), "hash-groups"));
     when(usuarioRepository.save(usuario)).thenReturn(usuario);
-    when(sessaoUsuarioService.criarSessao(any(SessionCreationRequest.class)))
-        .thenReturn("sessao-cognito");
+    when(sessaoUsuarioService.criarSessaoComId(any(SessionCreationRequest.class)))
+        .thenReturn(new SessaoUsuarioService.SessaoCriada(usuario.getId(), "sessao-cognito"));
     when(customUserDetailsService.loadUserById(usuario.getId())).thenReturn(userDetails);
     when(requestFingerprintService.generateFingerprint(httpRequest)).thenReturn("fingerprint");
     when(jwtService.generateToken(userDetails, usuario.getId(), "sub-123", "fingerprint"))
@@ -188,7 +192,7 @@ class AuthServiceTest {
     LoginFlowResult response = authService.login(request, httpRequest);
 
     assertEquals("NEW_PASSWORD_REQUIRED", response.challenge().challengeName());
-    verify(sessaoUsuarioService, never()).criarSessao(any(SessionCreationRequest.class));
+    verify(sessaoUsuarioService, never()).criarSessaoComId(any(SessionCreationRequest.class));
   }
 
   @Test
@@ -231,8 +235,8 @@ class AuthServiceTest {
     when(cognitoRoleSyncService.syncMemberships(usuario, Set.of("ADMIN")))
         .thenReturn(new CognitoRoleSyncResult(Set.of("ADMIN"), "hash-groups"));
     when(usuarioRepository.save(usuario)).thenReturn(usuario);
-    when(sessaoUsuarioService.criarSessao(any(SessionCreationRequest.class)))
-        .thenReturn("sessao-cognito");
+    when(sessaoUsuarioService.criarSessaoComId(any(SessionCreationRequest.class)))
+        .thenReturn(new SessaoUsuarioService.SessaoCriada(usuario.getId(), "sessao-cognito"));
     when(customUserDetailsService.loadUserById(usuario.getId())).thenReturn(userDetails);
     when(requestFingerprintService.generateFingerprint(httpRequest)).thenReturn("fingerprint");
     when(jwtService.generateToken(userDetails, usuario.getId(), "sub-123", "fingerprint"))

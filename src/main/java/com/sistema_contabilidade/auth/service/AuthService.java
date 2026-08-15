@@ -6,6 +6,7 @@ import com.sistema_contabilidade.auth.dto.CompleteNewPasswordRequest;
 import com.sistema_contabilidade.auth.dto.JwtLoginResponse;
 import com.sistema_contabilidade.auth.dto.LoginRequest;
 import com.sistema_contabilidade.auth.model.SessaoUsuario;
+import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
 import com.sistema_contabilidade.security.service.RequestFingerprintService;
@@ -34,6 +35,7 @@ public class AuthService {
   private final CustomUserDetailsService customUserDetailsService;
   private final SessaoUsuarioService sessaoUsuarioService;
   private final RequestFingerprintService requestFingerprintService;
+  private final StickyWriterService stickyWriterService;
   private final AuthProviderStrategyResolver authProviderStrategyResolver;
   private final ObjectProvider<CognitoIdentitySyncService> cognitoIdentitySyncServiceProvider;
   private final ObjectProvider<CognitoRoleSyncService> cognitoRoleSyncServiceProvider;
@@ -74,8 +76,8 @@ public class AuthService {
     Usuario usuario = resolvedUserState.usuario();
     customUserDetailsService.aquecerCacheUsuario(usuario);
     sessaoUsuarioService.revogarSessoesAtivas(usuario.getId());
-    String sessionToken =
-        sessaoUsuarioService.criarSessao(
+    SessaoUsuarioService.SessaoCriada sessaoCriada =
+        sessaoUsuarioService.criarSessaoComId(
             new SessionCreationRequest(
                 usuario.getId(),
                 authResult.provider(),
@@ -84,6 +86,7 @@ public class AuthService {
                 authResult.refreshToken(),
                 resolvedUserState.groups(),
                 resolvedUserState.groupsHash()));
+    stickyWriterService.markWriter(sessaoCriada.id());
     long t2 = System.currentTimeMillis();
 
     UserDetails userDetails = customUserDetailsService.loadUserById(usuario.getId());
@@ -95,7 +98,8 @@ public class AuthService {
             requestFingerprintService.generateFingerprint(httpRequest));
     long t3 = System.currentTimeMillis();
     logDiagnostico(t0, t1, t2, t3);
-    return new AuthenticatedLoginResult(new JwtLoginResponse(token, TOKEN_TYPE), sessionToken);
+    return new AuthenticatedLoginResult(
+        new JwtLoginResponse(token, TOKEN_TYPE), sessaoCriada.token(), sessaoCriada.id());
   }
 
   public JwtLoginResponse refresh(String sessionToken, HttpServletRequest httpRequest) {

@@ -9,6 +9,7 @@ import com.sistema_contabilidade.auth.service.AuthLoginChallenge;
 import com.sistema_contabilidade.auth.service.AuthService;
 import com.sistema_contabilidade.auth.service.LoginChallengeCookieService;
 import com.sistema_contabilidade.auth.service.LoginFlowResult;
+import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.util.SecurityPaths;
 import jakarta.servlet.http.Cookie;
@@ -48,6 +49,7 @@ public class AuthController {
   private final AuthService authService;
   private final AdminRouteService adminRouteService;
   private final LoginChallengeCookieService loginChallengeCookieService;
+  private final StickyWriterService stickyWriterService;
 
   @Value("${app.session.cookie-name:SC_SESSION}")
   private String sessionCookieName = "SC_SESSION";
@@ -81,9 +83,7 @@ public class AuthController {
                   loginResult.challenge().challengeName(), loginResult.challenge().message()));
     }
     AuthenticatedLoginResult authenticatedResult = loginResult.authenticatedResult();
-    httpResponse.addHeader(
-        HttpHeaders.SET_COOKIE,
-        buildSessionCookie(authenticatedResult.sessionToken(), httpRequest).toString());
+    addAuthenticatedSessionCookies(authenticatedResult, httpRequest, httpResponse);
     httpResponse.addHeader(
         HttpHeaders.SET_COOKIE, clearLegacyAuthCookie(httpRequestIsSecure(httpRequest)).toString());
     httpResponse.addHeader(
@@ -100,9 +100,7 @@ public class AuthController {
         loginChallengeCookieService.parseToken(resolveChallengeToken(httpRequest));
     AuthenticatedLoginResult loginResult =
         authService.completeNewPassword(challenge, request, httpRequest);
-    httpResponse.addHeader(
-        HttpHeaders.SET_COOKIE,
-        buildSessionCookie(loginResult.sessionToken(), httpRequest).toString());
+    addAuthenticatedSessionCookies(loginResult, httpRequest, httpResponse);
     httpResponse.addHeader(
         HttpHeaders.SET_COOKIE, clearLegacyAuthCookie(httpRequestIsSecure(httpRequest)).toString());
     httpResponse.addHeader(
@@ -188,6 +186,20 @@ public class AuthController {
         .path(SecurityPaths.ROOT_PATH)
         .maxAge(Duration.ofMinutes(sessionTtlMinutes))
         .build();
+  }
+
+  private void addAuthenticatedSessionCookies(
+      AuthenticatedLoginResult loginResult,
+      HttpServletRequest request,
+      HttpServletResponse response) {
+    boolean secure = httpRequestIsSecure(request);
+    response.addHeader(
+        HttpHeaders.SET_COOKIE, buildSessionCookie(loginResult.sessionToken(), request).toString());
+    if (loginResult.sessionId() != null) {
+      stickyWriterService
+          .signedMarkerCookie(loginResult.sessionId(), secure)
+          .ifPresent(marker -> response.addHeader(HttpHeaders.SET_COOKIE, marker.toString()));
+    }
   }
 
   private ResponseCookie buildChallengeCookie(String token, HttpServletRequest request) {

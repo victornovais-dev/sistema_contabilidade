@@ -15,9 +15,12 @@ import com.sistema_contabilidade.auth.service.AuthLoginChallenge;
 import com.sistema_contabilidade.auth.service.AuthService;
 import com.sistema_contabilidade.auth.service.LoginChallengeCookieService;
 import com.sistema_contabilidade.auth.service.LoginFlowResult;
+import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -42,6 +46,7 @@ class AuthControllerTest {
   @Mock private AuthService authService;
   @Mock private AdminRouteService adminRouteService;
   @Mock private LoginChallengeCookieService loginChallengeCookieService;
+  @Mock private StickyWriterService stickyWriterService;
 
   @InjectMocks private AuthController authController;
 
@@ -67,6 +72,37 @@ class AuthControllerTest {
         httpResponse.getHeaders(HttpHeaders.SET_COOKIE).stream()
             .anyMatch(h -> h.contains("SC_SESSION=sessao-token")));
     verify(authService).login(request, httpRequest);
+  }
+
+  @Test
+  @DisplayName("Deve anexar marcador sticky ao concluir login com nova sessao")
+  void loginDeveAnexarMarcadorSticky() {
+    LoginRequest request = new LoginRequest("ana@email.com", "123456");
+    UUID sessionId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    AuthenticatedLoginResult response =
+        new AuthenticatedLoginResult(
+            new JwtLoginResponse("jwt-token", "Bearer"), "sessao-token", sessionId);
+    MockHttpServletRequest httpRequest = new MockHttpServletRequest("POST", "/api/v1/auth/login");
+    httpRequest.addHeader("X-Forwarded-Proto", "https");
+    MockHttpServletResponse httpResponse = new MockHttpServletResponse();
+    when(authService.login(request, httpRequest))
+        .thenReturn(LoginFlowResult.authenticated(response));
+    when(stickyWriterService.signedMarkerCookie(sessionId, true))
+        .thenReturn(
+            Optional.of(
+                ResponseCookie.from("SC_DB_STICKY", "marcador-assinado")
+                    .httpOnly(true)
+                    .secure(true)
+                    .sameSite("Strict")
+                    .path("/")
+                    .build()));
+
+    authController.login(request, httpRequest, httpResponse);
+
+    assertTrue(
+        httpResponse.getHeaders(HttpHeaders.SET_COOKIE).stream()
+            .anyMatch(header -> header.contains("SC_DB_STICKY=marcador-assinado")));
+    verify(stickyWriterService).signedMarkerCookie(sessionId, true);
   }
 
   @Test

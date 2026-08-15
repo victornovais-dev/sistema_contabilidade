@@ -40,6 +40,11 @@ public class SessaoUsuarioService {
 
   @Transactional
   public String criarSessao(SessionCreationRequest request) {
+    return criarSessaoComId(request).token();
+  }
+
+  @Transactional
+  public SessaoCriada criarSessaoComId(SessionCreationRequest request) {
     SessaoUsuario sessao = new SessaoUsuario();
     sessao.setUsuarioId(request.usuarioId());
     sessao.setCriadaEm(LocalDateTime.now(ZoneId.systemDefault()));
@@ -54,7 +59,7 @@ public class SessaoUsuarioService {
     sessao.setGroupsHash(request.groupsHash());
 
     SessaoUsuario salva = sessaoUsuarioRepository.save(sessao);
-    return sessionCipherService.encrypt(salva.getId());
+    return new SessaoCriada(salva.getId(), sessionCipherService.encrypt(salva.getId()));
   }
 
   public SessaoUsuario obterSessaoAtiva(String tokenCriptografado) {
@@ -139,4 +144,6 @@ public class SessaoUsuarioService {
   private String serializeGroups(Set<String> groups) {
     return groups == null || groups.isEmpty() ? null : String.join("\n", groups);
   }
+
+  public record SessaoCriada(UUID id, String token) {}
 }

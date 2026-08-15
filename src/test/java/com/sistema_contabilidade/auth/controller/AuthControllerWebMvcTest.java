@@ -13,6 +13,7 @@ import com.sistema_contabilidade.auth.service.AuthService;
 import com.sistema_contabilidade.auth.service.LoginChallengeCookieService;
 import com.sistema_contabilidade.auth.service.LoginFlowResult;
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
+import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.security.service.AdminRouteService;
 import com.sistema_contabilidade.security.service.CustomUserDetailsService;
 import com.sistema_contabilidade.security.service.JwtService;
@@ -38,6 +39,7 @@ class AuthControllerWebMvcTest {
   @MockitoBean private JwtService jwtService;
   @MockitoBean private CustomUserDetailsService customUserDetailsService;
   @MockitoBean private SessaoUsuarioService sessaoUsuarioService;
+  @MockitoBean private StickyWriterService stickyWriterService;
   @MockitoBean private AdminRouteService adminRouteService;
   @MockitoBean private RequestFingerprintService requestFingerprintService;
   @MockitoBean private LoginChallengeCookieService loginChallengeCookieService;
