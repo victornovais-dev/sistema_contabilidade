@@ -203,8 +203,7 @@
   const shouldWaitForBootstrap = (url) =>
     sameOriginApiRequest(url) && !AUTH_BOOTSTRAP_BYPASS_PATHS.has(url.pathname);
 
-  const shouldClearAuthStateAfterRefreshFailure = (status) =>
-    status === 401 || status === 403 || !state.accessToken;
+  const shouldClearAuthStateAfterRefreshFailure = (status) => status === 401;
 
   const ensureCsrfToken = async (forceRefresh = false) => {
     if (!forceRefresh && state.csrfToken) {
