@@ -27,6 +27,14 @@ public class CandidateRoleCatalogService {
     return CandidateRoleUtils.filterCandidateRoles(roleRepository.findAllRoleNamesOrdered());
   }
 
+  public List<String> listAvailableRolesForUser(String email, boolean isAdmin) {
+    if (authProviderProperties.getProvider() == AuthProvider.COGNITO) {
+      return requireCognitoGroupCatalogService()
+          .listCandidateNormalizedGroupsForUser(email, isAdmin);
+    }
+    return CandidateRoleUtils.filterCandidateRoles(roleRepository.findAllRoleNamesOrdered());
+  }
+
   public List<String> filterAvailableRoles(Collection<String> roleNames) {
     if (roleNames == null || roleNames.isEmpty()) {
       return List.of();

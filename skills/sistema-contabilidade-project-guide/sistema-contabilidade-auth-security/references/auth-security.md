@@ -10,6 +10,13 @@
 - `SC_TOKEN` is legacy compatibility, not the main session path.
 - First-access Cognito challenge uses `SC_LOGIN_CHALLENGE`.
 - Login may return `202 Accepted` with challenge metadata before a normal session cookie exists.
+- The admin update-by-email endpoint uses `email` as the current identity and accepts optional
+  `novoEmail` and `nome`; omit either to preserve the current value. When
+  `forcarTrocaSenha=true`, require a nonblank temporary `senha`: Cognito uses
+  `AdminSetUserPassword` with `permanent=false`, while the local provider persists
+  `usuarios.troca_senha_obrigatoria=true`. Both paths return `NEW_PASSWORD_REQUIRED` at the
+  next login; completing the new password clears the local flag. The column is created by
+  `V9__add_required_password_change.sql`.
 - Public `/login` and `/primeiro_acesso` are static pages.
 - Admin routes are hidden behind `AdminRouteService`.
 - Legacy `/admin`-style URLs may intentionally redirect to `/404`.
@@ -37,12 +44,17 @@ Production login/admin role catalog may require:
 - `AdminRespondToAuthChallenge`
 - `AdminGetUser`
 - `AdminListGroupsForUser`
+- `AdminSetUserPassword`
+- `AdminUpdateUserAttributes`
 - `InitiateAuth`
 - `ListGroups`
 
 ## Roles and Cache
 
 - `CognitoRoleSyncService` creates missing local roles from normalized Cognito group names.
+- Candidate Cognito groups use description `candidato`, optionally followed by `;dominio=<domain>`.
+  Domain-tagged groups appear and can be assigned only by `CONTABIL` users whose authenticated
+  email has that domain; `ADMIN` bypasses this filter.
 - `ESTAGIARIO` is a technical role with the same item and notification permissions as `CONTABIL`.
 - `CONTABIL` may manage only campaign roles of users whose sole technical role is `ESTAGIARIO`, using `/api/v1/estagiarios`; the server always preserves `ESTAGIARIO` and rejects technical roles such as `CANDIDATO`, `CONTABIL` and `ADMIN`.
 - Admin user screens should use `GET /api/v1/admin/roles/disponiveis`.

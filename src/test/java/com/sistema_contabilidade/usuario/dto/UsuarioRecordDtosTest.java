@@ -24,7 +24,17 @@ class UsuarioRecordDtosTest {
     assertEquals("123456", request.senha());
     assertEquals("ADMIN", request.role());
     assertEquals(Set.of("SUPPORT"), request.roles());
+    assertFalse(request.deveForcarTrocaSenha());
     assertTrue(request.possuiRolesValidas());
+  }
+
+  @Test
+  @DisplayName("Deve identificar criacao com troca de senha obrigatoria")
+  void deveIdentificarCriacaoComTrocaDeSenhaObrigatoria() {
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN", Set.of("ADMIN"), true);
+
+    assertTrue(request.deveForcarTrocaSenha());
   }
 
   @Test
@@ -43,9 +53,13 @@ class UsuarioRecordDtosTest {
         new UsuarioUpdateByEmailRequest("ana@email.com", null, null, Set.of("ADMIN"), false);
     UsuarioUpdateByEmailRequest invalida =
         new UsuarioUpdateByEmailRequest("ana@email.com", null, null, Set.of(" "), false);
+    UsuarioUpdateByEmailRequest comNovoEmail =
+        new UsuarioUpdateByEmailRequest(
+            "ana@email.com", null, null, Set.of("ADMIN"), false, "ana.nova@email.com");
 
     assertTrue(valida.possuiRolesValidas());
     assertFalse(invalida.possuiRolesValidas());
+    assertEquals("ana.nova@email.com", comNovoEmail.novoEmail());
   }
 
   @Test

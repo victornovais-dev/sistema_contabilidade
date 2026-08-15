@@ -1,0 +1,185 @@
+@charset "UTF-8";
+
+.password-field-group {
+  display: grid;
+  gap: 8px;
+}
+
+.password-criteria {
+  padding: 10px 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: rgba(27, 27, 31, 0.04);
+}
+
+html[data-theme="dark"] .password-criteria {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.password-criteria p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.password-criteria p,
+.password-criteria li {
+  transition: color 150ms ease;
+}
+
+.password-criteria ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 14px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.password-criteria li {
+  display: flex;
+  gap: 7px;
+  align-items: baseline;
+  color: #c43b2c;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.password-criteria li::before {
+  color: currentcolor;
+  content: "•";
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.password-criteria li.is-valid {
+  color: #238a49;
+}
+
+.password-criteria li.is-valid::before {
+  content: "✓";
+}
+
+html[data-theme="dark"] .password-criteria li {
+  color: #ff7666;
+}
+
+html[data-theme="dark"] .password-criteria li.is-valid {
+  color: #55d989;
+}
+
+.password-strength,
+.confirm-password-group {
+  display: grid;
+  gap: 7px;
+}
+
+.password-strength-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.password-strength-heading strong {
+  color: #238a49;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+html[data-theme="dark"] .password-strength-heading strong {
+  color: #55d989;
+}
+
+.password-strength-meter {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(27, 27, 31, 0.12);
+}
+
+html[data-theme="dark"] .password-strength-meter {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.password-strength-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #238a49, #55d989);
+  box-shadow: 0 0 12px rgba(46, 176, 94, 0.35);
+  transition: width 180ms ease;
+}
+
+.password-match-status {
+  margin: 0;
+  color: #c43b2c;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.password-match-status.is-valid {
+  color: #238a49;
+}
+
+html[data-theme="dark"] .password-match-status {
+  color: #ff7666;
+}
+
+html[data-theme="dark"] .password-match-status.is-valid {
+  color: #55d989;
+}
+
+#first-access-feedback:empty {
+  display: none;
+}
+
+.challenge-expired-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 18px;
+  border: 1px solid #c43b2c;
+  border-radius: 14px;
+  background: rgba(196, 59, 44, 0.08);
+}
+
+.challenge-expired-card h2,
+.challenge-expired-card p {
+  margin: 0;
+}
+
+.challenge-expired-card h2 {
+  color: #a42d20;
+  font-size: 1rem;
+}
+
+.challenge-expired-card p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.challenge-expired-card .btn {
+  justify-self: start;
+}
+
+html[data-theme="dark"] .challenge-expired-card {
+  border-color: #ff7666;
+  background: rgba(255, 118, 102, 0.12);
+}
+
+html[data-theme="dark"] .challenge-expired-card h2 {
+  color: #ff998d;
+}
+
+@media (max-width: 420px) {
+  .password-criteria ul {
+    grid-template-columns: 1fr;
+  }
+}

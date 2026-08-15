@@ -32,6 +32,11 @@ public class AdminRouteModelAdvice {
     return adminRouteService.createUserPagePath();
   }
 
+  @ModelAttribute("usersPath")
+  public String usersPath() {
+    return adminRouteService.usersPagePath();
+  }
+
   @ModelAttribute("updateUserPath")
   public String updateUserPath() {
     return adminRouteService.updateUserPagePath();

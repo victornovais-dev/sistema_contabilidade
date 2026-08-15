@@ -1,0 +1,4 @@
+interface:
+  display_name: "Auditoria de Itens"
+  short_description: "Audite alterações, exclusões e arquivos de itens"
+  default_prompt: "Use $sistema-contabilidade-item-audit para implementar auditoria de itens."

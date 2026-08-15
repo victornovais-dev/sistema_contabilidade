@@ -48,6 +48,10 @@ public class AdminRouteService {
     return secretPagePath(SecurityPaths.CREATE_USER_PAGE);
   }
 
+  public String usersPagePath() {
+    return secretPagePath(SecurityPaths.USERS_PAGE);
+  }
+
   public String updateUserPagePath() {
     return secretPagePath(SecurityPaths.UPDATE_USER_PAGE);
   }
@@ -69,6 +73,7 @@ public class AdminRouteService {
     config.put("adminPagePath", adminPagePath());
     config.put("manageRolesPath", manageRolesPagePath());
     config.put("createUserPath", createUserPagePath());
+    config.put("usersPath", usersPagePath());
     config.put("updateUserPath", updateUserPagePath());
     config.put("privacyRequestsPath", privacyRequestsPagePath());
     config.put("adminApiBasePath", adminApiBasePath());
@@ -85,6 +90,9 @@ public class AdminRouteService {
     }
     if (Objects.equals(requestPath, createUserPagePath())) {
       return Optional.of(SecurityPaths.CREATE_USER_PAGE);
+    }
+    if (Objects.equals(requestPath, usersPagePath())) {
+      return Optional.of(SecurityPaths.USERS_PAGE);
     }
     if (Objects.equals(requestPath, updateUserPagePath())) {
       return Optional.of(SecurityPaths.UPDATE_USER_PAGE);
@@ -118,6 +126,8 @@ public class AdminRouteService {
             SecurityPaths.MANAGE_ROLES_PAGE_HTML,
             SecurityPaths.CREATE_USER_PAGE,
             SecurityPaths.CREATE_USER_PAGE_HTML,
+            SecurityPaths.USERS_PAGE,
+            SecurityPaths.USERS_PAGE_HTML,
             SecurityPaths.UPDATE_USER_PAGE,
             SecurityPaths.UPDATE_USER_PAGE_HTML,
             SecurityPaths.PRIVACY_REQUESTS_PAGE,

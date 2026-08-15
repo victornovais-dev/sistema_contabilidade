@@ -29,6 +29,7 @@ This is a router skill. Its job is to choose the right specialized skill, not to
 | Login, logout, refresh, Cognito, roles, admin routes, CORS, CSRF, session cookies | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-auth-security/SKILL.md` |
 | Thymeleaf pages, static HTML, navbar, CSS/JS assets, frontend route behavior | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-ui-pages/SKILL.md` |
 | Comprovantes, item list, upload/download, PDF validation, verification rules | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-items/SKILL.md` |
+| Auditoria de criação, alteração, verificação, observação, anexos ou soft delete de comprovantes; IP, trace ID ou retenção de PDF no S3 | `skills/sistema-contabilidade-item-audit/SKILL.md` |
 | Financial reports, PDF report generation, notifications, navbar badge | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-reports-notifications/SKILL.md` |
 | Query count, N+1, Prometheus, Grafana, Actuator, timing, memory, cache | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-observability/SKILL.md` |
 | `.env`, profiles, Docker, Redis, CloudFront, ALB, DNS, S3, production config | `skills/sistema-contabilidade-project-guide/sistema-contabilidade-deploy-config/SKILL.md` |

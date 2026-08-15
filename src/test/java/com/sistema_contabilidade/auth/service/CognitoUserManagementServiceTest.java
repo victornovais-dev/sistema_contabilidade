@@ -122,6 +122,23 @@ class CognitoUserManagementServiceTest {
   }
 
   @Test
+  @DisplayName("Deve criar usuario Cognito com senha temporaria quando exigido")
+  void deveCriarUsuarioCognitoComSenhaTemporariaQuandoExigido() {
+    CognitoUserProfile perfil =
+        new CognitoUserProfile("ana@email.com", "ana@email.com", "Ana", "sub-1", Set.of());
+    when(cognitoAuthProviderStrategy.loadProfile("ana@email.com")).thenReturn(perfil);
+
+    cognitoUserManagementService.createUser(
+        "Ana", "ana@email.com", "Senha@123", Set.of(), true);
+
+    verify(cognitoIdentityProviderClient)
+        .adminSetUserPassword(
+            argThat(
+                (AdminSetUserPasswordRequest request) ->
+                    !request.permanent() && "Senha@123".equals(request.password())));
+  }
+
+  @Test
   @DisplayName("Deve definir senha temporaria quando admin exigir troca no proximo login")
   void deveDefinirSenhaTemporariaQuandoAdminExigirTrocaNoProximoLogin() {
     CognitoUserProfile perfil =

@@ -27,6 +27,9 @@ Use this only after routing to a specialized skill.
 - `src/main/java/com/sistema_contabilidade/auth/service/CognitoUserManagementService.java`
 - `src/main/java/com/sistema_contabilidade/auth/service/CognitoSecretHashService.java`
 - `src/main/java/com/sistema_contabilidade/auth/service/LoginChallengeCookieService.java`
+- `src/main/java/com/sistema_contabilidade/usuario/service/UsuarioService.java`
+- `src/main/java/com/sistema_contabilidade/usuario/dto/UsuarioUpdateByEmailRequest.java`
+- `src/main/resources/db/migration/V9__add_required_password_change.sql`
 - `src/main/java/com/sistema_contabilidade/rbac/controller/AdminController.java`
 - `src/main/java/com/sistema_contabilidade/rbac/service/RoleService.java`
 - `src/main/java/com/sistema_contabilidade/auth/service/CognitoGroupCatalogService.java`
@@ -37,6 +40,8 @@ Use this only after routing to a specialized skill.
 - `src/main/resources/templates/home.html`
 - `src/main/resources/templates/adicionar_comprovante.html`
 - `src/main/resources/templates/lista_comprovantes.html`
+- `src/main/resources/templates/atualizar_usuario.html`
+- `src/main/resources/templates/usuarios.html`
 - `src/main/resources/templates/relatorios.html`
 - `src/main/resources/templates/notificacoes.html`
 - `src/main/resources/templates/admin.html`
@@ -44,12 +49,18 @@ Use this only after routing to a specialized skill.
 - `src/main/resources/static/partials/navbar.html`
 - `src/main/resources/static/login.html`
 - `src/main/resources/static/primeiro_acesso.html`
+- `src/main/resources/static/atualizar_usuario.html`
+- `src/main/resources/static/usuarios.html`
 - `src/main/resources/static/adicionar_comprovante.html`
 - `src/main/resources/static/assets/js/auth-session-20260502-startup-perf-1.js`
 - `src/main/resources/static/assets/js/navbar-20260502-startup-perf-1.js`
 - `src/main/resources/static/assets/css/navbar-20260420-navbar-notification-count-fix-3.css`
 - `src/main/resources/static/assets/js/primeiro_acesso-20260727-password-strength-1.js`
 - `src/main/resources/static/assets/css/primeiro_acesso-20260727-password-strength-1.css`
+- `src/main/resources/static/assets/js/atualizar_usuario-20260807-email-update-1.js`
+- `src/main/resources/static/assets/css/atualizar_usuario-20260420-role-search-order-1.css`
+- `src/main/resources/static/assets/js/usuarios-20260807-admin-directory-1.js`
+- `src/main/resources/static/assets/css/usuarios-20260807-admin-directory-1.css`
 - `src/main/resources/static/assets/js/adicionar_comprovante-20260727-candidato-name-1.js`
 
 ## Items, Upload and Listing

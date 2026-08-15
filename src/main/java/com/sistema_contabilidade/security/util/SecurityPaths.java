@@ -25,6 +25,8 @@ public final class SecurityPaths {
   public static final String ADD_RECEIPT_PAGE_HTML = ADD_RECEIPT_PAGE + HTML_SUFFIX;
   public static final String CREATE_USER_PAGE = "/criar_usuario";
   public static final String CREATE_USER_PAGE_HTML = CREATE_USER_PAGE + HTML_SUFFIX;
+  public static final String USERS_PAGE = "/usuarios";
+  public static final String USERS_PAGE_HTML = USERS_PAGE + HTML_SUFFIX;
   public static final String MANAGE_ROLES_PAGE = "/gerenciar_roles";
   public static final String MANAGE_ROLES_PAGE_HTML = MANAGE_ROLES_PAGE + HTML_SUFFIX;
   public static final String UPDATE_USER_PAGE = "/atualizar_usuario";
@@ -35,7 +37,7 @@ public final class SecurityPaths {
   public static final String NOTIFICATIONS_PAGE_HTML = NOTIFICATIONS_PAGE + HTML_SUFFIX;
   public static final String AUTH_API_BASE = API_V1_PREFIX + "/auth";
   public static final String AUTH_ROUTES_API_PATH = AUTH_API_BASE + "/routes";
-  public static final String USERS_API_BASE = API_V1_PREFIX + "/usuarios";
+  public static final String USERS_API_BASE = API_V1_PREFIX + USERS_PAGE;
   public static final String INTERNS_API_BASE = API_V1_PREFIX + "/estagiarios";
   public static final String USERS_ME_API_PATH = USERS_API_BASE + "/me";
   public static final String ADMIN_API_BASE = API_V1_PREFIX + ADMIN_PAGE;

@@ -16,6 +16,8 @@ RUN ./mvnw -q -DskipTests \
     -Dexec.mainClass=com.microsoft.playwright.CLI \
     -Dexec.args="install chromium"
 
+
+
 FROM eclipse-temurin:25-jre-jammy AS runtime
 
 RUN apt-get update \

@@ -17,6 +17,7 @@
 - `/duvidas` (`ADMIN` only)
 - `/criar_usuario`
 - `/atualizar_usuario`
+- `/usuarios` (`ADMIN` only)
 - `/gerenciar_estagiarios` (`CONTABIL` only)
 - `/adicionar_comprovante`
 - `/home`
@@ -67,6 +68,17 @@ Rules:
   payment or attachment actions.
 - Do not revert to `?v=` query params unless explicitly intended.
 - Static asset caching/compression can be affected by CDN/proxy layers.
+
+`/atualizar_usuario` loads a user by its current email and lets an administrator update the
+email, optional name, password and roles. The browser submits the loaded identity as `email`
+and the changed value as `novoEmail`, so the backend identifies the correct user. Its
+forced-password-change checkbox requires a temporary password before submitting
+`forcarTrocaSenha`; the backend is authoritative for this validation. On the user's next
+login, `NEW_PASSWORD_REQUIRED` redirects the browser to `/primeiro_acesso`.
+
+`/usuarios` is an admin-only directory page. It loads ID and email through the secret
+`adminUserApiBasePath` and filters the already authorized result in the browser by either
+field. Keep its Thymeleaf template, static fallback and versioned JS/CSS synchronized.
 
 ## Payment Modal
 

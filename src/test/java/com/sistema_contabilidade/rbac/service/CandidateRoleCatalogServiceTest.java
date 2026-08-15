@@ -65,4 +65,24 @@ class CandidateRoleCatalogServiceTest {
 
     assertEquals(List.of("PAULO FREIRE"), roles);
   }
+
+  @Test
+  @DisplayName("Deve delegar filtro de dominio do Cognito com contexto do usuario")
+  void deveDelegarFiltroDeDominioDoCognitoComContextoDoUsuario() {
+    AuthProviderProperties authProviderProperties = new AuthProviderProperties();
+    authProviderProperties.setProvider(AuthProvider.COGNITO);
+    when(cognitoGroupCatalogServiceProvider.getIfAvailable())
+        .thenReturn(cognitoGroupCatalogService);
+    when(cognitoGroupCatalogService.listCandidateNormalizedGroupsForUser(
+            "contabil@clarigest.com", false))
+        .thenReturn(List.of("CAPITAO BELARMINO"));
+
+    CandidateRoleCatalogService service =
+        new CandidateRoleCatalogService(
+            roleRepository, authProviderProperties, cognitoGroupCatalogServiceProvider);
+
+    List<String> roles = service.listAvailableRolesForUser("contabil@clarigest.com", false);
+
+    assertEquals(List.of("CAPITAO BELARMINO"), roles);
+  }
 }

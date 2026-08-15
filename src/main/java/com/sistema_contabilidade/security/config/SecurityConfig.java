@@ -191,7 +191,7 @@ public class SecurityConfig {
         .requestMatchers(SecurityPaths.UPDATE_USER_PAGE)
         .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.MANAGE_INTERNS_PAGE, SecurityPaths.MANAGE_INTERNS_PAGE_HTML)
-        .hasRole(CONTABIL_ROLE)
+        .hasAnyRole(ADMIN_ROLE, CONTABIL_ROLE)
         .requestMatchers(SecurityPaths.ADD_RECEIPT_PAGE, SecurityPaths.ADD_RECEIPT_PAGE_HTML)
         .access(
             (authentication, context) ->
@@ -231,7 +231,7 @@ public class SecurityConfig {
         .requestMatchers(SecurityPaths.USERS_API_BASE + PATH_WILDCARD)
         .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.INTERNS_API_BASE + PATH_WILDCARD)
-        .hasRole(CONTABIL_ROLE)
+        .hasAnyRole(ADMIN_ROLE, CONTABIL_ROLE)
         .requestMatchers(SecurityPaths.ADMIN_API_BASE + PATH_WILDCARD)
         .hasRole(ADMIN_ROLE)
         .requestMatchers(SecurityPaths.NOTIFICATIONS_API_PATTERN)

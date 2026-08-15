@@ -35,6 +35,14 @@ Use this skill when the task touches HTML pages, Thymeleaf templates, static aut
 - `src/main/resources/static/assets/js/duvidas-20260727-admin-list-1.js`
 - `src/main/resources/static/assets/css/primeiro_acesso-20260727-password-strength-1.css`
 - `src/main/resources/static/assets/js/primeiro_acesso-20260727-password-strength-1.js`
+- `src/main/resources/templates/atualizar_usuario.html`
+- `src/main/resources/static/atualizar_usuario.html`
+- `src/main/resources/static/assets/js/atualizar_usuario-20260807-email-update-1.js`
+- `src/main/resources/static/assets/css/atualizar_usuario-20260420-role-search-order-1.css`
+- `src/main/resources/templates/usuarios.html`
+- `src/main/resources/static/usuarios.html`
+- `src/main/resources/static/assets/js/usuarios-20260807-admin-directory-1.js`
+- `src/main/resources/static/assets/css/usuarios-20260807-admin-directory-1.css`
 - Page templates under `src/main/resources/templates/`
 - Static fallbacks under `src/main/resources/static/`
 
@@ -48,6 +56,10 @@ Use this skill when the task touches HTML pages, Thymeleaf templates, static aut
 6. Keep payment modal template/static shell, JavaScript and CSS synchronized.
 7. Validate browser behavior with auth/session bootstrap in mind.
 8. If changing cache/compression strategy, inspect page heads, `SecurityConfig` and resource config.
+9. Keep the admin user-update form aligned with the update-by-email API, including optional
+   name and forced-password-change fields.
+10. Keep the admin users page on its secret route and fetch its rows through
+    `adminUserApiBasePath`; client-side filters must not bypass the admin API.
 
 ## Validation
 

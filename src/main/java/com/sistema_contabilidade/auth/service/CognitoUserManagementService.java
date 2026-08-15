@@ -41,6 +41,15 @@ public class CognitoUserManagementService {
 
   public CognitoUserProfile createUser(
       String nome, String email, String senha, Set<String> normalizedRoles) {
+    return createUser(nome, email, senha, normalizedRoles, false);
+  }
+
+  public CognitoUserProfile createUser(
+      String nome,
+      String email,
+      String senha,
+      Set<String> normalizedRoles,
+      boolean forcarTrocaSenha) {
     try {
       cognitoIdentityProviderClient.adminCreateUser(
           AdminCreateUserRequest.builder()
@@ -54,7 +63,7 @@ public class CognitoUserManagementService {
               .userPoolId(cognitoProperties.getUserPoolId())
               .username(email)
               .password(senha)
-              .permanent(true)
+              .permanent(!forcarTrocaSenha)
               .build());
       syncGroups(email, normalizedRoles);
       return cognitoAuthProviderStrategy.loadProfile(email);

@@ -38,6 +38,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -114,6 +115,27 @@ class UsuarioServiceTest {
     assertEquals(response, resultado);
     verify(usuarioRepository).save(any(Usuario.class));
     verify(roleRepository).findByNomeIgnoreCase("ADMIN");
+  }
+
+  @Test
+  @DisplayName("Deve criar usuario local exigindo troca de senha no proximo login")
+  void criarDevePersistirTrocaDeSenhaObrigatoria() {
+    UsuarioCreateRequest request =
+        new UsuarioCreateRequest("Ana", "ana@email.com", "123456", "ADMIN", null, true);
+    Role role = new Role();
+    role.setNome("ADMIN");
+    UsuarioDto response = new UsuarioDto(UUID.randomUUID(), "Ana", "ana@email.com", null);
+    when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
+    when(roleRepository.findByNomeIgnoreCase("ADMIN")).thenReturn(Optional.of(role));
+    when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
+    when(usuarioRepository.save(any(Usuario.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(usuarioMapper.toDto(any(Usuario.class))).thenReturn(response);
+
+    usuarioService.save(request);
+
+    ArgumentCaptor<Usuario> usuarioCaptor = ArgumentCaptor.forClass(Usuario.class);
+    verify(usuarioRepository).save(usuarioCaptor.capture());
+    assertTrue(usuarioCaptor.getValue().isTrocaSenhaObrigatoria());
   }
 
   @Test
@@ -555,14 +577,21 @@ class UsuarioServiceTest {
     usuario.getRoles().add(role("TARCISIO"));
     UsuarioUpdateByEmailRequest request =
         new UsuarioUpdateByEmailRequest(
-            "sup@email.com", "Suporte Atualizado", null, Set.of("ADMIN", "TARCISIO"), false);
+            "sup@email.com",
+            "Suporte Atualizado",
+            null,
+            Set.of("ADMIN", "TARCISIO"),
+            false,
+            "suporte.atualizado@email.com");
     UsuarioComRolesDto dto =
         new UsuarioComRolesDto(
             usuario.getId(),
             "Suporte",
-            "sup@email.com",
+            "suporte.atualizado@email.com",
             Set.of(new RoleResumoDto(null, "ADMIN"), new RoleResumoDto(null, "TARCISIO")));
     when(usuarioRepository.findByEmail("sup@email.com")).thenReturn(Optional.of(usuario));
+    when(usuarioRepository.findByEmail("suporte.atualizado@email.com"))
+        .thenReturn(Optional.empty());
     when(roleRepository.findByNomeIgnoreCase("ADMIN")).thenReturn(Optional.of(role("ADMIN")));
     when(roleRepository.findByNomeIgnoreCase("TARCISIO")).thenReturn(Optional.of(role("TARCISIO")));
     when(usuarioRepository.save(usuario)).thenReturn(usuario);
@@ -571,9 +600,12 @@ class UsuarioServiceTest {
     UsuarioComRolesDto resultado = usuarioService.updateByEmail(request);
 
     assertEquals("Suporte Atualizado", usuario.getNome());
+    assertEquals("suporte.atualizado@email.com", usuario.getEmail());
     assertEquals(2, usuario.getRoles().size());
     assertEquals(2, resultado.getRoles().size());
-    verify(customUserDetailsService).atualizarCacheUsuario(usuario.getId(), "sup@email.com");
+    verify(customUserDetailsService)
+        .atualizarCacheUsuario(usuario.getId(), "suporte.atualizado@email.com");
+    verify(customUserDetailsService).removerCacheUsuario(usuario.getId(), "sup@email.com");
   }
 
   @Test
@@ -612,21 +644,32 @@ class UsuarioServiceTest {
     authProviderProperties.setProvider(AuthProvider.COGNITO);
     UsuarioUpdateByEmailRequest request =
         new UsuarioUpdateByEmailRequest(
-            "bia@email.com", "Beatriz", "123456", Set.of("ADMIN", "SUPPORT"), true);
-    Usuario sincronizado =
+            "bia@email.com",
+            "Beatriz",
+            "123456",
+            Set.of("ADMIN", "SUPPORT"),
+            true,
+            "beatriz@email.com");
+    Usuario usuarioAtual =
         novoUsuario(
             UUID.fromString("67676767-6767-6767-6767-676767676767"), "Bia", "bia@email.com");
+    usuarioAtual.setCognitoUsername("cognito-bia");
+    Usuario sincronizado =
+        novoUsuario(
+            UUID.fromString("67676767-6767-6767-6767-676767676767"),
+            "Beatriz",
+            "beatriz@email.com");
     CognitoUserProfile currentProfile =
         new CognitoUserProfile(
-            "bia@email.com", "bia@email.com", "Bia", "sub-456", Set.of("CONTABIL"));
+            "cognito-bia", "bia@email.com", "Bia", "sub-456", Set.of("CONTABIL"));
     CognitoUserProfile updatedProfile =
         new CognitoUserProfile(
-            "bia@email.com", "bia@email.com", "Beatriz", "sub-456", Set.of("ADMIN", "SUPPORT"));
+            "cognito-bia", "beatriz@email.com", "Beatriz", "sub-456", Set.of("ADMIN", "SUPPORT"));
     UsuarioComRolesDto dto =
         new UsuarioComRolesDto(
             sincronizado.getId(),
-            "Bia",
-            "bia@email.com",
+            "Beatriz",
+            "beatriz@email.com",
             Set.of(new RoleResumoDto(null, "ADMIN"), new RoleResumoDto(null, "SUPPORT")));
 
     when(cognitoUserManagementServiceProvider.getIfAvailable())
@@ -635,10 +678,12 @@ class UsuarioServiceTest {
         .thenReturn(cognitoIdentitySyncService);
     when(cognitoRoleSyncServiceProvider.getIfAvailable()).thenReturn(cognitoRoleSyncService);
     when(cognitoUserManagementService.findProfile("bia@email.com")).thenReturn(currentProfile);
+    when(usuarioRepository.findByEmail("bia@email.com")).thenReturn(Optional.of(usuarioAtual));
+    when(usuarioRepository.findByEmail("beatriz@email.com")).thenReturn(Optional.empty());
     when(cognitoUserManagementService.updateUser(
-            "bia@email.com",
+            "cognito-bia",
             "Beatriz",
-            "bia@email.com",
+            "beatriz@email.com",
             "123456",
             Set.of("ADMIN", "SUPPORT"),
             true))
@@ -651,17 +696,18 @@ class UsuarioServiceTest {
 
     UsuarioComRolesDto resultado = usuarioService.updateByEmail(request);
 
-    assertEquals("bia@email.com", resultado.getEmail());
+    assertEquals("beatriz@email.com", resultado.getEmail());
     assertEquals(2, resultado.getRoles().size());
     verify(cognitoUserManagementService).findProfile("bia@email.com");
     verify(cognitoUserManagementService)
         .updateUser(
-            "bia@email.com",
+            "cognito-bia",
             "Beatriz",
-            "bia@email.com",
+            "beatriz@email.com",
             "123456",
             Set.of("ADMIN", "SUPPORT"),
             true);
+    verify(customUserDetailsService).removerCacheUsuario(sincronizado.getId(), "bia@email.com");
   }
 
   @Test
@@ -849,7 +895,7 @@ class UsuarioServiceTest {
     when(cognitoIdentitySyncServiceProvider.getIfAvailable())
         .thenReturn(cognitoIdentitySyncService);
     when(cognitoRoleSyncServiceProvider.getIfAvailable()).thenReturn(cognitoRoleSyncService);
-    when(cognitoUserManagementService.createUser("Ana", "ana@email.com", "123456", Set.of("ADMIN")))
+    when(cognitoUserManagementService.createUser("Ana", "ana@email.com", "123456", Set.of("ADMIN"), false))
         .thenReturn(profile);
     when(cognitoIdentitySyncService.synchronizeRefreshIdentity(any())).thenReturn(sincronizado);
     when(cognitoRoleSyncService.syncMemberships(sincronizado, Set.of("ADMIN")))
@@ -861,7 +907,7 @@ class UsuarioServiceTest {
 
     assertEquals(response, resultado);
     verify(cognitoUserManagementService)
-        .createUser("Ana", "ana@email.com", "123456", Set.of("ADMIN"));
+        .createUser("Ana", "ana@email.com", "123456", Set.of("ADMIN"), false);
     verify(usuarioRepository, never()).findByEmail("ana@email.com");
   }
 

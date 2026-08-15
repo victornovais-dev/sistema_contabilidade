@@ -18,13 +18,16 @@ class AdminRouteServiceTest {
     String adminPagePath = service.adminPagePath();
     String adminApiBasePath = service.adminApiBasePath();
     String privacyRequestsPath = service.privacyRequestsPagePath();
+    String usersPath = service.usersPagePath();
 
     assertTrue(adminPagePath.startsWith("/"));
     assertTrue(service.resolveInternalPath(adminPagePath).isPresent());
     assertTrue(service.resolveInternalPath(privacyRequestsPath).isPresent());
+    assertTrue(service.resolveInternalPath(usersPath).isPresent());
     assertTrue(service.resolveInternalPath(adminApiBasePath + "/roles").isPresent());
     assertTrue(service.isLegacyAdminPath("/admin"));
     assertTrue(service.isLegacyAdminPath("/solicitacoes_titulares"));
+    assertTrue(service.isLegacyAdminPath("/usuarios"));
     assertTrue(service.isLegacyAdminPath("/api/v1/admin/roles"));
     assertTrue(service.isLegacyAdminPath("/api/v1/usuarios"));
     assertFalse(service.isLegacyAdminPath("/api/v1/usuarios/me"));

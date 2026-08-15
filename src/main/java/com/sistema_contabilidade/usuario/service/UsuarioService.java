@@ -69,7 +69,12 @@ public class UsuarioService {
     if (isCognitoProvider()) {
       CognitoUserProfile profile =
           requireCognitoUserManagementService()
-              .createUser(nome, email, usuarioCreateRequest.senha(), rolesSolicitadas);
+              .createUser(
+                  nome,
+                  email,
+                  usuarioCreateRequest.senha(),
+                  rolesSolicitadas,
+                  usuarioCreateRequest.deveForcarTrocaSenha());
       Usuario usuario = synchronizeCognitoProjection(profile);
       return usuarioMapper.toDto(usuario);
     }
@@ -78,6 +83,7 @@ public class UsuarioService {
     usuario.setNome(nome);
     usuario.setEmail(email);
     usuario.setSenha(passwordEncoder.encode(usuarioCreateRequest.senha()));
+    usuario.setTrocaSenhaObrigatoria(usuarioCreateRequest.deveForcarTrocaSenha());
     usuario.getRoles().clear();
     rolesSolicitadas.stream().map(this::buscarRole).forEach(usuario.getRoles()::add);
     usuario = salvarUsuarioComTratamentoDeConcorrencia(usuario);
@@ -185,25 +191,36 @@ public class UsuarioService {
   @Transactional
   public UsuarioComRolesDto updateByEmail(UsuarioUpdateByEmailRequest request) {
     String email = inputSanitizer.sanitizeEmail(request.email(), CAMPO_EMAIL);
+    String novoEmail = novoEmailParaAtualizacao(request.novoEmail(), email);
     Set<String> rolesNormalizadas = normalizarRoles(request.roles());
     if (isCognitoProvider()) {
       CognitoUserProfile currentProfile = requireCognitoUserManagementService().findProfile(email);
+      if (!email.equalsIgnoreCase(novoEmail)) {
+        usuarioRepository
+            .findByEmail(email)
+            .ifPresent(usuario -> validarEmailDuplicado(novoEmail, usuario.getId()));
+      }
       CognitoUserProfile updatedProfile =
           requireCognitoUserManagementService()
               .updateUser(
                   currentProfile.providerUsername(),
                   nomeParaAtualizacao(request.nome(), currentProfile.nome()),
-                  currentProfile.email(),
+                  novoEmail,
                   request.senha(),
                   rolesNormalizadas,
                   request.deveForcarTrocaSenha());
       Usuario usuarioSincronizado = synchronizeCognitoProjection(updatedProfile);
+      if (!email.equalsIgnoreCase(usuarioSincronizado.getEmail())) {
+        customUserDetailsService.removerCacheUsuario(usuarioSincronizado.getId(), email);
+      }
       return rbacMapper.toUsuarioComRolesDto(usuarioSincronizado);
     }
     Usuario usuarioExistente = buscarPorEmailParaAlteracao(email);
+    validarEmailDuplicado(novoEmail, usuarioExistente.getId());
     if (request.nome() != null) {
       usuarioExistente.setNome(inputSanitizer.sanitizeInlineText(request.nome(), CAMPO_NOME, 120));
     }
+    usuarioExistente.setEmail(novoEmail);
     usuarioExistente.getRoles().clear();
     rolesNormalizadas.stream().map(this::buscarRole).forEach(usuarioExistente.getRoles()::add);
     if (request.senha() != null && !request.senha().isBlank()) {
@@ -212,6 +229,9 @@ public class UsuarioService {
     }
     Usuario salvo = salvarUsuarioComTratamentoDeConcorrencia(usuarioExistente);
     customUserDetailsService.atualizarCacheUsuario(salvo.getId(), salvo.getEmail());
+    if (!email.equalsIgnoreCase(salvo.getEmail())) {
+      customUserDetailsService.removerCacheUsuario(salvo.getId(), email);
+    }
     return rbacMapper.toUsuarioComRolesDto(salvo);
   }
 
@@ -220,6 +240,13 @@ public class UsuarioService {
       return nomeAtual;
     }
     return inputSanitizer.sanitizeInlineText(nomeSolicitado, CAMPO_NOME, 120);
+  }
+
+  private String novoEmailParaAtualizacao(String novoEmailSolicitado, String emailAtual) {
+    if (novoEmailSolicitado == null || novoEmailSolicitado.isBlank()) {
+      return emailAtual;
+    }
+    return inputSanitizer.sanitizeEmail(novoEmailSolicitado, CAMPO_EMAIL);
   }
 
   public Usuario buscarPorId(UUID id) {

@@ -26,7 +26,7 @@ class PaginaUsuarioControllerTest {
   private static final String AUTHENTICATED_EXCEPT_CONTABIL_EXPRESSION =
       "isAuthenticated() and !hasAnyRole('CONTABIL','ESTAGIARIO')";
   private static final String ADMIN_EXPRESSION = "hasRole('ADMIN')";
-  private static final String CONTABIL_EXPRESSION = "hasRole('CONTABIL')";
+  private static final String MANAGE_INTERNS_EXPRESSION = "hasAnyRole('ADMIN','CONTABIL')";
   private static final String NOTIFICATION_EXPRESSION =
       "hasAnyRole('ADMIN','CONTABIL','ESTAGIARIO')";
   private static final String CONTENT_TYPE_HTML = "text/html";
@@ -115,7 +115,7 @@ class PaginaUsuarioControllerTest {
 
   @ParameterizedTest(name = "Deve exigir role admin ou contabil para {0}")
   @MethodSource("notificationMethods")
-  void deveExigirRoleAdminOuContabilNasPaginas(String nomePagina, String methodName)
+  void deveExigirRoleAdminOuContabilNasNotificacoes(String nomePagina, String methodName)
       throws Exception {
     Method method = PaginaUsuarioController.class.getMethod(methodName);
     PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
@@ -124,14 +124,15 @@ class PaginaUsuarioControllerTest {
     assertEquals(NOTIFICATION_EXPRESSION, preAuthorize.value());
   }
 
-  @ParameterizedTest(name = "Deve exigir role contabil para {0}")
+  @ParameterizedTest(name = "Deve exigir role admin ou contabil para {0}")
   @MethodSource("contabilOnlyMethods")
-  void deveExigirRoleContabilNasPaginas(String nomePagina, String methodName) throws Exception {
+  void deveExigirRoleAdminOuContabilParaGerenciarEstagiarios(String nomePagina, String methodName)
+      throws Exception {
     Method method = PaginaUsuarioController.class.getMethod(methodName);
     PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
 
     assertNotNull(preAuthorize);
-    assertEquals(CONTABIL_EXPRESSION, preAuthorize.value());
+    assertEquals(MANAGE_INTERNS_EXPRESSION, preAuthorize.value());
   }
 
   private static Stream<Arguments> resourcePageMethods() {
@@ -146,6 +147,7 @@ class PaginaUsuarioControllerTest {
   private static Stream<Arguments> templatePageMethods() {
     return Stream.of(
         Arguments.of("criar usuario", "criarUsuarioPage", "criar_usuario"),
+        Arguments.of("usuarios", "usuariosPage", "usuarios"),
         Arguments.of("atualizar usuario", "atualizarUsuarioPage", "atualizar_usuario"),
         Arguments.of("gerenciar estagiarios", "gerenciarEstagiariosPage", "gerenciar_estagiarios"),
         Arguments.of("adicionar comprovante", "adicionarComprovantePage", "adicionar_comprovante"),
@@ -174,6 +176,7 @@ class PaginaUsuarioControllerTest {
   private static Stream<Arguments> adminOnlyMethods() {
     return Stream.of(
         Arguments.of("criar usuario", "criarUsuarioPage"),
+        Arguments.of("usuarios", "usuariosPage"),
         Arguments.of("atualizar usuario", "atualizarUsuarioPage"),
         Arguments.of("admin", "adminPage"),
         Arguments.of("duvidas", "duvidasPage"),

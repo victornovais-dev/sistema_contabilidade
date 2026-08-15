@@ -8,11 +8,13 @@ import com.sistema_contabilidade.usuario.dto.EstagiarioPermissoesUpdateRequest;
 import com.sistema_contabilidade.usuario.dto.UsuarioUpdateByEmailRequest;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -31,13 +33,14 @@ public class EstagiarioPermissaoService {
     return usuario;
   }
 
-  public Set<String> listarRolesDeCampanhaDisponiveis() {
-    return new LinkedHashSet<>(candidateRoleCatalogService.listAvailableRolesForAdmin());
+  public Set<String> listarRolesDeCampanhaDisponiveis(Authentication authentication) {
+    return new LinkedHashSet<>(listarRolesDeCampanhaPermitidas(authentication));
   }
 
-  public UsuarioComRolesDto atualizarPermissoes(EstagiarioPermissoesUpdateRequest request) {
+  public UsuarioComRolesDto atualizarPermissoes(
+      EstagiarioPermissoesUpdateRequest request, Authentication authentication) {
     UsuarioComRolesDto usuario = buscarPorEmail(request.email());
-    Set<String> rolesDeCampanha = validarRolesDeCampanha(request.roles());
+    Set<String> rolesDeCampanha = validarRolesDeCampanha(request.roles(), authentication);
     Set<String> rolesDesejadas = new LinkedHashSet<>();
     rolesDesejadas.add(ESTAGIARIO_ROLE);
     rolesDesejadas.addAll(rolesDeCampanha);
@@ -46,10 +49,10 @@ public class EstagiarioPermissaoService {
         new UsuarioUpdateByEmailRequest(usuario.getEmail(), null, null, rolesDesejadas, false));
   }
 
-  private Set<String> validarRolesDeCampanha(Set<String> rolesSolicitadas) {
+  private Set<String> validarRolesDeCampanha(
+      Set<String> rolesSolicitadas, Authentication authentication) {
     Map<String, String> rolesDisponiveisPorNomeNormalizado = new LinkedHashMap<>();
-    candidateRoleCatalogService
-        .listAvailableRolesForAdmin()
+    listarRolesDeCampanhaPermitidas(authentication)
         .forEach(
             role ->
                 rolesDisponiveisPorNomeNormalizado.putIfAbsent(normalizarRole(role), role.trim()));
@@ -66,6 +69,15 @@ public class EstagiarioPermissaoService {
       rolesValidadas.add(roleDisponivel);
     }
     return rolesValidadas;
+  }
+
+  private List<String> listarRolesDeCampanhaPermitidas(Authentication authentication) {
+    String email = authentication == null ? null : authentication.getName();
+    boolean isAdmin =
+        authentication != null
+            && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+    return candidateRoleCatalogService.listAvailableRolesForUser(email, isAdmin);
   }
 
   private void validarUsuarioEstagiario(UsuarioComRolesDto usuario) {

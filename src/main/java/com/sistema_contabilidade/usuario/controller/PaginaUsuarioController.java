@@ -17,7 +17,7 @@ public class PaginaUsuarioController {
 
   private static final String IS_AUTHENTICATED_EXPRESSION = "isAuthenticated()";
   private static final String ADMIN_ROLE_EXPRESSION = "hasRole('ADMIN')";
-  private static final String CONTABIL_ROLE_EXPRESSION = "hasRole('CONTABIL')";
+  private static final String MANAGE_INTERNS_ROLE_EXPRESSION = "hasAnyRole('ADMIN','CONTABIL')";
   private static final String NOTIFICATION_ROLE_EXPRESSION =
       "hasAnyRole('ADMIN','CONTABIL','ESTAGIARIO')";
   private static final String AUTHENTICATED_EXCEPT_CONTABIL_EXPRESSION =
@@ -68,6 +68,12 @@ public class PaginaUsuarioController {
     return "criar_usuario";
   }
 
+  @GetMapping(value = SecurityPaths.USERS_PAGE, produces = MediaType.TEXT_HTML_VALUE)
+  @PreAuthorize(ADMIN_ROLE_EXPRESSION)
+  public String usuariosPage() {
+    return "usuarios";
+  }
+
   @GetMapping(value = "/atualizar_usuario", produces = MediaType.TEXT_HTML_VALUE)
   @PreAuthorize(ADMIN_ROLE_EXPRESSION)
   public String atualizarUsuarioPage() {
@@ -75,7 +81,7 @@ public class PaginaUsuarioController {
   }
 
   @GetMapping(value = SecurityPaths.MANAGE_INTERNS_PAGE, produces = MediaType.TEXT_HTML_VALUE)
-  @PreAuthorize(CONTABIL_ROLE_EXPRESSION)
+  @PreAuthorize(MANAGE_INTERNS_ROLE_EXPRESSION)
   public String gerenciarEstagiariosPage() {
     return "gerenciar_estagiarios";
   }

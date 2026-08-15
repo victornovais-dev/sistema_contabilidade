@@ -13,13 +13,18 @@ public record UsuarioCreateRequest(
     @NotBlank(message = "Email e obrigatorio") @Email(message = "Email deve ser valido")
         String email,
     @NotBlank(message = "Senha e obrigatoria")
-        @Size(min = 6, message = "Senha deve ter pelo menos 6 caracteres")
+    @Size(min = 6, message = "Senha deve ter pelo menos 6 caracteres")
         String senha,
     @Size(max = 80, message = "Role deve ter no maximo 80 caracteres") String role,
-    Set<String> roles) {
+    Set<String> roles,
+    Boolean forcarTrocaSenha) {
 
   public UsuarioCreateRequest {
     roles = roles == null ? Set.of() : Set.copyOf(roles);
+  }
+
+  public UsuarioCreateRequest(String nome, String email, String senha, String role, Set<String> roles) {
+    this(nome, email, senha, role, roles, null);
   }
 
   @Override
@@ -30,5 +35,9 @@ public record UsuarioCreateRequest(
   @AssertTrue(message = "Role nao pode ser vazia ou ter mais de 80 caracteres")
   public boolean possuiRolesValidas() {
     return roles.stream().allMatch(role -> role != null && !role.isBlank() && role.length() <= 80);
+  }
+
+  public boolean deveForcarTrocaSenha() {
+    return Boolean.TRUE.equals(forcarTrocaSenha);
   }
 }

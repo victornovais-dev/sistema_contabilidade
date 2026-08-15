@@ -32,6 +32,9 @@ Use this skill when the task touches login, logout, refresh, session cookies, Co
 - `src/main/java/com/sistema_contabilidade/auth/service/CognitoUserManagementService.java`
 - `src/main/java/com/sistema_contabilidade/auth/service/CognitoSecretHashService.java`
 - `src/main/java/com/sistema_contabilidade/auth/service/LoginChallengeCookieService.java`
+- `src/main/java/com/sistema_contabilidade/usuario/service/UsuarioService.java`
+- `src/main/java/com/sistema_contabilidade/usuario/dto/UsuarioUpdateByEmailRequest.java`
+- `src/main/resources/db/migration/V9__add_required_password_change.sql`
 - `src/main/java/com/sistema_contabilidade/rbac/controller/AdminController.java`
 - `src/main/java/com/sistema_contabilidade/rbac/service/RoleService.java`
 - `src/main/java/com/sistema_contabilidade/auth/service/CognitoGroupCatalogService.java`
@@ -62,6 +65,9 @@ Use this skill when the task touches login, logout, refresh, session cookies, Co
 3. Check `GET /api/v1/admin/roles/disponiveis`.
 4. Check role sync and local role materialization.
 5. Check user details cache invalidation by email and `id:<uuid>`.
+6. For admin updates, use the current `email` as the identity and optional `novoEmail` as the
+   replacement. A forced password change requires a temporary password and must cause
+   `NEW_PASSWORD_REQUIRED` on the user's next login.
 
 ## Validation
 

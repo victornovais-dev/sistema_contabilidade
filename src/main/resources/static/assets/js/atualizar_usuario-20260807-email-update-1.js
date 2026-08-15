@@ -414,16 +414,6 @@ feedbackOkBtn.addEventListener("click", () => {
   confirmOverlay.setAttribute("aria-hidden", "true");
 });
 
-emailInput.addEventListener("input", () => {
-  if (!loadedUserEmail) {
-    return;
-  }
-  if (normalizeEmail(emailInput.value) === loadedUserEmail) {
-    return;
-  }
-  clearLoadedUserState();
-});
-
 const carregarUsuario = async () => {
   const email = normalizeEmail(emailInput.value);
   if (!email) {
@@ -463,7 +453,8 @@ const carregarUsuario = async () => {
     return;
   }
 
-  loadedUserEmail = email;
+  loadedUserEmail = normalizeEmail(data.email || email);
+  emailInput.value = data.email || email;
   nomeInput.value = data.nome || "";
   senhaInput.value = "";
   const roles = Array.isArray(data.roles) ? data.roles.map((item) => item.nome).filter(Boolean) : [];
@@ -508,13 +499,14 @@ form.addEventListener("submit", async (event) => {
     showFeedback("error", "Usuario nao pode ter as roles SUPPORT e MANAGER ao mesmo tempo.");
     return;
   }
-  if (!loadedUserEmail || loadedUserEmail !== normalizeEmail(email)) {
+  if (!loadedUserEmail) {
     showFeedback("error", "Carregue o usuario novamente antes de salvar as alteracoes.");
     return;
   }
 
   const payload = {
-    email,
+    email: loadedUserEmail,
+    novoEmail: normalizeEmail(email) === loadedUserEmail ? null : email,
     nome,
     senha: senhaInput.value.trim() ? senhaInput.value : null,
     roles: selectedRolesList,
@@ -571,6 +563,7 @@ form.addEventListener("submit", async (event) => {
     const data = await response.json().catch(() => ({}));
     const roles = Array.isArray(data.roles) ? data.roles.map((item) => item.nome).filter(Boolean) : [];
     loadedUserEmail = normalizeEmail(data.email || email);
+    emailInput.value = data.email || email;
     nomeInput.value = data.nome || nome;
     setCheckedRoles(roles);
     senhaInput.value = "";

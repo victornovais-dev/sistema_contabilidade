@@ -13,7 +13,13 @@ public record UsuarioUpdateByEmailRequest(
     @Size(max = 120, message = "Nome deve ter no maximo 120 caracteres") String nome,
     @Size(min = 6, message = "Senha deve ter pelo menos 6 caracteres") String senha,
     @NotEmpty(message = "Ao menos uma role deve ser informada") Set<String> roles,
-    Boolean forcarTrocaSenha) {
+    Boolean forcarTrocaSenha,
+    @Email(message = "Novo email deve ser valido") String novoEmail) {
+
+  public UsuarioUpdateByEmailRequest(
+      String email, String nome, String senha, Set<String> roles, Boolean forcarTrocaSenha) {
+    this(email, nome, senha, roles, forcarTrocaSenha, null);
+  }
 
   public UsuarioUpdateByEmailRequest {
     roles = roles == null ? Set.of() : Set.copyOf(roles);

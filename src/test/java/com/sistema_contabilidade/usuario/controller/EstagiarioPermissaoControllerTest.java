@@ -18,6 +18,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("EstagiarioPermissaoController tests")
@@ -27,12 +29,12 @@ class EstagiarioPermissaoControllerTest {
   @InjectMocks private EstagiarioPermissaoController estagiarioPermissaoController;
 
   @Test
-  @DisplayName("Deve exigir role CONTABIL em todos os endpoints")
-  void deveExigirRoleContabilEmTodosOsEndpoints() {
+  @DisplayName("Deve exigir role ADMIN ou CONTABIL em todos os endpoints")
+  void deveExigirRoleAdminOuContabilEmTodosOsEndpoints() {
     PreAuthorize authorization =
         EstagiarioPermissaoController.class.getAnnotation(PreAuthorize.class);
 
-    assertEquals("hasRole('CONTABIL')", authorization.value());
+    assertEquals("hasAnyRole('ADMIN','CONTABIL')", authorization.value());
   }
 
   @Test
@@ -46,12 +48,14 @@ class EstagiarioPermissaoControllerTest {
             "Estagiario",
             "estagiario@email.com",
             Set.of(new RoleResumoDto(UUID.randomUUID(), "ESTAGIARIO")));
-    when(estagiarioPermissaoService.atualizarPermissoes(request)).thenReturn(usuario);
+    Authentication authentication = new TestingAuthenticationToken("admin@email.com", "senha");
+    when(estagiarioPermissaoService.atualizarPermissoes(request, authentication))
+        .thenReturn(usuario);
 
-    var response = estagiarioPermissaoController.atualizarPermissoes(request);
+    var response = estagiarioPermissaoController.atualizarPermissoes(request, authentication);
 
     assertEquals(HttpStatus.OK, response.getStatusCode());
     assertEquals("estagiario@email.com", response.getBody().getEmail());
-    verify(estagiarioPermissaoService).atualizarPermissoes(request);
+    verify(estagiarioPermissaoService).atualizarPermissoes(request, authentication);
   }
 }

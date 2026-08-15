@@ -34,6 +34,11 @@ public class CognitoGroupCatalogService {
     return listNormalizedGroups(this::isCandidateGroup);
   }
 
+  public List<String> listCandidateNormalizedGroupsForUser(String email, boolean isAdmin) {
+    return listNormalizedGroups(
+        group -> isCandidateGroup(group) && (isAdmin || isAvailableForEmail(group, email)));
+  }
+
   private List<String> listNormalizedGroups(Predicate<GroupType> filter) {
     try {
       Set<String> normalizedGroups = new LinkedHashSet<>();
@@ -73,6 +78,38 @@ public class CognitoGroupCatalogService {
     if (group == null || group.description() == null || group.description().isBlank()) {
       return false;
     }
-    return "CANDIDATO".equals(group.description().trim().toUpperCase(Locale.ROOT));
+    return descriptionParts(group).stream().anyMatch("CANDIDATO"::equals);
+  }
+
+  private boolean isAvailableForEmail(GroupType group, String email) {
+    String restrictedDomain = restrictedDomain(group);
+    if (restrictedDomain == null) {
+      return true;
+    }
+    if (restrictedDomain.isBlank() || email == null || email.isBlank()) {
+      return false;
+    }
+    return email.trim().toLowerCase(Locale.ROOT).endsWith("@" + restrictedDomain);
+  }
+
+  private String restrictedDomain(GroupType group) {
+    for (String part : descriptionParts(group)) {
+      int separator = part.indexOf('=');
+      if (separator >= 0 && "DOMINIO".equals(part.substring(0, separator).trim())) {
+        return part.substring(separator + 1).trim().toLowerCase(Locale.ROOT).replaceFirst("^@", "");
+      }
+    }
+    return null;
+  }
+
+  private List<String> descriptionParts(GroupType group) {
+    if (group == null || group.description() == null || group.description().isBlank()) {
+      return List.of();
+    }
+    return java.util.Arrays.stream(group.description().split(";"))
+        .map(String::trim)
+        .filter(part -> !part.isBlank())
+        .map(part -> part.toUpperCase(Locale.ROOT))
+        .toList();
   }
 }

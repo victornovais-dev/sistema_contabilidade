@@ -40,6 +40,9 @@ public class UsuarioController {
 
   private static final String ID_PATH = SecurityPaths.ID_PATH;
   private static final String ADMIN_EXPRESSION = "hasRole('ADMIN')";
+  private static final String VICTOR_NOVAIS_EMAIL = "victornovais77@gmail.com";
+  private static final String LUCAS_CLARIGEST_EMAIL = "lucas@clarigest.com";
+  private static final String VICTOR_NOVAIS_THEME = "victor-campaign";
 
   private final UsuarioService usuarioService;
 
@@ -63,7 +66,8 @@ public class UsuarioController {
   public ResponseEntity<UsuarioMeResponse> me(Authentication authentication) {
     String email = authentication == null ? null : authentication.getName();
     String nome = usuarioService.findNomeByEmail(email);
-    return ResponseEntity.ok(new UsuarioMeResponse(nome));
+    String tema = isCampaignThemeUser(email) ? VICTOR_NOVAIS_THEME : null;
+    return ResponseEntity.ok(new UsuarioMeResponse(nome, tema));
   }
 
   @PutMapping("/me")
@@ -130,5 +134,10 @@ public class UsuarioController {
         .path(ID_PATH)
         .buildAndExpand(usuarioId)
         .toUri();
+  }
+
+  private boolean isCampaignThemeUser(String email) {
+    return VICTOR_NOVAIS_EMAIL.equalsIgnoreCase(email)
+        || LUCAS_CLARIGEST_EMAIL.equalsIgnoreCase(email);
   }
 }

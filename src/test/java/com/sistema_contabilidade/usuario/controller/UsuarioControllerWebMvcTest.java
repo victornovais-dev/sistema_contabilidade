@@ -204,7 +204,8 @@ class UsuarioControllerWebMvcTest {
                 .content(
                     """
                     {
-                      "email":"dani@email.com",
+                      "email":"dani.antigo@email.com",
+                      "novoEmail":"dani@email.com",
                       "senha":"123456",
                       "roles":["ADMIN","SUPPORT"]
                     }

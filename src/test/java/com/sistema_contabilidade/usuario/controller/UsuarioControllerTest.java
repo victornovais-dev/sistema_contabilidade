@@ -1,6 +1,7 @@
 package com.sistema_contabilidade.usuario.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -114,7 +115,7 @@ class UsuarioControllerTest {
   }
 
   @Test
-  @DisplayName("Deve retornar primeiro nome do usuario autenticado no endpoint /me")
+  @DisplayName("Deve retornar nome sem tema exclusivo para outro usuario no endpoint /me")
   void meDeveRetornarNomeDoUsuarioAutenticado() {
     Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
     when(authentication.getName()).thenReturn("victor@email.com");
@@ -124,7 +125,34 @@ class UsuarioControllerTest {
 
     assertEquals(HttpStatus.OK, resultado.getStatusCode());
     assertEquals("Victor Hugo", resultado.getBody().nome());
+    assertNull(resultado.getBody().tema());
     verify(usuarioService).findNomeByEmail("victor@email.com");
+  }
+
+  @Test
+  @DisplayName("Deve retornar tema exclusivo para conta autorizada")
+  void meDeveRetornarTemaExclusivoParaContaAutorizada() {
+    Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
+    when(authentication.getName()).thenReturn("victornovais77@gmail.com");
+    when(usuarioService.findNomeByEmail("victornovais77@gmail.com")).thenReturn("Victor Novais");
+
+    ResponseEntity<UsuarioMeResponse> resultado = usuarioController.me(authentication);
+
+    assertEquals(HttpStatus.OK, resultado.getStatusCode());
+    assertEquals("victor-campaign", resultado.getBody().tema());
+  }
+
+  @Test
+  @DisplayName("Deve retornar tema exclusivo para Lucas Clarigest")
+  void meDeveRetornarTemaExclusivoParaLucasClarigest() {
+    Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
+    when(authentication.getName()).thenReturn("lucas@clarigest.com");
+    when(usuarioService.findNomeByEmail("lucas@clarigest.com")).thenReturn("Lucas");
+
+    ResponseEntity<UsuarioMeResponse> resultado = usuarioController.me(authentication);
+
+    assertEquals(HttpStatus.OK, resultado.getStatusCode());
+    assertEquals("victor-campaign", resultado.getBody().tema());
   }
 
   @Test

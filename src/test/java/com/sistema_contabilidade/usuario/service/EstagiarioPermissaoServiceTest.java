@@ -23,6 +23,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,13 +40,15 @@ class EstagiarioPermissaoServiceTest {
   void devePreservarEstagiarioAoSalvarPermissoesDeCampanha() {
     UsuarioComRolesDto estagiario = usuario("estagiario@email.com", "ESTAGIARIO", "CAMPANHA A");
     when(usuarioService.findComRolesByEmail("estagiario@email.com")).thenReturn(estagiario);
-    when(candidateRoleCatalogService.listAvailableRolesForAdmin())
+    Authentication authentication = authentication("contabil@clarigest.com", "ROLE_CONTABIL");
+    when(candidateRoleCatalogService.listAvailableRolesForUser("contabil@clarigest.com", false))
         .thenReturn(List.of("CAMPANHA A", "CAMPANHA B"));
     when(usuarioService.updateByEmail(any(UsuarioUpdateByEmailRequest.class)))
         .thenReturn(estagiario);
 
     estagiarioPermissaoService.atualizarPermissoes(
-        new EstagiarioPermissoesUpdateRequest("estagiario@email.com", Set.of("campanha b")));
+        new EstagiarioPermissoesUpdateRequest("estagiario@email.com", Set.of("campanha b")),
+        authentication);
 
     ArgumentCaptor<UsuarioUpdateByEmailRequest> requestCaptor =
         ArgumentCaptor.forClass(UsuarioUpdateByEmailRequest.class);
@@ -59,7 +63,8 @@ class EstagiarioPermissaoServiceTest {
   void deveBloquearAtribuicaoDeRolesTecnicasAoEstagiario() {
     when(usuarioService.findComRolesByEmail("estagiario@email.com"))
         .thenReturn(usuario("estagiario@email.com", "ESTAGIARIO"));
-    when(candidateRoleCatalogService.listAvailableRolesForAdmin())
+    Authentication authentication = authentication("contabil@clarigest.com", "ROLE_CONTABIL");
+    when(candidateRoleCatalogService.listAvailableRolesForUser("contabil@clarigest.com", false))
         .thenReturn(List.of("CAMPANHA A"));
 
     for (String roleTecnica : List.of("CANDIDATO", "CONTABIL", "ADMIN")) {
@@ -68,10 +73,30 @@ class EstagiarioPermissaoServiceTest {
       ResponseStatusException exception =
           assertThrows(
               ResponseStatusException.class,
-              () -> estagiarioPermissaoService.atualizarPermissoes(request));
+              () -> estagiarioPermissaoService.atualizarPermissoes(request, authentication));
 
       assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
     }
+    verify(usuarioService, never()).updateByEmail(any());
+  }
+
+  @Test
+  @DisplayName("Deve bloquear contabil de outro dominio ao atribuir campanha restrita")
+  void deveBloquearContabilDeOutroDominioAoAtribuirCampanhaRestrita() {
+    when(usuarioService.findComRolesByEmail("estagiario@email.com"))
+        .thenReturn(usuario("estagiario@email.com", "ESTAGIARIO"));
+    Authentication authentication = authentication("contabil@clarigest.com", "ROLE_CONTABIL");
+    when(candidateRoleCatalogService.listAvailableRolesForUser("contabil@clarigest.com", false))
+        .thenReturn(List.of("CAPITAO BELARMINO"));
+    EstagiarioPermissoesUpdateRequest request =
+        new EstagiarioPermissoesUpdateRequest("estagiario@email.com", Set.of("CAMPANHA SACS"));
+
+    ResponseStatusException exception =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> estagiarioPermissaoService.atualizarPermissoes(request, authentication));
+
+    assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
     verify(usuarioService, never()).updateByEmail(any());
   }
 
@@ -95,5 +120,9 @@ class EstagiarioPermissaoServiceTest {
             .map(role -> new RoleResumoDto(UUID.randomUUID(), role))
             .collect(java.util.stream.Collectors.toSet());
     return new UsuarioComRolesDto(UUID.randomUUID(), "Estagiario", email, resumoRoles);
+  }
+
+  private Authentication authentication(String email, String... authorities) {
+    return new TestingAuthenticationToken(email, "senha", authorities);
   }
 }

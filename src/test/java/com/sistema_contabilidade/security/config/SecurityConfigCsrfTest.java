@@ -514,7 +514,9 @@ class SecurityConfigCsrfTest {
             org.mockito.ArgumentMatchers.anyString()))
         .thenReturn(true);
     when(customUserDetailsService.loadUserByUsername("contabil@email.com")).thenReturn(userDetails);
-    when(estagiarioPermissaoService.listarRolesDeCampanhaDisponiveis())
+    when(estagiarioPermissaoService.listarRolesDeCampanhaDisponiveis(
+            org.mockito.ArgumentMatchers.any(
+                org.springframework.security.core.Authentication.class)))
         .thenReturn(java.util.Set.of("CAMPANHA A"));
 
     mockMvc

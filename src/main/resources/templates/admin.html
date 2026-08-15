@@ -1,11 +1,18 @@
-﻿<!doctype html>
-<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org" th:attr="data-account-theme=${accountTheme}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Painel Admin</title>
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
-    <script src="/assets/js/theme-init-20260414-notificacoes-1.js"></script>
+    <script src="/assets/js/theme-init-20260812-victor-campaign-1.js"></script>
+    <link
+      th:if="${accountTheme == 'victor-campaign'}"
+      rel="stylesheet"
+      href="/assets/css/account-theme-20260812-victor-campaign-1.css"
+    />
+    <link th:if="${accountTheme == 'victor-campaign'}" rel="preload" as="image" href="/assets/img/victor-campaign-redesign-dark-20260811-2.png" fetchpriority="high" />
+    <link th:if="${accountTheme == 'victor-campaign'}" rel="preload" as="image" href="/assets/img/victor-campaign-redesign-light-20260811-2.png" fetchpriority="high" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -46,7 +53,7 @@
 
         <article class="card admin-card">
           <h2>Atualizar usuário</h2>
-          <p>Busque por ID e atualize nome, email e senha com segurança.</p>
+          <p>Busque por email e atualize nome, email e senha com segurança.</p>
           <a
             class="btn btn-primary"
             href="/404"
@@ -72,6 +79,18 @@
           <h2>Comprovantes</h2>
           <p>Audite os itens enviados e monitore movimentações.</p>
           <a class="btn btn-secondary" href="/lista_comprovantes">Ver comprovantes</a>
+        </article>
+
+        <article class="card admin-card">
+          <h2>Usuários</h2>
+          <p>Consulte IDs e emails cadastrados, com filtro de busca.</p>
+          <a
+            class="btn btn-primary"
+            href="/404"
+            data-route-key="usersPath"
+            th:href="${usersPath}"
+            >Ver usuários</a
+          >
         </article>
 
         <article class="card admin-card">
