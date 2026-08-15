@@ -167,6 +167,31 @@ class JwtAuthFilterTest {
   }
 
   @Test
+  @DisplayName("Deve ignorar token legado invalido quando outro cookie e valido")
+  void deveIgnorarTokenLegadoInvalidoQuandoOutroCookieEValido() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/criar_usuario");
+    request.setCookies(
+        new Cookie("SC_TOKEN", "token-antigo"), new Cookie("SC_TOKEN", "token-valido"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+
+    var userDetails =
+        User.withUsername("admin@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(jwtService.extractUserId("token-antigo"))
+        .thenThrow(new ExpiredJwtException(null, null, "Token expirado"));
+    when(requestFingerprintService.generateFingerprint(request)).thenReturn("fingerprint");
+    when(jwtService.extractUsername("token-valido")).thenReturn("admin@email.com");
+    when(userDetailsService.loadUserByUsername("admin@email.com")).thenReturn(userDetails);
+    when(jwtService.isTokenValid("token-valido", userDetails, "fingerprint")).thenReturn(true);
+
+    filter.doFilter(request, response, chain);
+
+    assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    assertNull(response.getCookie("SC_TOKEN"));
+  }
+
+  @Test
   @DisplayName("Nao deve autenticar quando Bearer vem vazio")
   void naoDeveAutenticarQuandoBearerVemVazio() throws Exception {
     JwtAuthFilter filter = novoFiltro();
@@ -279,7 +304,42 @@ class JwtAuthFilterTest {
 
     assertNotNull(SecurityContextHolder.getContext().getAuthentication());
     assertEquals(sessaoId, request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE));
+    assertEquals(
+        "sessao-segura",
+        request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_TOKEN_ATTRIBUTE));
     verify(userDetailsService).loadUserById(usuarioId);
+  }
+
+  @Test
+  @DisplayName("Deve ignorar cookie de sessao antigo quando outro cookie e valido")
+  void deveIgnorarCookieDeSessaoAntigoQuandoOutroCookieEValido() throws Exception {
+    JwtAuthFilter filter = novoFiltro();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/home");
+    request.setCookies(
+        new Cookie("SC_SESSION", "sessao-antiga"),
+        new Cookie("SC_SESSION", "sessao-valida"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+    UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    UUID sessaoId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    var userDetails =
+        User.withUsername("ana@email.com").password("hash").authorities("ROLE_ADMIN").build();
+    when(sessaoUsuarioService.obterSessaoAtiva("sessao-antiga"))
+        .thenThrow(
+            new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.UNAUTHORIZED, "Sessao invalida"));
+    when(sessaoUsuarioService.obterSessaoAtiva("sessao-valida"))
+        .thenReturn(sessao(sessaoId, usuarioId));
+    when(userDetailsService.loadUserById(usuarioId)).thenReturn(userDetails);
+
+    filter.doFilter(request, response, chain);
+
+    assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    assertEquals(sessaoId, request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE));
+    assertEquals(
+        "sessao-valida",
+        request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_TOKEN_ATTRIBUTE));
+    assertNull(response.getCookie("SC_SESSION"));
   }
 
   @Test
@@ -333,6 +393,7 @@ class JwtAuthFilterTest {
 
     assertNotNull(SecurityContextHolder.getContext().getAuthentication());
     assertNull(request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE));
+    assertNull(request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_TOKEN_ATTRIBUTE));
     assertEquals(0, response.getCookie("SC_SESSION").getMaxAge());
   }
 
@@ -354,6 +415,7 @@ class JwtAuthFilterTest {
 
     assertNull(SecurityContextHolder.getContext().getAuthentication());
     assertNull(request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE));
+    assertNull(request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_TOKEN_ATTRIBUTE));
     Cookie cookieLimpo = response.getCookie("SC_SESSION");
     assertNotNull(cookieLimpo);
     assertEquals(0, cookieLimpo.getMaxAge());

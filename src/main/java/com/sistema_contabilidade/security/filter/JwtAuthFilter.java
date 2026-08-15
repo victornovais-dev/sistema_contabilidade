@@ -12,6 +12,8 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +33,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
   public static final String VALIDATED_SESSION_ID_ATTRIBUTE =
       JwtAuthFilter.class.getName() + ".validatedSessionId";
+  public static final String VALIDATED_SESSION_TOKEN_ATTRIBUTE =
+      JwtAuthFilter.class.getName() + ".validatedSessionToken";
 
   private static final String LEGACY_AUTH_COOKIE_NAME = "SC_TOKEN";
 
@@ -60,13 +64,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
       return;
     }
 
-    String cookieToken = resolveCookieValue(request, LEGACY_AUTH_COOKIE_NAME);
-    if (cookieToken == null || cookieToken.isBlank()) {
+    List<String> cookieTokens = resolveCookieValues(request, LEGACY_AUTH_COOKIE_NAME);
+    if (cookieTokens.isEmpty()) {
       return;
     }
-    if (!tryAuthenticateJwtToken(cookieToken, request)) {
-      clearLegacyAuthCookie(response, isSecureRequest(request));
+    for (String cookieToken : cookieTokens) {
+      if (tryAuthenticateJwtToken(cookieToken, request)) {
+        return;
+      }
     }
+    clearLegacyAuthCookie(response, isSecureRequest(request));
   }
 
   private boolean tryAuthenticateJwtToken(String token, HttpServletRequest request) {
@@ -102,28 +109,35 @@ public class JwtAuthFilter extends OncePerRequestFilter {
   }
 
   private void authenticateComSessao(HttpServletRequest request, HttpServletResponse response) {
-    String sessionToken = resolveCookieValue(request, sessionCookieName);
-    if (sessionToken == null || sessionToken.isBlank()) {
+    List<String> sessionTokens = resolveCookieValues(request, sessionCookieName);
+    if (sessionTokens.isEmpty()) {
       return;
     }
     boolean authenticationRequired = SecurityContextHolder.getContext().getAuthentication() == null;
-    try {
-      SessaoUsuario sessao = sessaoUsuarioService.obterSessaoAtiva(sessionToken);
-      if (authenticationRequired) {
-        UserDetails userDetails = userDetailsService.loadUserById(sessao.getUsuarioId());
-        authenticateRequest(request, userDetails);
+    ResponseStatusException lastFailure = null;
+    for (String sessionToken : sessionTokens) {
+      try {
+        SessaoUsuario sessao = sessaoUsuarioService.obterSessaoAtiva(sessionToken);
+        if (authenticationRequired) {
+          UserDetails userDetails = userDetailsService.loadUserById(sessao.getUsuarioId());
+          authenticateRequest(request, userDetails);
+        }
+        request.setAttribute(VALIDATED_SESSION_ID_ATTRIBUTE, sessao.getId());
+        request.setAttribute(VALIDATED_SESSION_TOKEN_ATTRIBUTE, sessionToken);
+        return;
+      } catch (ResponseStatusException exception) {
+        lastFailure = exception;
       }
-      request.setAttribute(VALIDATED_SESSION_ID_ATTRIBUTE, sessao.getId());
-    } catch (ResponseStatusException exception) {
-      if (log.isDebugEnabled()) {
-        log.debug("Sessao invalida detectada no filtro de autenticacao", exception);
-      }
-      request.removeAttribute(VALIDATED_SESSION_ID_ATTRIBUTE);
-      if (authenticationRequired) {
-        SecurityContextHolder.clearContext();
-      }
-      clearSessionCookie(response, isSecureRequest(request));
     }
+    if (log.isDebugEnabled()) {
+      log.debug("Nenhum cookie de sessao valido foi encontrado", lastFailure);
+    }
+    request.removeAttribute(VALIDATED_SESSION_ID_ATTRIBUTE);
+    request.removeAttribute(VALIDATED_SESSION_TOKEN_ATTRIBUTE);
+    if (authenticationRequired) {
+      SecurityContextHolder.clearContext();
+    }
+    clearSessionCookie(response, isSecureRequest(request));
   }
 
   private void authenticateRequest(HttpServletRequest request, UserDetails userDetails) {
@@ -159,17 +173,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     return null;
   }
 
-  private String resolveCookieValue(HttpServletRequest request, String cookieName) {
+  private List<String> resolveCookieValues(HttpServletRequest request, String cookieName) {
     Cookie[] cookies = request.getCookies();
     if (cookies == null) {
-      return null;
+      return List.of();
     }
+    LinkedHashSet<String> values = new LinkedHashSet<>();
     for (Cookie cookie : cookies) {
-      if (cookieName.equals(cookie.getName())) {
-        return cookie.getValue();
+      if (cookieName.equals(cookie.getName())
+          && cookie.getValue() != null
+          && !cookie.getValue().isBlank()) {
+        values.add(cookie.getValue());
       }
     }
-    return null;
+    return List.copyOf(values);
   }
 
   private boolean isSecureRequest(HttpServletRequest request) {
