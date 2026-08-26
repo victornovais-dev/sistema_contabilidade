@@ -281,17 +281,13 @@ public class ItemController {
   public ResponseEntity<InputStreamResource> baixarTodosArquivos(
       Authentication authentication, @PathVariable("id") UUID id) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
-    if (item.getArquivos().isEmpty()) {
+    List<String> caminhosArquivos = listarArquivosPersistidos(item);
+    if (caminhosArquivos.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, ARQUIVO_ITEM_NAO_ENCONTRADO);
     }
-    List<ItemArquivo> arquivos = new ArrayList<>(item.getArquivos());
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     try (ZipOutputStream zip = new ZipOutputStream(outputStream)) {
-      for (ItemArquivo arquivo : arquivos) {
-        String caminho = arquivo.getCaminhoArquivoPdf();
-        if (caminho == null || caminho.isBlank()) {
-          continue;
-        }
+      for (String caminho : caminhosArquivos) {
         byte[] conteudo = arquivoStorageService.carregarPdf(caminho);
         String nomeArquivo = arquivoStorageService.resolverNomeArquivo(caminho);
         zip.putNextEntry(new ZipEntry(nomeArquivo));

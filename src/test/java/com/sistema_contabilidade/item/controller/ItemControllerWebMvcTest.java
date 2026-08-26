@@ -1238,6 +1238,52 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve incluir PDFs de pagamento no ZIP")
+  void baixarTodosArquivosDeveIncluirPdfsDePagamento() throws Exception {
+    UUID id = UUID.fromString("67676767-7777-7777-7777-777777777777");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.DESPESA);
+
+    ItemParcelaPagamento parcela = new ItemParcelaPagamento();
+    parcela.setItem(item);
+    ItemParcelaPagamentoArquivo primeiroArquivo = new ItemParcelaPagamentoArquivo();
+    primeiroArquivo.setParcelaPagamento(parcela);
+    primeiroArquivo.setCaminhoArquivoPdf("uploads/pagamentos/pagamento-1.pdf");
+    ItemParcelaPagamentoArquivo segundoArquivo = new ItemParcelaPagamentoArquivo();
+    segundoArquivo.setParcelaPagamento(parcela);
+    segundoArquivo.setCaminhoArquivoPdf("uploads/pagamentos/pagamento-2.pdf");
+    parcela.getArquivosComprovantes().add(primeiroArquivo);
+    parcela.getArquivosComprovantes().add(segundoArquivo);
+    item.getParcelasPagamento().add(parcela);
+
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemArquivoStorageService.carregarPdf("uploads/pagamentos/pagamento-1.pdf"))
+        .thenReturn("primeiro pagamento".getBytes());
+    when(itemArquivoStorageService.carregarPdf("uploads/pagamentos/pagamento-2.pdf"))
+        .thenReturn("segundo pagamento".getBytes());
+    when(itemArquivoStorageService.resolverNomeArquivo("uploads/pagamentos/pagamento-1.pdf"))
+        .thenReturn("pagamento-1.pdf");
+    when(itemArquivoStorageService.resolverNomeArquivo("uploads/pagamentos/pagamento-2.pdf"))
+        .thenReturn("pagamento-2.pdf");
+
+    byte[] payload =
+        mockMvc
+            .perform(
+                get("/api/v1/itens/{id}/arquivos/download", id)
+                    .with(authComRoles("admin@email.com", "ADMIN")))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsByteArray();
+
+    List<String> entries = zipEntries(payload);
+    assertTrue(entries.contains("pagamento-1.pdf"));
+    assertTrue(entries.contains("pagamento-2.pdf"));
+    assertTrue(entries.contains("observacao.txt"));
+  }
+
+  @Test
   @DisplayName("Deve baixar ZIP com arquivos e observacao")
   void baixarTodosArquivosDeveRetornarZipComObservacao() throws Exception {
     UUID id = UUID.fromString("77777777-8888-9999-0000-111111111111");
