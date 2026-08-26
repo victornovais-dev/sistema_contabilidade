@@ -75,6 +75,26 @@ class PdfUploadSecurityValidatorTest {
   }
 
   @Test
+  @DisplayName("Deve aceitar PDF com link telefonico e fonte cujo nome contem AA")
+  void deveAceitarPdfComLinkTelefonicoEFontComPrefixoAa() {
+    PdfUploadSecurityValidator validator = new PdfUploadSecurityValidator(new StorageProperties());
+    byte[] pdfComLinkEFonteComAa =
+        """
+        %PDF-1.3
+        1 0 obj
+        << /Type /Font /BaseFont /AAAAAB+CAIXAStd-SemiBold >>
+        endobj
+        2 0 obj
+        << /Type /Action /S /URI /URI (tel:08007257474) >>
+        endobj
+        %%EOF
+        """
+            .getBytes();
+
+    assertDoesNotThrow(() -> validator.validateUpload(pdfComLinkEFonteComAa, "caixa-pix.pdf"));
+  }
+
+  @Test
   @DisplayName("Deve rejeitar PDF com AA apontando para acao perigosa")
   void deveRejeitarPdfComAaApontandoParaAcaoPerigosa() {
     PdfUploadSecurityValidator validator = new PdfUploadSecurityValidator(new StorageProperties());

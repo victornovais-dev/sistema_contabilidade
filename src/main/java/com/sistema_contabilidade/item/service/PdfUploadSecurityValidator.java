@@ -1,7 +1,6 @@
 package com.sistema_contabilidade.item.service;
 
 import com.sistema_contabilidade.config.StorageProperties;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
@@ -86,9 +85,8 @@ public class PdfUploadSecurityValidator {
   }
 
   private void validarMarcadoresMaliciosos(byte[] arquivoPdf, String nomeOriginal) {
-    String conteudo = new String(arquivoPdf, StandardCharsets.ISO_8859_1);
     for (String marcador : MALICIOUS_PDF_MARKERS) {
-      if (!conteudo.contains(marcador)) {
+      if (!contemNomePdf(arquivoPdf, marcador)) {
         continue;
       }
       if (log.isWarnEnabled()) {
@@ -99,15 +97,15 @@ public class PdfUploadSecurityValidator {
       }
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PDF_EXECUTABLE_MESSAGE);
     }
-    validarAdditionalActionsPerigosas(conteudo, nomeOriginal);
+    validarAdditionalActionsPerigosas(arquivoPdf, nomeOriginal);
   }
 
-  private void validarAdditionalActionsPerigosas(String conteudo, String nomeOriginal) {
-    if (!conteudo.contains("/AA")) {
+  private void validarAdditionalActionsPerigosas(byte[] arquivoPdf, String nomeOriginal) {
+    if (!contemNomePdf(arquivoPdf, "/AA")) {
       return;
     }
     for (String marcador : DANGEROUS_ADDITIONAL_ACTION_MARKERS) {
-      if (!conteudo.contains(marcador)) {
+      if (!contemNomePdf(arquivoPdf, marcador)) {
         continue;
       }
       if (log.isWarnEnabled()) {
@@ -118,6 +116,36 @@ public class PdfUploadSecurityValidator {
       }
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PDF_EXECUTABLE_MESSAGE);
     }
+  }
+
+  private boolean contemNomePdf(byte[] conteudo, String marcador) {
+    byte[] marcadorBytes = marcador.getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+    for (int inicio = 0; inicio <= conteudo.length - marcadorBytes.length; inicio += 1) {
+      if (!correspondeMarcador(conteudo, marcadorBytes, inicio)) {
+        continue;
+      }
+      int proximoIndice = inicio + marcadorBytes.length;
+      if (proximoIndice == conteudo.length || ehDelimitadorDeNomePdf(conteudo[proximoIndice])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean correspondeMarcador(byte[] conteudo, byte[] marcador, int inicio) {
+    for (int indice = 0; indice < marcador.length; indice += 1) {
+      if (conteudo[inicio + indice] != marcador[indice]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private boolean ehDelimitadorDeNomePdf(byte valor) {
+    return switch (valor) {
+      case 0, 9, 10, 12, 13, 32, '(', ')', '<', '>', '[', ']', '{', '}', '/', '%' -> true;
+      default -> false;
+    };
   }
 
   private String extrairExtensao(String nomeOriginal) {
