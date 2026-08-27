@@ -461,10 +461,8 @@ public class ItemController {
     validarPermissaoExcluirItem(authentication);
     Item item = buscarItemAutorizadoPorId(id, authentication);
     validarItemNaoVerificadoParaExclusao(item);
-    List<String> arquivos = listarArquivosPersistidos(item);
     notificacaoService.removerPorItemId(item.getId());
     itemRepository.delete(item);
-    removerArquivosSemFalhar(arquivos);
     return ResponseEntity.noContent().build();
   }
 

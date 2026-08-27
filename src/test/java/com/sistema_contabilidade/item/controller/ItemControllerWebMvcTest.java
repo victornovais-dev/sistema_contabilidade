@@ -2594,6 +2594,42 @@ class ItemControllerWebMvcTest {
     assertNull(item.getCaminhoArquivoPdf());
   }
 
+  @Test
+  @DisplayName("Deve soft-deletar item sem remover PDFs do armazenamento")
+  void deletarDeveManterPdfsNoArmazenamento() throws Exception {
+    UUID itemId = UUID.fromString("33333333-3333-4444-5555-666666666666");
+    Item item = new Item();
+    item.setId(itemId);
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+    item.setCaminhoArquivoPdf("itens/item-principal.pdf");
+
+    ItemArquivo anexo = new ItemArquivo();
+    anexo.setCaminhoArquivoPdf("itens/anexo.pdf");
+    anexo.setItem(item);
+    item.getArquivos().add(anexo);
+
+    ItemParcelaPagamento parcela = new ItemParcelaPagamento();
+    parcela.setItem(item);
+    parcela.setCaminhoArquivoPdf("itens/parcela-legada.pdf");
+    ItemParcelaPagamentoArquivo comprovanteParcela = new ItemParcelaPagamentoArquivo();
+    comprovanteParcela.setParcelaPagamento(parcela);
+    comprovanteParcela.setCaminhoArquivoPdf("itens/comprovante-parcela.pdf");
+    parcela.getArquivosComprovantes().add(comprovanteParcela);
+    item.getParcelasPagamento().add(parcela);
+
+    when(itemRepository.findByIdComCriadorERoles(itemId)).thenReturn(Optional.of(item));
+
+    mockMvc
+        .perform(
+            delete("/api/v1/itens/{id}", itemId).with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isNoContent());
+
+    verify(notificacaoService).removerPorItemId(itemId);
+    verify(itemRepository).delete(item);
+    verify(itemArquivoStorageService, never()).deletarPdf(any());
+  }
+
   private List<String> zipEntries(byte[] payload) throws Exception {
     List<String> entries = new ArrayList<>();
     try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(payload))) {
