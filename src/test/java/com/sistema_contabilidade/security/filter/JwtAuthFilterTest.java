@@ -305,8 +305,7 @@ class JwtAuthFilterTest {
     assertNotNull(SecurityContextHolder.getContext().getAuthentication());
     assertEquals(sessaoId, request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE));
     assertEquals(
-        "sessao-segura",
-        request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_TOKEN_ATTRIBUTE));
+        "sessao-segura", request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_TOKEN_ATTRIBUTE));
     verify(userDetailsService).loadUserById(usuarioId);
   }
 
@@ -316,8 +315,7 @@ class JwtAuthFilterTest {
     JwtAuthFilter filter = novoFiltro();
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/home");
     request.setCookies(
-        new Cookie("SC_SESSION", "sessao-antiga"),
-        new Cookie("SC_SESSION", "sessao-valida"));
+        new Cookie("SC_SESSION", "sessao-antiga"), new Cookie("SC_SESSION", "sessao-valida"));
     MockHttpServletResponse response = new MockHttpServletResponse();
     MockFilterChain chain = new MockFilterChain();
     UUID usuarioId = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -337,8 +335,7 @@ class JwtAuthFilterTest {
     assertNotNull(SecurityContextHolder.getContext().getAuthentication());
     assertEquals(sessaoId, request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_ID_ATTRIBUTE));
     assertEquals(
-        "sessao-valida",
-        request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_TOKEN_ATTRIBUTE));
+        "sessao-valida", request.getAttribute(JwtAuthFilter.VALIDATED_SESSION_TOKEN_ATTRIBUTE));
     assertNull(response.getCookie("SC_SESSION"));
   }
 

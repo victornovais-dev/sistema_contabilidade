@@ -128,7 +128,8 @@ class UsuarioServiceTest {
     when(usuarioRepository.findByEmail("ana@email.com")).thenReturn(Optional.empty());
     when(roleRepository.findByNomeIgnoreCase("ADMIN")).thenReturn(Optional.of(role));
     when(passwordEncoder.encode("123456")).thenReturn("encoded-123456");
-    when(usuarioRepository.save(any(Usuario.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(usuarioRepository.save(any(Usuario.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
     when(usuarioMapper.toDto(any(Usuario.class))).thenReturn(response);
 
     usuarioService.save(request);
@@ -895,7 +896,8 @@ class UsuarioServiceTest {
     when(cognitoIdentitySyncServiceProvider.getIfAvailable())
         .thenReturn(cognitoIdentitySyncService);
     when(cognitoRoleSyncServiceProvider.getIfAvailable()).thenReturn(cognitoRoleSyncService);
-    when(cognitoUserManagementService.createUser("Ana", "ana@email.com", "123456", Set.of("ADMIN"), false))
+    when(cognitoUserManagementService.createUser(
+            "Ana", "ana@email.com", "123456", Set.of("ADMIN"), false))
         .thenReturn(profile);
     when(cognitoIdentitySyncService.synchronizeRefreshIdentity(any())).thenReturn(sincronizado);
     when(cognitoRoleSyncService.syncMemberships(sincronizado, Set.of("ADMIN")))

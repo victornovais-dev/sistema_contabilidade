@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.relatorio.service;
 
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
 
 @DisplayName("PlaywrightPdfService unit tests")
@@ -25,10 +25,10 @@ class PlaywrightPdfServiceTest {
   @Test
   @DisplayName("Deve gerar PDF a partir do HTML renderizado")
   void deveGerarPdfAPartirDoHtmlRenderizado() {
-    Browser browser = Mockito.mock(Browser.class);
-    BrowserContext browserContext = Mockito.mock(BrowserContext.class);
-    Page page = Mockito.mock(Page.class);
-    ThymeleafTemplateRenderer templateRenderer = Mockito.mock(ThymeleafTemplateRenderer.class);
+    Browser browser = mock(Browser.class);
+    BrowserContext browserContext = mock(BrowserContext.class);
+    Page page = mock(Page.class);
+    ThymeleafTemplateRenderer templateRenderer = mock(ThymeleafTemplateRenderer.class);
     PlaywrightPdfService service =
         new PlaywrightPdfService(browserProvider(browser), templateRenderer);
     RelatorioFinanceiroPdfData data = sampleData();
@@ -53,8 +53,8 @@ class PlaywrightPdfServiceTest {
   @Test
   @DisplayName("Deve encapsular falha do Playwright ao gerar PDF")
   void deveEncapsularFalhaDoPlaywrightAoGerarPdf() {
-    Browser browser = Mockito.mock(Browser.class);
-    ThymeleafTemplateRenderer templateRenderer = Mockito.mock(ThymeleafTemplateRenderer.class);
+    Browser browser = mock(Browser.class);
+    ThymeleafTemplateRenderer templateRenderer = mock(ThymeleafTemplateRenderer.class);
     PlaywrightPdfService service =
         new PlaywrightPdfService(browserProvider(browser), templateRenderer);
     RelatorioFinanceiroPdfData data = sampleData();

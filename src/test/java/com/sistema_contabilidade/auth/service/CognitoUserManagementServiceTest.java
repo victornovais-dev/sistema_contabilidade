@@ -128,8 +128,7 @@ class CognitoUserManagementServiceTest {
         new CognitoUserProfile("ana@email.com", "ana@email.com", "Ana", "sub-1", Set.of());
     when(cognitoAuthProviderStrategy.loadProfile("ana@email.com")).thenReturn(perfil);
 
-    cognitoUserManagementService.createUser(
-        "Ana", "ana@email.com", "Senha@123", Set.of(), true);
+    cognitoUserManagementService.createUser("Ana", "ana@email.com", "Senha@123", Set.of(), true);
 
     verify(cognitoIdentityProviderClient)
         .adminSetUserPassword(

@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.relatorio.service;
 
+import static org.mockito.Mockito.times;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -122,7 +123,7 @@ class RelatorioResumoCacheServiceTest {
         CampaignScope.restricted(Set.of("FINANCEIRO")), "role=ALL", () -> response("1"));
 
     ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-    verify(valueOperations, Mockito.times(3))
+    verify(valueOperations, times(3))
         .set(keyCaptor.capture(), anyString(), eq(Duration.ofSeconds(30)));
     assertThat(keyCaptor.getAllValues().get(0)).isEqualTo(keyCaptor.getAllValues().get(1));
     assertThat(keyCaptor.getAllValues().get(2)).isNotEqualTo(keyCaptor.getAllValues().get(0));

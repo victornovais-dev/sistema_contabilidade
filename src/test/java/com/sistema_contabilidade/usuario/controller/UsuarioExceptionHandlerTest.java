@@ -1,5 +1,7 @@
 package com.sistema_contabilidade.usuario.controller;
 
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -13,7 +15,6 @@ import com.sistema_contabilidade.usuario.dto.UsuarioCreateRequest;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.io.Resource;
@@ -332,8 +333,8 @@ class UsuarioExceptionHandlerTest {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/relatorios");
     request.addHeader("Accept", MediaType.TEXT_HTML_VALUE);
     org.springframework.web.servlet.resource.NoResourceFoundException exception =
-        Mockito.mock(org.springframework.web.servlet.resource.NoResourceFoundException.class);
-    Mockito.when(exception.getResourcePath()).thenReturn("/relatorios");
+        mock(org.springframework.web.servlet.resource.NoResourceFoundException.class);
+    when(exception.getResourcePath()).thenReturn("/relatorios");
 
     ResponseEntity<Object> response =
         handler.handleNoResourceFoundException(exception, new ServletWebRequest(request), request);
@@ -350,8 +351,8 @@ class UsuarioExceptionHandlerTest {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/inexistente");
     request.addHeader("Accept", MediaType.APPLICATION_JSON_VALUE);
     org.springframework.web.servlet.resource.NoResourceFoundException exception =
-        Mockito.mock(org.springframework.web.servlet.resource.NoResourceFoundException.class);
-    Mockito.when(exception.getResourcePath()).thenReturn("/api/v1/inexistente");
+        mock(org.springframework.web.servlet.resource.NoResourceFoundException.class);
+    when(exception.getResourcePath()).thenReturn("/api/v1/inexistente");
 
     ResponseEntity<Object> response =
         handler.handleNoResourceFoundException(exception, new ServletWebRequest(request), request);

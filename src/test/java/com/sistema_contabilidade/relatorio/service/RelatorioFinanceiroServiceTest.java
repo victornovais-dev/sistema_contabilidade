@@ -1,5 +1,7 @@
 package com.sistema_contabilidade.relatorio.service;
 
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -45,9 +47,9 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve incluir descricao do item no DTO do relatorio")
   void deveIncluirDescricaoNoDto() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
-    UsuarioRepository usuarioRepository = Mockito.mock(UsuarioRepository.class);
-    PlaywrightPdfService playwrightPdfService = Mockito.mock(PlaywrightPdfService.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
+    UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
+    PlaywrightPdfService playwrightPdfService = mock(PlaywrightPdfService.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
@@ -79,13 +81,13 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve permitir filtro por role propria para usuario com multiplas roles")
   void devePermitirFiltroPorRolePropriaParaUsuarioComMultiplasRoles() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
             campaignScopeResolver(),
-            Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class),
+            mock(UsuarioRepository.class),
+            mock(PlaywrightPdfService.class),
             passThroughCache());
     RelatorioItemDto receita =
         dto("SERVICOS", TipoItem.RECEITA, "50.00", LocalDate.of(2026, Month.APRIL, 1), 9, 0);
@@ -123,13 +125,13 @@ class RelatorioFinanceiroServiceTest {
   @DisplayName("Deve listar roles disponiveis para admin ordenadas")
   void deveListarRolesDisponiveisParaAdminOrdenadas() {
     CandidateRoleCatalogService candidateRoleCatalogService =
-        Mockito.mock(CandidateRoleCatalogService.class);
+        mock(CandidateRoleCatalogService.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
-            Mockito.mock(ItemRepository.class),
+            mock(ItemRepository.class),
             new CampaignScopeResolver(candidateRoleCatalogService),
-            Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class),
+            mock(UsuarioRepository.class),
+            mock(PlaywrightPdfService.class),
             passThroughCache());
 
     when(candidateRoleCatalogService.listAvailableRolesForAdmin()).thenReturn(List.of("ANDRE"));
@@ -143,13 +145,13 @@ class RelatorioFinanceiroServiceTest {
   @DisplayName("Deve listar roles do proprio usuario quando nao for admin")
   void deveListarRolesDoProprioUsuarioQuandoNaoForAdmin() {
     CandidateRoleCatalogService candidateRoleCatalogService =
-        Mockito.mock(CandidateRoleCatalogService.class);
+        mock(CandidateRoleCatalogService.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
-            Mockito.mock(ItemRepository.class),
+            mock(ItemRepository.class),
             new CampaignScopeResolver(candidateRoleCatalogService),
-            Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class),
+            mock(UsuarioRepository.class),
+            mock(PlaywrightPdfService.class),
             passThroughCache());
     when(candidateRoleCatalogService.filterAvailableRoles(
             java.util.Set.of("OPERADOR", "FINANCEIRO", "SUPPORT")))
@@ -165,15 +167,15 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve aplicar filtro por role e usar repositorio especifico")
   void deveAplicarFiltroPorRoleEUsarRepositorioEspecifico() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     CandidateRoleCatalogService candidateRoleCatalogService =
-        Mockito.mock(CandidateRoleCatalogService.class);
+        mock(CandidateRoleCatalogService.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
             new CampaignScopeResolver(candidateRoleCatalogService),
-            Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class),
+            mock(UsuarioRepository.class),
+            mock(PlaywrightPdfService.class),
             passThroughCache());
     RelatorioItemDto receita =
         dto("SERVICOS", TipoItem.RECEITA, "50.00", LocalDate.of(2026, Month.APRIL, 1), 9, 0);
@@ -197,13 +199,13 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve classificar receitas financeiras e estimaveis no resumo")
   void deveClassificarReceitasFinanceirasEEstimaveisNoResumo() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
             campaignScopeResolver(),
-            Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class),
+            mock(UsuarioRepository.class),
+            mock(PlaywrightPdfService.class),
             passThroughCache());
 
     when(itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc())
@@ -257,13 +259,13 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve gerar resumo financeiro com duas agregacoes")
   void deveGerarResumoFinanceiroComDuasAgregacoes() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
             campaignScopeResolver(),
-            Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class),
+            mock(UsuarioRepository.class),
+            mock(PlaywrightPdfService.class),
             passThroughCache());
 
     when(itemRepository.findAllRelatorioResumoCategorias())
@@ -293,7 +295,7 @@ class RelatorioFinanceiroServiceTest {
 
     verify(itemRepository).findAllRelatorioResumoCategorias();
     verify(itemRepository).findContasPagasPorConta();
-    verify(itemRepository, Mockito.never()).findTotalContasPagasDespesas();
+    verify(itemRepository, never()).findTotalContasPagasDespesas();
     assertEquals(new BigDecimal("100.00"), response.receitasFinanceiras());
     assertEquals(new BigDecimal("50.00"), response.receitasEstimaveis());
     assertEquals(new BigDecimal("150.00"), response.totalReceitas());
@@ -322,13 +324,13 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve calcular contas pagas e a pagar somente nas roles visiveis")
   void deveCalcularContasPagasEAbertasNoEscopoDasRoles() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
             campaignScopeResolver(),
-            Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class),
+            mock(UsuarioRepository.class),
+            mock(PlaywrightPdfService.class),
             passThroughCache());
     Set<String> rolesVisiveis = Set.of("FINANCEIRO");
     when(itemRepository.findRelatorioResumoCategoriasByRoleNomes(rolesVisiveis))
@@ -349,22 +351,22 @@ class RelatorioFinanceiroServiceTest {
     assertEquals(new BigDecimal("55.00"), response.contasAPagar());
     verify(itemRepository).findRelatorioResumoCategoriasByRoleNomes(rolesVisiveis);
     verify(itemRepository).findContasPagasPorContaByRoleNomes(rolesVisiveis);
-    verify(itemRepository, Mockito.never()).findAllRelatorioResumoCategorias();
-    verify(itemRepository, Mockito.never()).findTotalContasPagasDespesas();
-    verify(itemRepository, Mockito.never()).findTotalContasPagasDespesasByRoleNomes(rolesVisiveis);
-    verify(itemRepository, Mockito.never()).findContasPagasPorConta();
+    verify(itemRepository, never()).findAllRelatorioResumoCategorias();
+    verify(itemRepository, never()).findTotalContasPagasDespesas();
+    verify(itemRepository, never()).findTotalContasPagasDespesasByRoleNomes(rolesVisiveis);
+    verify(itemRepository, never()).findContasPagasPorConta();
   }
 
   @Test
   @DisplayName("Deve separar despesas consideradas de advocacia e contabilidade")
   void deveSepararDespesasConsideradasDeAdvocaciaEContabilidade() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
             campaignScopeResolver(),
-            Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class),
+            mock(UsuarioRepository.class),
+            mock(PlaywrightPdfService.class),
             passThroughCache());
 
     when(itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc())
@@ -409,13 +411,13 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve calcular limites de gastos como percentual do total de despesas")
   void deveCalcularLimitesDeGastosComoPercentualDoTotalDeDespesas() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
             campaignScopeResolver(),
-            Mockito.mock(UsuarioRepository.class),
-            Mockito.mock(PlaywrightPdfService.class),
+            mock(UsuarioRepository.class),
+            mock(PlaywrightPdfService.class),
             passThroughCache());
 
     when(itemRepository.findAllRelatorioItensOrderByDataDescHorarioCriacaoDesc())
@@ -468,9 +470,9 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve montar dados do PDF com categorias ordenadas e cores estaveis")
   void deveMontarDadosDoPdfComCategoriasOrdenadasECoresEstaveis() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
-    UsuarioRepository usuarioRepository = Mockito.mock(UsuarioRepository.class);
-    PlaywrightPdfService playwrightPdfService = Mockito.mock(PlaywrightPdfService.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
+    UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
+    PlaywrightPdfService playwrightPdfService = mock(PlaywrightPdfService.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
             itemRepository,
@@ -552,11 +554,11 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve usar fallbacks no PDF quando relatorio vier vazio")
   void deveUsarFallbacksNoPdfQuandoRelatorioVierVazio() {
-    UsuarioRepository usuarioRepository = Mockito.mock(UsuarioRepository.class);
-    PlaywrightPdfService playwrightPdfService = Mockito.mock(PlaywrightPdfService.class);
+    UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
+    PlaywrightPdfService playwrightPdfService = mock(PlaywrightPdfService.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
-            Mockito.mock(ItemRepository.class),
+            mock(ItemRepository.class),
             campaignScopeResolver(),
             usuarioRepository,
             playwrightPdfService,
@@ -600,11 +602,11 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve usar descricao padrao e saldo negativo no PDF")
   void deveUsarDescricaoPadraoESaldoNegativoNoPdf() {
-    UsuarioRepository usuarioRepository = Mockito.mock(UsuarioRepository.class);
-    PlaywrightPdfService playwrightPdfService = Mockito.mock(PlaywrightPdfService.class);
+    UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
+    PlaywrightPdfService playwrightPdfService = mock(PlaywrightPdfService.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
-            Mockito.mock(ItemRepository.class),
+            mock(ItemRepository.class),
             campaignScopeResolver(),
             usuarioRepository,
             playwrightPdfService,
@@ -659,11 +661,11 @@ class RelatorioFinanceiroServiceTest {
   @Test
   @DisplayName("Deve usar responsavel padrao ao gerar PDF sem autenticacao")
   void deveUsarResponsavelPadraoAoGerarPdfSemAutenticacao() {
-    UsuarioRepository usuarioRepository = Mockito.mock(UsuarioRepository.class);
-    PlaywrightPdfService playwrightPdfService = Mockito.mock(PlaywrightPdfService.class);
+    UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
+    PlaywrightPdfService playwrightPdfService = mock(PlaywrightPdfService.class);
     RelatorioFinanceiroService service =
         new RelatorioFinanceiroService(
-            Mockito.mock(ItemRepository.class),
+            mock(ItemRepository.class),
             campaignScopeResolver(),
             usuarioRepository,
             playwrightPdfService,
@@ -696,16 +698,16 @@ class RelatorioFinanceiroServiceTest {
 
   private RelatorioFinanceiroService service() {
     return new RelatorioFinanceiroService(
-        Mockito.mock(ItemRepository.class),
+        mock(ItemRepository.class),
         campaignScopeResolver(),
-        Mockito.mock(UsuarioRepository.class),
-        Mockito.mock(PlaywrightPdfService.class),
+        mock(UsuarioRepository.class),
+        mock(PlaywrightPdfService.class),
         passThroughCache());
   }
 
   private CampaignScopeResolver campaignScopeResolver() {
     CandidateRoleCatalogService candidateRoleCatalogService =
-        Mockito.mock(CandidateRoleCatalogService.class);
+        mock(CandidateRoleCatalogService.class);
     when(candidateRoleCatalogService.filterAvailableRoles(Mockito.anyCollection()))
         .thenAnswer(
             invocation ->
@@ -716,7 +718,7 @@ class RelatorioFinanceiroServiceTest {
 
   @SuppressWarnings("unchecked")
   private RelatorioResumoCacheService passThroughCache() {
-    RelatorioResumoCacheService cacheService = Mockito.mock(RelatorioResumoCacheService.class);
+    RelatorioResumoCacheService cacheService = mock(RelatorioResumoCacheService.class);
     when(cacheService.getOrCompute(
             Mockito.any(CampaignScope.class), Mockito.anyString(), Mockito.any()))
         .thenAnswer(

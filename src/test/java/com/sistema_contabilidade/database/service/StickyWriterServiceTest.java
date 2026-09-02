@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.database.service;
 
+import static org.mockito.Mockito.times;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -122,7 +123,7 @@ class StickyWriterServiceTest {
     service.markWriter(sessionId);
     service.markWriter(sessionId);
 
-    verify(valueOperations, org.mockito.Mockito.times(2))
+    verify(valueOperations, times(2))
         .set(StickyWriterService.KEY_PREFIX + sessionId, "1", Duration.ofSeconds(10));
   }
 

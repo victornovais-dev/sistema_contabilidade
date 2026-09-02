@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.relatorio.service;
 
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -19,7 +20,7 @@ class ThymeleafTemplateRendererTest {
   @Test
   @DisplayName("Deve renderizar template com variavel informada")
   void deveRenderizarTemplateComVariavelInformada() {
-    TemplateEngine templateEngine = Mockito.mock(TemplateEngine.class);
+    TemplateEngine templateEngine = mock(TemplateEngine.class);
     ThymeleafTemplateRenderer renderer = new ThymeleafTemplateRenderer(templateEngine);
     Map<String, String> data = Map.of("empresa", "Sistema Contabilidade");
     ArgumentCaptor<Context> contextCaptor = ArgumentCaptor.forClass(Context.class);
@@ -37,7 +38,7 @@ class ThymeleafTemplateRendererTest {
   @Test
   @DisplayName("Deve renderizar template com variaveis extras")
   void deveRenderizarTemplateComVariaveisExtras() {
-    TemplateEngine templateEngine = Mockito.mock(TemplateEngine.class);
+    TemplateEngine templateEngine = mock(TemplateEngine.class);
     ThymeleafTemplateRenderer renderer = new ThymeleafTemplateRenderer(templateEngine);
     ArgumentCaptor<Context> contextCaptor = ArgumentCaptor.forClass(Context.class);
 

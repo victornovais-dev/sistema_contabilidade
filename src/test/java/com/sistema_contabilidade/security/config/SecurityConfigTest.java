@@ -1,5 +1,7 @@
 package com.sistema_contabilidade.security.config;
 
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,7 +13,6 @@ import com.sistema_contabilidade.security.filter.RequestContextMdcFilter;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -91,8 +92,8 @@ class SecurityConfigTest {
   @DisplayName("Deve falhar ao obter AuthenticationManager quando configuracao quebrar")
   void deveFalharAoObterAuthenticationManagerQuandoConfiguracaoQuebrar() {
     SecurityConfig config = newConfig();
-    AuthenticationConfiguration configuration = Mockito.mock(AuthenticationConfiguration.class);
-    Mockito.when(configuration.getAuthenticationManager())
+    AuthenticationConfiguration configuration = mock(AuthenticationConfiguration.class);
+    when(configuration.getAuthenticationManager())
         .thenThrow(new IllegalStateException("quebrou"));
 
     IllegalStateException exception =
@@ -104,9 +105,9 @@ class SecurityConfigTest {
 
   private SecurityConfig newConfig() {
     return new SecurityConfig(
-        Mockito.mock(JwtAuthFilter.class),
-        Mockito.mock(RateLimitFilter.class),
-        Mockito.mock(DatabaseRoutingFilter.class),
-        Mockito.mock(RequestContextMdcFilter.class));
+        mock(JwtAuthFilter.class),
+        mock(RateLimitFilter.class),
+        mock(DatabaseRoutingFilter.class),
+        mock(RequestContextMdcFilter.class));
   }
 }

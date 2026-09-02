@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.auth.controller;
 
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -171,7 +172,7 @@ class AuthControllerTest {
   @Test
   @DisplayName("Deve retornar nome do usuario autenticado no endpoint me")
   void meDeveRetornarNomeDoUsuario() {
-    Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
+    Authentication authentication = mock(Authentication.class);
     when(authentication.getName()).thenReturn("victor@email.com");
 
     ResponseEntity<String> result = authController.me(authentication);
@@ -183,7 +184,7 @@ class AuthControllerTest {
   @Test
   @DisplayName("Deve retornar roles do usuario autenticado no endpoint meRoles")
   void meRolesDeveRetornarRoles() {
-    Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
+    Authentication authentication = mock(Authentication.class);
     doReturn(
             List.of(
                 new SimpleGrantedAuthority("ROLE_ADMIN"),
@@ -294,7 +295,7 @@ class AuthControllerTest {
   @Test
   @DisplayName("Deve retornar rotas admin somente para perfil admin")
   void routesDeveRetornarRotasAdmin() {
-    Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
+    Authentication authentication = mock(Authentication.class);
     when(adminRouteService.routeConfig()).thenReturn(Map.of("adminPagePath", "/segredo/admin"));
 
     ResponseEntity<Map<String, String>> result = authController.routes(authentication);
