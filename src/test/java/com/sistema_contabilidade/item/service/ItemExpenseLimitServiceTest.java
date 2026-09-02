@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.item.service;
 
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -18,7 +19,6 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.web.server.ResponseStatusException;
 
 @DisplayName("ItemExpenseLimitService unit tests")
@@ -27,7 +27,7 @@ class ItemExpenseLimitServiceTest {
   @Test
   @DisplayName("Deve ignorar categorias sem limite especial")
   void deveIgnorarCategoriasSemLimiteEspecial() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     ItemExpenseLimitService service = new ItemExpenseLimitService(itemRepository);
 
     assertDoesNotThrow(
@@ -37,7 +37,7 @@ class ItemExpenseLimitServiceTest {
   @Test
   @DisplayName("Deve bloquear combustivel acima de 10 por cento das despesas")
   void deveBloquearCombustivelAcimaDeDezPorCentoDasDespesas() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     ItemExpenseLimitService service = new ItemExpenseLimitService(itemRepository);
 
     when(itemRepository.findByTipoAndRoleNome(TipoItem.DESPESA, "ADMIN"))
@@ -58,7 +58,7 @@ class ItemExpenseLimitServiceTest {
   @Test
   @DisplayName("Deve bloquear locacao somando aluguel de imoveis e veiculos")
   void deveBloquearLocacaoSomandoAluguelDeImoveisEVeiculos() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     ItemExpenseLimitService service = new ItemExpenseLimitService(itemRepository);
 
     when(itemRepository.findByTipoAndRoleNome(TipoItem.DESPESA, "ADMIN"))
@@ -79,7 +79,7 @@ class ItemExpenseLimitServiceTest {
   @Test
   @DisplayName("Deve permitir locacao no limite de 20 por cento")
   void devePermitirLocacaoNoLimiteDeVintePorCento() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     ItemExpenseLimitService service = new ItemExpenseLimitService(itemRepository);
 
     when(itemRepository.findByTipoAndRoleNome(TipoItem.DESPESA, "ADMIN"))
@@ -92,7 +92,7 @@ class ItemExpenseLimitServiceTest {
   @Test
   @DisplayName("Deve ignorar o proprio item ao validar atualizacao")
   void deveIgnorarOProprioItemAoValidarAtualizacao() {
-    ItemRepository itemRepository = Mockito.mock(ItemRepository.class);
+    ItemRepository itemRepository = mock(ItemRepository.class);
     ItemExpenseLimitService service = new ItemExpenseLimitService(itemRepository);
     UUID itemId = UUID.fromString("aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb");
 

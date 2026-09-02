@@ -16,6 +16,7 @@ import com.sistema_contabilidade.item.model.FormaPagamentoItem;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
 import com.sistema_contabilidade.item.model.ItemParcelaPagamento;
+import com.sistema_contabilidade.item.model.ItemParcelaPagamentoArquivo;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.rbac.model.Role;
 import com.sistema_contabilidade.rbac.repository.RoleRepository;
@@ -156,6 +157,36 @@ class ItemRepositoryTest {
   }
 
   @Test
+  @DisplayName("Deve marcar resumo com arquivo somente em parcela de pagamento")
+  void deveMarcarResumoComArquivoSomenteEmParcelaDePagamento() {
+    Usuario criador = criarUsuarioComRole("parcela-resumo@email.com", "FINANCEIRO");
+    Item item = novoItem(TipoItem.DESPESA, null, criador, "FINANCEIRO");
+    ItemParcelaPagamento parcela = new ItemParcelaPagamento();
+    parcela.setItem(item);
+    parcela.setNumero(1);
+    parcela.setValorParcela(new BigDecimal("50.00"));
+    parcela.setPaga(true);
+    parcela.setContaOrigemPagamento(ContaOrigemPagamentoItem.CONTA_DC);
+    ItemParcelaPagamentoArquivo arquivo = new ItemParcelaPagamentoArquivo();
+    arquivo.setParcelaPagamento(parcela);
+    arquivo.setCaminhoArquivoPdf("uploads/pagamentos/parcela.pdf");
+    parcela.getArquivosComprovantes().add(arquivo);
+    item.getParcelasPagamento().add(parcela);
+    itemRepository.saveAndFlush(item);
+
+    ItemListResponse resumoLegado =
+        itemRepository.findResumoVisiveisPorRoleNomeOrderByHorarioCriacaoDesc("FINANCEIRO").getFirst();
+    Slice<ItemListResponse> pagina =
+        itemRepository.findPageForList(
+            new ItemListPageQuery(
+                Set.of("FINANCEIRO"), TipoItem.DESPESA, null, null, "SERVICOS", null),
+            PageRequest.of(0, 10));
+
+    assertTrue(resumoLegado.temArquivos());
+    assertTrue(pagina.getContent().getFirst().temArquivos());
+  }
+
+  @Test
   @DisplayName("Deve paginar lista filtrando descricao exata e razao normalizada")
   void devePaginarListaFiltrandoDescricaoExataERazaoNormalizada() {
     Usuario criador = criarUsuarioComRole("pagina@email.com", "FINANCEIRO");
@@ -219,6 +250,7 @@ class ItemRepositoryTest {
     ItemListPageQuery query =
         new ItemListPageQuery(Set.of("FINANCEIRO"), TipoItem.DESPESA, null, null, "SERVICOS", null);
     ItemListKeysetPage primeiraPagina = itemRepository.findKeysetPageForList(query, null, 2);
+    assertEquals(5, itemRepository.countForList(query));
     ItemListResponse ultimoDaPrimeira = primeiraPagina.items().getLast();
     ItemListKeysetPage segundaPagina =
         itemRepository.findKeysetPageForList(

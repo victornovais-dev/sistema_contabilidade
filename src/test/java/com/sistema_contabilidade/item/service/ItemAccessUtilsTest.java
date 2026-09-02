@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.item.service;
 
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,7 +14,6 @@ import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.server.ResponseStatusException;
@@ -31,7 +31,7 @@ class ItemAccessUtilsTest {
   @Test
   @DisplayName("Deve buscar usuario autenticado no repositorio")
   void deveBuscarUsuarioAutenticadoNoRepositorio() {
-    UsuarioRepository usuarioRepository = Mockito.mock(UsuarioRepository.class);
+    UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
     Usuario usuario = usuarioComRoles("user@email.com", "financeiro", "operador");
     when(usuarioRepository.findByEmail("user@email.com")).thenReturn(Optional.of(usuario));
 

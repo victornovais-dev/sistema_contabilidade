@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.item.config;
 
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
@@ -20,7 +21,7 @@ class ItemTipoDocumentoInitializerTest {
   @DisplayName("Deve criar e atualizar tipos de documento padrao no banco")
   void deveCriarEAtualizarTiposDocumentoPadraoNoBanco() {
     ItemTipoDocumentoRepository itemTipoDocumentoRepository =
-        org.mockito.Mockito.mock(ItemTipoDocumentoRepository.class);
+        mock(ItemTipoDocumentoRepository.class);
     when(itemTipoDocumentoRepository.findByNomeIgnoreCase(any())).thenReturn(Optional.empty());
 
     ItemTipoDocumentoInitializer initializer =

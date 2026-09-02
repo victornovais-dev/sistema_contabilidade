@@ -111,6 +111,7 @@ public class ItemController {
   private static final String CPF_DUPLICADO = "Ja existe um item cadastrado com este CPF.";
   private static final String VALOR_OBRIGATORIO = "Valor e obrigatorio";
   private static final String DATA_OBRIGATORIA = "Data e obrigatoria";
+  private static final int MAXIMO_CARACTERES_OBSERVACAO = 2000;
   private static final int MAXIMO_PARCELAS = 4;
   private static final BigDecimal MAXIMO_VALOR_PARCELA = new BigDecimal("5000000.00");
   private static final String PAGAMENTO_INVALIDO = "Dados de pagamento invalidos.";
@@ -163,7 +164,7 @@ public class ItemController {
               .toUri();
       return ResponseEntity.created(location).body(ItemResponse.from(salvo));
     } catch (RuntimeException ex) {
-      removerArquivosSemFalhar(arquivosSalvos);
+      limparArquivosNovosAposFalha(arquivosSalvos);
       throw ex;
     }
   }
@@ -338,7 +339,7 @@ public class ItemController {
           salvo.getArquivos().stream().map(ItemArquivoResponse::from).toList();
       return ResponseEntity.ok(response);
     } catch (RuntimeException ex) {
-      removerArquivosSemFalhar(arquivosSalvos);
+      limparArquivosNovosAposFalha(arquivosSalvos);
       throw ex;
     }
   }
@@ -358,7 +359,6 @@ public class ItemController {
                 () ->
                     new ResponseStatusException(HttpStatus.NOT_FOUND, ARQUIVO_ITEM_NAO_ENCONTRADO));
 
-    arquivoStorageService.deletarPdf(arquivo.getCaminhoArquivoPdf());
     item.getArquivos().removeIf(entry -> arquivoId.equals(entry.getId()));
 
     if (item.getCaminhoArquivoPdf() != null
@@ -381,7 +381,6 @@ public class ItemController {
       @PathVariable("id") UUID id,
       @Valid @RequestBody ItemUpsertRequest request) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
-    List<String> arquivosAntigos = listarArquivosPersistidos(item);
     List<String> arquivosNovos = List.of();
     Usuario usuarioAutenticado =
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
@@ -399,10 +398,9 @@ public class ItemController {
       arquivosNovos = atualizarArquivos(item, request.arquivosPdf(), request.nomesArquivos());
       Item salvo = itemRepository.save(item);
       notificacaoService.sincronizarComItem(salvo);
-      removerArquivosSubstituidos(arquivosAntigos, arquivosNovos);
       return ResponseEntity.ok(ItemResponse.from(salvo));
     } catch (RuntimeException ex) {
-      removerArquivosSemFalhar(arquivosNovos);
+      limparArquivosNovosAposFalha(arquivosNovos);
       throw ex;
     }
   }
@@ -415,7 +413,8 @@ public class ItemController {
       @Valid @RequestBody ItemObservacaoUpdateRequest request) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
     item.setObservacao(
-        inputSanitizer.sanitizeMultilineText(request.observacao(), "observacao", 500));
+        inputSanitizer.sanitizeMultilineText(
+            request.observacao(), "observacao", MAXIMO_CARACTERES_OBSERVACAO));
     Item salvo = itemRepository.save(item);
     return ResponseEntity.ok(ItemResponse.from(salvo));
   }
@@ -433,10 +432,9 @@ public class ItemController {
     PagamentoApplyResult resultado = aplicarPagamento(item, request);
     try {
       Item salvo = itemRepository.save(item);
-      removerArquivosSubstituidos(resultado.arquivosParaRemover(), resultado.arquivosNovos());
       return ResponseEntity.ok(ItemResponse.from(salvo));
     } catch (RuntimeException ex) {
-      removerArquivosSemFalhar(resultado.arquivosNovos());
+      limparArquivosNovosAposFalha(resultado.arquivosNovos());
       throw ex;
     }
   }
@@ -694,7 +692,8 @@ public class ItemController {
             ? null
             : inputSanitizer.sanitizeInlineText(request.cnpjCpf(), "cnpjCpf", 32));
     item.setObservacao(
-        inputSanitizer.sanitizeMultilineText(request.observacao(), "observacao", 500));
+        inputSanitizer.sanitizeMultilineText(
+            request.observacao(), "observacao", MAXIMO_CARACTERES_OBSERVACAO));
   }
 
   private void validarCamposObrigatorios(ItemUpsertRequest request, boolean contaFinanceira) {
@@ -756,18 +755,16 @@ public class ItemController {
   private PagamentoApplyResult aplicarPagamento(Item item, ItemPagamentoUpdateRequest request) {
     PagamentoContext context = prepararPagamento(item, request);
     List<String> arquivosNovos = new ArrayList<>();
-    List<String> arquivosParaRemover = new ArrayList<>();
 
     try {
       List<ItemParcelaPagamento> parcelasAtualizadas =
-          atualizarParcelas(item, context, arquivosNovos, arquivosParaRemover);
-      removerArquivosDasParcelasExcluidas(item, context.quantidadeParcelas(), arquivosParaRemover);
+          atualizarParcelas(item, context, arquivosNovos);
       substituirParcelas(item, context.formaPagamento(), parcelasAtualizadas);
     } catch (RuntimeException ex) {
-      removerArquivosSemFalhar(arquivosNovos);
+      limparArquivosNovosAposFalha(arquivosNovos);
       throw ex;
     }
-    return new PagamentoApplyResult(List.copyOf(arquivosNovos), List.copyOf(arquivosParaRemover));
+    return new PagamentoApplyResult(List.copyOf(arquivosNovos));
   }
 
   private PagamentoContext prepararPagamento(Item item, ItemPagamentoUpdateRequest request) {
@@ -836,14 +833,10 @@ public class ItemController {
   }
 
   private List<ItemParcelaPagamento> atualizarParcelas(
-      Item item,
-      PagamentoContext context,
-      List<String> arquivosNovos,
-      List<String> arquivosParaRemover) {
+      Item item, PagamentoContext context, List<String> arquivosNovos) {
     List<ItemParcelaPagamento> parcelasAtualizadas = new ArrayList<>();
     for (int indice = 1; indice <= context.quantidadeParcelas(); indice++) {
-      parcelasAtualizadas.add(
-          atualizarParcela(item, context, indice, arquivosNovos, arquivosParaRemover));
+      parcelasAtualizadas.add(atualizarParcela(item, context, indice, arquivosNovos));
     }
     return parcelasAtualizadas;
   }
@@ -852,8 +845,7 @@ public class ItemController {
       Item item,
       PagamentoContext context,
       int indice,
-      List<String> arquivosNovos,
-      List<String> arquivosParaRemover) {
+      List<String> arquivosNovos) {
     ItemPagamentoParcelaUpdateRequest parcelaRequest = context.requestPorNumero().get(indice);
     ItemParcelaPagamento parcela =
         context.parcelaExistentePorNumero().getOrDefault(indice, new ItemParcelaPagamento());
@@ -865,7 +857,7 @@ public class ItemController {
     parcela.setValorParcela(valorParcela);
     parcela.setPaga(paga);
     parcela.setContaOrigemPagamento(paga ? parcelaRequest.contaOrigemPagamento() : null);
-    atualizarArquivosPagamento(parcela, parcelaRequest, paga, arquivosNovos, arquivosParaRemover);
+    atualizarArquivosPagamento(parcela, parcelaRequest, paga, arquivosNovos);
     validarAnexoParcelaPaga(parcela, paga);
     return parcela;
   }
@@ -891,16 +883,6 @@ public class ItemController {
   private boolean possuiAnexoPagamento(ItemParcelaPagamento parcela) {
     return (parcela.getCaminhoArquivoPdf() != null && !parcela.getCaminhoArquivoPdf().isBlank())
         || !parcela.getArquivosComprovantes().isEmpty();
-  }
-
-  private void removerArquivosDasParcelasExcluidas(
-      Item item, int quantidadeParcelas, List<String> arquivosParaRemover) {
-    for (ItemParcelaPagamento parcelaExistente : new ArrayList<>(item.getParcelasPagamento())) {
-      Integer numero = parcelaExistente.getNumero();
-      if (numero == null || numero > quantidadeParcelas) {
-        adicionarArquivosPagamentoParaRemover(parcelaExistente, arquivosParaRemover);
-      }
-    }
   }
 
   private void substituirParcelas(
@@ -983,19 +965,16 @@ public class ItemController {
       ItemParcelaPagamento parcela,
       ItemPagamentoParcelaUpdateRequest request,
       boolean paga,
-      List<String> arquivosNovos,
-      List<String> arquivosParaRemover) {
+      List<String> arquivosNovos) {
     if (!paga) {
-      adicionarArquivosPagamentoParaRemover(parcela, arquivosParaRemover);
       parcela.setCaminhoArquivoPdf(null);
       parcela.getArquivosComprovantes().clear();
       return;
     }
     if (Boolean.TRUE.equals(request.removerArquivoLegado())) {
-      adicionarCaminhoSeValido(parcela.getCaminhoArquivoPdf(), arquivosParaRemover);
       parcela.setCaminhoArquivoPdf(null);
     }
-    removerArquivosPagamentoSelecionados(parcela, request.arquivosRemovidos(), arquivosParaRemover);
+    removerArquivosPagamentoSelecionados(parcela, request.arquivosRemovidos());
 
     List<byte[]> arquivosPdf = request.arquivosPdf();
     List<String> nomesArquivos = request.nomesArquivos();
@@ -1021,7 +1000,6 @@ public class ItemController {
     }
     arquivosNovos.addAll(caminhosNovos);
     if (uploadLegado) {
-      adicionarCaminhoSeValido(parcela.getCaminhoArquivoPdf(), arquivosParaRemover);
       parcela.setCaminhoArquivoPdf(caminhosNovos.getFirst());
       return;
     }
@@ -1034,9 +1012,7 @@ public class ItemController {
   }
 
   private void removerArquivosPagamentoSelecionados(
-      ItemParcelaPagamento parcela,
-      List<UUID> arquivosRemovidos,
-      List<String> arquivosParaRemover) {
+      ItemParcelaPagamento parcela, List<UUID> arquivosRemovidos) {
     if (arquivosRemovidos == null || arquivosRemovidos.isEmpty()) {
       return;
     }
@@ -1044,23 +1020,7 @@ public class ItemController {
     parcela
         .getArquivosComprovantes()
         .removeIf(
-            arquivo -> {
-              if (!idsParaRemover.contains(arquivo.getId())) {
-                return false;
-              }
-              adicionarCaminhoSeValido(arquivo.getCaminhoArquivoPdf(), arquivosParaRemover);
-              return true;
-            });
-  }
-
-  private void adicionarArquivosPagamentoParaRemover(
-      ItemParcelaPagamento parcela, List<String> arquivosParaRemover) {
-    adicionarCaminhoSeValido(parcela.getCaminhoArquivoPdf(), arquivosParaRemover);
-    parcela
-        .getArquivosComprovantes()
-        .forEach(
-            arquivo ->
-                adicionarCaminhoSeValido(arquivo.getCaminhoArquivoPdf(), arquivosParaRemover));
+            arquivo -> idsParaRemover.contains(arquivo.getId()));
   }
 
   private void adicionarCaminhoSeValido(String caminho, List<String> caminhos) {
@@ -1069,8 +1029,7 @@ public class ItemController {
     }
   }
 
-  private record PagamentoApplyResult(
-      List<String> arquivosNovos, List<String> arquivosParaRemover) {}
+  private record PagamentoApplyResult(List<String> arquivosNovos) {}
 
   private record PagamentoContext(
       FormaPagamentoItem formaPagamento,
@@ -1125,16 +1084,7 @@ public class ItemController {
     return caminhos;
   }
 
-  private void removerArquivosSubstituidos(
-      List<String> arquivosAntigos, List<String> arquivosNovos) {
-    for (String caminhoAntigo : arquivosAntigos) {
-      if (!arquivosNovos.contains(caminhoAntigo)) {
-        arquivoStorageService.deletarPdf(caminhoAntigo);
-      }
-    }
-  }
-
-  private void removerArquivosSemFalhar(List<String> arquivos) {
+  private void limparArquivosNovosAposFalha(List<String> arquivos) {
     for (String caminho : arquivos) {
       try {
         arquivoStorageService.deletarPdf(caminho);

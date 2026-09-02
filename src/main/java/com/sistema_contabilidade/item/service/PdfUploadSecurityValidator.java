@@ -3,17 +3,14 @@ package com.sistema_contabilidade.item.service;
 import com.sistema_contabilidade.config.StorageProperties;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
 @Component
-@Slf4j
 public class PdfUploadSecurityValidator {
 
   private static final byte[] PDF_SIGNATURE =
@@ -21,16 +18,10 @@ public class PdfUploadSecurityValidator {
   private static final long DEFAULT_MAX_PDF_SIZE_BYTES = 20L * 1024L * 1024L;
   private static final String INVALID_PDF_MESSAGE = "Arquivo PDF invalido.";
   private static final String PDF_ONLY_MESSAGE = "Envie somente arquivos PDF.";
-  private static final String PDF_EXECUTABLE_MESSAGE =
-      "PDF com conteudo executavel nao e permitido.";
   private static final Set<String> DANGEROUS_EXTENSIONS =
       Set.of(
           "php", "php3", "php4", "php5", "phtml", "phar", "jsp", "jspx", "asp", "aspx", "exe",
           "bat", "cmd", "sh", "bash", "ps1", "svg", "js", "jar", "zip");
-  private static final List<String> MALICIOUS_PDF_MARKERS =
-      List.of("/JS", "/JavaScript", "/OpenAction", "/Launch", "/RichMedia", "/XFA");
-  private static final List<String> DANGEROUS_ADDITIONAL_ACTION_MARKERS =
-      List.of("/JS", "/JavaScript", "/Launch", "/SubmitForm", "/ImportData", "/URI");
 
   private final long maxPdfSizeBytes;
 
@@ -57,7 +48,6 @@ public class PdfUploadSecurityValidator {
     }
     validarNomeArquivo(nomeOriginal);
     validarMagicBytes(arquivoPdf);
-    validarMarcadoresMaliciosos(arquivoPdf, nomeOriginal);
   }
 
   private void validarNomeArquivo(String nomeOriginal) {
@@ -82,70 +72,6 @@ public class PdfUploadSecurityValidator {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, INVALID_PDF_MESSAGE);
       }
     }
-  }
-
-  private void validarMarcadoresMaliciosos(byte[] arquivoPdf, String nomeOriginal) {
-    for (String marcador : MALICIOUS_PDF_MARKERS) {
-      if (!contemNomePdf(arquivoPdf, marcador)) {
-        continue;
-      }
-      if (log.isWarnEnabled()) {
-        log.warn(
-            "Upload PDF bloqueado por marcador suspeito | nomeOriginal: {} | marcador: {}",
-            nomeOriginal,
-            marcador);
-      }
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PDF_EXECUTABLE_MESSAGE);
-    }
-    validarAdditionalActionsPerigosas(arquivoPdf, nomeOriginal);
-  }
-
-  private void validarAdditionalActionsPerigosas(byte[] arquivoPdf, String nomeOriginal) {
-    if (!contemNomePdf(arquivoPdf, "/AA")) {
-      return;
-    }
-    for (String marcador : DANGEROUS_ADDITIONAL_ACTION_MARKERS) {
-      if (!contemNomePdf(arquivoPdf, marcador)) {
-        continue;
-      }
-      if (log.isWarnEnabled()) {
-        log.warn(
-            "Upload PDF bloqueado por additional action suspeita | nomeOriginal: {} | marcador: {}",
-            nomeOriginal,
-            marcador);
-      }
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PDF_EXECUTABLE_MESSAGE);
-    }
-  }
-
-  private boolean contemNomePdf(byte[] conteudo, String marcador) {
-    byte[] marcadorBytes = marcador.getBytes(java.nio.charset.StandardCharsets.US_ASCII);
-    for (int inicio = 0; inicio <= conteudo.length - marcadorBytes.length; inicio += 1) {
-      if (!correspondeMarcador(conteudo, marcadorBytes, inicio)) {
-        continue;
-      }
-      int proximoIndice = inicio + marcadorBytes.length;
-      if (proximoIndice == conteudo.length || ehDelimitadorDeNomePdf(conteudo[proximoIndice])) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private boolean correspondeMarcador(byte[] conteudo, byte[] marcador, int inicio) {
-    for (int indice = 0; indice < marcador.length; indice += 1) {
-      if (conteudo[inicio + indice] != marcador[indice]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private boolean ehDelimitadorDeNomePdf(byte valor) {
-    return switch (valor) {
-      case 0, 9, 10, 12, 13, 32, '(', ')', '<', '>', '[', ']', '{', '}', '/', '%' -> true;
-      default -> false;
-    };
   }
 
   private String extrairExtensao(String nomeOriginal) {

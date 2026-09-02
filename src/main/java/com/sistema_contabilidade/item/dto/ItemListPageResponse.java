@@ -45,12 +45,12 @@ public record ItemListPageResponse(
       List<ItemListResponse> items,
       int page,
       int pageSize,
+      long totalItems,
       boolean hasNext,
       boolean hasPrevious,
       String nextCursor,
       String previousCursor) {
-    long totalItems = (long) (page - 1) * pageSize + items.size() + (hasNext ? 1 : 0);
-    int totalPages = Math.max(page + (hasNext ? 1 : 0), 1);
+    int totalPages = totalPages(totalItems, pageSize);
     return new ItemListPageResponse(
         items,
         page,
@@ -63,9 +63,8 @@ public record ItemListPageResponse(
         previousCursor);
   }
 
-  public static ItemListPageResponse fromSlice(Slice<ItemListResponse> slice) {
-    long totalItems = estimateTotalItems(slice);
-    int totalPages = estimateTotalPages(slice);
+  public static ItemListPageResponse fromSlice(Slice<ItemListResponse> slice, long totalItems) {
+    int totalPages = totalPages(totalItems, slice.getSize());
     return new ItemListPageResponse(
         slice.getContent(),
         slice.getNumber() + 1,
@@ -76,13 +75,11 @@ public record ItemListPageResponse(
         slice.hasPrevious());
   }
 
-  private static long estimateTotalItems(Slice<ItemListResponse> slice) {
-    long offset = (long) slice.getNumber() * slice.getSize();
-    long visibleItems = slice.getNumberOfElements();
-    return offset + visibleItems + (slice.hasNext() ? 1 : 0);
-  }
-
-  private static int estimateTotalPages(Slice<ItemListResponse> slice) {
-    return Math.max(slice.getNumber() + 1 + (slice.hasNext() ? 1 : 0), 1);
+  private static int totalPages(long totalItems, int pageSize) {
+    if (totalItems <= 0 || pageSize <= 0) {
+      return 1;
+    }
+    long totalPages = 1 + (totalItems - 1) / pageSize;
+    return totalPages > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) totalPages;
   }
 }

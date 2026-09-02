@@ -5,6 +5,9 @@ import com.sistema_contabilidade.item.config.ItemRazaoSocialSearchDatabaseSuppor
 import com.sistema_contabilidade.item.dto.ItemListCursorDirection;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.model.Item;
+import com.sistema_contabilidade.item.model.ItemArquivo;
+import com.sistema_contabilidade.item.model.ItemParcelaPagamento;
+import com.sistema_contabilidade.item.model.ItemParcelaPagamentoArquivo;
 import com.sistema_contabilidade.item.model.TipoItem;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -17,6 +20,7 @@ import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -43,13 +47,29 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
   private static final String FIELD_DATA = "data";
   private static final String FIELD_ID = "id";
   private static final String FIELD_HORARIO_CRIACAO = "horarioCriacao";
+  private static final String QUERY_PARAMETER_NAME = "query";
 
   @PersistenceContext private EntityManager entityManager;
   private final ObjectProvider<ItemRazaoSocialSearchDatabaseSupport> databaseSupportProvider;
 
   @Override
+  public long countForList(ItemListPageQuery query) {
+    Objects.requireNonNull(query, QUERY_PARAMETER_NAME);
+    if (shouldUseFullText(query)) {
+      return countWithFullText(query);
+    }
+
+    CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+    CriteriaQuery<Long> criteriaQuery = criteriaBuilder.createQuery(Long.class);
+    Root<Item> root = criteriaQuery.from(Item.class);
+    criteriaQuery.select(criteriaBuilder.count(root));
+    criteriaQuery.where(buildPredicates(query, criteriaBuilder, root).toArray(Predicate[]::new));
+    return entityManager.createQuery(criteriaQuery).getSingleResult();
+  }
+
+  @Override
   public Slice<ItemListResponse> findPageForList(ItemListPageQuery query, Pageable pageable) {
-    Objects.requireNonNull(query, "query");
+    Objects.requireNonNull(query, QUERY_PARAMETER_NAME);
     Objects.requireNonNull(pageable, "pageable");
     if (shouldUseFullText(query)) {
       return findPageContentWithFullText(query, pageable);
@@ -62,7 +82,7 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
   @Override
   public ItemListKeysetPage findKeysetPageForList(
       ItemListPageQuery query, ItemListKeysetCursor cursor, int pageSize) {
-    Objects.requireNonNull(query, "query");
+    Objects.requireNonNull(query, QUERY_PARAMETER_NAME);
     if (shouldUseFullText(query)) {
       return findKeysetPageContentWithFullText(query, cursor, pageSize);
     }
@@ -181,6 +201,20 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
     return rawIds.stream().map(this::toUuid).toList();
   }
 
+  private long countWithFullText(ItemListPageQuery query) {
+    StringBuilder sql = new StringBuilder("select count(*) from itens i where i.deleted_at is null");
+    Map<Integer, Object> parameters = new LinkedHashMap<>();
+    appendFullTextFilters(sql, parameters, query, 1);
+
+    Query nativeQuery = entityManager.createNativeQuery(sql.toString());
+    parameters.forEach(nativeQuery::setParameter);
+    Object total = nativeQuery.getSingleResult();
+    if (total instanceof Number number) {
+      return number.longValue();
+    }
+    return Long.parseLong(total.toString());
+  }
+
   private List<UUID> findIdsWithFullText(
       ItemListPageQuery query, ItemListKeysetCursor cursor, int pageSize) {
     StringBuilder sql = new StringBuilder("select i.id from itens i where i.deleted_at is null");
@@ -282,7 +316,7 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
             root.get("razaoSocialNome"),
             root.get("cnpjCpf"),
             root.get("verificado"),
-            buildHasAttachmentsExpression(criteriaBuilder, root)));
+            buildHasAttachmentsExpression(criteriaQuery, criteriaBuilder, root)));
   }
 
   private List<Predicate> buildPredicates(
@@ -401,16 +435,48 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
   }
 
   private Expression<Boolean> buildHasAttachmentsExpression(
-      CriteriaBuilder criteriaBuilder, Root<Item> root) {
-    Path<String> caminhoArquivoPdf = root.get("caminhoArquivoPdf");
+      CriteriaQuery<?> criteriaQuery, CriteriaBuilder criteriaBuilder, Root<Item> root) {
+    Subquery<Long> arquivosDoItem = criteriaQuery.subquery(Long.class);
+    Root<ItemArquivo> arquivoDoItem = arquivosDoItem.from(ItemArquivo.class);
+    arquivosDoItem
+        .select(criteriaBuilder.literal(1L))
+        .where(criteriaBuilder.equal(arquivoDoItem.get("item"), root));
+
+    Subquery<Long> parcelasComArquivoLegado = criteriaQuery.subquery(Long.class);
+    Root<ItemParcelaPagamento> parcela = parcelasComArquivoLegado.from(ItemParcelaPagamento.class);
+    parcelasComArquivoLegado
+        .select(criteriaBuilder.literal(1L))
+        .where(
+            criteriaBuilder.and(
+                criteriaBuilder.equal(parcela.get("item"), root),
+                hasStoredFilePath(criteriaBuilder, parcela.get("caminhoArquivoPdf"))));
+
+    Subquery<Long> arquivosDePagamento = criteriaQuery.subquery(Long.class);
+    Root<ItemParcelaPagamentoArquivo> arquivoDePagamento =
+        arquivosDePagamento.from(ItemParcelaPagamentoArquivo.class);
+    arquivosDePagamento
+        .select(criteriaBuilder.literal(1L))
+        .where(
+            criteriaBuilder.equal(
+                arquivoDePagamento.get("parcelaPagamento").get("item"), root));
+
     return criteriaBuilder
         .<Boolean>selectCase()
         .when(
-            criteriaBuilder.and(
-                criteriaBuilder.isNotNull(caminhoArquivoPdf),
-                criteriaBuilder.notEqual(criteriaBuilder.trim(caminhoArquivoPdf), "")),
+            criteriaBuilder.or(
+                hasStoredFilePath(criteriaBuilder, root.get("caminhoArquivoPdf")),
+                criteriaBuilder.exists(arquivosDoItem),
+                criteriaBuilder.exists(parcelasComArquivoLegado),
+                criteriaBuilder.exists(arquivosDePagamento)),
             true)
         .otherwise(false);
+  }
+
+  private Predicate hasStoredFilePath(
+      CriteriaBuilder criteriaBuilder, Path<String> caminhoArquivoPdf) {
+    return criteriaBuilder.and(
+        criteriaBuilder.isNotNull(caminhoArquivoPdf),
+        criteriaBuilder.notEqual(criteriaBuilder.trim(caminhoArquivoPdf), ""));
   }
 
   private Set<String> normalizeRoles(Set<String> roleNomes) {

@@ -16,6 +16,7 @@ const state = {
     hasPrevious: false,
     nextCursor: null,
     previousCursor: null,
+    pageRequests: new Map([[1, { cursor: null, direction: "NEXT" }]]),
   },
 };
 
@@ -73,7 +74,7 @@ const roleDropdown =
     : null;
 const listState = document.getElementById("list-state");
 const itemsList = document.getElementById("items-list");
-const pagination = document.getElementById("pagination");
+const paginationContainers = Array.from(document.querySelectorAll("[data-pagination]"));
 const itemCardTemplate = document.getElementById("item-card-template");
 const confirmOverlay = document.querySelector(".confirm-overlay");
 const confirmCancel = document.querySelector(".confirm-cancel");
@@ -1218,6 +1219,7 @@ const createItemCard = (item) => {
 
   const downloadLink = node.querySelector(".item-download");
   const hasArquivos =
+    Boolean(item.temArquivos) ||
     (Array.isArray(item.arquivosPdf) && item.arquivosPdf.length > 0) ||
     (item.caminhoArquivoPdf && String(item.caminhoArquivoPdf).trim().length > 0);
   const arquivoUrl = item.id ? `/api/v1/itens/${item.id}/arquivos/download` : null;
@@ -1259,6 +1261,10 @@ const createItemCard = (item) => {
 };
 
 const updateDownloadButton = (itemId, hasArquivos) => {
+  const item = state.items.find((entry) => String(entry.id) === String(itemId));
+  if (item) {
+    item.temArquivos = Boolean(hasArquivos);
+  }
   if (!itemsList) return;
   const card = itemsList.querySelector(`.item-card[data-id="${itemId}"]`);
   if (!card) return;
@@ -1284,54 +1290,143 @@ const resetPagination = () => {
   state.pagination.hasPrevious = false;
   state.pagination.nextCursor = null;
   state.pagination.previousCursor = null;
+  state.pagination.pageRequests = new Map([[1, { cursor: null, direction: "NEXT" }]]);
 };
 
-const createPaginationButton = ({ label, cursor, direction, disabled = false }) => {
+const createPaginationButton = ({
+  label,
+  page,
+  cursor = null,
+  direction = "NEXT",
+  current = false,
+  disabled = false,
+}) => {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "pagination-btn";
   button.textContent = label;
+  button.dataset.page = String(page);
   button.dataset.cursor = cursor || "";
   button.dataset.direction = direction;
-  button.disabled = disabled;
+  button.disabled = disabled || current;
+  if (current) {
+    button.classList.add("is-current");
+    button.setAttribute("aria-current", "page");
+  } else {
+    button.setAttribute("aria-label", `Ir para página ${page}`);
+  }
   return button;
 };
 
+const createPaginationEllipsis = () => {
+  const ellipsis = document.createElement("span");
+  ellipsis.className = "pagination-ellipsis";
+  ellipsis.setAttribute("aria-hidden", "true");
+  ellipsis.textContent = "…";
+  return ellipsis;
+};
+
+const getVisiblePageNumbers = () => {
+  const totalPages = Math.max(1, state.pagination.totalPages);
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const currentPage = state.pagination.page;
+  return Array.from(
+    new Set([
+      1,
+      2,
+      3,
+      currentPage,
+      totalPages - 2,
+      totalPages - 1,
+      totalPages,
+    ]),
+  ).sort((left, right) => left - right);
+};
+
+const navigateToPaginationPage = async (page) => {
+  const knownRequest = state.pagination.pageRequests.get(page);
+  if (knownRequest) {
+    state.pagination.page = page;
+    await loadItems(knownRequest.cursor, knownRequest.direction);
+    return;
+  }
+
+  while (state.pagination.page < page) {
+    const cursor = state.pagination.nextCursor;
+    if (!state.pagination.hasNext || !cursor) {
+      throw new Error("Não foi possível acessar a página selecionada.");
+    }
+    state.pagination.page += 1;
+    await loadItems(cursor, "NEXT");
+  }
+};
+
 const renderPagination = () => {
-  if (!pagination) return;
+  if (paginationContainers.length === 0) return;
 
   if (state.items.length === 0) {
-    pagination.hidden = true;
-    pagination.innerHTML = "";
+    paginationContainers.forEach((container) => {
+      container.hidden = true;
+      container.innerHTML = "";
+    });
     return;
   }
 
   const hasPrevious = state.pagination.hasPrevious && Boolean(state.pagination.previousCursor);
   const hasNext = state.pagination.hasNext && Boolean(state.pagination.nextCursor);
   if (!hasPrevious && !hasNext) {
-    pagination.hidden = true;
-    pagination.innerHTML = "";
+    paginationContainers.forEach((container) => {
+      container.hidden = true;
+      container.innerHTML = "";
+    });
     return;
   }
 
-  pagination.hidden = false;
-  pagination.innerHTML = "";
-  pagination.appendChild(
-    createPaginationButton({
-      label: "‹",
-      cursor: state.pagination.previousCursor,
-      direction: "PREVIOUS",
-      disabled: !hasPrevious,
-    }),
-  );
-  pagination.appendChild(
-    createPaginationButton({
-      label: "›",
-      cursor: state.pagination.nextCursor,
-      direction: "NEXT",
-      disabled: !hasNext,
-    }),
-  );
+  const pageNumbers = getVisiblePageNumbers();
+  paginationContainers.forEach((container) => {
+    container.hidden = false;
+    container.innerHTML = "";
+    container.appendChild(
+      createPaginationButton({
+        label: "‹",
+        page: Math.max(1, state.pagination.page - 1),
+        cursor: state.pagination.previousCursor,
+        direction: "PREVIOUS",
+        disabled: !hasPrevious,
+      }),
+    );
+
+    let previousPage = 0;
+    pageNumbers.forEach((page) => {
+      if (page - previousPage > 1) {
+        container.appendChild(createPaginationEllipsis());
+      }
+      const request = state.pagination.pageRequests.get(page);
+      container.appendChild(
+        createPaginationButton({
+          label: String(page),
+          page,
+          cursor: request?.cursor,
+          direction: request?.direction,
+          current: page === state.pagination.page,
+        }),
+      );
+      previousPage = page;
+    });
+
+    container.appendChild(
+      createPaginationButton({
+        label: "›",
+        page: state.pagination.page + 1,
+        cursor: state.pagination.nextCursor,
+        direction: "NEXT",
+        disabled: !hasNext,
+      }),
+    );
+  });
 };
 
 const renderItems = () => {
@@ -1339,10 +1434,10 @@ const renderItems = () => {
   itemsList.innerHTML = "";
   if (state.items.length === 0) {
     showListState("Nenhum comprovante encontrado.");
-    if (pagination) {
-      pagination.hidden = true;
-      pagination.innerHTML = "";
-    }
+    paginationContainers.forEach((container) => {
+      container.hidden = true;
+      container.innerHTML = "";
+    });
     return;
   }
   hideListState();
@@ -2690,6 +2785,15 @@ const loadItems = async (cursor = null, direction = "NEXT") => {
   state.pagination.hasPrevious = normalizedPayload.hasPrevious;
   state.pagination.nextCursor = normalizedPayload.nextCursor;
   state.pagination.previousCursor = normalizedPayload.previousCursor;
+  if (state.pagination.page === 1) {
+    state.pagination.pageRequests.set(1, { cursor: null, direction: "NEXT" });
+  }
+  if (normalizedPayload.hasNext && normalizedPayload.nextCursor) {
+    state.pagination.pageRequests.set(state.pagination.page + 1, {
+      cursor: normalizedPayload.nextCursor,
+      direction: "NEXT",
+    });
+  }
   state.itemChecks = new Map(
     state.items.map((item) => [String(item.id), Boolean(item.verificado)]),
   );
@@ -3082,28 +3186,34 @@ const bindEvents = () => {
     });
   }
 
-  if (pagination && itemsList) {
-    pagination.addEventListener("click", async (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const button = target.closest("button[data-direction][data-cursor]");
-      if (!(button instanceof HTMLButtonElement)) return;
-      if (button.disabled) return;
-      const cursor = String(button.dataset.cursor || "");
-      const direction = String(button.dataset.direction || "NEXT");
-      if (!cursor || !["NEXT", "PREVIOUS"].includes(direction)) return;
-      state.pagination.page =
-        direction === "PREVIOUS"
-          ? Math.max(1, state.pagination.page - 1)
-          : state.pagination.page + 1;
-      try {
-        await loadItems(cursor, direction);
-      } catch (error) {
-        showListState(
-          error instanceof Error ? error.message : "Erro ao carregar comprovantes. Tente novamente.",
-        );
-      }
-      itemsList.scrollIntoView({ block: "start" });
+  if (paginationContainers.length > 0 && itemsList) {
+    paginationContainers.forEach((pagination) => {
+      pagination.addEventListener("click", async (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const button = target.closest("button[data-page][data-direction]");
+        if (!(button instanceof HTMLButtonElement)) return;
+        if (button.disabled) return;
+        const page = Number(button.dataset.page);
+        if (!Number.isInteger(page) || page < 1 || page === state.pagination.page) return;
+        const cursor = String(button.dataset.cursor || "");
+        const direction = String(button.dataset.direction || "NEXT");
+        const currentPage = state.pagination.page;
+        try {
+          if (page > 1 && cursor && ["NEXT", "PREVIOUS"].includes(direction)) {
+            state.pagination.page = page;
+            await loadItems(cursor, direction);
+          } else {
+            await navigateToPaginationPage(page);
+          }
+        } catch (error) {
+          state.pagination.page = currentPage;
+          showListState(
+            error instanceof Error ? error.message : "Erro ao carregar comprovantes. Tente novamente.",
+          );
+        }
+        itemsList.scrollIntoView({ block: "start" });
+      });
     });
   }
 

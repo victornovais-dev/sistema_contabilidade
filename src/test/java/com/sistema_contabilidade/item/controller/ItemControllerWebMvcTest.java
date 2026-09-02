@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -1884,6 +1883,28 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve aceitar observacao com 2000 caracteres via PATCH")
+  void atualizarObservacaoDeveAceitar2000Caracteres() throws Exception {
+    UUID id = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeea");
+    String observacao = "a".repeat(2000);
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/observacao", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"observacao\":\"" + observacao + "\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.observacao").value(observacao));
+  }
+
+  @Test
   @DisplayName("Deve permitir CONTABIL atualizar observacao de item visivel")
   void atualizarObservacaoDevePermitirContabilParaItemDeOutraRole() throws Exception {
     UUID id = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeef");
@@ -2200,9 +2221,8 @@ class ItemControllerWebMvcTest {
                     """))
         .andExpect(status().isOk());
 
-    org.mockito.InOrder ordem = inOrder(itemRepository, itemArquivoStorageService);
-    ordem.verify(itemRepository).save(item);
-    ordem.verify(itemArquivoStorageService).deletarPdf("uploads/itens/remover-apos-salvar.pdf");
+    verify(itemRepository).save(item);
+    verify(itemArquivoStorageService, never()).deletarPdf("uploads/itens/remover-apos-salvar.pdf");
     assertTrue(parcela.getArquivosComprovantes().isEmpty());
   }
 
@@ -2562,6 +2582,7 @@ class ItemControllerWebMvcTest {
 
     assertTrue(item.getArquivos().isEmpty());
     assertNull(item.getCaminhoArquivoPdf());
+    verify(itemArquivoStorageService, never()).deletarPdf("uploads/itens/keep.pdf");
   }
 
   @Test

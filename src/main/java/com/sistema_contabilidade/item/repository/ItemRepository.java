@@ -44,7 +44,21 @@ public interface ItemRepository
         i.cnpjCpf,
         i.verificado,
         case
-          when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> '' then true
+          when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> ''
+            or exists (select arquivo.id from ItemArquivo arquivo where arquivo.item = i)
+            or exists (
+              select parcela.id
+              from ItemParcelaPagamento parcela
+              where parcela.item = i
+                and (
+                  parcela.caminhoArquivoPdf is not null and trim(parcela.caminhoArquivoPdf) <> ''
+                  or exists (
+                    select arquivoPagamento.id
+                    from ItemParcelaPagamentoArquivo arquivoPagamento
+                    where arquivoPagamento.parcelaPagamento = parcela
+                  )
+                )
+            ) then true
           else false
         end
       )
@@ -67,7 +81,21 @@ public interface ItemRepository
         i.cnpjCpf,
         i.verificado,
         case
-          when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> '' then true
+          when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> ''
+            or exists (select arquivo.id from ItemArquivo arquivo where arquivo.item = i)
+            or exists (
+              select parcela.id
+              from ItemParcelaPagamento parcela
+              where parcela.item = i
+                and (
+                  parcela.caminhoArquivoPdf is not null and trim(parcela.caminhoArquivoPdf) <> ''
+                  or exists (
+                    select arquivoPagamento.id
+                    from ItemParcelaPagamentoArquivo arquivoPagamento
+                    where arquivoPagamento.parcelaPagamento = parcela
+                  )
+                )
+            ) then true
           else false
         end
       )
@@ -92,7 +120,21 @@ public interface ItemRepository
         i.cnpjCpf,
         i.verificado,
         case
-          when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> '' then true
+          when i.caminhoArquivoPdf is not null and trim(i.caminhoArquivoPdf) <> ''
+            or exists (select arquivo.id from ItemArquivo arquivo where arquivo.item = i)
+            or exists (
+              select parcela.id
+              from ItemParcelaPagamento parcela
+              where parcela.item = i
+                and (
+                  parcela.caminhoArquivoPdf is not null and trim(parcela.caminhoArquivoPdf) <> ''
+                  or exists (
+                    select arquivoPagamento.id
+                    from ItemParcelaPagamentoArquivo arquivoPagamento
+                    where arquivoPagamento.parcelaPagamento = parcela
+                  )
+                )
+            ) then true
           else false
         end
       )

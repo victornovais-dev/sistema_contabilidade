@@ -96,7 +96,7 @@ Authorization/rules:
 - `CONTABIL` cannot delete.
 - verified items cannot be deleted.
 - Deleting an item soft-deletes its database records and preserves every associated PDF in storage.
-- Deleting or replacing an individual attachment continues to delete only that attachment from storage.
+- Deleting or replacing an individual attachment also soft-deletes its database record and preserves its PDF in storage.
 - `SUPPORT` can mark red -> green, but cannot revert green -> red.
 - `CANDIDATO` cannot change verification.
 - `Item` uses optimistic locking with `@Version`.

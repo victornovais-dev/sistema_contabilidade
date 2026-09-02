@@ -36,7 +36,8 @@ public record ItemUpsertRequest(
     @Size(max = 150, message = "Razao social ou nome deve ter no maximo 150 caracteres")
         String razaoSocialNome,
     @Size(max = 32, message = "CNPJ ou CPF deve ter no maximo 32 caracteres") String cnpjCpf,
-    @Size(max = 500, message = "Observacao deve ter no maximo 500 caracteres") String observacao) {
+    @Size(max = 2000, message = "Observacao deve ter no maximo 2000 caracteres")
+        String observacao) {
 
   public ItemUpsertRequest {
     if (arquivosPdf == null) {

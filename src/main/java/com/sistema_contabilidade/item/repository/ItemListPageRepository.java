@@ -6,6 +6,8 @@ import org.springframework.data.domain.Slice;
 
 public interface ItemListPageRepository {
 
+  long countForList(ItemListPageQuery query);
+
   Slice<ItemListResponse> findPageForList(ItemListPageQuery query, Pageable pageable);
 
   ItemListKeysetPage findKeysetPageForList(

@@ -1,6 +1,9 @@
 package com.sistema_contabilidade.item.dto;
 
 import com.sistema_contabilidade.item.model.Item;
+import com.sistema_contabilidade.item.model.ItemArquivo;
+import com.sistema_contabilidade.item.model.ItemParcelaPagamento;
+import com.sistema_contabilidade.item.model.ItemParcelaPagamentoArquivo;
 import com.sistema_contabilidade.item.model.TipoItem;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -32,6 +35,25 @@ public record ItemListResponse(
         item.getRazaoSocialNome(),
         item.getCnpjCpf(),
         item.isVerificado(),
-        item.getCaminhoArquivoPdf() != null && !item.getCaminhoArquivoPdf().isBlank());
+        temArquivos(item));
+  }
+
+  private static boolean temArquivos(Item item) {
+    return temCaminhoArquivo(item.getCaminhoArquivoPdf())
+        || item.getArquivos().stream()
+            .map(ItemArquivo::getCaminhoArquivoPdf)
+            .anyMatch(ItemListResponse::temCaminhoArquivo)
+        || item.getParcelasPagamento().stream().anyMatch(ItemListResponse::temArquivoPagamento);
+  }
+
+  private static boolean temArquivoPagamento(ItemParcelaPagamento parcela) {
+    return temCaminhoArquivo(parcela.getCaminhoArquivoPdf())
+        || parcela.getArquivosComprovantes().stream()
+            .map(ItemParcelaPagamentoArquivo::getCaminhoArquivoPdf)
+            .anyMatch(ItemListResponse::temCaminhoArquivo);
+  }
+
+  private static boolean temCaminhoArquivo(String caminhoArquivoPdf) {
+    return caminhoArquivoPdf != null && !caminhoArquivoPdf.isBlank();
   }
 }

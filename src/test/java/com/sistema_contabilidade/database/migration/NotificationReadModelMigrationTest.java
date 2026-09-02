@@ -62,7 +62,7 @@ class NotificationReadModelMigrationTest {
     Flyway flyway = configureFlyway().load();
     flyway.migrate();
 
-    assertThat(flyway.info().current().getVersion()).isEqualTo(MigrationVersion.fromVersion("9"));
+    assertThat(flyway.info().current().getVersion()).isEqualTo(MigrationVersion.fromVersion("10"));
     assertPublicQuestionTableExists();
     assertNotificationDataWasReconciled();
     assertNotificationConstraintsAreEnforced();

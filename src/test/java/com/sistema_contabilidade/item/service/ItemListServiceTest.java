@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sistema_contabilidade.item.dto.ItemListCursorDirection;
 import com.sistema_contabilidade.item.dto.ItemListPageRequest;
 import com.sistema_contabilidade.item.dto.ItemListPageResponse;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
@@ -85,12 +86,15 @@ class ItemListServiceTest {
     when(itemRepository.findKeysetPageForList(
             any(ItemListPageQuery.class), any(), any(Integer.class)))
         .thenReturn(new ItemListKeysetPage(List.of(item), false));
+    when(itemRepository.countForList(any(ItemListPageQuery.class))).thenReturn(1L);
 
     ItemListPageResponse resultado =
         service.listarItens(autenticacao("admin@email.com", "ADMIN"), new ItemListPageRequest());
 
     assertEquals(1, resultado.items().size());
     assertEquals(item.id(), resultado.items().getFirst().id());
+    assertEquals(1, resultado.totalItems());
+    assertEquals(1, resultado.totalPages());
     verify(itemRepository)
         .findKeysetPageForList(
             argThat(
@@ -103,6 +107,54 @@ class ItemListServiceTest {
                         && query.razao() == null),
             org.mockito.ArgumentMatchers.isNull(),
             org.mockito.ArgumentMatchers.eq(10));
+  }
+
+  @Test
+  @DisplayName("Deve navegar pelas paginas keyset a partir da primeira pagina")
+  void deveNavegarPelasPaginasKeysetAPartirDaPrimeiraPagina() {
+    ItemListService service =
+        new ItemListService(
+            itemRepository,
+            new CampaignScopeResolver(candidateRoleCatalogService),
+            new InputSanitizer());
+    ItemListResponse primeiroItem = novoResumo("ADMIN");
+    ItemListResponse segundoItem =
+        novoResumo(
+            "ADMIN",
+            UUID.fromString("22222222-2222-2222-2222-222222222222"),
+            LocalDateTime.of(2026, Month.APRIL, 7, 10, 30));
+    when(itemRepository.findKeysetPageForList(
+            any(ItemListPageQuery.class), any(), any(Integer.class)))
+        .thenReturn(
+            new ItemListKeysetPage(List.of(primeiroItem), true),
+            new ItemListKeysetPage(List.of(segundoItem), false),
+            new ItemListKeysetPage(List.of(primeiroItem), false));
+    when(itemRepository.countForList(any(ItemListPageQuery.class))).thenReturn(21L);
+
+    ItemListPageResponse primeiraPagina =
+        service.listarItens(autenticacao("admin@email.com", "ADMIN"), new ItemListPageRequest());
+    ItemListPageRequest proximaPagina = new ItemListPageRequest();
+    proximaPagina.setPage(2);
+    proximaPagina.setCursor(primeiraPagina.nextCursor());
+    proximaPagina.setDirection(ItemListCursorDirection.NEXT);
+    ItemListPageResponse segundaPagina =
+        service.listarItens(autenticacao("admin@email.com", "ADMIN"), proximaPagina);
+    ItemListPageRequest paginaAnterior = new ItemListPageRequest();
+    paginaAnterior.setCursor(segundaPagina.previousCursor());
+    paginaAnterior.setDirection(ItemListCursorDirection.PREVIOUS);
+    ItemListPageResponse primeiraPaginaRetornada =
+        service.listarItens(autenticacao("admin@email.com", "ADMIN"), paginaAnterior);
+
+    assertTrue(primeiraPagina.hasNext());
+    assertTrue(primeiraPagina.nextCursor() != null && !primeiraPagina.nextCursor().isBlank());
+    assertEquals(primeiroItem.id(), primeiraPagina.items().getFirst().id());
+    assertEquals(21, primeiraPagina.totalItems());
+    assertEquals(3, primeiraPagina.totalPages());
+    assertTrue(segundaPagina.hasPrevious());
+    assertTrue(segundaPagina.previousCursor() != null && !segundaPagina.previousCursor().isBlank());
+    assertEquals(segundoItem.id(), segundaPagina.items().getFirst().id());
+    assertTrue(primeiraPaginaRetornada.hasNext());
+    assertEquals(primeiroItem.id(), primeiraPaginaRetornada.items().getFirst().id());
   }
 
   @Test
@@ -263,11 +315,18 @@ class ItemListServiceTest {
   }
 
   private ItemListResponse novoResumo(String roleNome) {
-    return new ItemListResponse(
+    return novoResumo(
+        roleNome,
         UUID.fromString("11111111-1111-1111-1111-111111111111"),
+        LocalDateTime.of(2026, Month.APRIL, 8, 10, 30));
+  }
+
+  private ItemListResponse novoResumo(String roleNome, UUID id, LocalDateTime horarioCriacao) {
+    return new ItemListResponse(
+        id,
         new BigDecimal("120.50"),
         LocalDate.of(2026, Month.APRIL, 8),
-        LocalDateTime.of(2026, Month.APRIL, 8, 10, 30),
+        horarioCriacao,
         TipoItem.DESPESA,
         roleNome,
         "SERVICOS",

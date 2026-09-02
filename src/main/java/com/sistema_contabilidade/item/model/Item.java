@@ -97,7 +97,7 @@ public class Item implements BlindIndexAware {
   private String cnpjCpfBlindIndex;
 
   @Convert(converter = EncryptedStringConverter.class)
-  @Column(length = 1024)
+  @Column(columnDefinition = "MEDIUMTEXT")
   private String observacao;
 
   @Enumerated(EnumType.STRING)

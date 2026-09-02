@@ -1,5 +1,6 @@
 package com.sistema_contabilidade.item.config;
 
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
@@ -21,7 +22,7 @@ class ItemDescricaoInitializerTest {
   @DisplayName("Deve criar e atualizar descricoes padrao no banco")
   void deveCriarEAtualizarDescricoesPadraoNoBanco() {
     ItemDescricaoRepository itemDescricaoRepository =
-        org.mockito.Mockito.mock(ItemDescricaoRepository.class);
+        mock(ItemDescricaoRepository.class);
     when(itemDescricaoRepository.findByTipoAndNomeIgnoreCase(any(), any()))
         .thenReturn(Optional.empty());
 

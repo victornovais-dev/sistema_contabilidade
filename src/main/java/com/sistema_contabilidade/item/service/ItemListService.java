@@ -153,7 +153,7 @@ public class ItemListService {
       return listarComOffsetLegado(query, page, pageSize);
     }
     ItemListKeysetPage itemPage = itemRepository.findKeysetPageForList(query, null, pageSize);
-    return toKeysetResponse(itemPage, query, page, pageSize, false, false);
+    return toKeysetResponse(itemPage, query, page, pageSize, itemPage.hasMore(), false);
   }
 
   private ItemListPageResponse listarComCursor(
@@ -181,7 +181,14 @@ public class ItemListService {
             ? itemListCursorService.create(query, pageSize, position(items.getFirst()))
             : null;
     return ItemListPageResponse.fromKeyset(
-        items, page, pageSize, hasNext, hasPrevious, nextCursor, previousCursor);
+        items,
+        page,
+        pageSize,
+        itemRepository.countForList(query),
+        hasNext,
+        hasPrevious,
+        nextCursor,
+        previousCursor);
   }
 
   private ItemListKeysetCursor position(ItemListResponse item) {
@@ -199,7 +206,7 @@ public class ItemListService {
               PageRequest.of(Math.max(pageable.getPageNumber() - 1, 0), pageSize, DEFAULT_SORT));
     }
 
-    return ItemListPageResponse.fromSlice(itemPage);
+    return ItemListPageResponse.fromSlice(itemPage, itemRepository.countForList(query));
   }
 
   @Transactional(readOnly = true)

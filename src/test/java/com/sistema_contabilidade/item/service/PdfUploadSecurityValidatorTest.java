@@ -50,18 +50,47 @@ class PdfUploadSecurityValidatorTest {
   }
 
   @Test
-  @DisplayName("Deve rejeitar PDF com JavaScript embutido")
-  void deveRejeitarPdfComJavaScriptEmbutido() {
+  @DisplayName("Deve aceitar PDF com JavaScript embutido")
+  void deveAceitarPdfComJavaScriptEmbutido() {
     PdfUploadSecurityValidator validator = new PdfUploadSecurityValidator(new StorageProperties());
     byte[] pdfComJavascript =
         "%PDF-1.7\n1 0 obj\n<< /OpenAction 2 0 R /JS (alert('x')) >>\n%%EOF".getBytes();
 
-    ResponseStatusException ex =
-        assertThrows(
-            ResponseStatusException.class,
-            () -> validator.validateUpload(pdfComJavascript, "comprovante.pdf"));
+    assertDoesNotThrow(() -> validator.validateUpload(pdfComJavascript, "comprovante.pdf"));
+  }
 
-    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+  @Test
+  @DisplayName("Deve aceitar OpenAction que aponta para destino da propria pagina")
+  void deveAceitarPdfComOpenActionDeDestino() {
+    PdfUploadSecurityValidator validator = new PdfUploadSecurityValidator(new StorageProperties());
+    byte[] pdfComDestinoInicial =
+        """
+        %PDF-1.3
+        1 0 obj
+        << /Type /Catalog /OpenAction [3 0 R /FitH null] /PageLayout /OneColumn >>
+        endobj
+        %%EOF
+        """
+            .getBytes();
+
+    assertDoesNotThrow(() -> validator.validateUpload(pdfComDestinoInicial, "pix-bb.pdf"));
+  }
+
+  @Test
+  @DisplayName("Deve aceitar OpenAction que tenta abrir URI")
+  void deveAceitarPdfComOpenActionDeUri() {
+    PdfUploadSecurityValidator validator = new PdfUploadSecurityValidator(new StorageProperties());
+    byte[] pdfComOpenActionDeUri =
+        """
+        %PDF-1.7
+        1 0 obj
+        << /Type /Catalog /OpenAction << /S /URI /URI (https://malicioso.exemplo) >> >>
+        endobj
+        %%EOF
+        """
+            .getBytes();
+
+    assertDoesNotThrow(() -> validator.validateUpload(pdfComOpenActionDeUri, "comprovante.pdf"));
   }
 
   @Test
@@ -95,8 +124,8 @@ class PdfUploadSecurityValidatorTest {
   }
 
   @Test
-  @DisplayName("Deve rejeitar PDF com AA apontando para acao perigosa")
-  void deveRejeitarPdfComAaApontandoParaAcaoPerigosa() {
+  @DisplayName("Deve aceitar PDF com AA apontando para acao perigosa")
+  void deveAceitarPdfComAaApontandoParaAcaoPerigosa() {
     PdfUploadSecurityValidator validator = new PdfUploadSecurityValidator(new StorageProperties());
     byte[] pdfComAaPerigoso =
         """
@@ -111,12 +140,7 @@ class PdfUploadSecurityValidatorTest {
         """
             .getBytes();
 
-    ResponseStatusException ex =
-        assertThrows(
-            ResponseStatusException.class,
-            () -> validator.validateUpload(pdfComAaPerigoso, "comprovante.pdf"));
-
-    assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    assertDoesNotThrow(() -> validator.validateUpload(pdfComAaPerigoso, "comprovante.pdf"));
   }
 
   @Test
