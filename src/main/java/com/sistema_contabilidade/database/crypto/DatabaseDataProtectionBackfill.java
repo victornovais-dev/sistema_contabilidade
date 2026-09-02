@@ -21,17 +21,20 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
 
   private static final String COGNITO_SUB_COLUMN = "cognito_sub";
   private static final String COGNITO_USERNAME_COLUMN = "cognito_username";
+  private static final String COGNITO_GROUPS_HASH_COLUMN = "cognito_groups_hash";
+  private static final String DOCUMENT_COLUMN = "cnpj_cpf";
   private static final String EMAIL_COLUMN = "email";
   private static final String FILE_PATH_COLUMN = "caminho_arquivo_pdf";
+  private static final String PASSWORD_COLUMN = "senha";
 
-  private static final List<TableColumns> ENCRYPTED_TABLES =
+  private static final List<ProtectedTable> ENCRYPTED_TABLES =
       List.of(
-          new TableColumns(
+          new ProtectedTable(
               "sessoes_usuario",
               "id",
               List.of("auth_username", COGNITO_SUB_COLUMN, "groups_snapshot", "groups_hash")),
-          new TableColumns("duvidas_publicas", "id", List.of("nome", EMAIL_COLUMN, "duvida")),
-          new TableColumns(
+          new ProtectedTable("duvidas_publicas", "id", List.of("nome", EMAIL_COLUMN, "duvida")),
+          new ProtectedTable(
               "itens",
               "id",
               List.of(
@@ -40,10 +43,28 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
                   "numero_documento",
                   "razao_social",
                   "observacao")),
-          new TableColumns("itens_arquivos", "id", List.of(FILE_PATH_COLUMN)),
-          new TableColumns("itens_parcelas_pagamento", "id", List.of(FILE_PATH_COLUMN)),
-          new TableColumns("itens_parcelas_pagamento_arquivos", "id", List.of(FILE_PATH_COLUMN)),
-          new TableColumns("notificacoes", "id", List.of("descricao", "razao_social_nome")));
+          new ProtectedTable("itens_arquivos", "id", List.of(FILE_PATH_COLUMN)),
+          new ProtectedTable("itens_parcelas_pagamento", "id", List.of(FILE_PATH_COLUMN)),
+          new ProtectedTable(
+              "itens_parcelas_pagamento_arquivos", "id", List.of(FILE_PATH_COLUMN)),
+          new ProtectedTable("notificacoes", "id", List.of("descricao", "razao_social_nome")));
+
+  private static final ProtectedTable USERS_TABLE =
+      new ProtectedTable(
+          "usuarios",
+          "id",
+          List.of(
+              "nome",
+              EMAIL_COLUMN,
+              PASSWORD_COLUMN,
+              COGNITO_SUB_COLUMN,
+              COGNITO_USERNAME_COLUMN,
+              COGNITO_GROUPS_HASH_COLUMN,
+              "email_bidx",
+              "cognito_sub_bidx",
+              "cognito_username_bidx"));
+  private static final ProtectedTable ITEMS_TABLE =
+      new ProtectedTable("itens", "id", List.of(DOCUMENT_COLUMN, "cnpj_cpf_bidx"));
 
   private final JdbcTemplate jdbcTemplate;
   private final DatabaseCryptoService cryptoService;
@@ -76,11 +97,14 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
       Map<String, String> protectedValues = new LinkedHashMap<>();
       protect(protectedValues, "nome", stringValue(row.get("nome")));
       protect(protectedValues, EMAIL_COLUMN, stringValue(row.get(EMAIL_COLUMN)));
-      protect(protectedValues, "senha", stringValue(row.get("senha")));
+      protect(protectedValues, PASSWORD_COLUMN, stringValue(row.get(PASSWORD_COLUMN)));
       protect(protectedValues, COGNITO_SUB_COLUMN, stringValue(row.get(COGNITO_SUB_COLUMN)));
       protect(
           protectedValues, COGNITO_USERNAME_COLUMN, stringValue(row.get(COGNITO_USERNAME_COLUMN)));
-      protect(protectedValues, "cognito_groups_hash", stringValue(row.get("cognito_groups_hash")));
+      protect(
+          protectedValues,
+          COGNITO_GROUPS_HASH_COLUMN,
+          stringValue(row.get(COGNITO_GROUPS_HASH_COLUMN)));
 
       String email = cryptoService.decrypt(stringValue(row.get(EMAIL_COLUMN)));
       String cognitoSub = cryptoService.decrypt(stringValue(row.get(COGNITO_SUB_COLUMN)));
@@ -89,23 +113,24 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
       protectedValues.put("cognito_sub_bidx", blindIndexService.cognitoSub(cognitoSub));
       protectedValues.put(
           "cognito_username_bidx", blindIndexService.cognitoUsername(cognitoUsername));
-      updateRow("usuarios", "id", row.get("id"), protectedValues);
+      updateRow(USERS_TABLE, row.get("id"), protectedValues);
     }
   }
 
   private void protectItemDocuments() {
     String sql = "select id, cnpj_cpf from itens";
     for (Map<String, Object> row : jdbcTemplate.queryForList(sql)) {
-      String storedDocument = stringValue(row.get("cnpj_cpf"));
+      String storedDocument = stringValue(row.get(DOCUMENT_COLUMN));
       Map<String, String> protectedValues = new LinkedHashMap<>();
-      protect(protectedValues, "cnpj_cpf", storedDocument);
+      protect(protectedValues, DOCUMENT_COLUMN, storedDocument);
       protectedValues.put(
           "cnpj_cpf_bidx", blindIndexService.document(cryptoService.decrypt(storedDocument)));
-      updateRow("itens", "id", row.get("id"), protectedValues);
+      updateRow(ITEMS_TABLE, row.get("id"), protectedValues);
     }
   }
 
-  private void protectTable(TableColumns table) {
+  @SuppressWarnings("java:S2077")
+  private void protectTable(ProtectedTable table) {
     String sql =
         "select "
             + table.idColumn()
@@ -119,7 +144,7 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
         protect(protectedValues, column, stringValue(row.get(column)));
       }
       if (!protectedValues.isEmpty()) {
-        updateRow(table.tableName(), table.idColumn(), row.get(table.idColumn()), protectedValues);
+        updateRow(table, row.get(table.idColumn()), protectedValues);
       }
     }
   }
@@ -130,10 +155,13 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
     }
   }
 
-  private void updateRow(
-      String tableName, String idColumn, Object id, Map<String, String> protectedValues) {
+  @SuppressWarnings("java:S2077")
+  private void updateRow(ProtectedTable table, Object id, Map<String, String> protectedValues) {
     if (protectedValues.isEmpty()) {
       return;
+    }
+    if (!table.columns().containsAll(protectedValues.keySet())) {
+      throw new IllegalArgumentException("Coluna de backfill nao permitida");
     }
     String assignments =
         protectedValues.keySet().stream()
@@ -147,12 +175,33 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
     }
     parameters[index] = id;
     jdbcTemplate.update(
-        "update " + tableName + " set " + assignments + " where " + idColumn + " = ?", parameters);
+        "update "
+            + table.tableName()
+            + " set "
+            + assignments
+            + " where "
+            + table.idColumn()
+            + " = ?",
+        parameters);
   }
 
   private String stringValue(Object value) {
     return value == null ? null : value.toString();
   }
 
-  private record TableColumns(String tableName, String idColumn, List<String> columns) {}
+  private record ProtectedTable(String tableName, String idColumn, List<String> columns) {
+    private ProtectedTable {
+      if (!isSqlIdentifier(tableName)
+          || !isSqlIdentifier(idColumn)
+          || columns.isEmpty()
+          || columns.stream().anyMatch(column -> !isSqlIdentifier(column))) {
+        throw new IllegalArgumentException("Identificador SQL de backfill invalido");
+      }
+      columns = List.copyOf(columns);
+    }
+
+    private static boolean isSqlIdentifier(String value) {
+      return value != null && value.matches("[a-z_]+$");
+    }
+  }
 }
