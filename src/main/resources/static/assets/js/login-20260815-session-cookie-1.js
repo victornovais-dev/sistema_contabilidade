@@ -123,6 +123,8 @@ loginForm.addEventListener("submit", async (event) => {
   const senha = passwordInput.value;
 
   try {
+    await window.SCAuth?.waitUntilReady?.();
+
     if (!csrfToken) {
       await carregarCsrfToken();
     }

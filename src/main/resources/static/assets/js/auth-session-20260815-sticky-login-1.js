@@ -18,6 +18,7 @@
     accessToken: null,
     tokenExpiryMs: null,
     refreshTimer: null,
+    refreshPromise: null,
     csrfToken: null,
     bootstrapComplete: false,
     bootstrapPromise: null,
@@ -383,6 +384,10 @@
   };
 
   const refreshAccessToken = async () => {
+    if (state.refreshPromise) {
+      return state.refreshPromise;
+    }
+
     const executeRefresh = async () => {
       const csrfToken = await ensureCsrfToken(true);
       return nativeFetch("/api/v1/auth/refresh", {
@@ -395,36 +400,51 @@
       });
     };
 
-    let response;
+    const refreshPromise = (async () => {
+      let response;
+      try {
+        response = await executeRefresh();
+        if (response.status === 403) {
+          state.csrfToken = null;
+          response = await executeRefresh();
+        }
+      } catch (error) {
+        if (shouldClearAuthStateAfterRefreshFailure()) {
+          clearAuthState();
+        } else {
+          scheduleRefreshRetry();
+        }
+        throw error;
+      }
+
+      if (!response.ok) {
+        if (shouldClearAuthStateAfterRefreshFailure(response.status)) {
+          clearAuthState();
+        } else {
+          scheduleRefreshRetry();
+        }
+        throw new Error("Nao foi possivel renovar a sessao.");
+      }
+
+      const payload = await response.json().catch(() => ({}));
+      if (!payload.accessToken) {
+        clearAuthState();
+        throw new Error("Resposta sem access token.");
+      }
+
+      setAccessToken(payload.accessToken);
+      void preloadRouteConfig(true);
+      return payload.accessToken;
+    })();
+
+    state.refreshPromise = refreshPromise;
     try {
-      response = await executeRefresh();
-    } catch (error) {
-      if (shouldClearAuthStateAfterRefreshFailure()) {
-        clearAuthState();
-      } else {
-        scheduleRefreshRetry();
+      return await refreshPromise;
+    } finally {
+      if (state.refreshPromise === refreshPromise) {
+        state.refreshPromise = null;
       }
-      throw error;
     }
-
-    if (!response.ok) {
-      if (shouldClearAuthStateAfterRefreshFailure(response.status)) {
-        clearAuthState();
-      } else {
-        scheduleRefreshRetry();
-      }
-      throw new Error("Nao foi possivel renovar a sessao.");
-    }
-
-    const payload = await response.json().catch(() => ({}));
-    if (!payload.accessToken) {
-      clearAuthState();
-      throw new Error("Resposta sem access token.");
-    }
-
-    setAccessToken(payload.accessToken);
-    void preloadRouteConfig(true);
-    return payload.accessToken;
   };
 
   const bootstrapSession = async () => {
