@@ -8,6 +8,10 @@
     document.documentElement.dataset.theme = "light";
   }
 
+  if (document.documentElement.dataset.accountTheme === "marco-feliciano") {
+    document.documentElement.dataset.accountTheme = "victor-campaign";
+  }
+
   if (document.documentElement.dataset.accountTheme) {
     return;
   }

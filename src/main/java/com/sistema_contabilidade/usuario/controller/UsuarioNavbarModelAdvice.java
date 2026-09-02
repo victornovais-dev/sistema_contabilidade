@@ -12,7 +12,7 @@ public class UsuarioNavbarModelAdvice {
 
   private static final String VICTOR_NOVAIS_EMAIL = "victornovais77@gmail.com";
   private static final String LUCAS_CLARIGEST_EMAIL = "lucas@clarigest.com";
-  private static final String VICTOR_CAMPAIGN_THEME = "victor-campaign";
+  private static final String MARCO_FELICIANO_THEME = "marco-feliciano";
 
   @ModelAttribute("usuarioRoles")
   public Set<String> usuarioRoles(Authentication authentication) {
@@ -35,7 +35,7 @@ public class UsuarioNavbarModelAdvice {
     String email = authentication.getName();
     if (VICTOR_NOVAIS_EMAIL.equalsIgnoreCase(email)
         || LUCAS_CLARIGEST_EMAIL.equalsIgnoreCase(email)) {
-      return VICTOR_CAMPAIGN_THEME;
+      return MARCO_FELICIANO_THEME;
     }
     return null;
   }

@@ -1,5 +1,6 @@
 (() => {
-  const campaignTheme = "victor-campaign";
+  const campaignTheme = "marco-feliciano";
+  const campaignStylesheetTheme = "victor-campaign";
   const campaignStylesheet = "/assets/css/account-theme-20260826-victor-campaign-responsive-1.css";
 
   const loadCampaignStyles = () => {
@@ -14,7 +15,7 @@
   const applyAccountTheme = (theme) => {
     if (theme !== campaignTheme) return;
 
-    document.documentElement.dataset.accountTheme = campaignTheme;
+    document.documentElement.dataset.accountTheme = campaignStylesheetTheme;
     loadCampaignStyles();
     window.dispatchEvent(new CustomEvent("sc:account-theme-ready", { detail: { theme } }));
   };

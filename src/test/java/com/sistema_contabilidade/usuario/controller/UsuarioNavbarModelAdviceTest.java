@@ -1,5 +1,7 @@
 package com.sistema_contabilidade.usuario.controller;
 
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -15,17 +17,17 @@ class UsuarioNavbarModelAdviceTest {
   @Test
   @DisplayName("Deve definir tema antes da renderizacao para contas autorizadas")
   void accountThemeDeveRetornarTemaParaContaAutorizada() {
-    Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
-    org.mockito.Mockito.when(authentication.getName()).thenReturn("lucas@clarigest.com");
+    Authentication authentication = mock(Authentication.class);
+    when(authentication.getName()).thenReturn("lucas@clarigest.com");
 
-    assertEquals("victor-campaign", advice.accountTheme(authentication));
+    assertEquals("marco-feliciano", advice.accountTheme(authentication));
   }
 
   @Test
   @DisplayName("Deve preservar tema padrao para outras contas")
   void accountThemeDeveRetornarNuloParaOutraConta() {
-    Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
-    org.mockito.Mockito.when(authentication.getName()).thenReturn("ana@email.com");
+    Authentication authentication = mock(Authentication.class);
+    when(authentication.getName()).thenReturn("ana@email.com");
 
     assertNull(advice.accountTheme(authentication));
   }

@@ -42,7 +42,7 @@ public class UsuarioController {
   private static final String ADMIN_EXPRESSION = "hasRole('ADMIN')";
   private static final String VICTOR_NOVAIS_EMAIL = "victornovais77@gmail.com";
   private static final String LUCAS_CLARIGEST_EMAIL = "lucas@clarigest.com";
-  private static final String VICTOR_NOVAIS_THEME = "victor-campaign";
+  private static final String MARCO_FELICIANO_THEME = "marco-feliciano";
 
   private final UsuarioService usuarioService;
 
@@ -66,7 +66,7 @@ public class UsuarioController {
   public ResponseEntity<UsuarioMeResponse> me(Authentication authentication) {
     String email = authentication == null ? null : authentication.getName();
     String nome = usuarioService.findNomeByEmail(email);
-    String tema = isCampaignThemeUser(email) ? VICTOR_NOVAIS_THEME : null;
+    String tema = isCampaignThemeUser(email) ? MARCO_FELICIANO_THEME : null;
     return ResponseEntity.ok(new UsuarioMeResponse(nome, tema));
   }
 
