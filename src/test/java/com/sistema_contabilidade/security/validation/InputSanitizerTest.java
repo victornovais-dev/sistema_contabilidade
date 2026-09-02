@@ -100,6 +100,17 @@ class InputSanitizerTest {
   }
 
   @Test
+  @DisplayName("Deve aceitar medidas, percentual e descricao comercial em observacao")
+  void deveAceitarMedidasPercentualEDescricaoComercialEmObservacao() {
+    String observacao =
+        "2.000 Wind banner modelo 1 completo para eleições 650x3350mm em tecido poliéster 98%";
+
+    String resultado = inputSanitizer.sanitizeMultilineText(observacao, "observacao", 2000);
+
+    assertEquals(observacao, resultado);
+  }
+
+  @Test
   @DisplayName("Deve limitar preview privado")
   void deveLimitarPreviewPrivado() throws Exception {
     Method preview = InputSanitizer.class.getDeclaredMethod("preview", String.class);

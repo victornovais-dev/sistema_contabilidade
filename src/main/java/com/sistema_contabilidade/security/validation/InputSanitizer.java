@@ -29,7 +29,6 @@ public class InputSanitizer {
           Pattern.compile("(?i)(information_schema|pg_catalog|mysql\\.user|sys\\.tables)"),
           Pattern.compile("(?i)(?:'|%27)\\s*(?:or|and)\\s*(?:'|%27)?\\w+"),
           Pattern.compile("(?i)(--\\s*$|/\\*|\\*/|;\\s*--)"),
-          Pattern.compile("(?i)0x[0-9a-f]{4,}"),
           Pattern.compile("(?i)(&#x|&#0|%3cscript|\\\\u003cscript|\\\\x3cscript)"));
 
   public String sanitizeInlineText(String input, String field, int maxLength) {
