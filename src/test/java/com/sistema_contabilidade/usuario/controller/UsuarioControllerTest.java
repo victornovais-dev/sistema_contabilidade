@@ -1,9 +1,9 @@
 package com.sistema_contabilidade.usuario.controller;
 
-import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -131,8 +131,8 @@ class UsuarioControllerTest {
   }
 
   @Test
-  @DisplayName("Deve retornar tema exclusivo para conta autorizada")
-  void meDeveRetornarTemaExclusivoParaContaAutorizada() {
+  @DisplayName("Deve retornar tema Andre do Prado somente para Victor Novais")
+  void meDeveRetornarTemaAndreDoPradoParaVictorNovais() {
     Authentication authentication = mock(Authentication.class);
     when(authentication.getName()).thenReturn("victornovais77@gmail.com");
     when(usuarioService.findNomeByEmail("victornovais77@gmail.com")).thenReturn("Victor Novais");
@@ -140,7 +140,7 @@ class UsuarioControllerTest {
     ResponseEntity<UsuarioMeResponse> resultado = usuarioController.me(authentication);
 
     assertEquals(HttpStatus.OK, resultado.getStatusCode());
-    assertEquals("marco-feliciano", resultado.getBody().tema());
+    assertEquals("andre-do-prado", resultado.getBody().tema());
   }
 
   @Test
@@ -149,6 +149,19 @@ class UsuarioControllerTest {
     Authentication authentication = mock(Authentication.class);
     when(authentication.getName()).thenReturn("lucas@clarigest.com");
     when(usuarioService.findNomeByEmail("lucas@clarigest.com")).thenReturn("Lucas");
+
+    ResponseEntity<UsuarioMeResponse> resultado = usuarioController.me(authentication);
+
+    assertEquals(HttpStatus.OK, resultado.getStatusCode());
+    assertEquals("marco-feliciano", resultado.getBody().tema());
+  }
+
+  @Test
+  @DisplayName("Deve retornar tema Marco Feliciano para Marco Feliciano")
+  void meDeveRetornarTemaMarcoFelicianoParaMarcoFeliciano() {
+    Authentication authentication = mock(Authentication.class);
+    when(authentication.getName()).thenReturn("marcofeliciano@sacs.com");
+    when(usuarioService.findNomeByEmail("marcofeliciano@sacs.com")).thenReturn("Marco Feliciano");
 
     ResponseEntity<UsuarioMeResponse> resultado = usuarioController.me(authentication);
 

@@ -42,6 +42,8 @@ public class UsuarioController {
   private static final String ADMIN_EXPRESSION = "hasRole('ADMIN')";
   private static final String VICTOR_NOVAIS_EMAIL = "victornovais77@gmail.com";
   private static final String LUCAS_CLARIGEST_EMAIL = "lucas@clarigest.com";
+  private static final String MARCO_FELICIANO_EMAIL = "marcofeliciano@sacs.com";
+  private static final String ANDRE_DO_PRADO_THEME = "andre-do-prado";
   private static final String MARCO_FELICIANO_THEME = "marco-feliciano";
 
   private final UsuarioService usuarioService;
@@ -66,7 +68,7 @@ public class UsuarioController {
   public ResponseEntity<UsuarioMeResponse> me(Authentication authentication) {
     String email = authentication == null ? null : authentication.getName();
     String nome = usuarioService.findNomeByEmail(email);
-    String tema = isCampaignThemeUser(email) ? MARCO_FELICIANO_THEME : null;
+    String tema = accountTheme(email);
     return ResponseEntity.ok(new UsuarioMeResponse(nome, tema));
   }
 
@@ -136,8 +138,14 @@ public class UsuarioController {
         .toUri();
   }
 
-  private boolean isCampaignThemeUser(String email) {
-    return VICTOR_NOVAIS_EMAIL.equalsIgnoreCase(email)
-        || LUCAS_CLARIGEST_EMAIL.equalsIgnoreCase(email);
+  private String accountTheme(String email) {
+    if (VICTOR_NOVAIS_EMAIL.equalsIgnoreCase(email)) {
+      return ANDRE_DO_PRADO_THEME;
+    }
+    if (LUCAS_CLARIGEST_EMAIL.equalsIgnoreCase(email)
+        || MARCO_FELICIANO_EMAIL.equalsIgnoreCase(email)) {
+      return MARCO_FELICIANO_THEME;
+    }
+    return null;
   }
 }

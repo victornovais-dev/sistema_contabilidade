@@ -1,26 +1,40 @@
 (() => {
-  const campaignTheme = "marco-feliciano";
-  const campaignStylesheetTheme = "victor-campaign";
-  const campaignStylesheet = "/assets/css/account-theme-20260826-victor-campaign-responsive-1.css";
+  const accountThemes = {
+    "andre-do-prado": {
+      accountTheme: "andre-do-prado",
+      stylesheet: "/assets/css/account-theme-20260902-andre-do-prado-1.css",
+    },
+    "marco-feliciano": {
+      accountTheme: "victor-campaign",
+      stylesheet: "/assets/css/account-theme-20260826-victor-campaign-responsive-1.css",
+    },
+  };
 
-  const loadCampaignStyles = () => {
-    if (document.querySelector(`link[href="${campaignStylesheet}"]`)) return;
+  const loadStyles = (stylesheetHref) => {
+    if (document.querySelector(`link[href="${stylesheetHref}"]`)) return;
 
     const stylesheet = document.createElement("link");
     stylesheet.rel = "stylesheet";
-    stylesheet.href = campaignStylesheet;
+    stylesheet.href = stylesheetHref;
     document.head.append(stylesheet);
   };
 
   const applyAccountTheme = (theme) => {
-    if (theme !== campaignTheme) return;
+    const themeDefinition = accountThemes[theme];
+    if (!themeDefinition) return;
 
-    document.documentElement.dataset.accountTheme = campaignStylesheetTheme;
-    loadCampaignStyles();
+    document.documentElement.dataset.accountTheme = themeDefinition.accountTheme;
+    loadStyles(themeDefinition.stylesheet);
     window.dispatchEvent(new CustomEvent("sc:account-theme-ready", { detail: { theme } }));
   };
 
   const loadAccountTheme = async () => {
+    const serverTheme = document.documentElement.dataset.accountTheme;
+    if (serverTheme) {
+      applyAccountTheme(serverTheme);
+      return;
+    }
+
     try {
       const response = await fetch("/api/v1/usuarios/me", { credentials: "same-origin" });
       if (!response.ok) return;

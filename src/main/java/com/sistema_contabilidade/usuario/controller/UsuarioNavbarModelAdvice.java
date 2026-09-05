@@ -12,6 +12,8 @@ public class UsuarioNavbarModelAdvice {
 
   private static final String VICTOR_NOVAIS_EMAIL = "victornovais77@gmail.com";
   private static final String LUCAS_CLARIGEST_EMAIL = "lucas@clarigest.com";
+  private static final String MARCO_FELICIANO_EMAIL = "marcofeliciano@sacs.com";
+  private static final String ANDRE_DO_PRADO_THEME = "andre-do-prado";
   private static final String MARCO_FELICIANO_THEME = "marco-feliciano";
 
   @ModelAttribute("usuarioRoles")
@@ -33,8 +35,11 @@ public class UsuarioNavbarModelAdvice {
     }
 
     String email = authentication.getName();
-    if (VICTOR_NOVAIS_EMAIL.equalsIgnoreCase(email)
-        || LUCAS_CLARIGEST_EMAIL.equalsIgnoreCase(email)) {
+    if (VICTOR_NOVAIS_EMAIL.equalsIgnoreCase(email)) {
+      return ANDRE_DO_PRADO_THEME;
+    }
+    if (LUCAS_CLARIGEST_EMAIL.equalsIgnoreCase(email)
+        || MARCO_FELICIANO_EMAIL.equalsIgnoreCase(email)) {
       return MARCO_FELICIANO_THEME;
     }
     return null;

@@ -1,0 +1,31 @@
+@charset "UTF-8";
+
+html[data-account-theme="andre-do-prado"] {
+  --andre-background-image: url("/assets/img/account-theme-20260902-andre-do-prado-3.png");
+}
+
+html[data-account-theme="andre-do-prado"] body,
+html[data-account-theme="andre-do-prado"] .bg {
+  background-color: #030508;
+  background-image: var(--andre-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+html[data-account-theme="andre-do-prado"] body {
+  background-attachment: fixed;
+}
+
+html[data-account-theme="andre-do-prado"] .orb,
+html[data-account-theme="andre-do-prado"] .grid {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  html[data-account-theme="andre-do-prado"] body,
+  html[data-account-theme="andre-do-prado"] .bg {
+    background-attachment: scroll;
+    background-position: 28% top;
+  }
+}

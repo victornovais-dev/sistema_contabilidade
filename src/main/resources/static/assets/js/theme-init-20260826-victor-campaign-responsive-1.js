@@ -8,14 +8,6 @@
     document.documentElement.dataset.theme = "light";
   }
 
-  if (document.documentElement.dataset.accountTheme === "marco-feliciano") {
-    document.documentElement.dataset.accountTheme = "victor-campaign";
-  }
-
-  if (document.documentElement.dataset.accountTheme) {
-    return;
-  }
-
   const accountThemeScript = document.createElement("script");
   accountThemeScript.src = "/assets/js/account-theme-20260826-victor-campaign-responsive-1.js";
   accountThemeScript.defer = true;
