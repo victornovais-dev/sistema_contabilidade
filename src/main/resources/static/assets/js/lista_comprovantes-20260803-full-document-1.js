@@ -92,6 +92,18 @@ const observacaoClose = document.querySelector(".observacao-close");
 const observacaoContent = document.getElementById("observacao-content");
 const observacaoEdit = document.querySelector(".observacao-edit");
 const observacaoSave = document.querySelector(".observacao-save");
+const itemEditOverlay = document.querySelector(".item-edit-overlay");
+const itemEditForm = document.getElementById("item-edit-form");
+const itemEditClose = document.querySelector(".item-edit-close");
+const itemEditValor = document.getElementById("item-edit-valor");
+const itemEditTipo = document.getElementById("item-edit-tipo");
+const itemEditData = document.getElementById("item-edit-data");
+const itemEditDescricao = document.getElementById("item-edit-descricao");
+const itemEditRazao = document.getElementById("item-edit-razao");
+const itemEditCnpjCpf = document.getElementById("item-edit-cnpj-cpf");
+const itemEditObservacao = document.getElementById("item-edit-observacao");
+const itemEditError = document.getElementById("item-edit-error");
+const itemEditSave = document.querySelector(".item-edit-save");
 const pagamentoOverlay = document.querySelector(".pagamento-overlay");
 const pagamentoClose = document.querySelector(".pagamento-close");
 const pagamentoTitle = document.getElementById("pagamento-title");
@@ -116,6 +128,9 @@ const PDF_ONLY_MESSAGE = "Envie somente arquivos PDF.";
 const MAX_RECEIPT_SIZE_MESSAGE = "Cada comprovante deve ter no maximo 20 MB.";
 let pendingUploadItemId = null;
 let pendingObservacaoItemId = null;
+let pendingItemEditId = null;
+let itemEditDatePicker = null;
+let itemEditDescricaoRequestSequence = 0;
 let pendingPagamentoItemId = null;
 let uploadIsEditing = false;
 let pendingDeleteArquivoIds = new Set();
@@ -175,6 +190,21 @@ const DESPESA_DESCRICOES = [
   "Baixa de estim\u00E1veis em dinheiro",
   "Outras despesas",
 ];
+
+const EXTRATO_BANCARIO_TYPE = "EXTRATO_BANCARIO";
+const EXTRATO_BANCARIO_DESCRICOES = ["CONTA FEFC", "CONTA FP", "CONTA DC"];
+const MAX_ITEM_EDIT_VALOR_CENTS = 1_000_000_000;
+const ITEM_EDIT_DATE_LOCALE = {
+  firstDayOfWeek: 0,
+  weekdays: {
+    shorthand: ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
+    longhand: ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"],
+  },
+  months: {
+    shorthand: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
+    longhand: ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"],
+  },
+};
 
 const getAccessToken = () => localStorage.getItem("sc_access_token");
 
@@ -236,6 +266,7 @@ const loadAndApplyCurrentUserRoles = async () => {
 
 const isContabilUser = () =>
   state.userRoles.includes("CONTABIL") || state.userRoles.includes("ESTAGIARIO");
+const isItemEditReadOnlyUser = () => isContabilUser();
 
 const formatLocalDateIso = (date) => {
   if (!(date instanceof Date)) return "";
@@ -1570,6 +1601,381 @@ const openObservacaoModal = async (id) => {
   }
 };
 
+const setItemEditError = (message = "") => {
+  if (!itemEditError) return;
+  itemEditError.textContent = message;
+  itemEditError.hidden = !message;
+};
+
+const bindItemEditCustomSelect = (selectElement) => {
+  if (!(selectElement instanceof HTMLSelectElement)) return null;
+  const wrapper = selectElement.closest("[data-item-edit-custom-select]");
+  const trigger = wrapper?.querySelector(".custom-select-trigger");
+  const menu = wrapper?.querySelector(".custom-select-menu");
+  if (!(wrapper instanceof HTMLElement) || !(trigger instanceof HTMLButtonElement) || !(menu instanceof HTMLElement)) {
+    return null;
+  }
+
+  const close = () => {
+    menu.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+  };
+
+  const syncFromSelect = () => {
+    const selected = selectElement.selectedOptions?.[0];
+    trigger.textContent = selected ? String(selected.textContent || "").trim() : "Selecione";
+    menu.querySelectorAll(".custom-select-option").forEach((option) => {
+      if (!(option instanceof HTMLElement)) return;
+      option.classList.toggle("is-active", option.dataset.value === selectElement.value);
+    });
+  };
+
+  trigger.addEventListener("click", () => {
+    if (trigger.disabled) return;
+    const willOpen = menu.hidden;
+    close();
+    if (willOpen) {
+      menu.hidden = false;
+      trigger.setAttribute("aria-expanded", "true");
+    }
+  });
+
+  menu.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const option = target.closest(".custom-select-option");
+    if (!(option instanceof HTMLElement)) return;
+    selectElement.value = option.dataset.value || "";
+    selectElement.dispatchEvent(new Event("change", { bubbles: true }));
+    syncFromSelect();
+    close();
+  });
+
+  document.addEventListener(
+    "mousedown",
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (wrapper.contains(target)) return;
+      close();
+    },
+    { capture: true },
+  );
+  selectElement.addEventListener("change", syncFromSelect);
+  syncFromSelect();
+  return { trigger, menu, close, syncFromSelect };
+};
+
+const itemEditTipoDropdown = bindItemEditCustomSelect(itemEditTipo);
+const itemEditDescricaoDropdown = bindItemEditCustomSelect(itemEditDescricao);
+
+const parseItemEditDate = (value) => {
+  const [day, month, year] = String(value || "")
+    .split("/")
+    .map((part) => Number(part));
+  if (!day || !month || !year) return null;
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const itemEditDateToIso = (value) => {
+  const date = parseItemEditDate(value);
+  return date ? formatLocalDateIso(date) : "";
+};
+
+const formatItemEditDate = (value) => formatDateDigits(String(value || "").replace(/\D/g, ""));
+
+const formatItemEditDateFromIso = (value) => {
+  const [year, month, day] = String(value || "").split("-");
+  return year && month && day ? `${day}/${month}/${year}` : "";
+};
+
+const formatItemEditMoney = (value) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  const cents = Math.min(Number(digits || 0), MAX_ITEM_EDIT_VALOR_CENTS);
+  return (cents / 100).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const formatItemEditMoneyFromValue = (value) => {
+  const cents = Math.min(
+    Math.max(Math.round(Number(value || 0) * 100), 0),
+    MAX_ITEM_EDIT_VALOR_CENTS,
+  );
+  return formatItemEditMoney(String(cents));
+};
+
+const itemEditMoneyToDecimal = (value) => Number(String(value || "").replace(/\D/g, "") || 0) / 100;
+
+const setItemEditReadOnly = (readOnly) => {
+  const fields = [
+    itemEditValor,
+    itemEditTipo,
+    itemEditData,
+    itemEditDescricao,
+    itemEditRazao,
+    itemEditCnpjCpf,
+    itemEditObservacao,
+  ];
+  fields.forEach((field) => {
+    if (field) field.disabled = readOnly;
+  });
+  itemEditTipoDropdown?.close();
+  itemEditDescricaoDropdown?.close();
+  if (readOnly) itemEditDatePicker?.close();
+  if (itemEditTipoDropdown) itemEditTipoDropdown.trigger.disabled = readOnly;
+  if (itemEditDescricaoDropdown) itemEditDescricaoDropdown.trigger.disabled = readOnly;
+  if (itemEditForm) itemEditForm.classList.toggle("is-read-only", readOnly);
+  if (itemEditSave) {
+    itemEditSave.disabled = readOnly;
+    itemEditSave.textContent = readOnly ? "Somente leitura" : "Salvar";
+  }
+};
+
+const initItemEditDatePicker = async () => {
+  if (!itemEditData || itemEditDatePicker) return;
+  if (!(await ensureFlatpickrReady()) || !window.flatpickr) return;
+  itemEditDatePicker = window.flatpickr(itemEditData, {
+    dateFormat: "d/m/Y",
+    allowInput: true,
+    clickOpens: true,
+    maxDate: todayMidnight(),
+    monthSelectorType: "static",
+    locale: ITEM_EDIT_DATE_LOCALE,
+    onChange: () => itemEditData.setCustomValidity(""),
+  });
+};
+
+const renderItemEditDescricaoOptions = (options, selectedValue = "") => {
+  if (!(itemEditDescricao instanceof HTMLSelectElement)) return;
+  const menu = itemEditDescricaoDropdown?.menu;
+  const trigger = itemEditDescricaoDropdown?.trigger;
+  const normalized = normalizeDescricaoOptions(options);
+  itemEditDescricao.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Selecione";
+  placeholder.disabled = true;
+  itemEditDescricao.appendChild(placeholder);
+  if (menu) menu.replaceChildren();
+  normalized.forEach((label) => {
+    const option = document.createElement("option");
+    option.value = label;
+    option.textContent = label;
+    itemEditDescricao.appendChild(option);
+    if (menu) {
+      const button = document.createElement("button");
+      button.className = "custom-select-option";
+      button.type = "button";
+      button.setAttribute("role", "option");
+      button.dataset.value = label;
+      button.textContent = label;
+      menu.appendChild(button);
+    }
+  });
+  const selected = normalized.includes(selectedValue) ? selectedValue : "";
+  itemEditDescricao.value = selected;
+  itemEditDescricao.disabled = normalized.length === 0;
+  itemEditDescricao.required = normalized.length > 0;
+  if (trigger) trigger.disabled = normalized.length === 0;
+  if (menu) menu.classList.toggle("is-scroll", normalized.length > 10);
+  itemEditDescricaoDropdown?.syncFromSelect();
+};
+
+const loadItemEditDescricaoOptions = async (apiTipo) => {
+  if (descricaoOptionsCache.has(apiTipo)) return descricaoOptionsCache.get(apiTipo);
+  const accessToken = getAccessToken();
+  if (!accessToken) {
+    window.location.href = "/login";
+    return [];
+  }
+  const response = await fetch(`/api/v1/itens/descricoes?tipo=${encodeURIComponent(apiTipo)}`, {
+    credentials: "same-origin",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (response.status === 401) {
+    window.location.href = "/login";
+    return [];
+  }
+  if (!response.ok) throw new Error("Falha ao carregar descrições.");
+  const options = normalizeDescricaoOptions(await response.json());
+  descricaoOptionsCache.set(apiTipo, options);
+  return options;
+};
+
+const updateItemEditDescricaoByTipo = async (tipo, selectedValue = "") => {
+  const requestSequence = ++itemEditDescricaoRequestSequence;
+  const normalizedTipo = String(tipo || "").toUpperCase();
+  if (normalizedTipo === EXTRATO_BANCARIO_TYPE) {
+    renderItemEditDescricaoOptions(EXTRATO_BANCARIO_DESCRICOES, selectedValue);
+    return;
+  }
+  renderItemEditDescricaoOptions([], "");
+  if (normalizedTipo !== "RECEITA" && normalizedTipo !== "DESPESA") return;
+  try {
+    const options = await loadItemEditDescricaoOptions(normalizedTipo);
+    if (requestSequence !== itemEditDescricaoRequestSequence) return;
+    renderItemEditDescricaoOptions(options, selectedValue);
+  } catch (error) {
+    if (requestSequence !== itemEditDescricaoRequestSequence) return;
+    setItemEditError(error instanceof Error ? error.message : "Falha ao carregar descrições.");
+  }
+};
+
+const closeItemEditModal = () => {
+  pendingItemEditId = null;
+  if (!itemEditOverlay) return;
+  itemEditOverlay.classList.remove("is-visible");
+  itemEditOverlay.setAttribute("aria-hidden", "true");
+  setItemEditError();
+};
+
+const openItemEditModal = async (id) => {
+  if (
+    !itemEditOverlay ||
+    !itemEditValor ||
+    !itemEditTipo ||
+    !itemEditData ||
+    !itemEditDescricao ||
+    !itemEditRazao ||
+    !itemEditCnpjCpf ||
+    !itemEditObservacao
+  ) {
+    return;
+  }
+  if (!state.userRolesReady) {
+    await loadAndApplyCurrentUserRoles();
+  }
+  const readOnly = isItemEditReadOnlyUser();
+  pendingItemEditId = id;
+  setItemEditError();
+  setItemEditReadOnly(readOnly);
+  itemEditOverlay.classList.add("is-visible");
+  itemEditOverlay.setAttribute("aria-hidden", "false");
+  try {
+    const item = await fetchItemById(id);
+    if (pendingItemEditId !== id) return;
+    itemEditValor.value = formatItemEditMoneyFromValue(item?.valor);
+    itemEditTipo.value = item?.tipo === "DESPESA" ? "DESPESA" : "RECEITA";
+    itemEditTipoDropdown?.syncFromSelect();
+    await updateItemEditDescricaoByTipo(itemEditTipo.value, String(item?.descricao || ""));
+    if (pendingItemEditId !== id) return;
+    await initItemEditDatePicker();
+    const formattedDate = formatItemEditDateFromIso(item?.data);
+    itemEditData.value = formattedDate;
+    itemEditDatePicker?.setDate(formattedDate, false, "d/m/Y");
+    itemEditRazao.value = String(item?.razaoSocialNome || "");
+    itemEditCnpjCpf.value = String(item?.cnpjCpf || "");
+    itemEditObservacao.value = String(item?.observacao || "");
+    setItemEditReadOnly(readOnly);
+    if (!readOnly) itemEditValor.focus();
+  } catch (error) {
+    if (pendingItemEditId !== id) return;
+    setItemEditError(error instanceof Error ? error.message : "Falha ao carregar comprovante.");
+  }
+};
+
+const patchItemDados = async (id, payload) => {
+  const accessToken = getAccessToken();
+  if (!accessToken) {
+    window.location.href = "/login";
+    return null;
+  }
+  const csrfToken = await ensureCsrfToken(true);
+  const response = await fetch(`/api/v1/itens/${id}/dados`, {
+    method: "PATCH",
+    credentials: "same-origin",
+    redirect: "manual",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Accept: "application/json",
+      "X-CSRF-TOKEN": csrfToken,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const isRedirect =
+    response.type === "opaqueredirect" ||
+    (typeof response.status === "number" && response.status >= 300 && response.status < 400) ||
+    response.redirected;
+  if (isRedirect || response.status === 401) {
+    window.location.href = "/login";
+    throw new Error("Sessão expirada. Faça login novamente.");
+  }
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response, "Falha ao atualizar comprovante."));
+  }
+  return response.json();
+};
+
+const saveItemEdit = async (event) => {
+  event.preventDefault();
+  if (isItemEditReadOnlyUser()) return;
+  if (
+    !pendingItemEditId ||
+    !itemEditForm ||
+    !itemEditValor ||
+    !itemEditTipo ||
+    !itemEditData ||
+    !itemEditDescricao ||
+    !itemEditRazao ||
+    !itemEditCnpjCpf ||
+    !itemEditObservacao
+  ) {
+    return;
+  }
+  const valor = itemEditMoneyToDecimal(itemEditValor.value);
+  if (valor <= 0) {
+    itemEditValor.setCustomValidity("Informe um valor maior que zero.");
+  } else if (valor > 10_000_000) {
+    itemEditValor.setCustomValidity("O valor não pode ultrapassar R$ 10.000.000,00.");
+  } else {
+    itemEditValor.setCustomValidity("");
+  }
+  const date = parseItemEditDate(itemEditData.value);
+  if (!date) {
+    itemEditData.setCustomValidity("Informe uma data válida.");
+  } else if (date > todayMidnight()) {
+    itemEditData.setCustomValidity("A data não pode ser maior que a data atual.");
+  } else {
+    itemEditData.setCustomValidity("");
+  }
+  if (!itemEditForm.reportValidity()) return;
+  try {
+    setItemEditError();
+    if (itemEditSave) {
+      itemEditSave.disabled = true;
+      itemEditSave.textContent = "Salvando...";
+    }
+    await patchItemDados(pendingItemEditId, {
+      valor,
+      tipo: itemEditTipo.value === EXTRATO_BANCARIO_TYPE ? "RECEITA" : itemEditTipo.value,
+      data: itemEditDateToIso(itemEditData.value),
+      descricao: itemEditDescricao.value,
+      razaoSocialNome: itemEditRazao.value.trim(),
+      cnpjCpf: itemEditCnpjCpf.value.trim(),
+      observacao: itemEditObservacao.value.trim(),
+    });
+    closeItemEditModal();
+    await loadItems();
+  } catch (error) {
+    setItemEditError(error instanceof Error ? error.message : "Falha ao atualizar comprovante.");
+  } finally {
+    if (itemEditSave) {
+      itemEditSave.disabled = false;
+      itemEditSave.textContent = "Salvar";
+    }
+  }
+};
+
 const closeObservacaoModal = () => {
   pendingObservacaoItemId = null;
   if (!observacaoOverlay) return;
@@ -1913,7 +2319,7 @@ const applyInstallmentValueMask = (input) => {
 const renderPagamentoParcelas = () => {
   if (!pagamentoParcelas || !pagamentoState) return;
   pagamentoParcelas.innerHTML = "";
-  pagamentoParcelas.classList.toggle("is-scrollable", pagamentoState.parcelas.length >= 4);
+  pagamentoParcelas.classList.toggle("is-scrollable", pagamentoState.parcelas.length >= 3);
   pagamentoState.parcelas.forEach((parcela) => {
     const row = document.createElement("article");
     row.className = "pagamento-row";
@@ -3136,6 +3542,14 @@ const bindEvents = () => {
         }
         return;
       }
+      const editButton = target.closest(".item-edit");
+      if (editButton) {
+        const card = editButton.closest(".item-card");
+        if (card?.dataset.id) {
+          void openItemEditModal(card.dataset.id);
+        }
+        return;
+      }
       const pagamentoButton = target.closest(".item-pagamento");
       if (pagamentoButton) {
         const card = pagamentoButton.closest(".item-card");
@@ -3239,6 +3653,37 @@ const bindEvents = () => {
 
   if (observacaoClose) {
     observacaoClose.addEventListener("click", closeObservacaoModal);
+  }
+  if (itemEditClose) {
+    itemEditClose.addEventListener("click", closeItemEditModal);
+  }
+  if (itemEditForm) {
+    itemEditForm.addEventListener("submit", (event) => {
+      void saveItemEdit(event);
+    });
+  }
+  if (itemEditTipo) {
+    itemEditTipo.addEventListener("change", () => {
+      setItemEditError();
+      void updateItemEditDescricaoByTipo(itemEditTipo.value);
+    });
+  }
+  if (itemEditData) {
+    itemEditData.addEventListener("input", () => {
+      itemEditData.value = formatItemEditDate(itemEditData.value);
+      itemEditData.setCustomValidity("");
+    });
+    itemEditData.addEventListener("blur", () => {
+      itemEditData.value = formatItemEditDate(itemEditData.value);
+    });
+  }
+  if (itemEditValor) {
+    const applyItemEditMoneyMask = () => {
+      itemEditValor.value = formatItemEditMoney(itemEditValor.value);
+      itemEditValor.setCustomValidity("");
+    };
+    itemEditValor.addEventListener("input", applyItemEditMoneyMask);
+    itemEditValor.addEventListener("blur", applyItemEditMoneyMask);
   }
   if (pagamentoClose) {
     pagamentoClose.addEventListener("click", closePagamentoModal);

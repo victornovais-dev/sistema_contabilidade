@@ -2793,4 +2793,157 @@ html[data-theme="dark"] .pagamento-validation {
   background: var(--accent-dark);
 }
 
+.item-edit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 11, 15, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.item-edit-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.item-edit-card {
+  width: min(720px, 94vw);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--stroke);
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.item-edit-header,
+.item-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.item-edit-header h2 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+}
+
+.item-edit-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.item-edit-fields label {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.item-edit-fields input,
+.item-edit-fields select,
+.item-edit-fields textarea {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 14px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+}
+
+.item-edit-fields textarea {
+  min-height: 112px;
+  padding: 14px;
+  resize: vertical;
+}
+
+.item-edit-observacao {
+  grid-column: 1 / -1;
+}
+
+.item-edit-fields .date-input {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] .item-edit-fields .date-input {
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] .item-edit-fields input,
+html[data-theme="dark"] .item-edit-fields select,
+html[data-theme="dark"] .item-edit-fields textarea {
+  background: rgba(20, 20, 24, 0.6);
+}
+
+html[data-theme="dark"] .item-edit-fields {
+  background: rgba(20, 20, 24, 0.6);
+}
+
+.item-edit-fields input:focus,
+.item-edit-fields select:focus {
+  border-color: rgba(255, 122, 89, 0.55);
+  box-shadow: 0 0 0 3px rgba(255, 122, 89, 0.18);
+  outline: none;
+}
+
+.item-edit-error {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(216, 75, 52, 0.45);
+  border-radius: 10px;
+  background: rgba(216, 75, 52, 0.12);
+  color: #8f1f13;
+  font-weight: 700;
+}
+
+.item-edit-actions {
+  justify-content: center;
+  padding-top: 18px;
+}
+
+.item-edit-save {
+  width: 240px;
+}
+
+.item-edit-card.is-read-only .item-edit-fields input:disabled,
+.item-edit-card.is-read-only .item-edit-fields select:disabled,
+.item-edit-card.is-read-only .item-edit-fields textarea:disabled,
+.item-edit-card.is-read-only .custom-select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+@media (max-width: 640px) {
+  .item-edit-overlay {
+    padding: 8px;
+  }
+
+  .item-edit-card {
+    width: min(720px, calc(100vw - 16px));
+    max-height: calc(100dvh - 16px);
+    padding: 18px;
+  }
+
+  .item-edit-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Comprovantes</title>
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
-    <script src="assets/js/theme-init-20260826-victor-campaign-responsive-1.js"></script>
+    <script src="assets/js/theme-init-20260902-andre-do-prado-1.js"></script>
     <link
       th:if="${accountTheme == 'victor-campaign'}"
       rel="stylesheet"
@@ -14,7 +14,7 @@
     <link th:if="${accountTheme == 'victor-campaign'}" rel="preload" as="image" href="/assets/img/victor-campaign-redesign-dark-20260811-2.png" fetchpriority="high" />
     <link th:if="${accountTheme == 'victor-campaign'}" rel="preload" as="image" href="/assets/img/victor-campaign-redesign-light-20260811-2.png" fetchpriority="high" />
     <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css" />
-    <link rel="stylesheet" href="assets/css/lista_comprovantes-20260513-descender-fix-1.css" />
+    <link rel="stylesheet" href="assets/css/lista_comprovantes-20260905-audit-history-edit-modal-1.css" />
     <link rel="stylesheet" href="assets/css/navbar-20260420-navbar-notification-count-fix-3.css" />
   </head>
   <body>
@@ -281,21 +281,6 @@
               </svg>
             </span>
           </button>
-          <button class="btn btn-info item-observacao" type="button" aria-label="Ver observação">
-            <span class="icon-info" aria-hidden="true">
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
-                <path
-                  d="M12 10v6"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                />
-                <circle cx="12" cy="7.5" r="1" fill="currentColor" />
-              </svg>
-            </span>
-          </button>
           <button class="btn btn-secondary item-pagamento" type="button" aria-label="Gerenciar pagamento">
             <span class="icon-payment" aria-hidden="true">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -338,6 +323,9 @@
                 />
               </svg>
             </span>
+          </button>
+          <button class="btn btn-secondary item-edit" type="button" aria-label="Editar comprovante">
+            Editar
           </button>
           <a class="btn btn-secondary item-download" target="_blank" rel="noopener noreferrer">
             Baixar arquivos
@@ -398,6 +386,69 @@
       </div>
     </div>
 
+    <div class="item-edit-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <form class="item-edit-card" id="item-edit-form">
+        <div class="item-edit-header">
+          <h2>Editar comprovante</h2>
+          <div class="item-edit-header-actions">
+            <button class="btn btn-secondary item-edit-history" type="button">Histórico</button>
+            <button class="btn btn-secondary item-edit-close" type="button">Fechar</button>
+          </div>
+        </div>
+        <div class="item-edit-fields">
+          <label>
+            Valor
+            <input
+              class="money-input item-edit-money-input"
+              id="item-edit-valor"
+              type="text"
+              inputmode="decimal"
+              maxlength="18"
+              placeholder="R$ 0,00"
+              autocomplete="off"
+              required
+            />
+          </label>
+          <label>
+            <span>Tipo de lançamento</span>
+            <div class="custom-select" data-item-edit-custom-select>
+              <button class="custom-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">Selecione</button>
+              <div class="custom-select-menu" role="listbox" hidden>
+                <button class="custom-select-option" type="button" role="option" data-value="RECEITA">Receita</button>
+                <button class="custom-select-option" type="button" role="option" data-value="EXTRATO_BANCARIO">Extrato Bancário</button>
+                <button class="custom-select-option" type="button" role="option" data-value="DESPESA">Despesa</button>
+              </div>
+              <select class="native-select" id="item-edit-tipo" required aria-hidden="true">
+                <option value="" disabled>Selecione</option>
+                <option value="RECEITA">Receita</option>
+                <option value="EXTRATO_BANCARIO">Extrato Bancário</option>
+                <option value="DESPESA">Despesa</option>
+              </select>
+            </div>
+          </label>
+          <label>Data<input class="date-input" id="item-edit-data" type="text" inputmode="numeric" placeholder="dd/mm/aaaa" autocomplete="off" required /></label>
+          <label>
+            <span>Descrição</span>
+            <div class="custom-select" data-item-edit-custom-select>
+              <button class="custom-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" disabled>Selecione</button>
+              <div class="custom-select-menu" role="listbox" hidden></div>
+              <select class="native-select" id="item-edit-descricao" required aria-hidden="true" disabled>
+                <option value="" disabled selected>Selecione</option>
+              </select>
+            </div>
+          </label>
+          <label>Razão social / Nome<input id="item-edit-razao" type="text" maxlength="150" /></label>
+          <label>CNPJ / CPF<input id="item-edit-cnpj-cpf" type="text" maxlength="32" /></label>
+          <label class="item-edit-observacao">
+            <span>Observação</span>
+            <textarea id="item-edit-observacao" rows="4" maxlength="2000" placeholder="Digite observações adicionais"></textarea>
+          </label>
+        </div>
+        <p class="item-edit-error" id="item-edit-error" role="alert" hidden></p>
+        <div class="item-edit-actions"><button class="btn item-edit-save" type="submit">Salvar</button></div>
+      </form>
+    </div>
+
     <div class="observacao-overlay" role="dialog" aria-modal="true" aria-hidden="true">
       <div class="observacao-card">
         <div class="observacao-header">
@@ -419,6 +470,19 @@
         <div class="observacao-footer">
           <button class="btn btn-danger observacao-save" type="button" hidden>Salvar</button>
         </div>
+      </div>
+    </div>
+
+    <div class="historico-overlay" role="dialog" aria-modal="true" aria-labelledby="historico-title" aria-hidden="true">
+      <div class="historico-card">
+        <div class="historico-header">
+          <div>
+            <h2 id="historico-title">Histórico</h2>
+            <p>Alterações registradas neste comprovante.</p>
+          </div>
+          <button class="btn btn-secondary historico-close" type="button">Fechar</button>
+        </div>
+        <div class="historico-content" id="historico-content" aria-live="polite"></div>
       </div>
     </div>
 
@@ -486,7 +550,7 @@
     </div>
     <script src="assets/js/navbar-20260502-startup-perf-1.js" defer></script>
     <script src="assets/js/role-dropdown-20260420-home-role-filter-1.js" defer></script>
-    <script src="assets/js/lista_comprovantes-20260803-full-document-1.js" defer></script>
+    <script src="assets/js/lista_comprovantes-20260905-payment-pdf-remove-1.js" defer></script>
   </body>
 </html>
 
