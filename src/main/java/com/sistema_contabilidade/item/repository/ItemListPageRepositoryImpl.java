@@ -202,7 +202,8 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
   }
 
   private long countWithFullText(ItemListPageQuery query) {
-    StringBuilder sql = new StringBuilder("select count(*) from itens i where i.deleted_at is null");
+    StringBuilder sql =
+        new StringBuilder("select count(*) from itens i where i.deleted_at is null");
     Map<Integer, Object> parameters = new LinkedHashMap<>();
     appendFullTextFilters(sql, parameters, query, 1);
 
@@ -456,9 +457,7 @@ class ItemListPageRepositoryImpl implements ItemListPageRepository {
         arquivosDePagamento.from(ItemParcelaPagamentoArquivo.class);
     arquivosDePagamento
         .select(criteriaBuilder.literal(1L))
-        .where(
-            criteriaBuilder.equal(
-                arquivoDePagamento.get("parcelaPagamento").get("item"), root));
+        .where(criteriaBuilder.equal(arquivoDePagamento.get("parcelaPagamento").get("item"), root));
 
     return criteriaBuilder
         .<Boolean>selectCase()

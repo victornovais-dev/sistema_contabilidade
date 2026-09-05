@@ -25,6 +25,7 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
   private static final String DOCUMENT_COLUMN = "cnpj_cpf";
   private static final String EMAIL_COLUMN = "email";
   private static final String FILE_PATH_COLUMN = "caminho_arquivo_pdf";
+  private static final String NAME_COLUMN = "nome";
   private static final String PASSWORD_COLUMN = "senha";
 
   private static final List<ProtectedTable> ENCRYPTED_TABLES =
@@ -33,7 +34,8 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
               "sessoes_usuario",
               "id",
               List.of("auth_username", COGNITO_SUB_COLUMN, "groups_snapshot", "groups_hash")),
-          new ProtectedTable("duvidas_publicas", "id", List.of("nome", EMAIL_COLUMN, "duvida")),
+          new ProtectedTable(
+              "duvidas_publicas", "id", List.of(NAME_COLUMN, EMAIL_COLUMN, "duvida")),
           new ProtectedTable(
               "itens",
               "id",
@@ -45,8 +47,7 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
                   "observacao")),
           new ProtectedTable("itens_arquivos", "id", List.of(FILE_PATH_COLUMN)),
           new ProtectedTable("itens_parcelas_pagamento", "id", List.of(FILE_PATH_COLUMN)),
-          new ProtectedTable(
-              "itens_parcelas_pagamento_arquivos", "id", List.of(FILE_PATH_COLUMN)),
+          new ProtectedTable("itens_parcelas_pagamento_arquivos", "id", List.of(FILE_PATH_COLUMN)),
           new ProtectedTable("notificacoes", "id", List.of("descricao", "razao_social_nome")));
 
   private static final ProtectedTable USERS_TABLE =
@@ -54,7 +55,7 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
           "usuarios",
           "id",
           List.of(
-              "nome",
+              NAME_COLUMN,
               EMAIL_COLUMN,
               PASSWORD_COLUMN,
               COGNITO_SUB_COLUMN,
@@ -95,7 +96,7 @@ public class DatabaseDataProtectionBackfill implements ApplicationRunner {
             + " from usuarios";
     for (Map<String, Object> row : jdbcTemplate.queryForList(sql)) {
       Map<String, String> protectedValues = new LinkedHashMap<>();
-      protect(protectedValues, "nome", stringValue(row.get("nome")));
+      protect(protectedValues, NAME_COLUMN, stringValue(row.get(NAME_COLUMN)));
       protect(protectedValues, EMAIL_COLUMN, stringValue(row.get(EMAIL_COLUMN)));
       protect(protectedValues, PASSWORD_COLUMN, stringValue(row.get(PASSWORD_COLUMN)));
       protect(protectedValues, COGNITO_SUB_COLUMN, stringValue(row.get(COGNITO_SUB_COLUMN)));

@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -178,7 +179,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     if (cookies == null) {
       return List.of();
     }
-    LinkedHashSet<String> values = new LinkedHashSet<>();
+    Set<String> values = new LinkedHashSet<>();
     for (Cookie cookie : cookies) {
       if (cookieName.equals(cookie.getName())
           && cookie.getValue() != null

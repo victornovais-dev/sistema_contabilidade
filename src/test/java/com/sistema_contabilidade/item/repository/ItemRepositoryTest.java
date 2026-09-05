@@ -175,7 +175,9 @@ class ItemRepositoryTest {
     itemRepository.saveAndFlush(item);
 
     ItemListResponse resumoLegado =
-        itemRepository.findResumoVisiveisPorRoleNomeOrderByHorarioCriacaoDesc("FINANCEIRO").getFirst();
+        itemRepository
+            .findResumoVisiveisPorRoleNomeOrderByHorarioCriacaoDesc("FINANCEIRO")
+            .getFirst();
     Slice<ItemListResponse> pagina =
         itemRepository.findPageForList(
             new ItemListPageQuery(

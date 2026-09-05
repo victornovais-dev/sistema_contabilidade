@@ -1,10 +1,10 @@
 package com.sistema_contabilidade.security.config;
 
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.sistema_contabilidade.security.filter.DatabaseRoutingFilter;
 import com.sistema_contabilidade.security.filter.JwtAuthFilter;
@@ -93,8 +93,7 @@ class SecurityConfigTest {
   void deveFalharAoObterAuthenticationManagerQuandoConfiguracaoQuebrar() {
     SecurityConfig config = newConfig();
     AuthenticationConfiguration configuration = mock(AuthenticationConfiguration.class);
-    when(configuration.getAuthenticationManager())
-        .thenThrow(new IllegalStateException("quebrou"));
+    when(configuration.getAuthenticationManager()).thenThrow(new IllegalStateException("quebrou"));
 
     IllegalStateException exception =
         org.junit.jupiter.api.Assertions.assertThrows(
