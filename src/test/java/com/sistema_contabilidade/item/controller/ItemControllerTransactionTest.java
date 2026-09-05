@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sistema_contabilidade.item.dto.ItemArquivosUploadRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -39,10 +40,24 @@ class ItemControllerTransactionTest {
   void uploadDeArquivosDeveUsarTransacaoWriter() throws NoSuchMethodException {
     TransactionAttribute attribute =
         transactionAttribute(
-            "adicionarArquivos", Authentication.class, UUID.class, ItemArquivosUploadRequest.class);
+            "adicionarArquivos",
+            Authentication.class,
+            UUID.class,
+            ItemArquivosUploadRequest.class,
+            HttpServletRequest.class);
 
     assertNotNull(attribute);
     assertFalse(attribute.isReadOnly());
+  }
+
+  @Test
+  @DisplayName("Consulta de historico deve ser read-only")
+  void listarAuditoriaDeveUsarTransacaoReadOnly() throws NoSuchMethodException {
+    TransactionAttribute attribute =
+        transactionAttribute("listarAuditoria", Authentication.class, UUID.class);
+
+    assertNotNull(attribute);
+    assertTrue(attribute.isReadOnly());
   }
 
   private static Stream<Arguments> readOnlyAttachmentEndpoints() {

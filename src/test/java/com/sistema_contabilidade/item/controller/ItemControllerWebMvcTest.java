@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -23,6 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.sistema_contabilidade.auth.service.SessaoUsuarioService;
 import com.sistema_contabilidade.database.service.StickyWriterService;
 import com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog;
+import com.sistema_contabilidade.item.dto.ItemAuditoriaAlteracaoResponse;
+import com.sistema_contabilidade.item.dto.ItemAuditoriaResponse;
 import com.sistema_contabilidade.item.dto.ItemListPageResponse;
 import com.sistema_contabilidade.item.dto.ItemListResponse;
 import com.sistema_contabilidade.item.dto.ItemResponse;
@@ -30,12 +34,16 @@ import com.sistema_contabilidade.item.model.ContaOrigemPagamentoItem;
 import com.sistema_contabilidade.item.model.FormaPagamentoItem;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
+import com.sistema_contabilidade.item.model.ItemAuditoriaAcao;
 import com.sistema_contabilidade.item.model.ItemParcelaPagamento;
 import com.sistema_contabilidade.item.model.ItemParcelaPagamentoArquivo;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ArquivoStorageService;
+import com.sistema_contabilidade.item.service.ItemAuditHistoryService;
+import com.sistema_contabilidade.item.service.ItemAuditService;
+import com.sistema_contabilidade.item.service.ItemAuditSnapshot;
 import com.sistema_contabilidade.item.service.ItemDescricaoService;
 import com.sistema_contabilidade.item.service.ItemListPageCache;
 import com.sistema_contabilidade.item.service.ItemListService;
@@ -56,11 +64,13 @@ import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -83,6 +93,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.databind.ObjectMapper;
 
 @WebMvcTest(ItemController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -95,6 +106,8 @@ class ItemControllerWebMvcTest {
   @MockitoBean private ItemRepository itemRepository;
   @MockitoBean private ItemArquivoRepository itemArquivoRepository;
   @MockitoBean private ArquivoStorageService itemArquivoStorageService;
+  @MockitoBean private ItemAuditHistoryService itemAuditHistoryService;
+  @MockitoBean private ItemAuditService itemAuditService;
   @MockitoBean private ItemDescricaoService itemDescricaoService;
   @MockitoBean private ItemTipoDocumentoService itemTipoDocumentoService;
   @MockitoBean private ItemListService itemListService;
@@ -207,6 +220,65 @@ class ItemControllerWebMvcTest {
         .perform(
             get("/api/v1/itens/{id}", id).with(authComRoles("financeiro@email.com", "FINANCEIRO")))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("Deve retornar historico autorizado sem metadados sensiveis")
+  void listarAuditoriaDeveRetornarHistoricoAutorizado() throws Exception {
+    UUID id = UUID.fromString("45454545-1212-3434-5656-787878787879");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    ObjectMapper objectMapper = new ObjectMapper();
+    ItemAuditoriaResponse evento =
+        new ItemAuditoriaResponse(
+            UUID.fromString("70000000-0000-0000-0000-000000000001"),
+            ItemAuditoriaAcao.OBSERVACAO_ALTERADA,
+            "Auditor Teste",
+            Instant.parse("2026-09-04T15:00:00Z"),
+            Map.of(
+                "observacao",
+                new ItemAuditoriaAlteracaoResponse(
+                    objectMapper.valueToTree("Antes"), objectMapper.valueToTree("Depois"))));
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemAuditHistoryService.listarPorItemId(id)).thenReturn(List.of(evento));
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens/{id}/auditoria", id).with(authComRoles("admin@email.com", "ADMIN")))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Cache-Control", "no-store, private"))
+        .andExpect(jsonPath("$[0].acao").value("OBSERVACAO_ALTERADA"))
+        .andExpect(jsonPath("$[0].ator").value("Auditor Teste"))
+        .andExpect(jsonPath("$[0].ocorridoEm").value("2026-09-04T15:00:00Z"))
+        .andExpect(jsonPath("$[0].alteracoes.observacao.antes").value("Antes"))
+        .andExpect(jsonPath("$[0].alteracoes.observacao.depois").value("Depois"))
+        .andExpect(jsonPath("$[0].atorEmail").doesNotExist())
+        .andExpect(jsonPath("$[0].ipOrigem").doesNotExist())
+        .andExpect(jsonPath("$[0].traceId").doesNotExist())
+        .andExpect(jsonPath("$[0].userAgent").doesNotExist());
+
+    verify(itemAuditHistoryService).listarPorItemId(id);
+  }
+
+  @Test
+  @DisplayName("Deve negar historico de item fora do escopo")
+  void listarAuditoriaDeveNegarItemForaDoEscopo() throws Exception {
+    UUID id = UUID.fromString("45454545-1212-3434-5656-787878787880");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("OPERADOR");
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(usuarioRepository.findByEmail("financeiro@email.com"))
+        .thenReturn(Optional.of(usuarioComRoles("financeiro", "FINANCEIRO")));
+
+    mockMvc
+        .perform(
+            get("/api/v1/itens/{id}/auditoria", id)
+                .with(authComRoles("financeiro@email.com", "FINANCEIRO")))
+        .andExpect(status().isNotFound());
+
+    verify(itemAuditHistoryService, never()).listarPorItemId(any(UUID.class));
   }
 
   @Test
@@ -490,6 +562,7 @@ class ItemControllerWebMvcTest {
 
     verify(notificacaoService, never()).registrarReceitaLancada(any(Item.class));
     verify(notificacaoService, never()).sincronizarComItem(any(Item.class));
+    verificarAuditoriaRegistrada(ItemAuditoriaAcao.CRIADO);
   }
 
   @Test
@@ -1326,6 +1399,90 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve editar dados do card sem substituir anexos ou role")
+  void atualizarDadosDevePreservarAnexosERole() throws Exception {
+    UUID id = UUID.fromString("45454545-4545-4545-4545-454545454545");
+    Item item = new Item();
+    item.setId(id);
+    item.setRoleNome("CANDIDATO_TESTE");
+    item.setValor(new BigDecimal("10.00"));
+    item.setData(LocalDate.of(2026, Month.MARCH, 16));
+    item.setHorarioCriacao(LocalDateTime.of(2026, Month.MARCH, 16, 11, 0));
+    item.setTipo(TipoItem.RECEITA);
+    item.setDescricao("Descricao antiga");
+    item.setObservacao("Observacao antiga");
+    ItemArquivo arquivo = new ItemArquivo();
+    arquivo.setCaminhoArquivoPdf("uploads/itens/original.pdf");
+    arquivo.setItem(item);
+    item.getArquivos().add(arquivo);
+    item.setCaminhoArquivoPdf(arquivo.getCaminhoArquivoPdf());
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemRepository.save(any(Item.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/dados", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":250.10,
+                      "data":"2026-03-20",
+                      "tipo":"DESPESA",
+                      "descricao":"Servico contabil",
+                      "razaoSocialNome":"Empresa atualizada",
+                      "cnpjCpf":"12.345.678/0001-99",
+                      "observacao":"Observacao atualizada"
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.valor").value(250.10))
+        .andExpect(jsonPath("$.tipo").value("DESPESA"))
+        .andExpect(jsonPath("$.razaoSocialNome").value("Empresa atualizada"))
+        .andExpect(jsonPath("$.observacao").value("Observacao atualizada"));
+
+    assertEquals("CANDIDATO_TESTE", item.getRoleNome());
+    assertEquals(1, item.getArquivos().size());
+    assertEquals("uploads/itens/original.pdf", item.getCaminhoArquivoPdf());
+    verify(itemArquivoStorageService, never()).salvarPdfs(any(), any());
+    verificarAuditoriaRegistrada(ItemAuditoriaAcao.ALTERADO);
+  }
+
+  @ParameterizedTest
+  @MethodSource("rolesSemPermissaoParaEditarDados")
+  @DisplayName("Deve impedir CONTABIL e ESTAGIARIO de editar dados do card")
+  void atualizarDadosDeveImpedirPerfisContabeis(String role) throws Exception {
+    UUID id = UUID.fromString("56565656-5656-5656-5656-565656565656");
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/dados", id)
+                .with(authComRoles("contabil@email.com", role))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "valor":250.10,
+                      "data":"2026-03-20",
+                      "tipo":"DESPESA",
+                      "descricao":"Servico contabil",
+                      "razaoSocialNome":"Empresa atualizada",
+                      "cnpjCpf":"12.345.678/0001-99",
+                      "observacao":"Observacao atualizada"
+                    }
+                    """))
+        .andExpect(status().isForbidden());
+
+    verify(itemRepository, never()).findByIdComCriadorERoles(any(UUID.class));
+    verify(itemRepository, never()).save(any(Item.class));
+  }
+
+  private static Stream<String> rolesSemPermissaoParaEditarDados() {
+    return Stream.of("CONTABIL", "ESTAGIARIO");
+  }
+
+  @Test
   @DisplayName("Deve atualizar item")
   void atualizarDeveRetornarOk() throws Exception {
     UUID id = UUID.fromString("55555555-5555-5555-5555-555555555555");
@@ -1374,6 +1531,8 @@ class ItemControllerWebMvcTest {
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.caminhoArquivoPdf").value("uploads/itens/novo.pdf"));
+
+    verificarAuditoriaRegistrada(ItemAuditoriaAcao.ALTERADO);
   }
 
   @Test
@@ -1659,6 +1818,7 @@ class ItemControllerWebMvcTest {
         .andExpect(status().isNoContent());
 
     verify(notificacaoService).removerPorItemId(id);
+    verificarAuditoriaRegistrada(ItemAuditoriaAcao.EXCLUIDO);
   }
 
   @Test
@@ -1721,6 +1881,16 @@ class ItemControllerWebMvcTest {
   private ItemListPageResponse pagina(ItemListResponse... items) {
     return new ItemListPageResponse(
         List.of(items), 1, 10, items.length, items.length > 0 ? 1 : 1, false, false);
+  }
+
+  private void verificarAuditoriaRegistrada(ItemAuditoriaAcao acao) {
+    verify(itemAuditService)
+        .registrar(
+            eq(acao),
+            nullable(ItemAuditSnapshot.class),
+            nullable(ItemAuditSnapshot.class),
+            any(),
+            any());
   }
 
   private RequestPostProcessor authComRoles(String email, String... roles) {
@@ -1851,6 +2021,29 @@ class ItemControllerWebMvcTest {
   }
 
   @Test
+  @DisplayName("Deve auditar inclusao de arquivos")
+  void adicionarArquivosDeveRegistrarAuditoria() throws Exception {
+    UUID id = UUID.fromString("99999999-aaaa-bbbb-cccc-111111111113");
+    Item item = new Item();
+    item.setId(id);
+    item.setTipo(TipoItem.RECEITA);
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemArquivoStorageService.salvarPdfs(any(), any()))
+        .thenReturn(List.of("uploads/itens/audit.pdf"));
+    when(itemRepository.save(any(Item.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            post("/api/v1/itens/{id}/arquivos", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"arquivosPdf\":[\"cGRm\"],\"nomesArquivos\":[\"audit.pdf\"]}"))
+        .andExpect(status().isOk());
+
+    verificarAuditoriaRegistrada(ItemAuditoriaAcao.ARQUIVO_INCLUIDO);
+  }
+
+  @Test
   @DisplayName("Deve atualizar observacao via PATCH sem alterar arquivos")
   void atualizarObservacaoDeveRetornarOk() throws Exception {
     UUID id = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
@@ -1880,6 +2073,7 @@ class ItemControllerWebMvcTest {
 
     assertEquals(1, item.getArquivos().size());
     assertEquals("uploads/itens/keep.pdf", item.getArquivos().getFirst().getCaminhoArquivoPdf());
+    verificarAuditoriaRegistrada(ItemAuditoriaAcao.OBSERVACAO_ALTERADA);
   }
 
   @Test
@@ -1984,6 +2178,7 @@ class ItemControllerWebMvcTest {
     assertEquals(ContaOrigemPagamentoItem.CONTA_DC, primeiraParcela.getContaOrigemPagamento());
     assertEquals("uploads/itens/parcela-1.pdf", primeiraParcela.getCaminhoArquivoPdf());
     assertEquals(new BigDecimal("66.67"), ItemResponse.from(item).pagamento().totalPago());
+    verificarAuditoriaRegistrada(ItemAuditoriaAcao.PAGAMENTO_ALTERADO);
   }
 
   @Test
@@ -2226,6 +2421,72 @@ class ItemControllerWebMvcTest {
     assertTrue(parcela.getArquivosComprovantes().isEmpty());
   }
 
+  @Test
+  @DisplayName("Deve manter parcela paga ao excluir somente um de dois PDFs")
+  void atualizarPagamentoDeveManterParcelaPagaAoExcluirSomenteUmPdf() throws Exception {
+    UUID id = UUID.fromString("cccccccc-bbbb-cccc-dddd-eeeeeeeeeeed");
+    UUID arquivoRemovidoId = UUID.fromString("dddddddd-bbbb-cccc-dddd-eeeeeeeeeeed");
+    UUID arquivoMantidoId = UUID.fromString("dddddddd-bbbb-cccc-dddd-eeeeeeeeeeee");
+    Item item = new Item();
+    item.setId(id);
+    item.setVersion(0L);
+    item.setValor(new BigDecimal("100.00"));
+    item.setTipo(TipoItem.DESPESA);
+    item.setRoleNome("FINANCEIRO");
+
+    ItemParcelaPagamento parcela = new ItemParcelaPagamento();
+    parcela.setNumero(1);
+    parcela.setValorParcela(new BigDecimal("100.00"));
+    parcela.setPaga(true);
+    parcela.setContaOrigemPagamento(ContaOrigemPagamentoItem.CONTA_DC);
+    parcela.setItem(item);
+    ItemParcelaPagamentoArquivo arquivoRemovido = new ItemParcelaPagamentoArquivo();
+    arquivoRemovido.setId(arquivoRemovidoId);
+    arquivoRemovido.setParcelaPagamento(parcela);
+    arquivoRemovido.setCaminhoArquivoPdf("uploads/itens/remover.pdf");
+    ItemParcelaPagamentoArquivo arquivoMantido = new ItemParcelaPagamentoArquivo();
+    arquivoMantido.setId(arquivoMantidoId);
+    arquivoMantido.setParcelaPagamento(parcela);
+    arquivoMantido.setCaminhoArquivoPdf("uploads/itens/manter.pdf");
+    parcela.getArquivosComprovantes().addAll(List.of(arquivoRemovido, arquivoMantido));
+    item.getParcelasPagamento().add(parcela);
+
+    when(itemRepository.findByIdComCriadorERoles(id)).thenReturn(Optional.of(item));
+    when(itemRepository.save(org.mockito.ArgumentMatchers.any(Item.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/itens/{id}/pagamento", id)
+                .with(authComRoles("admin@email.com", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "formaPagamento":"AVISTA",
+                      "quantidadeParcelas":1,
+                      "parcelas":[
+                        {
+                          "numero":1,
+                          "paga":true,
+                          "contaOrigemPagamento":"CONTA_DC",
+                          "arquivosRemovidos":["dddddddd-bbbb-cccc-dddd-eeeeeeeeeeed"]
+                        }
+                      ]
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.pagamento.parcelas[0].paga").value(true))
+        .andExpect(jsonPath("$.pagamento.parcelas[0].arquivosComprovantes.length()").value(1))
+        .andExpect(
+            jsonPath("$.pagamento.parcelas[0].arquivosComprovantes[0].id")
+                .value(arquivoMantidoId.toString()));
+
+    assertTrue(parcela.isPaga());
+    assertEquals(ContaOrigemPagamentoItem.CONTA_DC, parcela.getContaOrigemPagamento());
+    assertEquals(List.of(arquivoMantido), parcela.getArquivosComprovantes());
+  }
+
   @ParameterizedTest(name = "{index}: valor={0}")
   @MethodSource("parcelasPagasInvalidas")
   void atualizarPagamentoDeveRejeitarParcelaPagaInvalida(BigDecimal valorItem, String conteudo)
@@ -2357,6 +2618,7 @@ class ItemControllerWebMvcTest {
 
     assertTrue(item.isVerificado());
     verify(notificacaoService).sincronizarComItem(item);
+    verificarAuditoriaRegistrada(ItemAuditoriaAcao.VERIFICACAO_ALTERADA);
   }
 
   @Test
@@ -2583,6 +2845,7 @@ class ItemControllerWebMvcTest {
     assertTrue(item.getArquivos().isEmpty());
     assertNull(item.getCaminhoArquivoPdf());
     verify(itemArquivoStorageService, never()).deletarPdf("uploads/itens/keep.pdf");
+    verificarAuditoriaRegistrada(ItemAuditoriaAcao.ARQUIVO_REMOVIDO);
   }
 
   @Test

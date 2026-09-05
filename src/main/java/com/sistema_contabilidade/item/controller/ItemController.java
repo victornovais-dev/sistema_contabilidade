@@ -4,6 +4,8 @@ import com.sistema_contabilidade.common.util.RevenueClassificationUtils;
 import com.sistema_contabilidade.item.config.ItemTipoDocumentoCatalog;
 import com.sistema_contabilidade.item.dto.ItemArquivoResponse;
 import com.sistema_contabilidade.item.dto.ItemArquivosUploadRequest;
+import com.sistema_contabilidade.item.dto.ItemAuditoriaResponse;
+import com.sistema_contabilidade.item.dto.ItemDadosUpdateRequest;
 import com.sistema_contabilidade.item.dto.ItemListPageRequest;
 import com.sistema_contabilidade.item.dto.ItemListPageResponse;
 import com.sistema_contabilidade.item.dto.ItemObservacaoUpdateRequest;
@@ -15,6 +17,7 @@ import com.sistema_contabilidade.item.dto.ItemVerificacaoUpdateRequest;
 import com.sistema_contabilidade.item.model.FormaPagamentoItem;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
+import com.sistema_contabilidade.item.model.ItemAuditoriaAcao;
 import com.sistema_contabilidade.item.model.ItemParcelaPagamento;
 import com.sistema_contabilidade.item.model.ItemParcelaPagamentoArquivo;
 import com.sistema_contabilidade.item.model.TipoItem;
@@ -22,6 +25,9 @@ import com.sistema_contabilidade.item.repository.ItemArquivoRepository;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.item.service.ArquivoStorageService;
 import com.sistema_contabilidade.item.service.ItemAccessUtils;
+import com.sistema_contabilidade.item.service.ItemAuditHistoryService;
+import com.sistema_contabilidade.item.service.ItemAuditService;
+import com.sistema_contabilidade.item.service.ItemAuditSnapshot;
 import com.sistema_contabilidade.item.service.ItemDescricaoService;
 import com.sistema_contabilidade.item.service.ItemListService;
 import com.sistema_contabilidade.item.service.ItemTipoDocumentoService;
@@ -32,6 +38,7 @@ import com.sistema_contabilidade.security.validation.InputSanitizer;
 import com.sistema_contabilidade.usuario.model.Usuario;
 import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -101,10 +108,14 @@ public class ItemController {
   private static final String CANDIDATO_AUTHORITY = "ROLE_CANDIDATO";
   private static final String CONTABIL_NAO_PODE_EXCLUIR_ITEM =
       "Usuario com role CONTABIL nao tem permissao para excluir comprovantes.";
+  private static final String CONTABIL_NAO_PODE_EDITAR_ITEM =
+      "Usuarios CONTABIL ou ESTAGIARIO nao podem editar comprovantes.";
   private static final String ITEM_VERIFICADO_NAO_PODE_SER_EXCLUIDO =
       "Comprovantes verificados nao podem ser excluidos.";
   private static final String ROLE_RESTRITA_NAO_PODE_DESMARCAR_ITEM =
       "Usuarios SUPPORT nao podem desmarcar comprovantes verificados.";
+  private static final String CAMPO_CNPJ_CPF = "cnpjCpf";
+  private static final String CAMPO_OBSERVACAO = "observacao";
   private static final String CANDIDATO_NAO_PODE_ALTERAR_VERIFICACAO =
       "Usuarios CANDIDATO nao podem alterar verificacao de comprovantes.";
   private static final String ANEXO_OBRIGATORIO = "Anexe ao menos um comprovante em PDF.";
@@ -131,11 +142,15 @@ public class ItemController {
   private final UsuarioRepository usuarioRepository;
   private final InputSanitizer inputSanitizer;
   private final ObjectProvider<EntityManager> entityManagerProvider;
+  private final ItemAuditService itemAuditService;
+  private final ItemAuditHistoryService itemAuditHistoryService;
 
   @PostMapping
   @Transactional
   public ResponseEntity<ItemResponse> criar(
-      Authentication authentication, @Valid @RequestBody ItemUpsertRequest request) {
+      Authentication authentication,
+      @Valid @RequestBody ItemUpsertRequest request,
+      HttpServletRequest servletRequest) {
     Usuario usuarioAutenticado =
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
     boolean contaFinanceira = isContaFinanceira(request);
@@ -157,6 +172,12 @@ public class ItemController {
       if (salvo.getTipo() == TipoItem.RECEITA) {
         notificacaoService.registrarReceitaLancada(salvo);
       }
+      itemAuditService.registrar(
+          ItemAuditoriaAcao.CRIADO,
+          null,
+          itemAuditService.capturarSnapshot(salvo),
+          authentication,
+          servletRequest);
       URI location =
           ServletUriComponentsBuilder.fromCurrentRequest()
               .path(ID_PATH)
@@ -218,6 +239,16 @@ public class ItemController {
       Authentication authentication, @PathVariable("id") UUID id) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
     return ResponseEntity.ok().cacheControl(PRIVATE_NO_STORE).body(ItemResponse.from(item));
+  }
+
+  @GetMapping(ID_PATH + "/auditoria")
+  @Transactional(readOnly = true)
+  public ResponseEntity<List<ItemAuditoriaResponse>> listarAuditoria(
+      Authentication authentication, @PathVariable("id") UUID id) {
+    Item item = buscarItemAutorizadoPorId(id, authentication);
+    return ResponseEntity.ok()
+        .cacheControl(PRIVATE_NO_STORE)
+        .body(itemAuditHistoryService.listarPorItemId(item.getId()));
   }
 
   @GetMapping(ARQUIVO_PATH)
@@ -321,8 +352,10 @@ public class ItemController {
   public ResponseEntity<List<ItemArquivoResponse>> adicionarArquivos(
       Authentication authentication,
       @PathVariable("id") UUID id,
-      @Valid @RequestBody ItemArquivosUploadRequest request) {
+      @Valid @RequestBody ItemArquivosUploadRequest request,
+      HttpServletRequest servletRequest) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
+    ItemAuditSnapshot antes = itemAuditService.capturarSnapshot(item);
     List<byte[]> arquivosPdf = request.arquivosPdf();
     if (arquivosPdf == null || arquivosPdf.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Envie ao menos um PDF.");
@@ -335,6 +368,12 @@ public class ItemController {
         item.setCaminhoArquivoPdf(arquivosSalvos.getFirst());
       }
       Item salvo = itemRepository.save(item);
+      itemAuditService.registrar(
+          ItemAuditoriaAcao.ARQUIVO_INCLUIDO,
+          antes,
+          itemAuditService.capturarSnapshot(salvo),
+          authentication,
+          servletRequest);
       List<ItemArquivoResponse> response =
           salvo.getArquivos().stream().map(ItemArquivoResponse::from).toList();
       return ResponseEntity.ok(response);
@@ -349,7 +388,8 @@ public class ItemController {
   public ResponseEntity<Void> deletarArquivo(
       Authentication authentication,
       @PathVariable("id") UUID id,
-      @PathVariable("arquivoId") UUID arquivoId) {
+      @PathVariable("arquivoId") UUID arquivoId,
+      HttpServletRequest servletRequest) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
     ItemArquivo arquivo =
         item.getArquivos().stream()
@@ -358,6 +398,7 @@ public class ItemController {
             .orElseThrow(
                 () ->
                     new ResponseStatusException(HttpStatus.NOT_FOUND, ARQUIVO_ITEM_NAO_ENCONTRADO));
+    ItemAuditSnapshot antes = itemAuditService.capturarSnapshot(item);
 
     item.getArquivos().removeIf(entry -> arquivoId.equals(entry.getId()));
 
@@ -370,7 +411,13 @@ public class ItemController {
       item.setCaminhoArquivoPdf(novoCaminho);
     }
 
-    itemRepository.save(item);
+    Item salvo = itemRepository.save(item);
+    itemAuditService.registrar(
+        ItemAuditoriaAcao.ARQUIVO_REMOVIDO,
+        antes,
+        itemAuditService.capturarSnapshot(salvo),
+        authentication,
+        servletRequest);
     return ResponseEntity.noContent().build();
   }
 
@@ -379,8 +426,10 @@ public class ItemController {
   public ResponseEntity<ItemResponse> atualizar(
       Authentication authentication,
       @PathVariable("id") UUID id,
-      @Valid @RequestBody ItemUpsertRequest request) {
+      @Valid @RequestBody ItemUpsertRequest request,
+      HttpServletRequest servletRequest) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
+    ItemAuditSnapshot antes = itemAuditService.capturarSnapshot(item);
     List<String> arquivosNovos = List.of();
     Usuario usuarioAutenticado =
         ItemAccessUtils.buscarUsuarioAutenticado(authentication, usuarioRepository);
@@ -398,6 +447,12 @@ public class ItemController {
       arquivosNovos = atualizarArquivos(item, request.arquivosPdf(), request.nomesArquivos());
       Item salvo = itemRepository.save(item);
       notificacaoService.sincronizarComItem(salvo);
+      itemAuditService.registrar(
+          ItemAuditoriaAcao.ALTERADO,
+          antes,
+          itemAuditService.capturarSnapshot(salvo),
+          authentication,
+          servletRequest);
       return ResponseEntity.ok(ItemResponse.from(salvo));
     } catch (RuntimeException ex) {
       limparArquivosNovosAposFalha(arquivosNovos);
@@ -410,12 +465,20 @@ public class ItemController {
   public ResponseEntity<ItemResponse> atualizarObservacao(
       Authentication authentication,
       @PathVariable("id") UUID id,
-      @Valid @RequestBody ItemObservacaoUpdateRequest request) {
+      @Valid @RequestBody ItemObservacaoUpdateRequest request,
+      HttpServletRequest servletRequest) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
+    ItemAuditSnapshot antes = itemAuditService.capturarSnapshot(item);
     item.setObservacao(
         inputSanitizer.sanitizeMultilineText(
-            request.observacao(), "observacao", MAXIMO_CARACTERES_OBSERVACAO));
+            request.observacao(), CAMPO_OBSERVACAO, MAXIMO_CARACTERES_OBSERVACAO));
     Item salvo = itemRepository.save(item);
+    itemAuditService.registrar(
+        ItemAuditoriaAcao.OBSERVACAO_ALTERADA,
+        antes,
+        itemAuditService.capturarSnapshot(salvo),
+        authentication,
+        servletRequest);
     return ResponseEntity.ok(ItemResponse.from(salvo));
   }
 
@@ -424,14 +487,22 @@ public class ItemController {
   public ResponseEntity<ItemResponse> atualizarPagamento(
       Authentication authentication,
       @PathVariable("id") UUID id,
-      @Valid @RequestBody ItemPagamentoUpdateRequest request) {
+      @Valid @RequestBody ItemPagamentoUpdateRequest request,
+      HttpServletRequest servletRequest) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
+    ItemAuditSnapshot antes = itemAuditService.capturarSnapshot(item);
     if (item.getTipo() != TipoItem.DESPESA) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAGAMENTO_APENAS_DESPESA);
     }
     PagamentoApplyResult resultado = aplicarPagamento(item, request);
     try {
       Item salvo = itemRepository.save(item);
+      itemAuditService.registrar(
+          ItemAuditoriaAcao.PAGAMENTO_ALTERADO,
+          antes,
+          itemAuditService.capturarSnapshot(salvo),
+          authentication,
+          servletRequest);
       return ResponseEntity.ok(ItemResponse.from(salvo));
     } catch (RuntimeException ex) {
       limparArquivosNovosAposFalha(resultado.arquivosNovos());
@@ -444,22 +515,36 @@ public class ItemController {
   public ResponseEntity<ItemResponse> atualizarVerificacao(
       Authentication authentication,
       @PathVariable("id") UUID id,
-      @Valid @RequestBody ItemVerificacaoUpdateRequest request) {
+      @Valid @RequestBody ItemVerificacaoUpdateRequest request,
+      HttpServletRequest servletRequest) {
     Item item = buscarItemAutorizadoPorId(id, authentication);
+    ItemAuditSnapshot antes = itemAuditService.capturarSnapshot(item);
     validarPermissaoAtualizarVerificacao(authentication, item, request);
     item.setVerificado(Boolean.TRUE.equals(request.verificado()));
     Item salvo = itemRepository.save(item);
     notificacaoService.sincronizarComItem(salvo);
+    itemAuditService.registrar(
+        ItemAuditoriaAcao.VERIFICACAO_ALTERADA,
+        antes,
+        itemAuditService.capturarSnapshot(salvo),
+        authentication,
+        servletRequest);
     return ResponseEntity.ok(ItemResponse.from(salvo));
   }
 
   @DeleteMapping(ID_PATH)
   @Transactional
-  public ResponseEntity<Void> deletar(Authentication authentication, @PathVariable("id") UUID id) {
+  public ResponseEntity<Void> deletar(
+      Authentication authentication,
+      @PathVariable("id") UUID id,
+      HttpServletRequest servletRequest) {
     validarPermissaoExcluirItem(authentication);
     Item item = buscarItemAutorizadoPorId(id, authentication);
     validarItemNaoVerificadoParaExclusao(item);
+    ItemAuditSnapshot antes = itemAuditService.capturarSnapshot(item);
     notificacaoService.removerPorItemId(item.getId());
+    itemAuditService.registrar(
+        ItemAuditoriaAcao.EXCLUIDO, antes, null, authentication, servletRequest);
     itemRepository.delete(item);
     return ResponseEntity.noContent().build();
   }
@@ -484,6 +569,12 @@ public class ItemController {
     if (desmarcandoItemVerificado && temAuthority(authentication, SUPPORT_AUTHORITY)) {
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, ROLE_RESTRITA_NAO_PODE_DESMARCAR_ITEM);
+    }
+  }
+
+  private void validarPermissaoAtualizarDados(Authentication authentication) {
+    if (temAlgumaAuthority(authentication, ACCOUNTING_AUTHORITIES)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, CONTABIL_NAO_PODE_EDITAR_ITEM);
     }
   }
 
@@ -690,10 +781,10 @@ public class ItemController {
     item.setCnpjCpf(
         contaFinanceira
             ? null
-            : inputSanitizer.sanitizeInlineText(request.cnpjCpf(), "cnpjCpf", 32));
+            : inputSanitizer.sanitizeInlineText(request.cnpjCpf(), CAMPO_CNPJ_CPF, 32));
     item.setObservacao(
         inputSanitizer.sanitizeMultilineText(
-            request.observacao(), "observacao", MAXIMO_CARACTERES_OBSERVACAO));
+            request.observacao(), CAMPO_OBSERVACAO, MAXIMO_CARACTERES_OBSERVACAO));
   }
 
   private void validarCamposObrigatorios(ItemUpsertRequest request, boolean contaFinanceira) {
@@ -741,7 +832,7 @@ public class ItemController {
   }
 
   private String normalizarDocumento(String documento) {
-    String documentoSanitizado = inputSanitizer.sanitizeInlineText(documento, "cnpjCpf", 32);
+    String documentoSanitizado = inputSanitizer.sanitizeInlineText(documento, CAMPO_CNPJ_CPF, 32);
     if (documentoSanitizado == null) {
       return "";
     }
@@ -842,10 +933,7 @@ public class ItemController {
   }
 
   private ItemParcelaPagamento atualizarParcela(
-      Item item,
-      PagamentoContext context,
-      int indice,
-      List<String> arquivosNovos) {
+      Item item, PagamentoContext context, int indice, List<String> arquivosNovos) {
     ItemPagamentoParcelaUpdateRequest parcelaRequest = context.requestPorNumero().get(indice);
     ItemParcelaPagamento parcela =
         context.parcelaExistentePorNumero().getOrDefault(indice, new ItemParcelaPagamento());
@@ -1017,10 +1105,39 @@ public class ItemController {
       return;
     }
     Set<UUID> idsParaRemover = Set.copyOf(arquivosRemovidos);
-    parcela
-        .getArquivosComprovantes()
-        .removeIf(
-            arquivo -> idsParaRemover.contains(arquivo.getId()));
+    parcela.getArquivosComprovantes().removeIf(arquivo -> idsParaRemover.contains(arquivo.getId()));
+  }
+
+  @PatchMapping(ID_PATH + "/dados")
+  @Transactional
+  public ResponseEntity<ItemResponse> atualizarDados(
+      Authentication authentication,
+      @PathVariable("id") UUID id,
+      @Valid @RequestBody ItemDadosUpdateRequest request,
+      HttpServletRequest servletRequest) {
+    validarPermissaoAtualizarDados(authentication);
+    Item item = buscarItemAutorizadoPorId(id, authentication);
+    ItemAuditSnapshot antes = itemAuditService.capturarSnapshot(item);
+    validarCpfUnico(request.cnpjCpf(), item.getId());
+    item.setValor(request.valor());
+    item.setData(request.data());
+    item.setTipo(request.tipo());
+    item.setDescricao(inputSanitizer.sanitizeInlineText(request.descricao(), "descricao", 120));
+    item.setRazaoSocialNome(
+        inputSanitizer.sanitizeInlineText(request.razaoSocialNome(), "razaoSocialNome", 150));
+    item.setCnpjCpf(inputSanitizer.sanitizeInlineText(request.cnpjCpf(), CAMPO_CNPJ_CPF, 32));
+    item.setObservacao(
+        inputSanitizer.sanitizeMultilineText(
+            request.observacao(), CAMPO_OBSERVACAO, MAXIMO_CARACTERES_OBSERVACAO));
+    Item salvo = itemRepository.save(item);
+    notificacaoService.sincronizarComItem(salvo);
+    itemAuditService.registrar(
+        ItemAuditoriaAcao.ALTERADO,
+        antes,
+        itemAuditService.capturarSnapshot(salvo),
+        authentication,
+        servletRequest);
+    return ResponseEntity.ok(ItemResponse.from(salvo));
   }
 
   private void adicionarCaminhoSeValido(String caminho, List<String> caminhos) {

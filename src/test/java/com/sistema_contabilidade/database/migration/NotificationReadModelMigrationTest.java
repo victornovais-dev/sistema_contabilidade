@@ -7,6 +7,7 @@ import com.sistema_contabilidade.auth.model.SessaoUsuario;
 import com.sistema_contabilidade.duvida.model.Duvida;
 import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.ItemArquivo;
+import com.sistema_contabilidade.item.model.ItemAuditoria;
 import com.sistema_contabilidade.item.model.ItemDescricao;
 import com.sistema_contabilidade.item.model.ItemParcelaPagamento;
 import com.sistema_contabilidade.item.model.ItemParcelaPagamentoArquivo;
@@ -62,8 +63,9 @@ class NotificationReadModelMigrationTest {
     Flyway flyway = configureFlyway().load();
     flyway.migrate();
 
-    assertThat(flyway.info().current().getVersion()).isEqualTo(MigrationVersion.fromVersion("10"));
+    assertThat(flyway.info().current().getVersion()).isEqualTo(MigrationVersion.fromVersion("11"));
     assertPublicQuestionTableExists();
+    assertItemAuditTablePreservesIndependentHistory();
     assertNotificationDataWasReconciled();
     assertNotificationConstraintsAreEnforced();
     assertHibernateMappingsMatchMigratedSchema();
@@ -123,6 +125,41 @@ class NotificationReadModelMigrationTest {
                     + "where table_schema = database() and table_name = 'duvidas_publicas' "
                     + "and column_name = 'status' and column_default = 'PENDENTE'"))
         .isEqualTo(1);
+  }
+
+  private void assertItemAuditTablePreservesIndependentHistory() throws SQLException {
+    assertThat(
+            queryCount(
+                "select count(*) from information_schema.tables "
+                    + "where table_schema = database() and table_name = 'item_auditorias'"))
+        .isEqualTo(1);
+    assertThat(
+            queryCount(
+                "select count(*) from information_schema.referential_constraints "
+                    + "where constraint_schema = database() and table_name = 'item_auditorias'"))
+        .isZero();
+    assertThat(
+            queryCount(
+                "select count(distinct index_name) from information_schema.statistics "
+                    + "where table_schema = database() and table_name = 'item_auditorias' "
+                    + "and index_name in "
+                    + "('idx_item_auditorias_item_ocorrido', 'idx_item_auditorias_ocorrido')"))
+        .isEqualTo(2);
+
+    execute(
+        """
+        insert into item_auditorias
+          (id, item_id, acao, ator_id, ator_nome, ator_email, ocorrido_em, ip_origem,
+           user_agent, trace_id, alteracoes, snapshot_item)
+        values
+          (uuid_to_bin('70000000-0000-0000-0000-000000000001'),
+           uuid_to_bin('70000000-0000-0000-0000-000000000002'), 'CRIADO',
+           uuid_to_bin('70000000-0000-0000-0000-000000000003'), 'ator-cifrado',
+           'email-cifrado', '2026-09-04 12:00:00.000000', 'ip-cifrado', 'test-agent',
+           '0123456789abcdef0123456789abcdef', 'diff-cifrado', 'snapshot-cifrado')
+        """);
+
+    assertThat(queryCount("select count(*) from item_auditorias")).isEqualTo(1);
   }
 
   private void seedLegacyNotificationData() throws SQLException {
@@ -271,6 +308,7 @@ class NotificationReadModelMigrationTest {
             .addAnnotatedClass(Role.class)
             .addAnnotatedClass(Permissao.class)
             .addAnnotatedClass(Item.class)
+            .addAnnotatedClass(ItemAuditoria.class)
             .addAnnotatedClass(ItemArquivo.class)
             .addAnnotatedClass(ItemDescricao.class)
             .addAnnotatedClass(ItemParcelaPagamento.class)

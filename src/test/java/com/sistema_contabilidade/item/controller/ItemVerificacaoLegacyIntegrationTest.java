@@ -9,6 +9,8 @@ import com.sistema_contabilidade.item.model.Item;
 import com.sistema_contabilidade.item.model.TipoItem;
 import com.sistema_contabilidade.item.repository.ItemRepository;
 import com.sistema_contabilidade.notificacao.service.NotificacaoService;
+import com.sistema_contabilidade.usuario.model.Usuario;
+import com.sistema_contabilidade.usuario.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -18,6 +20,7 @@ import java.time.Month;
 import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,11 +38,26 @@ import org.springframework.test.web.servlet.MvcResult;
 @DisplayName("Item legacy verification integration tests")
 class ItemVerificacaoLegacyIntegrationTest {
 
+  private static final String ADMIN_EMAIL = "admin.legado.audit@email.com";
+
   @Autowired private MockMvc mockMvc;
   @Autowired private ItemRepository itemRepository;
+  @Autowired private UsuarioRepository usuarioRepository;
   @Autowired private DataSource dataSource;
 
   @MockitoBean private NotificacaoService notificacaoService;
+
+  @BeforeEach
+  void criarAtorAutenticado() {
+    if (usuarioRepository.findByEmail(ADMIN_EMAIL).isPresent()) {
+      return;
+    }
+    Usuario usuario = new Usuario();
+    usuario.setNome("Administrador de Auditoria");
+    usuario.setEmail(ADMIN_EMAIL);
+    usuario.setSenha("senha-de-teste");
+    usuarioRepository.save(usuario);
+  }
 
   @Test
   @DisplayName("Deve marcar item legado como verificado na primeira tentativa")
@@ -105,7 +123,7 @@ class ItemVerificacaoLegacyIntegrationTest {
 
   private UsernamePasswordAuthenticationToken adminAuthentication() {
     return new UsernamePasswordAuthenticationToken(
-        "admin@email.com", null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        ADMIN_EMAIL, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
   }
 
   private void inserirItemLegado(UUID itemId, boolean verificado) throws Exception {
